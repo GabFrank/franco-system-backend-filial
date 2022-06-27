@@ -1,0 +1,30 @@
+type Vuelto {
+    id:ID!
+    responsable: Funcionario
+    autorizadoPor: Funcionario
+    activo: Boolean
+    creadoEn: Date
+    usuario: Usuario
+    vueltoItemList: [VueltoItem]
+}
+
+input VueltoInput {
+    id:ID
+    responsableId: Int
+    autorizadoPorId: Int
+    activo: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    vuelto(id:ID!):Vuelto
+    vueltos(page:Int = 0, size:Int = 10):[Vuelto]!
+    countVuelto: Int
+}
+
+extend type Mutation {
+    saveVuelto(vuelto:VueltoInput!):Vuelto!
+    deleteVuelto(id:ID!):Boolean!
+}
+
+

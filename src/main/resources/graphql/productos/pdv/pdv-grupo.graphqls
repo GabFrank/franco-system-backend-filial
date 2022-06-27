@@ -1,0 +1,31 @@
+type PdvGrupo {
+    id:ID!
+    descripcion: String
+    activo: Boolean
+    pdvCategoria: PdvCategoria
+    pdvGruposProductos: [PdvGruposProductos]
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input PdvGrupoInput {
+    id:Int
+    descripcion: String
+    pdvCategoria: Int
+    activo: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    pdvGrupo(id:ID!):PdvGrupo
+    pdvGrupos(page:Int = 0, size:Int = 10):[PdvGrupo]!
+    countPdvGrupo: Int
+    pdvGrupoSearch(texto:String):[PdvGrupo]
+
+}
+
+extend type Mutation {
+    savePdvGrupo(pdvGrupo:PdvGrupoInput!):PdvGrupo!
+    deletePdvGrupo(id:ID!):Boolean!
+}
+

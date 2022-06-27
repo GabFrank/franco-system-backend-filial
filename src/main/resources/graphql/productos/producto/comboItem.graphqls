@@ -1,0 +1,33 @@
+type ComboItem {
+    id: ID!
+    combo: Combo
+    producto: Producto
+    intercambiablePorProducto: Producto
+    cantidad: Float
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input ComboItemInput {
+    id: ID
+    comboId: Int
+    productoId: Int
+    intercambiablePorProductoId: Int
+    cantidad: Float
+    usuarioId: Int
+}
+
+extend type Query {
+    comboItem(id:ID!):ComboItem
+    comboItems(page:Int = 0, size:Int = 10):[ComboItem]!
+    countComboItem: Int
+    comboItemPorProductoId(id:ID!):[ComboItem]
+    comboItemPorComboId(id:ID!):[ComboItem]
+}
+
+extend type Mutation {
+    saveComboItem(comboItem:ComboItemInput!):ComboItem!
+    deleteComboItem(id:ID!):Boolean!
+}
+
+

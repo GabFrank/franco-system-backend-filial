@@ -1,0 +1,35 @@
+type InventarioProducto {
+    id:ID!
+    idCentral: Int
+    idOrigen: Int
+    inventario: Inventario
+    producto: Producto
+    zona: Zona
+    concluido: Boolean
+    usuario: Usuario
+    inventarioProductoItemList: [InventarioProductoItem]
+}
+
+input InventarioProductoInput {
+    id:Int
+    idCentral: Int
+    idOrigen: Int
+    inventarioId: Int
+    productoId: Int
+    zonaId: Int
+    concluido: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    inventarioProducto(id:ID!):InventarioProducto
+    inventarioProductos(page:Int = 0, size:Int = 10):[InventarioProducto]!
+}
+
+extend type Mutation {
+    saveInventarioProducto(inventarioProducto:InventarioProductoInput!):InventarioProducto!
+    deleteInventarioProducto(id:ID!):Boolean!
+}
+
+
+

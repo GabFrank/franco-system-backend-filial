@@ -1,0 +1,28 @@
+type Combo {
+    id: ID!
+    producto: Producto
+    valorTotal: Float
+    usuario: Usuario
+    comboItens:[ComboItem]
+}
+
+input ComboInput {
+    id: ID
+    productoId: Int
+    valorTotal: Float
+    usuarioId: Int
+}
+
+extend type Query {
+    combo(id:ID!):Combo
+    combos(page:Int = 0, size:Int = 10):[Combo]!
+    countCombo: Int
+    comboPorProductoId(id:Int):Combo
+}
+
+extend type Mutation {
+    saveCombo(combo:ComboInput!):Combo!
+    deleteCombo(id:ID!):Boolean!
+}
+
+

@@ -1,0 +1,76 @@
+type Delivery {
+    id: ID!
+    venta: Venta
+    entregador: Funcionario
+    vehiculo: Int
+    direccion: String
+    telefono: String
+    creadoEn: Date
+    usuario: Usuario
+    estado: DeliveryEstado
+    precio: PrecioDelivery
+    valor: Float
+    barrio: Barrio
+    vuelto: Vuelto
+    formaPago: FormaPago
+}
+
+type DeliveryUpdate {
+    id: ID!
+    venta: Venta
+    entregador: Funcionario
+    vehiculo: Int
+    direccion: String
+    telefono: String
+    creadoEn: Date
+    usuario: Usuario
+    estado: DeliveryEstado
+    precio: PrecioDelivery
+    valor: Float
+    barrio: Barrio
+    vuelto: Vuelto
+    formaPago: FormaPago
+}
+
+input DeliveryInput {
+    id: ID
+    ventaId: Int
+    entregadorId: Int
+    vehiculoId: Int
+    direccion: String
+    telefono: String
+    estado: DeliveryEstado
+    precioId: Int
+    usuarioId: Int
+    valor: Float
+    barrioId: Int
+    vueltoId: Int
+    formaPagoId: Int
+}
+
+extend type Query {
+    delivery(id:ID!):Delivery
+    deliverys(page:Int = 0, size:Int = 10):[Delivery]!
+    deliverysByEstado(estado: DeliveryEstado):[Delivery]
+    deliverysByEstadoNotIn(estado: DeliveryEstado):[Delivery]
+    deliverysUltimos10:[Delivery]
+    countDelivery: Int
+}
+
+extend type Mutation {
+    saveDelivery(delivery:DeliveryInput!):Delivery!
+    deleteDelivery(id:ID!):Boolean!
+}
+
+enum DeliveryEstado {
+    ABIERTO, EN_CAMINO, ENTREGADO, CANCELADO, DEVOLVIDO
+}
+
+extend type Subscription {
+    deliverys: Delivery!
+}
+
+
+
+
+

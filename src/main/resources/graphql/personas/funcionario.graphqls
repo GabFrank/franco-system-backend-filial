@@ -1,0 +1,49 @@
+type Funcionario {
+    id:ID!
+    persona: Persona
+    cargo: Cargo
+    credito: Float
+    fechaIngreso: Date
+    sueldo: Float
+    supervisadoPor: Funcionario
+    fasePrueba: Boolean
+    diarista: Boolean
+    sucursal: Sucursal
+    creadoEn: Date
+    usuario: Usuario
+    activo: Boolean
+    nickname: String
+}
+
+input FuncionarioInput {
+    id:ID,
+    personaId: Int
+    cargoId: Int
+    credito: Float
+    fechaIngreso: Date
+    sueldo: Float
+    supervisadoPorId: Int
+    fasePrueba: Boolean
+    diarista: Boolean
+    creadoEn: Date
+    sucursalId: Int
+    usuarioId: Int
+    activo: Boolean
+}
+
+extend type Query {
+    funcionario(id:ID!):Funcionario
+    funcionariosSearch(texto:String):[Funcionario]
+    funcionarios(page:Int = 0, size:Int = 10):[Funcionario]!
+    countFuncionario:Int
+}
+
+extend type Mutation {
+    saveFuncionario(funcionario:FuncionarioInput!):Funcionario!
+    deleteFuncionario(id:ID!):Boolean!
+}
+
+
+
+
+

@@ -1,0 +1,62 @@
+type CompraItem {
+    id:ID!
+    compra: Compra
+    producto: Producto
+    cantidad: Float
+    precioUnitario: Float
+    descuentoUnitario: Float
+    valorTotal: Float
+    bonificacion: Boolean
+    observacion: String
+    lote: String
+    vencimiento: Date
+    estado: CompraItemEstado
+    creadoEn: Date
+    usuario: Usuario
+    pedidoItem: PedidoItem
+    presentacion: Presentacion
+    verificado: Boolean
+    programarPrecio: ProgramarPrecio
+}
+
+input CompraItemInput {
+    id:ID
+    compraId: Int
+    cantidad: Float
+    precioUnitario: Float
+    descuentoUnitario: Float
+    valorTotal: Float
+    bonificacion: Boolean
+    observacion: String
+    frio: Boolean
+    lote: String
+    estado: CompraItemEstado
+    usuarioId: Int
+    creadoEn: Date
+    pedidoItemId: Int
+    presentacionId: Int
+    productoId: Int
+    vencimiento: Date
+    verificado: Boolean
+    programarPrecioId: Int
+}
+
+extend type Query {
+    compraItem(id:ID!):CompraItem
+    compraItens(page:Int = 0, size:Int = 10):[CompraItem]!
+    countCompraItem: Int
+    compraItemPorProductoId(id: ID!):[CompraItem]
+    compraItemPorCompraId(id: ID!):[CompraItem]
+}
+
+extend type Mutation {
+    saveCompraItem(compraItem:CompraItemInput!):CompraItem!
+    deleteCompraItem(id:ID!):Boolean!
+}
+
+enum CompraItemEstado {
+    SIN_MODIFICACION,
+    MODIFICADO
+}
+
+

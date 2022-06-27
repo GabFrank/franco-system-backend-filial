@@ -1,0 +1,31 @@
+type Maletin {
+    id:ID!
+    descripcion: String
+    activo: Boolean
+    abierto: Boolean
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input MaletinInput {
+    id:ID
+    descripcion: String
+    activo: Boolean
+    abierto: Boolean
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    maletin(id:ID!):Maletin
+    maletines(page:Int = 0, size:Int = 10):[Maletin]!
+    countMaletin: Int
+    maletinPorDescripcion(texto: String):Maletin
+    searchMaletin(texto: String):[Maletin]
+}
+
+extend type Mutation {
+    saveMaletin(maletin:MaletinInput!):Maletin!
+    deleteMaletin(id:ID!):Boolean!
+}
+

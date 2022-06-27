@@ -1,0 +1,54 @@
+type Inventario {
+    id:ID!
+    idCentral: Int
+    idOrigen: Int
+    sucursal: Sucursal
+    fechaInicio: Date
+    fechaFin: Date
+    abierto: Boolean
+    tipo: TipoInventario
+    estado: InventarioEstado
+    observacion: String
+    usuario: Usuario
+    inventarioProductoList: [InventarioProducto]
+}
+
+input InventarioInput {
+    id:Int
+    sucursalId: Int
+    fechaInicio: String
+    fechaFin: String
+    abierto: Boolean
+    tipo: TipoInventario
+    estado: InventarioEstado
+    observacion: String
+    usuarioId: Int
+}
+
+extend type Query {
+    inventario(id:ID!):Inventario
+    inventarioList(page:Int = 0, size:Int = 10):[Inventario]!
+    countInventario: Int
+    inventarioPorFecha(inicio: String, fin: String):[Inventario]
+    inventarioPorUsuario(id: ID!):[Inventario]!
+}
+
+extend type Mutation {
+    saveInventario(inventario:InventarioInput!):Inventario!
+    deleteInventario(id:ID!):Boolean!
+}
+
+enum InventarioEstado {
+  ABIERTO,
+  CANCELADO,
+  CONCLUIDO
+}
+
+enum TipoInventario {
+  ABC,
+  ZONA,
+  PRODUCTO,
+  CATEGORIA
+}
+
+

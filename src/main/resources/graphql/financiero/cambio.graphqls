@@ -1,0 +1,31 @@
+type Cambio {
+    id:ID!
+    valorEnGs: Float
+    valorEnGsCambio: Float
+    activo: Boolean
+    moneda: Moneda
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input CambioInput {
+    id:Int
+    valorEnGs: Float
+    valorEnGsCambio: Float
+    activo: Boolean
+    monedaId: Int
+    usuarioId: Int
+}
+
+extend type Query {
+    cambio(id:ID!):Cambio
+    cambios(page:Int = 0, size:Int = 10):[Cambio]!
+    ultimoCambioPorMonedaId(id: Int): Cambio
+    countCambio: Int
+}
+
+extend type Mutation {
+    saveCambio(cambio:CambioInput!):Cambio!
+    deleteCambio(id:ID!):Boolean!
+}
+

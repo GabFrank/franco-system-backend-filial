@@ -1,0 +1,42 @@
+type Subfamilia {
+    id:ID!
+    nombre: String
+    descripcion: String
+    familia: Familia
+    subfamilia: Subfamilia
+    activo: Boolean
+    creadoEn: Date
+    usuario: Usuario
+    productos: [Producto]
+    subfamiliaList: [Subfamilia]
+    icono: String
+    posicion: Int
+}
+
+input SubfamiliaInput {
+    id: ID
+    nombre: String
+    descripcion: String
+    activo: Boolean
+    familiaId: Int
+    subfamiliaId: Int
+    creadoEn: Date
+    usuarioId: ID
+    icono: String
+    posicion: Int
+
+}
+
+extend type Query {
+
+    subfamilia(id:ID!):Subfamilia
+    subfamilias(page:Int = 0, size:Int = 10):[Subfamilia]!
+    countSubfamilia: Int
+    subfamiliaSearch(texto:String):[Subfamilia]
+}
+
+extend type Mutation {
+    saveSubfamilia(subfamilia:SubfamiliaInput!):Subfamilia!
+    deleteSubfamilia(id:ID!):Boolean!
+}
+

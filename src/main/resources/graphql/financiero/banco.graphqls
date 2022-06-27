@@ -1,0 +1,26 @@
+type Banco {
+    id:ID!
+    nombre: String
+    codigo: String
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input BancoInput {
+    id:ID
+    nombre: String
+    codigo: String
+    usuarioId: Int
+}
+
+extend type Query {
+    banco(id:ID!):Banco
+    bancos(page:Int = 0, size:Int = 10):[Banco]!
+    countBanco: Int
+}
+
+extend type Mutation {
+    saveBanco(banco:BancoInput!):Banco!
+    deleteBanco(id:ID!):Boolean!
+}
+

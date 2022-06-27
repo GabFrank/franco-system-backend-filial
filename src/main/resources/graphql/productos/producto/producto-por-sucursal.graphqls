@@ -1,0 +1,36 @@
+type ProductoPorSucursal {
+    id: ID!
+    producto: Producto
+    sucursal: Sucursal
+    cantMinima: Float
+    cantMedia: Float
+    cantMaxima: Float
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input ProductoPorSucursalInput {
+    id: ID
+    productoId: Int
+    sucursalId: Int
+    cantMinima: Float
+    cantMedia: Float
+    cantMaxima: Float
+    usuarioId: Int
+}
+
+extend type Query {
+    productoPorSucursal(id:ID!):ProductoPorSucursal
+    productosPorSucursales(page:Int = 0, size:Int = 10):[ProductoPorSucursal]!
+    countProductoPorSucursal: Int
+    productoPorSucursalPorProductoId(id:Int):[ProductoPorSucursal]
+    productoPorSucursalPorSucursalId(id:Int):[ProductoPorSucursal]
+    productoPorSucursalPorProIdSucId(id:Int, id:Int):ProductoPorSucursal
+}
+
+extend type Mutation {
+    saveProductoPorSucursal(productoPorSucursal:ProductoPorSucursalInput!):ProductoPorSucursal!
+    deleteProductoPorSucursal(id:ID!):Boolean!
+}
+
+

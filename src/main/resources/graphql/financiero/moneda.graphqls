@@ -1,0 +1,33 @@
+type Moneda {
+    id:ID!
+    denominacion: String
+    simbolo: String
+    pais: Pais
+    creadoEn: Date
+    usuario: Usuario
+    cambio: Float
+    monedaBilleteList: [MonedaBilletes]
+}
+
+input MonedaInput {
+    id:Int
+    denominacion: String
+    simbolo: String
+    paisId: Int
+    usuarioId: Int
+}
+
+extend type Query {
+    moneda(id:ID!):Moneda
+#    monedaPorPais(paisId:ID): [Moneda]
+    monedas(page:Int = 0, size:Int = 10):[Moneda]!
+    monedasSearch(texto: String): [Moneda]
+    countMoneda: Int
+}
+
+extend type Mutation {
+
+    saveMoneda(moneda:MonedaInput!):Moneda!
+    deleteMoneda(id:ID!):Boolean!
+}
+

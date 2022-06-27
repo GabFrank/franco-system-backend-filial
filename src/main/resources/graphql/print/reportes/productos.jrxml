@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.17.0.final using JasperReports Library version 6.17.0-6d93193241dd8cc42629e188b94f9e0bc5722efd  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="productos" pageWidth="164" pageHeight="425" columnWidth="136" leftMargin="14" rightMargin="14" topMargin="20" bottomMargin="20" uuid="18c8e238-f96a-4cce-8e94-500024f5d373">
+    <property name="com.jaspersoft.studio.unit." value="mm"/>
+    <property name="com.jaspersoft.studio.unit.pageHeight" value="mm"/>
+    <property name="com.jaspersoft.studio.unit.pageWidth" value="mm"/>
+    <property name="com.jaspersoft.studio.unit.topMargin" value="mm"/>
+    <property name="com.jaspersoft.studio.unit.bottomMargin" value="mm"/>
+    <property name="com.jaspersoft.studio.unit.leftMargin" value="mm"/>
+    <property name="com.jaspersoft.studio.unit.rightMargin" value="mm"/>
+    <property name="com.jaspersoft.studio.unit.columnWidth" value="mm"/>
+    <property name="com.jaspersoft.studio.unit.columnSpacing" value="mm"/>
+<!--    <field name="id" class="java.lang.Long">-->
+<!--        <property name="com.jaspersoft.studio.field.name" value="id"/>-->
+<!--        <property name="com.jaspersoft.studio.field.label" value="id"/>-->
+<!--        <property name="com.jaspersoft.studio.field.tree.path" value="producto"/>-->
+<!--    </field>-->
+<!--    <field name="descripcion" class="java.lang.String">-->
+<!--        <property name="com.jaspersoft.studio.field.name" value="descripcion"/>-->
+<!--        <property name="com.jaspersoft.studio.field.label" value="descripcion"/>-->
+<!--        <property name="com.jaspersoft.studio.field.tree.path" value="producto"/>-->
+<!--        <fieldDescription><![CDATA[Descripcion del producto]]></fieldDescription>-->
+<!--    </field>-->
+<!--    <field name="iva" class="java.lang.String">-->
+<!--        <property name="com.jaspersoft.studio.field.name" value="iva"/>-->
+<!--        <property name="com.jaspersoft.studio.field.label" value="iva"/>-->
+<!--        <property name="com.jaspersoft.studio.field.tree.path" value="producto"/>-->
+<!--    </field>-->
+    <background>
+        <band splitType="Stretch"/>
+    </background>
+    <title>
+        <band height="71" splitType="Stretch">
+            <image>
+                <reportElement x="10" y="0" width="116" height="60" uuid="6cb44e79-dbee-44be-97cd-a2f8412ea26c"/>
+                <imageExpression><![CDATA["/Users/gabfranck/Downloads/bodegafrancologo-removebg-preview (1).png"]]></imageExpression>
+            </image>
+        </band>
+    </title>
+<!--    <pageHeader>-->
+<!--        <band height="28" splitType="Stretch">-->
+<!--            <staticText>-->
+<!--                <reportElement x="-2" y="4" width="140" height="16" uuid="80759b01-0203-4010-8758-8e57f26e3dcf"/>-->
+<!--                <textElement textAlignment="Center">-->
+<!--                    <font size="12" isUnderline="true"/>-->
+<!--                </textElement>-->
+<!--                <text><![CDATA[Lista de productos]]></text>-->
+<!--            </staticText>-->
+<!--        </band>-->
+<!--    </pageHeader>-->
+<!--    <detail>-->
+<!--        <band height="79" splitType="Stretch">-->
+<!--            <staticText>-->
+<!--                <reportElement x="0" y="0" width="30" height="20" uuid="50408205-5d00-4877-8c15-cfaf8b605a35"/>-->
+<!--                <text><![CDATA[ID:]]></text>-->
+<!--            </staticText>-->
+<!--            <staticText>-->
+<!--                <reportElement x="0" y="20" width="132" height="20" uuid="2bc882ec-f8e1-49c3-9a84-05d77ea783a9"/>-->
+<!--                <text><![CDATA[Descripción:]]></text>-->
+<!--            </staticText>-->
+<!--            <staticText>-->
+<!--                <reportElement x="1" y="52" width="28" height="20" uuid="9395daca-bf49-4d31-b130-6a2525118c62"/>-->
+<!--                <text><![CDATA[IVA:]]></text>-->
+<!--            </staticText>-->
+<!--        </band>-->
+<!--    </detail>-->
+<!--    <pageFooter>-->
+<!--        <band height="54" splitType="Stretch">-->
+<!--            <componentElement>-->
+<!--                <reportElement x="15" y="2" width="113" height="50" uuid="f0c5af84-3486-4203-8d47-6d28bdc14be5"/>-->
+<!--                <jr:EAN13 xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd">-->
+<!--                    <jr:codeExpression><![CDATA["123456789012"]]></jr:codeExpression>-->
+<!--                </jr:EAN13>-->
+<!--            </componentElement>-->
+<!--        </band>-->
+<!--    </pageFooter>-->
+    <summary>
+        <band height="47" splitType="Stretch">
+            <staticText>
+                <reportElement x="4" y="15" width="128" height="17" uuid="eadea767-5f66-4091-9356-407717ffdbc4"/>
+                <textElement textAlignment="Center"/>
+                <text><![CDATA[Gracias por preferirnos!!]]></text>
+            </staticText>
+        </band>
+    </summary>
+</jasperReport>

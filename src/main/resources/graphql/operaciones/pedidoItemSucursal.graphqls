@@ -1,0 +1,33 @@
+type PedidoItemSucursal {
+    id:ID!
+    PedidoItem: PedidoItem
+    sucursal: Sucursal
+    sucursalEntrega: Sucursal
+    cantidad: Float
+    creadoEn: Date
+    usuario: Usuario
+    
+}
+
+input PedidoItemSucursalInput {
+    id:ID
+    pedidoItemId: Int
+    sucursalId: Int
+    sucursalEntregaId: Int
+    cantidad: Float
+    usuarioId: Int
+}
+
+extend type Query {
+    pedidoItemSucursal(id:ID!):PedidoItemSucursal
+    pedidoItensSucursal(page:Int = 0, size:Int = 10):[PedidoItemSucursal]!
+    countPedidoItemSucursal: Int
+}
+
+extend type Mutation {
+    savePedidoItemSucursal(pedidoItemSucursal:PedidoItemSucursalInput!):PedidoItemSucursal!
+    deletePedidoItemSucursal(id:ID!):Boolean!
+}
+
+
+

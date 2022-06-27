@@ -1,0 +1,49 @@
+type NecesidadItem {
+    id:ID!
+    necesidad: Necesidad
+    producto: Producto
+    autogenerado: Boolean
+    cantidadSugerida: Float
+    modificado: Boolean
+    cantidad: Float
+    frio: Boolean
+    observacion: String
+    estado: NecesidadItemEstado
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input NecesidadItemInput {
+    id:ID
+    necesidadId: Int
+    productoId: Int
+    autogenerado: Boolean
+    cantidadSugerida: Float
+    modificado: Boolean
+    cantidad: Float
+    frio: Boolean
+    observacion: String
+    estado: NecesidadItemEstado
+    usuarioId: Int
+}
+
+extend type Query {
+    necesidadItem(id:ID!):NecesidadItem
+    necesidadItens(page:Int = 0, size:Int = 10):[NecesidadItem]!
+    countNecesidadItem: Int
+}
+
+extend type Mutation {
+    saveNecesidadItem(necesidadItem:NecesidadItemInput!):NecesidadItem!
+    deleteNecesidadItem(id:ID!):Boolean!
+}
+
+enum NecesidadItemEstado {
+    ACTIVO,
+    CANCELADO,
+    DEVOLUCION,
+    CONCLUIDO,
+    EN_FALTA
+}
+
+

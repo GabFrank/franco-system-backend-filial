@@ -1,0 +1,31 @@
+type Barrio {
+    id:ID!
+    descripcion: String
+    ciudad: Ciudad
+    precioDelivery: PrecioDelivery
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input BarrioInput {
+    id:ID
+    descripcion: String
+    ciudadId: Int
+    precioDeliveryId: Int
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    barrio(id:ID!):Barrio
+    barrios(page:Int = 0, size:Int = 10):[Barrio]!
+    barriosSearch(texto:String):[Barrio]
+    barriosPorCiudadId(id:Int):[Barrio]
+    countBarrio: Int
+}
+
+extend type Mutation {
+    saveBarrio(barrio:BarrioInput!):Barrio!
+    deleteBarrio(id:ID!):Boolean!
+}
+

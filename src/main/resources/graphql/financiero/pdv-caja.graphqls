@@ -1,0 +1,58 @@
+type PdvCaja {
+    id:ID!
+    descripcion: String,
+    activo: Boolean,
+    estado: PdvCajaEstado,
+    tuvoProblema: Boolean,
+    fechaApertura: Date,
+    fechaCierre: Date,
+    observacion: String,
+    maletin: Maletin,
+    creadoEn: Date
+    usuario: Usuario
+    conteoApertura: Conteo
+    conteoCierre: Conteo
+    balance: CajaBalance
+}
+
+input PdvCajaInput {
+    id:ID
+    descripcion: String,
+    activo: Boolean,
+    estado: PdvCajaEstado,
+    tuvoProblema: Boolean,
+    fechaApertura: Date,
+    fechaCierre: Date,
+    observacion: String,
+    maletinId: Int,
+    creadoEn: Date
+    usuarioId: Int
+    conteoAperturaId: Int
+    conteoCierreId: Int
+}
+
+extend type Query {
+    pdvCaja(id:ID!):PdvCaja
+    pdvCajas(page:Int = 0, size:Int = 10):[PdvCaja]!
+    pdvCajas(page:Int = 0, size:Int = 10):[PdvCaja]!
+    countPdvCaja: Int
+    cajasPorFecha(inicio:String, fin:String):[PdvCaja]
+    cajaAbiertoPorUsuarioId(id:ID!):PdvCaja
+    imprimirBalance(id:ID!):PdvCaja
+}
+
+extend type Mutation {
+    savePdvCaja(pdvCaja:PdvCajaInput!):PdvCaja!
+    deletePdvCaja(id:ID!):Boolean!
+
+}
+
+enum PdvCajaEstado {
+    EN_PROCESO  ,
+    CONCLUIDO,
+    NECESITA_VERIFICACION,
+    EN_VERIFICACION,
+    VERIFICADO_CONCLUIDO_SIN_PROBLEMA,
+    VERIFICADO_CONCLUIDO_CON_PROBLEMA
+}
+

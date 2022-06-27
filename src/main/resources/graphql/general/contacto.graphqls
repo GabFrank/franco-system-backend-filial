@@ -1,0 +1,31 @@
+type Contacto {
+    id:ID!
+    email: String
+    telefono: String
+    persona: Persona
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input ContactoInput {
+    id:ID!
+    email: String
+    telefono: String
+    personaId: Int
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    contacto(id:ID!):Contacto
+    contactos(page:Int = 0, size:Int = 10):[Contacto]!
+    contactoPorTelefonoONombre(texto: String): [Contacto]
+    countContacto: Int
+}
+
+extend type Mutation {
+
+    saveContacto(contacto:ContactoInput!):Contacto!
+    deleteContacto(id:ID!):Boolean!
+}
+

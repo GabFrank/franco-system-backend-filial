@@ -1,0 +1,34 @@
+type Cliente {
+    id:ID!
+    persona: Persona
+    nombre: String
+    credito: Float
+    creadoEn: Date
+    contactos: [Contacto]
+    usuarioId: Usuario
+}
+
+input ClienteInput {
+
+    id:ID
+    personaId: ID!
+    credito: Float!
+    creadoEn: Date
+    usuarioId: ID
+
+}
+
+extend type Query {
+    cliente(id:ID!):Cliente
+    clientePorPersonaId(id:ID): Cliente
+    clientePorPersona(texto:String): [Cliente]
+    clientePorTelefono(texto:String): [Cliente]
+    clientes(page:Int = 0, size:Int = 10):[Cliente]!
+    countCliente: Int
+}
+
+extend type Mutation {
+    saveCliente(cliente:ClienteInput!):Cliente!
+    deleteCliente(id:ID!):Boolean!
+}
+

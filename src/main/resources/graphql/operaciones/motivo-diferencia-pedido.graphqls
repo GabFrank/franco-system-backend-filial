@@ -1,0 +1,28 @@
+type MotivoDiferenciaPedido {
+    id:ID!
+    tipo: String
+    descripcion: String
+    usuario: Usuario
+}
+
+input MotivoDiferenciaPedidoInput {
+    id:ID
+    pedidoId: Int
+    nroNota: String
+    usuarioId: Int
+}
+
+extend type Query {
+    motivoDiferenciaPedido(id:ID!):MotivoDiferenciaPedido
+    motivoDiferenciaPedidos(page:Int = 0, size:Int = 10):[MotivoDiferenciaPedido]!
+    countMotivoDiferenciaPedido: Int
+}
+
+extend type Mutation {
+    saveMotivoDiferenciaPedido(MotivoDiferenciaPedido:MotivoDiferenciaPedidoInput!):MotivoDiferenciaPedido!
+    deleteMotivoDiferenciaPedido(id:ID!):Boolean!
+}
+
+
+
+

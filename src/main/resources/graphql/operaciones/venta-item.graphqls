@@ -1,0 +1,44 @@
+type VentaItem {
+    id:ID!
+    venta: Venta
+    producto: Producto
+    presentacion: Presentacion
+    cantidad: Float
+    precioCosto: Float
+    precioVenta: PrecioPorSucursal
+    valorDescuento: Float
+    unidadMedida: UnidadMedida
+    creadoEn: Date
+    usuario: Usuario
+    valorTotal: Float
+
+}
+
+input VentaItemInput {
+    id:ID
+    ventaId: Int
+    productoId: Int
+    productoDescripcion: String
+    presentacionId: Int
+    presentacionDescripcion: String
+    cantidad: Float
+    precioCosto: Float
+    precioVentaId: Int
+    precioVenta: Float
+    valorDescuento: Float
+    usuarioId: Int
+}
+
+extend type Query {
+    ventaItem(id:ID!):VentaItem
+    ventaItems(page:Int = 0, size:Int = 10):[VentaItem]!
+    countVentaItem: Int
+    ventaItemListPorVentaId(id:ID!):[VentaItem]
+}
+
+extend type Mutation {
+    saveVentaItem(ventaItem:VentaItemInput!):VentaItem!
+    deleteVentaItem(id:ID!):Boolean!
+}
+
+

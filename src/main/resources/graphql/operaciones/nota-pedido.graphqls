@@ -1,0 +1,26 @@
+type NotaPedido {
+    id:ID!
+    pedido: Pedido
+    nroNota: String
+    usuario: Usuario
+}
+
+input NotaPedidoInput {
+    id:ID
+    pedidoId: Int
+    nroNota: String
+    usuarioId: Int
+}
+
+extend type Query {
+    notaPedido(id:ID!):NotaPedido
+    notaPedidos(page:Int = 0, size:Int = 10):[NotaPedido]!
+    countNotaPedido: Int
+}
+
+extend type Mutation {
+    saveNotaPedido(NotaPedido:NotaPedidoInput!):NotaPedido!
+    deleteNotaPedido(id:ID!):Boolean!
+}
+
+

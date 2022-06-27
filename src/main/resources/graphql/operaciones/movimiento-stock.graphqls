@@ -1,0 +1,42 @@
+type MovimientoStock {
+    id:ID!
+    producto: Producto
+    tipoMovimiento: TipoMovimiento
+    referencia: Int
+    creadoEn: Date
+    usuario: Usuario
+    cantidad: Float
+    estado: Boolean
+    sucursal: Sucursal
+    proveedor: Proveedor
+}
+
+input MovimientoStockInput {
+    id:ID!
+    productoId: Int
+    tipoMovimiento: TipoMovimiento
+    referencia: Int
+    usuarioId: Int
+    cantidad: Float
+    estado: Boolean
+    sucursalId: Int
+}
+
+extend type Query {
+    movimientoStock(id:ID!):MovimientoStock
+    movimientosStock(page:Int = 0, size:Int = 10):[MovimientoStock]!
+    countMovimientoStock: Int
+    movimientoStockByFecha(inicio: String, fin: String):[MovimientoStock]
+    stockPorProducto(id:ID!):Float
+}
+
+extend type Mutation {
+    saveMovimientoStock(movimientoStock:MovimientoStockInput!):MovimientoStock!
+    deleteMovimientoStock(id:ID!):Boolean!
+}
+
+enum TipoMovimiento {
+    COMPRA, VENTA, DEVOLUCION, DESCARTE, AJUSTE, TRANSFERENCIA, CALCULO, ENTRADA, SALIDA
+}
+
+

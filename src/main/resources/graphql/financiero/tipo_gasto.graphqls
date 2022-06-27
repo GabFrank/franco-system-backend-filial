@@ -1,0 +1,38 @@
+type TipoGasto {
+    id:ID!
+    isClasificacion: Boolean
+    clasificacionGasto: TipoGasto
+    descripcion: String
+    autorizacion: Boolean
+    cargo: Cargo
+    activo: Boolean
+    creadoEn: Date
+    usuario: Usuario
+    subtipoList: [TipoGasto]
+}
+
+input TipoGastoInput {
+    id:ID
+    isClasificacion: Boolean
+    clasificacionGastoId: Int
+    descripcion: String
+    autorizacion: Boolean
+    cargoId: Int
+    activo: Boolean
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    tipoGasto(id:ID!):TipoGasto
+    tipoGastosSearch(texto: String):[TipoGasto]
+    tipoGastos(page:Int = 0, size:Int = 10):[TipoGasto]!
+    rootTipoGasto:[TipoGasto]!
+    countTipoGasto: Int
+}
+
+extend type Mutation {
+    saveTipoGasto(tipoGasto:TipoGastoInput!):TipoGasto!
+    deleteTipoGasto(id:ID!):Boolean!
+}
+

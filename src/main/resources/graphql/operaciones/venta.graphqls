@@ -1,0 +1,59 @@
+type Venta {
+    id:ID!
+    caja: PdvCaja
+    cliente: Cliente
+    formaPago: FormaPago
+    estado: VentaEstado
+    creadoEn: Date
+    usuario: Usuario
+    ventaItemList: [VentaItem]
+    valorDescuento: Float
+    valorTotal: Float
+    totalGs: Float
+    totalRs: Float
+    totalDs: Float
+    cobro: Cobro
+}
+
+input VentaInput {
+    id:Int
+    cajaId: Int
+    cobroId: Int
+    clienteId: Int
+    formaPagoId: Int
+    estado: VentaEstado
+    usuarioId: Int
+    creadoEn: Date
+    totalGs: Float
+    totalRs: Float
+    totalDs: Float
+}
+
+extend type Query {
+    venta(id:ID!):Venta
+    ventas(page:Int = 0, size:Int = 10):[Venta]!
+    countVenta: Int
+    ventasPorCajaId(id:ID!, offset: Int):[Venta]
+    ventaPorPeriodo(inicio:String, fin:String): [VentaPorPeriodo]
+}
+
+extend type Mutation {
+    saveVenta(ventaInput:VentaInput!, ventaItemList: [VentaItemInput], cobro: CobroInput, cobroDetalleList: [CobroDetalleInput], ticket: Boolean):Boolean
+    deleteVenta(id:ID!):Boolean!
+    cancelarVenta(id:ID!):Boolean!
+    reimprimirVenta(id:ID!):Boolean!
+}
+
+enum VentaEstado {
+    ABIERTA, CANCELADA, CONCLUIDA, EN_VERIFICACION
+}
+
+type VentaPorPeriodo {
+    valorGs: Float
+    valorRs: Float
+    valorDs: Float
+    valorTotalGs: Float
+    creadoEn: Date
+}
+
+

@@ -1,0 +1,63 @@
+type Persona {
+    id:ID!,
+    nombre: String,
+    apodo: String,
+    nacimiento: Date,
+    documento: String,
+    email: String,
+    sexo: String,
+    direccion: String,
+    ciudad: Ciudad,
+    telefono: String,
+    socialMedia: String,
+    imagenes: String,
+    creadoEn: Date,
+    usuario: Usuario,
+    isFuncionario: Boolean
+    isCliente: Boolean
+    isProveedor: Boolean
+}
+
+input PersonaInput {
+    id:ID,
+    nombre: String,
+    apodo: String,
+    documento: String,
+    nacimiento: Date,
+    sexo: String,
+    direccion: String,
+    email: String,
+    ciudadId: Int,
+    telefono: String,
+    socialMedia: String,
+    imagenes: String,
+    creadoEn: Date,
+    usuarioId: Int
+}
+
+extend type Query {
+    persona(id:ID!):Persona
+    personaSearch(texto:String):[Persona]
+    personas(page:Int = 0, size:Int = 10):[Persona]!
+    countPersona:Int
+}
+
+extend type Mutation {
+    savePersona(persona:PersonaInput!):Persona!
+    deletePersona(id:ID!):Boolean!
+#    updatePersona(id:ID!, persona:PersonaInput!):Persona!
+}
+
+#type PersonaUpdate {
+#    id:ID,
+#    nombre: String,
+#    apodo: String
+#}
+
+#extend type Subscription {
+#    personas: PersonaUpdate!
+#}
+
+
+
+

@@ -1,0 +1,28 @@
+type Local {
+    id:ID!
+    sucursal: Sucursal
+    isServidor: Boolean
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input LocalInput {
+    id:ID
+    sucursalId: Int
+    isServidor: Boolean
+    usuarioId: Int
+    creadoEn: Date
+}
+
+extend type Query {
+    local(id:ID!):Local
+    locales:[Local]
+    countLocal: Int
+}
+
+extend type Mutation {
+
+    saveLocal(local:LocalInput!):Local!
+    deleteLocal(id:ID!):Boolean!
+}
+

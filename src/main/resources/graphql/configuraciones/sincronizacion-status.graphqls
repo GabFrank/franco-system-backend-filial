@@ -1,0 +1,10 @@
+type SincronizacionStatus {
+    finalizado: Boolean
+    mensaje: String
+}
+
+extend type Subscription {
+    sincEstado: SincronizacionStatus
+}
+
+

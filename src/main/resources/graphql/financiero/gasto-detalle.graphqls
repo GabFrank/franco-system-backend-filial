@@ -1,0 +1,31 @@
+type GastoDetalle {
+    id:ID!
+    gasto: Gasto
+    moneda: Moneda
+    cambio: Float
+    cantidad: Float
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input GastoDetalleInput {
+    id:ID
+    gastoId: Int
+    monedaId: Int
+    cambio: Float
+    cantidad: Float
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    gastoDetalle(id:ID!):GastoDetalle
+    gastoDetalles(page:Int = 0, size:Int = 10):[GastoDetalle]!
+    countGastoDetalle: Int
+}
+
+extend type Mutation {
+    saveGastoDetalle(gastoDetalle:GastoDetalleInput!):GastoDetalle!
+    deleteGastoDetalle(id:ID!):Boolean!
+}
+

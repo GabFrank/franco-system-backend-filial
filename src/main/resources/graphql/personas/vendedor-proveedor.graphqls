@@ -1,0 +1,32 @@
+type VendedorProveedor {
+    id:ID!
+    vendedor: Vendedor
+    proveedor: Proveedor
+    activo: Boolean
+    usuario: Usuario
+}
+
+input VendedorProveedorInput {
+    id:ID,
+    proveedorId: Int
+    vendedorId: Int
+    activo: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    vendedorProveedor(id:ID!):VendedorProveedor
+    vendedorProveedores(page:Int = 0, size:Int = 10):[VendedorProveedor]!
+    vendedoresPorProveedor(id: Int): [Vendedor]
+    proveedoresPorVendedor(id: Int): [Proveedor]
+    countVendedorProveedor:Int
+}
+
+extend type Mutation {
+    saveVendedorProveedor(vendedorProveedor:VendedorProveedorInput!):VendedorProveedor!
+    deleteVendedorProveedor(id:ID!):Boolean!
+}
+
+
+
+

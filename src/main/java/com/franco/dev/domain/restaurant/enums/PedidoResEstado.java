@@ -1,0 +1,5 @@
+package com.franco.dev.domain.restaurant.enums;
+
+public enum PedidoResEstado {
+    EN_RECEPCION_INCOMPLETO, EN_RECEPCION, ACTIVO, EN_PREPARACION, EN_MONTAJE, AGUARDANDO_ENTREGA, EN_ENTREGA, ENTREGADO, CANCELADO, DEVOLVIDO
+}

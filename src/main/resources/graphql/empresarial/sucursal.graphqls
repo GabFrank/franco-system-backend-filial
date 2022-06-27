@@ -1,0 +1,43 @@
+type Sucursal {
+    id:ID!
+    nombre: String
+    localizacion: String
+    ciudad: Ciudad
+    deposito: Boolean
+    depositoPredeterminado: Boolean
+    creadoEn: Date
+    usuario: Usuario
+    direccion: String
+    nroDelivery: String
+    isConfigured: Boolean
+    sectorList: [Sector]
+}
+
+input SucursalInput {
+    id:ID
+    nombre: String
+    localizacion: String
+    ciudadId: Int
+    deposito: Boolean
+    depositoPredeterminado: Boolean
+    usuarioId: Int
+    direccion: String
+    nroDelivery: String
+    isConfigured: Boolean
+}
+
+extend type Query {
+    sucursal(id:ID!):Sucursal
+    sucursales(page:Int = 0, size:Int = 10):[Sucursal]!
+    countSucursal: Int
+    sucursalesSearch(texto:String):[Sucursal]
+    sucursalActual:Sucursal
+
+}
+
+extend type Mutation {
+
+    saveSucursal(sucursal:SucursalInput!):Sucursal!
+    deleteSucursal(id:ID!):Boolean!
+}
+

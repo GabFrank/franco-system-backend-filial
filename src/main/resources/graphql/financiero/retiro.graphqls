@@ -1,0 +1,47 @@
+type Retiro {
+    id:ID!
+    responsable: Funcionario
+    estado: EstadoRetiro
+    observacion: String
+    cajaSalida: PdvCaja
+    cajaEntrada: PdvCaja
+    creadoEn: Date
+    usuario: Usuario
+    retiroDetalleList: [RetiroDetalle]
+}
+
+input RetiroInput {
+    id:ID
+    responsableId: Int
+    estado: EstadoRetiro
+    observacion: String
+    creadoEn: Date
+    usuarioId: Int
+    cajaSalidaId: Int
+    cajaEntradaId: Int
+    retiroGs: Float
+    retiroRs: Float
+    retiroDs: Float
+}
+
+extend type Query {
+    retiro(id:ID!):Retiro
+    retiros(page:Int = 0, size:Int = 10):[Retiro]!
+    retiroListPorCajaSalidaId(id:ID!):[Retiro]!
+    countRetiro: Int
+}
+
+extend type Mutation {
+    saveRetiro(retiro:RetiroInput!, retiroDetalleInputList: [RetiroDetalleInput]):Retiro!
+    deleteRetiro(id:ID!):Boolean!
+}
+
+enum EstadoRetiro {
+    EN_PROCESO,
+    CONCLUIDO,
+    NECESITA_VERIFICACION,
+    EN_VERIFICACION,
+    VERIFICADO_CONCLUIDO_SIN_PROBLEMA,
+    VERIFICADO_CONCLUIDO_CON_PROBLEMA
+}
+

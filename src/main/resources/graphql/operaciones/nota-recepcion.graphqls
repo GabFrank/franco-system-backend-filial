@@ -1,0 +1,42 @@
+type NotaRecepcion {
+    id:ID!,
+    pedido: Pedido,
+    compra: Compra,
+    documento: Documento,
+    valor: Float,
+    descuento: Float,
+    pagado: Boolean,
+    numero: Int,
+    timbrado: Int,
+    creadoEn: Date,
+    usuario: Usuario
+    pedidoItemList: [PedidoItem]
+}
+
+input NotaRecepcionInput {
+    id:ID
+    pedidoId: Int,
+    compraId: Int,
+    documentoId: Int,
+    valor: Float,
+    descuento: Float,
+    pagado: Boolean,
+    numero: Int,
+    timbrado: Int,
+    creadoEn: Date,
+    usuarioId: Int
+}
+
+extend type Query {
+    notaRecepcion(id:ID!):NotaRecepcion
+    notaRecepcions(page:Int = 0, size:Int = 10):[NotaRecepcion]!
+    countNotaRecepcion: Int
+    notaRecepcionPorPedidoId(id:ID!):[NotaRecepcion]
+}
+
+extend type Mutation {
+    saveNotaRecepcion(entity:NotaRecepcionInput!):NotaRecepcion!
+    deleteNotaRecepcion(id:ID!):Boolean!
+}
+
+

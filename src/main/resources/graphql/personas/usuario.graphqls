@@ -1,0 +1,34 @@
+type Usuario {
+    id:ID!
+    persona: Persona
+    password: String
+    nickname: String
+    creadoEn: Date
+    usuario: Usuario
+    roles: [String]
+}
+
+input UsuarioInput {
+    id:ID
+    personaId: Int
+    password: String
+    nickname: String
+    usuarioId: Int
+    creadoEn: Date
+}
+
+extend type Query {
+    usuario(id:ID!):Usuario
+    usuarioPorPersonaId(id:ID!):Usuario
+    usuarios(page:Int = 0, size:Int = 10):[Usuario]!
+    countUsuario:Int
+    usuarioSearch(texto:String):[Usuario]
+}
+
+extend type Mutation {
+
+    saveUsuario(usuario:UsuarioInput!):Usuario!
+
+    deleteUsuario(id:ID!):Boolean!
+}
+

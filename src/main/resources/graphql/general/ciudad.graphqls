@@ -1,0 +1,30 @@
+type Ciudad {
+    id:ID!
+    descripcion: String
+    pais: Pais
+    codigo: String
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input CiudadInput {
+    id:ID
+    descripcion: String
+    paisId: Int
+    codigo: String
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    ciudad(id:ID!):Ciudad
+    ciudades(page:Int = 0, size:Int = 10):[Ciudad]!
+    ciudadesSearch(texto:String):[Ciudad]
+    countCiudad: Int
+}
+
+extend type Mutation {
+    saveCiudad(ciudad:CiudadInput!):Ciudad!
+    deleteCiudad(id:ID!):Boolean!
+}
+

@@ -1,0 +1,40 @@
+type Proveedor {
+    id:ID!
+    persona: Persona
+    credito: Boolean
+    tipoCredito: String
+    chequeDias: Int
+    datosBancarios: Int
+    creadoEn: Date
+    usuario: Usuario
+    vendedores: [Vendedor]
+    productos: [Producto]
+    diasVisita: [DiasSemana]
+}
+
+input ProveedorInput {
+
+    id:ID
+    personaId: Int
+    credito: Boolean
+    tipoCredito: String
+    chequeDias: Int
+    datosBancarios: Int
+    usuarioId: Int
+}
+
+extend type Query {
+    proveedor(id:ID!):Proveedor
+    proveedorPorPersona(personaId:ID): Proveedor
+    proveedorSearchByPersona(texto: String): [Proveedor]
+    proveedorPorVendedor(id:ID): [Proveedor]
+    proveedores(page:Int = 0, size:Int = 10):[Proveedor]!
+    countProveedor: Int
+}
+
+extend type Mutation {
+
+    saveProveedor(proveedor:ProveedorInput!):Proveedor!
+    deleteProveedor(id:ID!):Boolean!
+}
+

@@ -1,0 +1,37 @@
+type PrecioPorSucursal {
+    id: ID!
+    presentacion: Presentacion
+    tipoPrecio: TipoPrecio
+    sucursal: Sucursal
+    precio: Float
+    creadoEn: Date
+    usuario: Usuario
+    principal: Boolean
+    activo: Boolean
+}
+
+input PrecioPorSucursalInput {
+    id: ID
+    presentacionId: Int
+    tipoPrecioId: Int
+    sucursalId: Int
+    precio: Float
+    usuarioId: Int
+    principal: Boolean
+    activo: Boolean
+
+}
+
+extend type Query {
+    precioPorSucursal(id:ID!):PrecioPorSucursal
+    preciosPorSucursal(page:Int = 0, size:Int = 10):[PrecioPorSucursal]!
+    countPrecioPorSucursal: Int
+    precioPorSucursalPorPresentacionId(id:Int): [PrecioPorSucursal]
+}
+
+extend type Mutation {
+    savePrecioPorSucursal(precioPorSucursal:PrecioPorSucursalInput!):PrecioPorSucursal!
+    deletePrecioPorSucursal(id:ID!):Boolean!
+}
+
+

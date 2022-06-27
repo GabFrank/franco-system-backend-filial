@@ -1,0 +1,15 @@
+type ExistenciaCostoPorSucursal {
+    sucursal: Sucursal
+    existencia: Float
+    precioUltimaCompra: Float
+    fechaUltimaCompra: Date
+    cantidadUltimaCompra: Float
+    costoMedio: Float
+    pedido: Pedido
+    cantMinima: Float
+    cantMaxima: Float
+    cantMedia: Float
+    moneda: Moneda
+}
+
+

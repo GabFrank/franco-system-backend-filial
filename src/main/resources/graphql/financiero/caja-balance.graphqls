@@ -1,0 +1,25 @@
+type CajaBalance {
+    cajaId: Int
+    totalAperGs: Float
+    totalAperRs: Float
+    totalAperDs: Float
+    totalCierreGs: Float
+    totalCierreRs: Float
+    totalCierreDs: Float
+    totalVentaGs: Float
+    totalVentaRs: Float
+    totalVentaDs: Float
+    totalTarjeta: Float
+    totalDescuento: Float
+    totalAumento: Float
+    totalRetiroGs: Float
+    totalRetiroRs: Float
+    totalRetiroDs: Float
+    totalGastoGs: Float
+    totalGastoRs: Float
+    totalGastoDs: Float
+    totalCanceladas: Float
+}
+
+
+

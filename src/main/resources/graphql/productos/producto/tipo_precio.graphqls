@@ -1,0 +1,29 @@
+type TipoPrecio {
+    id:ID!
+    descripcion: String
+    activo: Boolean
+    autorizacion: Boolean
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input TipoPrecioInput {
+    id:Int
+    descripcion: String
+    activo: Boolean
+    autorizacion: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    tipoPrecio(id:ID!):TipoPrecio
+    tipoPrecios(page:Int = 0, size:Int = 10):[TipoPrecio]!
+    countTipoPrecio: Int
+    tipoPrecioSearch(texto:String):[TipoPrecio]
+}
+
+extend type Mutation {
+    saveTipoPrecio(tipoPrecio:TipoPrecioInput!):TipoPrecio!
+    deleteTipoPrecio(id:ID!):Boolean!
+}
+

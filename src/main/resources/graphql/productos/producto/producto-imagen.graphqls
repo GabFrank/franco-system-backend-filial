@@ -1,0 +1,32 @@
+type ProductoImagen {
+    id:ID!
+    ruta: String
+    producto: Producto
+    principal: Boolean
+    creadoEn: Date
+    usuario: Usuario
+    imagen: String
+}
+
+input ProductoImagenInput {
+    id:ID
+    ruta: String
+    productoId: Int
+    principal: Boolean
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    productoImagen(id:ID!):ProductoImagen
+    productoImagenes(page:Int = 0, size:Int = 10):[ProductoImagen]!
+    countProductoImagen: Int
+    productoImagenesPorProducto(proId:ID!):[ProductoImagen]
+    productoImagenPrincipalPorProducto(proId:ID!):ProductoImagen
+}
+
+extend type Mutation {
+    saveProductoImagen(productoImagens:ProductoImagenInput!):ProductoImagen!
+    deleteProductoImagen(id:ID!):Boolean!
+}
+

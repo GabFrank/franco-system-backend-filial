@@ -1,0 +1,36 @@
+type CuentaBancaria {
+    id: ID!,
+    persona: Persona,
+    banco: Banco,
+    moneda: Moneda,
+    numero: String,
+    tipoCuenta: TipoCuenta,
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input CuentaBancariaInput {
+    id:ID
+    personaId: Int,
+    bancoId: Int,
+    monedaId: Int,
+    numero: String,
+    tipoCuenta: TipoCuenta,
+    usuarioId: Int
+}
+
+extend type Query {
+    cuentaBancaria(id:ID!):CuentaBancaria
+    cuentasBancarias(page:Int = 0, size:Int = 10):[CuentaBancaria]!
+    countCuentaBancaria: Int
+}
+
+extend type Mutation {
+    saveCuentaBancaria(cuentaBancaria:CuentaBancariaInput!):CuentaBancaria!
+    deleteCuentaBancaria(id:ID!):Boolean!
+}
+
+enum TipoCuenta {
+    CUENTA_CORRIENTE, CAJA_DE_AHORRO
+}
+

@@ -1,0 +1,35 @@
+type CambioCaja {
+    id:ID!
+    cliente: Cliente
+    autorizadoPor: Funcionario
+    monedaVenta: Moneda
+    monedaCompra: Moneda
+    cotizacion: Float
+    observacion: String
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input CambioCajaInput {
+    id:ID
+    clienteId: Int
+    autorizadoPorId: Int
+    monedaVentaId: Int
+    monedaCompraId: Int
+    cotizacionn: Float
+    observacion: String
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    cambioCaja(id:ID!):CambioCaja
+    cambioCajas(page:Int = 0, size:Int = 10):[CambioCaja]!
+    countCambioCaja: Int
+}
+
+extend type Mutation {
+    saveCambioCaja(cambioCaja:CambioCajaInput!):CambioCaja!
+    deleteCambioCaja(id:ID!):Boolean!
+}
+

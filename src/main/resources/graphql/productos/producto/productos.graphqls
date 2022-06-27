@@ -1,0 +1,97 @@
+type Producto {
+    id:ID!
+    idCentral:Int
+    idSucursalOrigen:Int
+    propagado:Boolean
+    descripcion: String
+    descripcionFactura: String
+    iva: Int
+    unidadPorCaja: Int
+    unidadPorCajaSecundaria: Int
+    balanza: Boolean
+    garantia: Boolean
+    tiempoGarantia: Int
+    ingrediente: Boolean
+    combo: Boolean
+    stock: Boolean
+    promocion: Boolean
+    vencimiento: Boolean
+    diasVencimiento: Int
+    cambiable: Boolean
+    usuario: Usuario
+    imagenes: String
+    subfamilia: Subfamilia
+    tipoConservacion: TipoConservacion
+    ingredientesList: [ProductoIngrediente]
+    existenciaTotal: Float
+    observacion: String
+    presentaciones: [Presentacion]
+    imagenPrincipal: String
+    codigoPrincipal: String
+    precioPrincipal: String
+    costo: CostoPorProducto
+    isEnvase: Boolean
+    envase: Producto
+}
+
+input ProductoInput {
+    id:ID
+    idCentral:Int
+    idSucursalOrigen:Int
+    propagado:Boolean
+    descripcion: String
+    descripcionFactura: String
+    iva: Int
+    unidadPorCaja: Int
+    unidadPorCajaSecundaria: Int
+    balanza: Boolean
+    garantia: Boolean
+    tiempoGarantia: Int
+    ingrediente: Boolean
+    combo: Boolean
+    stock: Boolean
+    promocion: Boolean
+    vencimiento: Boolean
+    diasVencimiento: Int
+    cambiable: Boolean
+    usuarioId: Int
+    imagenes: String
+    subfamiliaId: Int
+    tipoConservacion: TipoConservacion
+    isEnvase: Boolean
+    envaseId: Int
+}
+
+extend type Query {
+    producto(id:ID!):Producto
+    productos(page:Int = 0, size:Int = 10):[Producto]!
+    countProducto: Int
+    productoSearch(texto:String, offset:Int, isEnvase: Boolean):[Producto]
+    productoPorProveedorId(id: ID!, texto: String): [Producto]
+    productoPorSucursalStock(proId: ID!, sucId: ID!): Float
+    productoPorCodigo(texto:String):Producto
+    printProducto(id: ID!):Producto
+    exportarReporte(texto: String): String
+}
+
+extend type Mutation {
+    saveProducto(producto:ProductoInput!):Producto!
+    saveImagenProducto(image: String!, filename: String!): Boolean!
+    deleteProducto(id:ID!):Boolean!
+}
+
+enum TipoConservacion {
+    ENFRIABLE,
+    NO_ENFRIABLE,
+    REFRIGERABLE,
+    CONGELABLE
+}
+
+enum UnidadMedida {
+    UNIDAD,
+    CAJA,
+    KILO,
+    LITRO
+}
+
+

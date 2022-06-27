@@ -1,0 +1,30 @@
+type PdvCategoria {
+    id:ID!
+    descripcion: String
+    activo: Boolean
+    grupos: [PdvGrupo]
+    creadoEn: Date
+    usuario: Usuario
+    posicion: Int
+}
+
+input PdvCategoriaInput {
+    id: Int
+    descripcion: String
+    activo: Boolean
+    usuarioId: Int
+    posicion: Int
+}
+
+extend type Query {
+    pdvCategoria(id:ID!):PdvCategoria
+    pdvCategorias(page:Int = 0, size:Int = 10):[PdvCategoria]!
+    countPdvCategoria: Int
+    pdvCategoriaSearch(texto:String):[PdvCategoria]
+}
+
+extend type Mutation {
+    savePdvCategoria(pdvCategoria:PdvCategoriaInput!):PdvCategoria!
+    deletePdvCategoria(id:ID!):Boolean!
+}
+

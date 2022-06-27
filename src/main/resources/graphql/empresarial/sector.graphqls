@@ -1,0 +1,29 @@
+type Sector {
+    id:ID!
+    sucursal: Sucursal
+    descripcion: String
+    activo: Boolean
+    usuario: Usuario
+    creadoEn: Date
+    zonaList: [Zona]
+}
+
+input SectorInput {
+    id:ID
+    sucursalId: Int
+    descripcion: String
+    activo: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    sector(id:ID!):Sector
+    countSector: Int
+    sectores(id:ID!):[Sector]!
+}
+
+extend type Mutation {
+    saveSector(sector:SectorInput!):Sector!
+    deleteSector(id:ID!):Boolean!
+}
+
