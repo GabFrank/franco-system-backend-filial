@@ -6,6 +6,7 @@ type InventarioProductoItem {
     zona: Zona
     presentacion: Presentacion
     cantidad: Float
+    cantidadFisica: Float
     vencimiento: Date
     estado: InventarioProductoEstado
     creadoEn: Date
@@ -20,6 +21,7 @@ input InventarioProductoItemInput {
     zonaId: Int
     presentacionId: Int
     cantidad: Float
+    cantidadFisica: Float
     vencimiento: String
     estado: InventarioProductoEstado
     usuarioId: Int

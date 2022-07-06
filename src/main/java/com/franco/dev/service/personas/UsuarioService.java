@@ -86,15 +86,16 @@ public class UsuarioService extends CrudService<Usuario, UsuarioRepository> {
             entity.setCreadoEn(LocalDateTime.now());
         }
         entity.setNickname(entity.getNickname().toUpperCase());
-        entity.setPassword(entity.getPassword().toUpperCase());
+        if(entity.getPassword()!=null) entity.setPassword(entity.getPassword().toUpperCase());
         Usuario e = repository.save(entity);
         return e;
     }
 
     public List<Usuario> saveAll(List<Usuario> entityList) {
         List<Usuario> usuarioList = new ArrayList<>();
-        Persona persona = personaService.findById((long) 1).orElse(null);
         for (Usuario u : entityList) {
+            Persona persona = null;
+            if(u.getPersona()!=null) persona = personaService.findById((long) u.getPersona().getId()).orElse(null);
             if (persona == null) u.setPersona(null);
             usuarioList.add(save(u));
         }

@@ -6,6 +6,7 @@ type Usuario {
     creadoEn: Date
     usuario: Usuario
     roles: [String]
+    activo: Boolean
 }
 
 input UsuarioInput {
@@ -15,6 +16,7 @@ input UsuarioInput {
     nickname: String
     usuarioId: Int
     creadoEn: Date
+    activo: Boolean
 }
 
 extend type Query {

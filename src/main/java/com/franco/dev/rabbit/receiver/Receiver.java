@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -20,11 +19,8 @@ public class Receiver {
 
     @RabbitListener(queues = "${queue}")
     public void receive(RabbitDto dto) {
-        log.info("recibiendo"   );
+        log.info("recibiendo");
         switch (dto.getTipoAccion()) {
-            case VERIFICAR:
-                propagacionService.initDb();
-                break;
             case SOLICITAR_DB:
                 propagacionService.guardarEntidades(dto);
                 break;
@@ -34,6 +30,20 @@ public class Receiver {
                 break;
             default:
                 break;
+        }
+    }
+
+    @RabbitListener(queues = "${queue-reply-to}")
+    public Object receiveAndReply(RabbitDto dto) {
+        switch (dto.getTipoAccion()) {
+            case SOLICITAR_STOCK_PRODUCTO:
+                return propagacionService.movimientoStockService.stockByProductoId((Long) dto.getEntidad());
+            case SOLICITAR_ENTIDAD:
+            case GUARDAR:
+            case DELETE:
+                return propagacionService.crudEntidad(dto);
+            default:
+                return null;
         }
     }
 

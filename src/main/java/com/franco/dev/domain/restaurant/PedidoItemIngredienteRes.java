@@ -1,10 +1,7 @@
 package com.franco.dev.domain.restaurant;
 
 import com.franco.dev.domain.personas.Usuario;
-import com.franco.dev.domain.productos.Ingrediente;
-import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.domain.productos.ProductoIngrediente;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,7 +9,6 @@ import lombok.NoArgsConstructor;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDate;
-import java.util.Date;
 
 @Data
 @AllArgsConstructor

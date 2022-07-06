@@ -15,6 +15,7 @@ import java.util.List;
 @Service
 public class InitDbService {
 
+
     private List<String> queryList = new ArrayList<>();
 
     @Autowired
@@ -25,6 +26,8 @@ public class InitDbService {
 
     @Transactional
     public Boolean initDb() {
+        String superUser = "INSERT INTO personas.usuario (id, password,usuario_id,creado_en,nickname,email,activo) " +
+                "values(1000,'admin',null,NULL,'admin',NULL,true);";
         String truncQuery = "select public.reiniciartablas('franco','administrativo'),\n" +
                 " public.reiniciartablas('franco','configuraciones'),\n" +
                 " public.reiniciartablas('franco','empresarial'),\n" +
@@ -37,15 +40,12 @@ public class InitDbService {
                 " public.reiniciartablas('franco','vehiculos'),\n" +
                 " public.reiniciartablas('franco','personas'),\n" +
                 " public.reiniciartablas('franco','general');";
-        String createSuperAdminQuery = "INSERT INTO personas.usuario (id,\"password\",usuario_id,creado_en,nickname,email,activo) values\n" +
-                "(1000,'admin',null,NULL,'admin',NULL,true);";
-        jdbcTemplate.query(truncQuery, new RowCallbackHandler() {
-            @Override
-            public void processRow(ResultSet rs) throws SQLException {
-                jdbcTemplate.update(createSuperAdminQuery);
-                propagacionService.solicitarDB();
-            }
-        });
+        try {
+            jdbcTemplate.execute(truncQuery);
+            jdbcTemplate.execute(superUser);
+        } catch (Exception e){
+            return false;
+        }
         return true;
     }
 }

@@ -24,7 +24,6 @@ public class RetryableDataSource extends AbstractDataSource {
     @Override
     @Retryable(maxAttempts = 10, backoff = @Backoff(multiplier = 1.3, maxDelay = 10000))
     public Connection getConnection() throws SQLException {
-        log.info("getting connection ...");
         return dataSource.getConnection();
     }
 

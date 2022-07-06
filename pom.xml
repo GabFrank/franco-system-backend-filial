@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.franco.dev</groupId>
 	<artifactId>franco-dev-systems</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.1.2</version>
 	<name>Franco Systems</name>
 	<description>Sistema de gestion empresarial</description>
 
@@ -226,9 +226,6 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<executable>true</executable>
-				</configuration>
 			</plugin>
 
 <!--			<plugin>-->

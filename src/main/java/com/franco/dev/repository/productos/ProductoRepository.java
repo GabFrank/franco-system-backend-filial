@@ -1,10 +1,7 @@
 package com.franco.dev.repository.productos;
 
-import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.repository.HelperRepository;
-import com.sun.org.apache.xpath.internal.operations.Bool;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -53,7 +50,7 @@ public interface ProductoRepository extends HelperRepository<Producto, Long> {
             "where c.codigo = ?1", nativeQuery = true)
     public Producto findByCodigo(String texto);
 
-    @Query(value="select * from productos.producto p \n" +
+    @Query(value = "select * from productos.producto p \n" +
             "where p.activo = true", nativeQuery = true)
     public List<Producto> findAllForPdv();
 

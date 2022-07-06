@@ -1,4 +1,5 @@
-queue: filial.1
-sucursal-id: 1
+queue: filial.6
+queue-reply-to: filial.6.reply.to
+sucursal-id: 6
 server-url: http://localhost:8082
 

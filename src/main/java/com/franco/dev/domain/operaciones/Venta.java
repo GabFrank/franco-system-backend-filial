@@ -2,12 +2,10 @@ package com.franco.dev.domain.operaciones;
 
 import com.franco.dev.domain.financiero.FormaPago;
 import com.franco.dev.domain.financiero.PdvCaja;
-import com.franco.dev.domain.operaciones.enums.*;
+import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.domain.personas.Cliente;
-import com.franco.dev.domain.personas.Proveedor;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.utilitarios.PostgreSQLEnumType;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,7 +14,6 @@ import org.hibernate.annotations.TypeDef;
 
 import javax.persistence.*;
 import java.io.Serializable;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -58,7 +55,7 @@ public class Venta implements Serializable {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado")
-    @Type( type = "venta_estado")
+    @Type(type = "venta_estado")
     private VentaEstado estado;
 
     @Column(name = "creado_en")

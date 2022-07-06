@@ -21,8 +21,9 @@ public class Sender<T> {
     public void enviar(String key, RabbitDto<T> p){
         template.convertAndSend(RabbitMQConection.NOME_EXCHANGE, key, p);
     }
+
     public Object enviarAndRecibir(String key, RabbitDto<T> p){
-        return template.convertSendAndReceive(RabbitMQConection.NOME_EXCHANGE, key, p);
+        return template.convertSendAndReceive(RabbitMQConection.NOME_EXCHANGE_DIRECT, key, p);
     }
 
 }

@@ -172,7 +172,7 @@ public class PropagacionService {
     private InventarioProductoItemService inventarioProductoItemService;
 
     @Autowired
-    private MovimientoStockService movimientoStockService;
+    public MovimientoStockService movimientoStockService;
 
     //    public Boolean verficarConexion(Long sucId) {
 //        sucursalVerificar = sucId;
@@ -180,8 +180,8 @@ public class PropagacionService {
 //        sender.enviar(RabbitMQConection., dato);
 //    }
 
-    public void initDb() {
-        initDbService.initDb();
+    public Boolean initDb() {
+        return initDbService.initDb();
     }
 
     public void solicitarDB() {
@@ -351,179 +351,179 @@ public class PropagacionService {
         }
     }
 
-    public void crudEntidad(RabbitDto dto) {
+    public Object crudEntidad(RabbitDto dto) {
         log.info("recibiendo entidad para guardar");
         switch (dto.getTipoEntidad()) {
             case USUARIO:
                 log.info("cargando usuario: ");
-                guardar(usuarioService, dto);
-                break;
+                return guardar(usuarioService, dto);
             case PAIS:
                 log.info("cargando Pais: ");
-                guardar(paisService, dto);
-                break;
+                return guardar(paisService, dto);
+
             case CIUDAD:
                 log.info("cargando Ciudad: ");
-                guardar(ciudadService, dto);
-                break;
+                return guardar(ciudadService, dto);
+
             case PERSONA:
                 log.info("cargando Persona: ");
-                guardar(personaService, dto);
-                break;
+                return guardar(personaService, dto);
+
             case FAMILIA:
                 log.info("cargando Familia: ");
-                guardar(familiaService, dto);
-                break;
+                return guardar(familiaService, dto);
+
             case SUBFAMILIA:
                 log.info("cargando subfamilia: ");
-                guardar(subFamiliaService, dto);
-                break;
+                return guardar(subFamiliaService, dto);
+
             case PRODUCTO:
                 log.info("cargando productos: ");
-                guardar(productoService, dto);
-                break;
+                return guardar(productoService, dto);
+
             case TIPO_PRESENTACION:
                 log.info("cargando tipo presentacion: ");
-                guardar(tipoPresentacionService, dto);
-                break;
+                return guardar(tipoPresentacionService, dto);
+
             case PRESENTACION:
                 log.info("cargando presentacion: ");
-                guardar(presentacionService, dto);
-                break;
+                return guardar(presentacionService, dto);
+
             case PDV_CATEGORIA:
                 log.info("cargando pdv categoria: ");
-                guardar(pdvCategoriaService, dto);
-                break;
+                return guardar(pdvCategoriaService, dto);
+
             case PDV_GRUPO:
                 log.info("cargando pdv grupo: ");
-                guardar(pdvGrupoService, dto);
-                break;
+                return guardar(pdvGrupoService, dto);
+
             case PDV_GRUPO_PRODUCTO:
                 log.info("cargando pdv grupo producto: ");
-                guardar(pdvGruposProductosService, dto);
-                break;
+                return guardar(pdvGruposProductosService, dto);
+
             case SUCURSAL:
                 log.info("cargando sucursal: ");
-                guardar(sucursalService, dto);
-                break;
+                return guardar(sucursalService, dto);
+
             case TIPO_PRECIO:
                 log.info("cargando tipo precio: ");
-                guardar(tipoPrecioService, dto);
-                break;
+                return guardar(tipoPrecioService, dto);
+
             case PRECIO_POR_SUCURSAL:
                 log.info("cargando precio por sucursal: ");
-                guardar(precioPorSucursalService, dto);
-                break;
+                return guardar(precioPorSucursalService, dto);
+
             case BANCO:
                 log.info("cargando banco: ");
-                guardar(bancoService, dto);
-                break;
+                return guardar(bancoService, dto);
+
             case MONEDA:
                 log.info("cargando moneda: ");
-                guardar(monedaService, dto);
-                break;
+                return guardar(monedaService, dto);
+
             case MONEDAS_BILLETES:
                 log.info("cargando moneda billetes: ");
-                guardar(monedaBilleteService, dto);
-                break;
+                return guardar(monedaBilleteService, dto);
+
             case CUENTA_BANCARIA:
                 log.info("cargando cuenta bancaria: ");
-                guardar(cuentaBancariaService, dto);
-                break;
+                return guardar(cuentaBancariaService, dto);
+
             case FORMA_DE_PAGO:
                 log.info("cargando forma pago: ");
-                guardar(formaPagoService, dto);
-                break;
+                return guardar(formaPagoService, dto);
+
             case DOCUMENTO:
                 log.info("cargando docuemento: ");
-                guardar(documentoService, dto);
-                break;
+                return guardar(documentoService, dto);
+
             case MALETIN:
                 log.info("cargando maletin: ");
-                guardar(maletinService, dto);
-                break;
+                return guardar(maletinService, dto);
+
             case CARGO:
                 log.info("cargando cargo: ");
-                guardar(cargoService, dto);
-                break;
+                return guardar(cargoService, dto);
+
             case TIPO_GASTO:
                 log.info("cargando tipo gasto: ");
-                guardar(tipoGastoService, dto);
-                break;
+                return guardar(tipoGastoService, dto);
+
             case TIPO_GASTO_UPDATE:
                 log.info("cargando tipo gasto: ");
-                guardar(tipoGastoService, dto);
-                break;
+                return guardar(tipoGastoService, dto);
+
             case CODIGO:
                 log.info("cargando codigo: ");
-                guardar(codigoService, dto);
-                break;
+                return guardar(codigoService, dto);
+
             case CAMBIO:
                 log.info("cargando cambio: ");
-                guardar(codigoService, dto);
-                break;
+                return guardar(codigoService, dto);
+
             case BARRIO:
                 log.info("cargando barrio: ");
-                guardar(barrioService, dto);
-                break;
+                return guardar(barrioService, dto);
+
             case CONTACTO:
                 log.info("cargando contacto: ");
-                guardar(contactoService, dto);
-                break;
+                return guardar(contactoService, dto);
+
             case CLIENTE:
                 log.info("cargando cliente: ");
-                guardar(clienteService, dto);
-                break;
+                return guardar(clienteService, dto);
+
             case FUNCIONARIO:
                 log.info("cargando funncioario: ");
-                guardar(funcionarioService, dto);
-                break;
+                return guardar(funcionarioService, dto);
+
             case PROVEEDOR:
                 log.info("cargando proveedor: ");
-                guardar(proveedorService, dto);
-                break;
+                return guardar(proveedorService, dto);
+
             case VENDEDOR:
                 log.info("cargando vendedor: ");
-                guardar(vendedorService, dto);
-                break;
+                return guardar(vendedorService, dto);
+
             case ROLE:
                 log.info("cargando role: ");
-                guardar(roleService, dto);
-                break;
+                return guardar(roleService, dto);
+
             case USUARIO_ROLE:
                 log.info("cargando usuario role: ");
-                guardar(usuarioRoleService, dto);
-                break;
+                return guardar(usuarioRoleService, dto);
+
             case LOCAL:
                 log.info("creando local: ");
                 guardarLocal((Sucursal) dto.getEntidad());
-                break;
+                return null;
+
             case TRANSFERENCIA:
                 log.info("creando transferencia: ");
-                guardar(transferenciaService, dto);
-                break;
+                return guardar(transferenciaService, dto);
+
             case TRANSFERENCIA_ITEM:
                 log.info("creando transferencia item: ");
-                guardar(transferenciaItemService, dto);
-                break;
+                return guardar(transferenciaItemService, dto);
+
             case INVENTARIO:
                 log.info("creando INVENTARIO item: ");
-                guardar(inventarioService, dto);
-                break;
+                return guardar(inventarioService, dto);
+
             case INVENTARIO_PRODUCTO:
                 log.info("creando innventario producto item: ");
-                guardar(inventarioProductoService, dto);
-                break;
+                return guardar(inventarioProductoService, dto);
+
             case INVENTARIO_PRODUCTO_ITEM:
                 log.info("creando inventario producto item item: ");
-                guardar(inventarioProductoItemService, dto);
-                break;
+                return guardar(inventarioProductoItemService, dto);
+
             case MOVIMIENTO_STOCK:
                 log.info("creando movimiento stock: ");
-                guardar(movimientoStockService, dto);
-                break;
+                return guardar(movimientoStockService, dto);
+
             default:
-                break;
+                return null;
         }
     }
 
@@ -532,14 +532,14 @@ public class PropagacionService {
         sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(null, TipoAccion.SOLICITAR_DB, nextTipo, Long.valueOf(env.getProperty("sucursalId"))));
     }
 
-    public <T> void guardar(CrudService service, RabbitDto dto) {
+    public <T> Object guardar(CrudService service, RabbitDto dto) {
         switch (dto.getTipoAccion()) {
             case GUARDAR:
                 T nuevaEntidad = (T) service.save(dto.getEntidad());
                 if (nuevaEntidad != null) {
                     log.info("guardado con exito");
                 }
-                break;
+                return nuevaEntidad;
             case DELETE:
                 Boolean ok = false;
                 if (dto.getEntidad() instanceof Long) {
@@ -550,9 +550,9 @@ public class PropagacionService {
                 if (ok) {
                     log.info("eliminado con exito");
                 }
-                break;
+                return ok;
             default:
-                break;
+                return null;
         }
     }
 
@@ -569,4 +569,5 @@ public class PropagacionService {
     public void guardarLocal(Sucursal sucursal) {
         localService.save(new Local(null, null, null, sucursal, null));
     }
+
 }

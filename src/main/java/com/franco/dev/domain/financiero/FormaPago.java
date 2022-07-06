@@ -1,8 +1,6 @@
 package com.franco.dev.domain.financiero;
 
-import com.franco.dev.domain.general.Pais;
 import com.franco.dev.domain.personas.Usuario;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -11,7 +9,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Date;
 
 @Data
 @AllArgsConstructor

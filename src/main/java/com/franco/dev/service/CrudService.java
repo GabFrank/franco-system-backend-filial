@@ -29,8 +29,7 @@ public abstract class CrudService<T, Repository extends HelperRepository<T, Long
     }
 
     public List<T> findAll2(){
-
-        return (List<T>) getRepository().findAll();
+        return (List<T>) getRepository().findAllByOrderByIdAsc();
     }
 
     public Optional<T> findById(Long id){

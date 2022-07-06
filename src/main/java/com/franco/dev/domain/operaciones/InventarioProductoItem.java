@@ -49,6 +49,8 @@ public class InventarioProductoItem implements Serializable {
 
     private Double cantidad;
 
+    private Double cantidadFisica;
+
     private LocalDateTime vencimiento;
 
     @Enumerated(EnumType.STRING)
