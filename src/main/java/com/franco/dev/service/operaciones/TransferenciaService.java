@@ -6,6 +6,7 @@ import com.franco.dev.repository.operaciones.TransferenciaRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -17,6 +18,9 @@ public class TransferenciaService extends CrudService<Transferencia, Transferenc
     private final TransferenciaRepository repository;
     @Autowired
     private MovimientoStockService movimientoStockService;
+
+    @Autowired
+    private Environment env;
 
     @Override
     public TransferenciaRepository getRepository() {
@@ -47,14 +51,15 @@ public class TransferenciaService extends CrudService<Transferencia, Transferenc
 
     @Override
     public Transferencia save(Transferencia entity) {
+        Long idActual = env.getProperty("sucursalId", Long.class);
         if (entity.getId() == null) {
             entity.setCreadoEn(LocalDateTime.now());
         } else {
             Transferencia aux = findById(entity.getId()).orElse(null);
             if (aux != null) {
-                if (aux.getEtapa() == EtapaTransferencia.TRANSPORTE_VERIFICACION && entity.getEtapa() == EtapaTransferencia.TRANSPORTE_EN_CAMINO) {
+                if ((aux.getSucursalOrigen().getId() == idActual) && (aux.getEtapa() == EtapaTransferencia.TRANSPORTE_VERIFICACION) && (entity.getEtapa() == EtapaTransferencia.TRANSPORTE_EN_CAMINO)) {
                     movimientoStockService.bajaStockPorTransferencia(entity.getId());
-                } else if (aux.getEtapa() == EtapaTransferencia.RECEPCION_EN_VERIFICACION && entity.getEtapa() == EtapaTransferencia.RECEPCION_CONCLUIDA) {
+                } else if ((aux.getSucursalDestino().getId() == idActual) && aux.getEtapa() == EtapaTransferencia.RECEPCION_EN_VERIFICACION && entity.getEtapa() == EtapaTransferencia.RECEPCION_CONCLUIDA) {
                     movimientoStockService.altaStockPorTransferencia(entity.getId());
                 }
             }

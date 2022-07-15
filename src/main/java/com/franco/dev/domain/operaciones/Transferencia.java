@@ -40,11 +40,11 @@ public class Transferencia implements Serializable {
     @Id
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "sucursal_origen_id", nullable = true)
     private Sucursal sucursalOrigen;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "sucursal_destino_id", nullable = true)
     private Sucursal sucursalDestino;
 
