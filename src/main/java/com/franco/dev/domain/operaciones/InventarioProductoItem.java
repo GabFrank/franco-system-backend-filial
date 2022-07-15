@@ -35,15 +35,15 @@ public class InventarioProductoItem implements Serializable {
 
     private Long idOrigen;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "inventario_producto_id", nullable = true)
     private InventarioProducto inventarioProducto;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "presentacion_id", nullable = true)
     private Presentacion presentacion;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "zona_id", nullable = true)
     private Zona zona;
 

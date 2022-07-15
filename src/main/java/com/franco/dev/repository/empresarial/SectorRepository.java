@@ -15,7 +15,7 @@ public interface SectorRepository extends HelperRepository<Sector, Long> {
     @Query("select p from Sector p where CAST(id as text) like %?1% or UPPER(p.descripcion) like %?1%")
     public List<Sector> findByAll(String texto);
 
-    public List<Sector> findBySucursalId(Long id);
+    public List<Sector> findBySucursalIdOrderByIdAsc(Long id);
 
 //    public List<Pais> findBySubFamiliaId(Long id);
 

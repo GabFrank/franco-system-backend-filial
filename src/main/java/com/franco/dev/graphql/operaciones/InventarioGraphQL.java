@@ -1,15 +1,24 @@
 package com.franco.dev.graphql.operaciones;
 
 import com.franco.dev.domain.operaciones.Inventario;
+import com.franco.dev.domain.operaciones.InventarioProducto;
+import com.franco.dev.domain.operaciones.InventarioProductoItem;
+import com.franco.dev.domain.operaciones.MovimientoStock;
+import com.franco.dev.domain.operaciones.enums.InventarioEstado;
+import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.graphql.operaciones.input.InventarioInput;
 import com.franco.dev.rabbit.dto.RabbitDto;
 import com.franco.dev.rabbit.enums.TipoAccion;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.empresarial.SucursalService;
+import com.franco.dev.service.operaciones.InventarioProductoItemService;
+import com.franco.dev.service.operaciones.InventarioProductoService;
 import com.franco.dev.service.operaciones.InventarioService;
+import com.franco.dev.service.operaciones.MovimientoStockService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.reports.TicketReportService;
+import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -19,6 +28,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 

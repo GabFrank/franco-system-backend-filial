@@ -1,13 +1,12 @@
 package com.franco.dev.repository.personas;
 
-import com.franco.dev.domain.personas.GrupoPrivilegio;
-import com.franco.dev.domain.personas.Role;
+import com.franco.dev.domain.personas.GrupoRole;
 import com.franco.dev.repository.HelperRepository;
 
-public interface GrupoPrivilegioRepository extends HelperRepository<GrupoPrivilegio, Long> {
+public interface GrupoPrivilegioRepository extends HelperRepository<GrupoRole, Long> {
 
-    default Class<GrupoPrivilegio> getEntityClass() {
-        return GrupoPrivilegio.class;
+    default Class<GrupoRole> getEntityClass() {
+        return GrupoRole.class;
     }
 
 }

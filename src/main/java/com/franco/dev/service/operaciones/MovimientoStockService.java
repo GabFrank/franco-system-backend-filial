@@ -34,6 +34,14 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
         return repository.stockByProductoId(proId) != null ? repository.stockByProductoId(proId) : 0;
     }
 
+    public MovimientoStock findByProductoIdAndTIpoAndReferenciaId(Long proId, Long referenciaId){
+        return repository.findByProductoIdAndTipoMovimientoAndReferencia(proId, TipoMovimiento.AJUSTE, referenciaId);
+    }
+
+    public List<MovimientoStock> findByReferencia(Long id){
+        return repository.findByReferencia(id);
+    }
+
     @Override
     public MovimientoStock save(MovimientoStock entity) {
         if(entity.getId()==null) entity.setCreadoEn(LocalDateTime.now());

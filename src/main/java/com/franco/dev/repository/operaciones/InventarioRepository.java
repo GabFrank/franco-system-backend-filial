@@ -1,9 +1,11 @@
 package com.franco.dev.repository.operaciones;
 
+import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.domain.operaciones.Inventario;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface InventarioRepository extends HelperRepository<Inventario, Long> {
@@ -20,5 +22,12 @@ public interface InventarioRepository extends HelperRepository<Inventario, Long>
             "left join operaciones.inventario_producto ip on i.id = ip.inventario_id " +
             "where ip.usuario_id = ?1 order by i.id", nativeQuery = true)
     public List<Inventario> findByUsuarioId(Long id);
+
+    @Query(value = "select sum(vi.cantidad * pre.cantidad) from operaciones.venta_item vi " +
+            "join operaciones.venta v on vi.venta_id = v.id " +
+            "join productos.presentacion pre on pre.id = vi.presentacion_id " +
+            "where pre.producto_id = ?1 and v.creado_en between cast(?2 as timestamp) and cast(?3 as timestamp)" +
+            "group by pre.producto_id", nativeQuery = true)
+    public Double ventasHechasDuranteInventarioPorProducto(Long id, LocalDateTime inicio, LocalDateTime fin);
 
 }

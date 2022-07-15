@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 public class SectorInput {
     private Long id;
     private String descripcion;
-    private Sucursal sucursal;
+    private Long sucursalId;
     private Boolean activo;
     private LocalDateTime creadoEn;
     private Long usuarioId;

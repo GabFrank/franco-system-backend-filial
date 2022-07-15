@@ -37,7 +37,7 @@ public class SectorService extends CrudService<Sector, SectorRepository> {
     }
 
     public List<Sector> findBySucursalId(Long id) {
-        return repository.findBySucursalId(id);
+        return repository.findBySucursalIdOrderByIdAsc(id);
     }
 
     @Override

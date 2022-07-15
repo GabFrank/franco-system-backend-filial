@@ -38,6 +38,8 @@ public class Receiver {
         switch (dto.getTipoAccion()) {
             case SOLICITAR_STOCK_PRODUCTO:
                 return propagacionService.movimientoStockService.stockByProductoId((Long) dto.getEntidad());
+            case FINALIZAR_INVENTARIO:
+                return propagacionService.finalizarInventario(dto);
             case SOLICITAR_ENTIDAD:
             case GUARDAR:
             case DELETE:

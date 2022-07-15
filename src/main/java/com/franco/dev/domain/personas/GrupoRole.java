@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Entity
 @Table(name = "grupo_privilegio", schema = "personas")
-public class GrupoPrivilegio implements Serializable {
+public class GrupoRole implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

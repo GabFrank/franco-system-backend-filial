@@ -28,7 +28,7 @@ public class UsuarioGrupo implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "grupo_privilegio_id", nullable = true)
-    private GrupoPrivilegio grupoPrivilegio;
+    private GrupoRole grupoRole;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)

@@ -25,6 +25,10 @@ public class InventarioProductoItemService extends CrudService<InventarioProduct
         return repository.findByInventarioProductoId(id);
     }
 
+    public List<InventarioProductoItem> findByProductoId(Long id) {
+        return repository.findByProductoId(id);
+    }
+
     @Override
     public InventarioProductoItem save(InventarioProductoItem entity) {
         InventarioProductoItem e = new InventarioProductoItem();

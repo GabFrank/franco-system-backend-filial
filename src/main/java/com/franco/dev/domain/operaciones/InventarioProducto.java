@@ -31,7 +31,7 @@ public class InventarioProducto implements Serializable {
     @JoinColumn(name = "inventario_id", nullable = true)
     private Inventario inventario;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "producto_id", nullable = true)
     private Producto producto;
 

@@ -3,10 +3,13 @@ package com.franco.dev;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
+import com.franco.dev.service.operaciones.InventarioService;
+import com.franco.dev.service.operaciones.MovimientoStockService;
 import com.franco.dev.service.productos.CodigoService;
 import com.franco.dev.service.productos.PrecioPorSucursalService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.productos.TipoPrecioService;
+import com.franco.dev.service.reports.FacturaService;
 import com.franco.dev.service.utils.ImageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +51,12 @@ public class FrancoSystemsApplication {
     private CodigoService codigoService;
 
     @Autowired
-    private ImageService imageService;
+    private InventarioService inventarioService;
+    @Autowired
+    private MovimientoStockService movimientoStockService;
+
+    @Autowired
+    private FacturaService facturaService;
 
     @Bean
     public RestTemplate getResTemplate(){
@@ -94,7 +102,7 @@ public class FrancoSystemsApplication {
     @PostConstruct
     public void setUp() {
         objectMapper.registerModule(new JavaTimeModule());
-//        imageService.crearThumbs();
+        facturaService.generarFactura();
     }
 
 //	@Bean

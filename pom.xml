@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.franco.dev</groupId>
 	<artifactId>franco-dev-systems</artifactId>
-	<version>1.1.2</version>
+	<version>1.1.4</version>
 	<name>Franco Systems</name>
 	<description>Sistema de gestion empresarial</description>
 
@@ -183,7 +183,7 @@
 		<dependency>
 			<groupId>net.sf.jasperreports</groupId>
 			<artifactId>jasperreports</artifactId>
-			<version>6.17.0</version>
+			<version>6.19.1</version>
 		</dependency>
 
 		<dependency>

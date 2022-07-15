@@ -2,6 +2,7 @@ package com.franco.dev.service.rabbitmq;
 
 import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.domain.empresarial.Sucursal;
+import com.franco.dev.domain.operaciones.Inventario;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
 import com.franco.dev.rabbit.RabbitMQConection;
 import com.franco.dev.rabbit.dto.RabbitDto;
@@ -11,7 +12,9 @@ import com.franco.dev.rabbit.sender.Sender;
 import com.franco.dev.service.CrudService;
 import com.franco.dev.service.configuracion.LocalService;
 import com.franco.dev.service.empresarial.CargoService;
+import com.franco.dev.service.empresarial.SectorService;
 import com.franco.dev.service.empresarial.SucursalService;
+import com.franco.dev.service.empresarial.ZonaService;
 import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.general.BarrioService;
 import com.franco.dev.service.general.CiudadService;
@@ -173,6 +176,12 @@ public class PropagacionService {
 
     @Autowired
     public MovimientoStockService movimientoStockService;
+
+    @Autowired
+    public SectorService sectorService;
+
+    @Autowired
+    public ZonaService zonaService;
 
     //    public Boolean verficarConexion(Long sucId) {
 //        sucursalVerificar = sucId;
@@ -522,6 +531,13 @@ public class PropagacionService {
                 log.info("creando movimiento stock: ");
                 return guardar(movimientoStockService, dto);
 
+            case SECTOR:
+                log.info("creando sector: ");
+                return guardar(sectorService, dto);
+
+            case ZONA:
+                log.info("creando zona: ");
+                return guardar(zonaService, dto);
             default:
                 return null;
         }
@@ -570,4 +586,7 @@ public class PropagacionService {
         localService.save(new Local(null, null, null, sucursal, null));
     }
 
+    public Inventario finalizarInventario(RabbitDto<Inventario> dto){
+        return inventarioService.finalizarInventario(dto.getEntidad().getId());
+    }
 }

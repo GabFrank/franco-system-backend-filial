@@ -43,4 +43,11 @@ public interface MovimientoStockRepository extends HelperRepository<MovimientoSt
     public List<MovimientoStock> findByDate(String inicio, String fin);
 
     public MovimientoStock findByTipoMovimientoAndReferencia(TipoMovimiento tipoMovimiento, Long referencia);
+
+    public MovimientoStock findByProductoIdAndTipoMovimientoAndReferencia(Long proId, TipoMovimiento tipoMovimiento, Long refId);
+
+    @Query(value = "select * from operaciones.movimiento_stock ms " +
+            "where ms.referencia = ?1", nativeQuery = true)
+    public List<MovimientoStock> findByReferencia(Long id);
+
 }

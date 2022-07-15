@@ -457,7 +457,7 @@ public class ImpresionService {
                 printerOutputStream.close();
             }
         } catch (IOException e) {
-            e.printStackTrace();
+
         }
     }
 
