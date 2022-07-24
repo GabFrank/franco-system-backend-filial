@@ -1,0 +1,56 @@
+type FacturaLegal {
+    id:ID!
+    timbrado:String
+    nroSucursal:String
+    nroFactura:String
+    cliente: Cliente
+    venta: Venta
+    fecha:Date,
+    credito	boolean,
+    nombre:String
+    ruc:String
+    direccion:String
+    ivaParcial0:Float
+    ivaParcial5:Float
+    ivaParcial10:Float
+    totalParcial0:Float
+    totalParcial5:Float
+    totalParcial10:Float
+    totalFinal:Float
+    usuario: Usuario
+    creadoEn: Date
+}
+
+input FacturaLegalInput {
+    id:ID
+    timbrado:String
+    nroSucursal:String
+    nroFactura:String
+    clienteId: Int
+    ventaId: Int
+    fecha:String,
+    credito	boolean,
+    nombre:String
+    ruc:String
+    direccion:String
+    ivaParcial0:Float
+    ivaParcial5:Float
+    ivaParcial10:Float
+    totalParcial0:Float
+    totalParcial5:Float
+    totalParcial10:Float
+    totalFinal:Float
+    usuario: Usuario
+}
+
+extend type Query {
+    facturaLegal(id:ID!):FacturaLegal
+    facturaLegales(page:Int = 0, size:Int = 10):[FacturaLegal]!
+    countFacturaLegal: Int
+}
+
+extend type Mutation {
+    saveFacturaLegal(facturaLegal:FacturaLegalInput!):FacturaLegal!
+    deleteFacturaLegal(id:ID!):Boolean!
+}
+

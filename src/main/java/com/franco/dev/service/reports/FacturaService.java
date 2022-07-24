@@ -20,6 +20,8 @@ import javax.print.attribute.PrintRequestAttributeSet;
 import javax.print.attribute.standard.MediaSizeName;
 import javax.print.attribute.standard.OrientationRequested;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +45,7 @@ public class FacturaService {
             facturaDto.setRuc("4043581-4");
             facturaDto.setTotal("350.000");
             facturaDto.setTotalEnLetras("Trescientos cincuenta mil");
+            facturaDto.setDireccion("Av. Paraguay c/ 30 de julio");
             List<VentaItemDto> ventaItemList = new ArrayList<>();
             ventaItemList.add(new VentaItemDto("5", "Brahma lata 269", "3.500", "120.000"));
             ventaItemList.add(new VentaItemDto("2", "Skol lata", "3.500", "7.000"));
@@ -52,36 +55,51 @@ public class FacturaService {
             JasperReport jasperReport = JasperCompileManager.compileReport(file.getAbsolutePath());
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(ventaItemList);
             Map<String, Object> parameters = new HashMap<>();
-            parameters.put("contado", "X");
-            parameters.put("credito", "");
-            parameters.put("fecha", "10/12/2022");
-            parameters.put("ivaTotal", "33.500");
-            parameters.put("nombre", "Gabriel Francisco Franco Arevalos");
-            parameters.put("ruc", "4043581-4");
-            parameters.put("totalFinal", "350.000");
-            parameters.put("totalEnLetras", "Trescientos cincuenta mil");
-            parameters.put("direccion", "Av. paraguay c/ 30 de julio");
+            parameters.put("contado", facturaDto.getContado());
+            parameters.put("credito", facturaDto.getCredito());
+            parameters.put("fecha", facturaDto.getFecha());
+            parameters.put("ivaTotal", facturaDto.getIvaParcial());
+            parameters.put("nombre", facturaDto.getNombre());
+            parameters.put("ruc", facturaDto.getRuc());
+            parameters.put("totalFinal", facturaDto.getTotal());
+            parameters.put("totalEnLetras", facturaDto.getTotalEnLetras());
+            parameters.put("direccion", facturaDto.getDireccion());
 
             JasperPrint jasperPrint1 = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
             jasperPrint1.setPageHeight(842);
-            JRPrintPage page1 = jasperPrint1.getPages().get(0);
-            List<JRPrintElement> elements = page1.getElements();
-            List<JRPrintElement> newElements = new ArrayList<>();
-            Integer lastIndex = elements.size();
-            for (JRPrintElement element : elements) {
-                newElements.add(element);
+
+            List<VentaItemDto> ventaItemList2 = new ArrayList<>();
+            ventaItemList.add(new VentaItemDto("5", "Brahma lata 269", "3.500", "120.000"));
+            ventaItemList.add(new VentaItemDto("2", "Skol lata", "3.500", "7.000"));
+            ventaItemList.add(new VentaItemDto("7", "Producto cualquiera", "8.500", "50.000"));
+
+            File file2 = ResourceUtils.getFile("classpath:factura2.jrxml");
+            JasperReport jasperReport2 = JasperCompileManager.compileReport(file.getAbsolutePath());
+            JRBeanCollectionDataSource dataSource2 = new JRBeanCollectionDataSource(ventaItemList);
+            Map<String, Object> parameters2 = new HashMap<>();
+            parameters2.put("contado", facturaDto.getContado());
+            parameters2.put("credito", facturaDto.getCredito());
+            parameters2.put("fecha", facturaDto.getFecha());
+            parameters2.put("ivaTotal", facturaDto.getIvaParcial());
+            parameters2.put("nombre", facturaDto.getNombre());
+            parameters2.put("ruc", facturaDto.getRuc());
+            parameters2.put("totalFinal", facturaDto.getTotal());
+            parameters2.put("totalEnLetras", facturaDto.getTotalEnLetras());
+            parameters2.put("direccion", facturaDto.getDireccion());
+
+            JasperPrint jasperPrint2 = JasperFillManager.fillReport(jasperReport2, parameters2, dataSource2);
+
+            JRPrintPage page2 = jasperPrint2.getPages().get(0);
+            List<JRPrintElement> elements = page2.getElements();
+
+            for(JRPrintElement e: elements){
+                e.setY(e.getY() + 421);
+                jasperPrint1.getPages().get(0).addElement(e);
             }
-            for (JRPrintElement element : elements) {
-                Integer y = element.getY();
-                y = y + 421;
-                element.setY(y);
-                newElements.add(element);
-            }
-            jasperPrint1.getPages().get(0).setElements(newElements);
-            File file2 = new File("/Users/gabfranck/Desktop/");
-            file2.mkdirs();
-            JasperExportManager.exportReportToPdfFile(jasperPrint1, "/Users/gabfranck/Desktop/"
-                    +"report.pdf");
+
+            OutputStream output;
+            output = new FileOutputStream(new File("/Users/gabfranck/Desktop/prueba.pdf"));
+            JasperExportManager.exportReportToPdfStream(jasperPrint1, output);
         } catch (Exception e) {
             e.printStackTrace();
         }

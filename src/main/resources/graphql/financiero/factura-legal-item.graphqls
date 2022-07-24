@@ -1,0 +1,34 @@
+type FacturaLegalItem {
+    id:ID!
+    facturaLegal:FacturaLegal
+    ventaItem:VentaItem
+    cantidad:Float
+    descripcion:String
+    precioUnitario:Float
+    total:Float
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input FacturaLegalItemInput {
+    id:ID
+    facturaLegalId:Int
+    ventaItemId:Int
+    cantidad:Float
+    descripcion:String
+    precioUnitario:Float
+    total:Float
+    usuarioId: Int
+}
+
+extend type Query {
+    facturaLegalItem(id:ID!):FacturaLegalItem
+    facturaLegalItens(page:Int = 0, size:Int = 10):[FacturaLegalItem]!
+    countFacturaLegalItem: Int
+}
+
+extend type Mutation {
+    saveFacturaLegalItem(facturaLegalItem:FacturaLegalItemInput!):FacturaLegalItem!
+    deleteFacturaLegalItem(id:ID!):Boolean!
+}
+

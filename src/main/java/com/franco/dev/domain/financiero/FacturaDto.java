@@ -17,4 +17,6 @@ public class FacturaDto {
     private String total;
     private String totalEnLetras;
     private String ivaParcial;
+    private String ivaFinal;
+    private String direccion;
 }
