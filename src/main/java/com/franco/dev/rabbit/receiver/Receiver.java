@@ -28,6 +28,8 @@ public class Receiver {
             case DELETE:
                 propagacionService.crudEntidad(dto);
                 break;
+            case GUARDAR_IMAGEN:
+                break;
             default:
                 break;
         }

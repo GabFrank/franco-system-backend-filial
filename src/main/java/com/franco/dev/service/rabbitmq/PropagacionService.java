@@ -26,12 +26,14 @@ import com.franco.dev.service.productos.*;
 import com.franco.dev.service.productos.pdv.PdvCategoriaService;
 import com.franco.dev.service.productos.pdv.PdvGrupoService;
 import com.franco.dev.service.productos.pdv.PdvGruposProductosService;
+import com.franco.dev.service.utils.ImageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.List;
 
 @Service
@@ -182,6 +184,9 @@ public class PropagacionService {
 
     @Autowired
     public ZonaService zonaService;
+
+    @Autowired
+    private ImageService imageService;
 
     //    public Boolean verficarConexion(Long sucId) {
 //        sucursalVerificar = sucId;
@@ -546,6 +551,19 @@ public class PropagacionService {
     public <T> void guardar(CrudService service, RabbitDto dto, TipoEntidad nextTipo) {
         List<T> list = service.saveAll((List<T>) dto.getEntidad());
         sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(null, TipoAccion.SOLICITAR_DB, nextTipo, Long.valueOf(env.getProperty("sucursalId"))));
+    }
+
+    public void guardarImagen(RabbitDto dto, TipoEntidad tipoEntidad) {
+        String filename = (String) dto.getEntidad();
+        switch (tipoEntidad){
+            case PRESENTACION:
+                try {
+                    imageService.saveImageToPath((String)dto.getEntidad(), (String)dto.getData(), true);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                break;
+        }
     }
 
     public <T> Object guardar(CrudService service, RabbitDto dto) {
