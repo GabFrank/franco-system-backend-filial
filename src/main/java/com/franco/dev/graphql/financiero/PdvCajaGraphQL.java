@@ -113,8 +113,8 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         return service.findByUsuarioIdAndAbierto(id);
     }
 
-    public PdvCaja imprimirBalance(Long id) {
-        return service.imprimirBalance(id);
+    public PdvCaja imprimirBalance(Long id, String printerName, String local) {
+        return service.imprimirBalance(id, printerName, local);
     }
 
 }

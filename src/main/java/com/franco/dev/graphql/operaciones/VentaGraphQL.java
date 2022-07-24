@@ -79,7 +79,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     private SucursalService sucursalService;
     @Autowired
     private MovimientoCajaService movimientoCajaService;
-    private PrintService printService;
+
     private PrinterOutputStream printerOutputStream;
     @Autowired
     private ProductoService productoService;
@@ -101,7 +101,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 //        return service.findByAll(texto);
 //    }
 
-    public Boolean saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleList, Boolean ticket) throws Exception {
+    public Boolean saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleList, Boolean ticket, String printerName, String local) throws Exception {
         Boolean ok = false;
         Venta venta = null;
         Cobro cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
@@ -125,7 +125,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             deshacerVenta(venta, cobro);
         } else {
             try {
-                if(ticket) printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false);
+                if (ticket) printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local);
             } catch (Exception e) {
                 return ok;
             }
@@ -148,7 +148,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
 
-    public void printTicket58mm(Venta venta, Cobro cobro, List<VentaItem> ventaItemList, List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion) throws Exception {
+    public void printTicket58mm(Venta venta, Cobro cobro, List<VentaItem> ventaItemList, List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local) throws Exception {
+        PrintService selectedPrintService = null;
         if (sucursal == null) {
             sucursal = sucursalService.sucursalActual();
         }
@@ -179,108 +180,106 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 }
             }
         }
-        if (printingService.getPrintService() == null) {
-            try {
-                printingService.setPrintService(PrinterOutputStream.getPrintServiceByName("TICKET58"));
-                printService = printingService.getPrintService();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        } else {
-            printService = printingService.getPrintService();
+        selectedPrintService = printingService.getPrintService(printerName);
+        if (selectedPrintService == null) {
+            selectedPrintService = printingService.setPrintService(printerName);
         }
+        if (selectedPrintService != null) {
+            printerOutputStream = new PrinterOutputStream(selectedPrintService);
 
-        // creating the EscPosImage, need buffered image and algorithm.
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
-        //Styles
-        Style center = new Style().setJustification(EscPosConst.Justification.Center);
+            // creating the EscPosImage, need buffered image and algorithm.
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+            //Styles
+            Style center = new Style().setJustification(EscPosConst.Justification.Center);
 
-        QRCode qrCode = new QRCode();
+            QRCode qrCode = new QRCode();
 
-        BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
-        imageBufferedImage = resize(imageBufferedImage, 200, 100);
-        RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
-        EscPos escpos = null;
-        if (printService != null) {
-            printerOutputStream = new PrinterOutputStream(printService);
+            BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
+            imageBufferedImage = resize(imageBufferedImage, 200, 100);
+            RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
+            EscPos escpos = null;
             escpos = new EscPos(printerOutputStream);
-        }
-        Bitonal algorithm = new BitonalThreshold();
-        EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
-        imageWrapper.setJustification(EscPosConst.Justification.Center);
-        escpos.write(imageWrapper, escposImage);
-        //                escpos.writeLF(center, "Av. Paraguay c/ 30 de julio");
+            Bitonal algorithm = new BitonalThreshold();
+            EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
+            imageWrapper.setJustification(EscPosConst.Justification.Center);
+            escpos.write(imageWrapper, escposImage);
+            //                escpos.writeLF(center, "Av. Paraguay c/ 30 de julio");
 //                escpos.writeLF(center, "Salto del Guairá");
-        if (reimpresion == true) {
-            escpos.writeLF(center.setBold(true), "REIMPRESION");
-        }
-        if (sucursal != null) {
-            escpos.writeLF(center, "Suc: " + sucursal.getNombre());
-        }
-        escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
+            if (reimpresion == true) {
+                escpos.writeLF(center.setBold(true), "REIMPRESION");
+            }
+            if (sucursal != null) {
+                escpos.writeLF(center, "Suc: " + sucursal.getNombre());
+            }
+            if (local != null) {
+                escpos.writeLF(center, "Local: " + local);
+            }
+            escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
 
-        if (venta.getUsuario().getPersona().getNombre().length() > 23) {
-            escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre().substring(0, 23));
+            if (venta.getUsuario().getPersona().getNombre().length() > 23) {
+                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre().substring(0, 23));
 
-        } else {
-            escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre());
-        }
+            } else {
+                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre());
+            }
 
-        escpos.writeLF("Fecha: " + venta.getCreadoEn().format(formatter));
-        escpos.writeLF("--------------------------------");
+            escpos.writeLF("Fecha: " + venta.getCreadoEn().format(formatter));
+            escpos.writeLF("--------------------------------");
 
-        if (venta.getCliente() != null) {
-            escpos.writeLF("Cliente: " + venta.getCliente().getPersona().getNombre().substring(0, 22));
-        }
-        escpos.writeLF("Producto");
-        escpos.writeLF("Cant    P.U                 P.T");
-        escpos.writeLF("--------------------------------");
-        for (VentaItem vi : ventaItemList) {
-            String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad() + ")";
-            log.info(vi.getProducto().getDescripcion());
-            escpos.writeLF(vi.getProducto().getDescripcion());
-            escpos.write(new Style().setBold(true), cantidad);
-            String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue());
-            String valorTotal = String.valueOf(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue());
-            for (int i = 10; i > cantidad.length(); i--) {
+            if (venta.getCliente() != null) {
+                escpos.writeLF("Cliente: " + venta.getCliente().getPersona().getNombre().substring(0, 22));
+            }
+            escpos.writeLF("Producto");
+            escpos.writeLF("Cant    P.U                 P.T");
+            escpos.writeLF("--------------------------------");
+            for (VentaItem vi : ventaItemList) {
+                String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad() + ")";
+                log.info(vi.getProducto().getDescripcion());
+                escpos.writeLF(vi.getProducto().getDescripcion());
+                escpos.write(new Style().setBold(true), cantidad);
+                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue());
+                String valorTotal = String.valueOf(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue());
+                for (int i = 10; i > cantidad.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.write(valorUnitario);
+                for (int i = 20 - valorUnitario.length(); i > valorTotal.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
+            }
+            escpos.writeLF("--------------------------------");
+            String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(venta.getTotalGs().intValue());
+            for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
-            escpos.write(valorUnitario);
-            for (int i = 20 - valorUnitario.length(); i > valorTotal.length(); i--) {
+            escpos.writeLF(valorGs);
+            log.info(valorGs);
+            escpos.write("Total Rs: ");
+            String valorRs = String.format("%.2f", venta.getTotalRs());
+            for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
-            escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
-        }
-        escpos.writeLF("--------------------------------");
-        String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(venta.getTotalGs().intValue());
-        for (int i = 22; i > valorGs.length(); i--) {
-            escpos.write(" ");
-        }
-        escpos.writeLF(valorGs);
-        log.info(valorGs);
-        escpos.write("Total Rs: ");
-        String valorRs = String.format("%.2f", venta.getTotalRs());
-        for (int i = 22; i > valorGs.length(); i--) {
-            escpos.write(" ");
-        }
-        escpos.writeLF(valorRs);
-        escpos.write("Total Ds: ");
+            escpos.writeLF(valorRs);
+            escpos.write("Total Ds: ");
 //                String valorDs = NumberFormat.getNumberInstance(new Locale("sk", "SK")).format(venta.getTotalDs());
-        String valorDs = String.format("%.2f", venta.getTotalDs());
-        for (int i = 22; i > valorGs.length(); i--) {
-            escpos.write(" ");
-        }
-        escpos.writeLF(valorDs);
-        if (sucursal != null && sucursal.getNroDelivery() != null) {
-            escpos.write(center, "Delivery? Escaneá el código qr o escribinos al ");
-            escpos.writeLF(center, sucursal.getNroDelivery());
-        }
+            String valorDs = String.format("%.2f", venta.getTotalDs());
+            for (int i = 22; i > valorGs.length(); i--) {
+                escpos.write(" ");
+            }
+            escpos.writeLF(valorDs);
+            if (sucursal != null && sucursal.getNroDelivery() != null) {
+                escpos.write(center, "Delivery? Escaneá el código qr o escribinos al ");
+                escpos.writeLF(center, sucursal.getNroDelivery());
+            }
 //        escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center), "wa.me/595986128000");
-        escpos.feed(1);
-        escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
-        escpos.feed(5);
-        escpos.close();
-        printerOutputStream.close();
+            escpos.feed(1);
+            escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
+            escpos.feed(5);
+            escpos.close();
+            printerOutputStream.close();
+        }
+
 
     }
 
@@ -302,14 +301,14 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return false;
     }
 
-    public Boolean reimprimirVenta(Long id) throws Exception {
+    public Boolean reimprimirVenta(Long id, String printerName, String local) throws Exception {
         Venta venta = service.findById(id).orElse(null);
         if (venta != null) {
             Cobro cobro = cobroGraphQL.cobro(venta.getCobro().getId()).orElse(null);
             List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId());
             if (cobro != null) {
                 List<CobroDetalleInput> cobroDetalleList = new ArrayList<>();
-                printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, true);
+                printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, true, printerName, local);
                 return true;
             }
         }

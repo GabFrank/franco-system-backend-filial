@@ -66,7 +66,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     }
 
 
-    public Retiro saveRetiro(RetiroInput input, List<RetiroDetalleInput> retiroDetalleInputList) throws GraphQLException {
+    public Retiro saveRetiro(RetiroInput input, List<RetiroDetalleInput> retiroDetalleInputList, String printerName, String local) throws GraphQLException {
         ModelMapper m = new ModelMapper();
         Retiro e = m.map(input, Retiro.class);
 
@@ -94,7 +94,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             retiroDto.setRetiroRs(input.getRetiroRs());
             retiroDto.setRetiroDs(input.getRetiroDs());
             retiroDto.setUsuario(retiro.getUsuario());
-            impresionService.printRetiro(retiroDto);
+            impresionService.printRetiro(retiroDto, printerName, local);
         }
         return retiro;
     }

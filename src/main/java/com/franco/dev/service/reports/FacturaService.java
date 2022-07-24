@@ -2,6 +2,7 @@ package com.franco.dev.service.reports;
 
 import com.franco.dev.domain.financiero.FacturaDto;
 import com.franco.dev.domain.financiero.VentaItemDto;
+import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.utilitarios.print.output.PrinterOutputStream;
 import graphql.GraphQLException;
 import net.sf.jasperreports.engine.*;
@@ -9,6 +10,7 @@ import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import net.sf.jasperreports.engine.export.JRPrintServiceExporter;
 import net.sf.jasperreports.export.SimpleExporterInput;
 import net.sf.jasperreports.export.SimplePrintServiceExporterConfiguration;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ResourceUtils;
 
@@ -28,6 +30,8 @@ public class FacturaService {
 
     private PrintService printService;
     private PrinterOutputStream printerOutputStream;
+    @Autowired
+    private ImageService imageService;
 
     public void generarFactura() {
         try {
@@ -74,7 +78,10 @@ public class FacturaService {
                 newElements.add(element);
             }
             jasperPrint1.getPages().get(0).setElements(newElements);
-            printFactura(jasperPrint1);
+            File file2 = new File("/Users/gabfranck/Desktop/");
+            file2.mkdirs();
+            JasperExportManager.exportReportToPdfFile(jasperPrint1, "/Users/gabfranck/Desktop/"
+                    +"report.pdf");
         } catch (Exception e) {
             e.printStackTrace();
         }

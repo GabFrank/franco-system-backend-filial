@@ -38,10 +38,10 @@ extend type Query {
 }
 
 extend type Mutation {
-    saveVenta(ventaInput:VentaInput!, ventaItemList: [VentaItemInput], cobro: CobroInput, cobroDetalleList: [CobroDetalleInput], ticket: Boolean):Boolean
+    saveVenta(ventaInput:VentaInput!, ventaItemList: [VentaItemInput], cobro: CobroInput, cobroDetalleList: [CobroDetalleInput], ticket: Boolean, printerName: String, local: String):Boolean
     deleteVenta(id:ID!):Boolean!
     cancelarVenta(id:ID!):Boolean!
-    reimprimirVenta(id:ID!):Boolean!
+    reimprimirVenta(id:ID!, printerName: String, local: String):Boolean!
 }
 
 enum VentaEstado {

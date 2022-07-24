@@ -18,35 +18,66 @@ import org.springframework.util.ResourceUtils;
 
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
+import javax.print.PrintServiceLookup;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URL;
 import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.Date;
+import java.util.*;
+import java.util.List;
 
 
 @Service
 public class PrintingService {
 
+
     private Logger log = LoggerFactory.getLogger(PrintingService.class);
-    private PrintService printService;
+    private List<PrintService> printServiceList = new ArrayList<>();
     private PrinterOutputStream printerOutputStream;
 
     PrintingService(){
     }
 
-    public PrintService getPrintService(){
-        return printService;
+    public PrintService getPrintService(String printerName){
+        List<PrintService> foundPrintServicesList = Arrays.asList(PrintServiceLookup.lookupPrintServices(null, null));
+        for(PrintService p: foundPrintServicesList){
+            log.info("Impresora: " + p.getName());
+        }
+        PrintService ps = printServiceList.stream()
+                .filter(x -> x.getName().equals(printerName))
+                .findAny()
+                .orElse(null);
+        if(ps==null){
+            log.info("Impresora no encontrada: " + printerName);
+            return setPrintService(printerName);
+        } else {
+            log.info("Impresora encontrada: " + ps.getName());
+            return ps;
+        }
     }
 
-    public void setPrintService(PrintService p){
-        if(p!=null) printService = p;
+    public PrintService setPrintService(String printerName){
+        PrintService ps = null;
+        try {
+            ps = PrinterOutputStream.getPrintServiceByName(printerName);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        if(ps!=null){
+            log.info("Impresora encontrada: " + ps.getName());
+            printServiceList.add(ps);
+            return ps;
+        } else {
+            log.info("Impresora no encontrada: " + printerName);
+            return null;
+        }
+
     }
 
 //    tamanho de papel 58mm entran 32 caracteres
     public Boolean printTicketCaja58mm(String image, String printerName){
+        PrintService selectedPrintService = null;
 //        LocalDateTime date = data.getVenta().getCreadoEn();
 //        String fecha = date.getDayOfMonth()+"/"+date.getMonthValue()+"/"+date.getYear();
 //        StringBuilder stringBuilder = new StringBuilder();
@@ -54,8 +85,15 @@ public class PrintingService {
 //        String hora =  stringBuilder.toString();
 
         try {
-            printService = PrinterOutputStream.getPrintServiceByName("TICKET1");
-            printerOutputStream  = new PrinterOutputStream(printService);
+            selectedPrintService = getPrintService(printerName);
+            if(selectedPrintService==null){
+                selectedPrintService = setPrintService(printerName);
+            }
+            if(selectedPrintService!=null){
+                printerOutputStream  = new PrinterOutputStream(selectedPrintService);
+            } else {
+                return false;
+            }
             // creating the EscPosImage, need buffered image and algorithm.
 
             BufferedImage imageBufferedImage = base64StringToImage(image);

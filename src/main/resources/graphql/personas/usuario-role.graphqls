@@ -1,0 +1,27 @@
+type UsuarioRole {
+    id:ID!
+    user: Usuario
+    role: Role
+    usuario: Usuario
+    creadoEn: Date
+}
+
+input UsuarioRoleInput {
+    id:ID,
+    userId: Int
+    roleId: Int
+    usuarioId: Int
+}
+
+extend type Query {
+    usuarioRolePorUsuarioId(id:ID!):[UsuarioRole]
+}
+
+extend type Mutation {
+    saveUsuarioRole(usuarioRole:UsuarioRoleInput!):UsuarioRole!
+    deleteUsuarioRole(id:ID!):Boolean!
+}
+
+
+
+

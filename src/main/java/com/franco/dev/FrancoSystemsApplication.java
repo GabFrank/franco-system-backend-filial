@@ -102,7 +102,7 @@ public class FrancoSystemsApplication {
     @PostConstruct
     public void setUp() {
         objectMapper.registerModule(new JavaTimeModule());
-        facturaService.generarFactura();
+//        facturaService.generarFactura();
     }
 
 //	@Bean

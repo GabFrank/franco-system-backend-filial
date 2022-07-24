@@ -62,7 +62,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return service.findByDate(inicio, fin);
     }
 
-    public Gasto saveGasto(GastoInput input) throws GraphQLException {
+    public Gasto saveGasto(GastoInput input, String printerName, String local) throws GraphQLException {
         ModelMapper m = new ModelMapper();
         Gasto e = m.map(input, Gasto.class);
 
@@ -101,7 +101,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             gastoDto.setVueltoRs(input.getVueltoRs());
             gastoDto.setVueltoDs(input.getVueltoDs());
             gastoDto.setCajaId(gasto.getCaja().getId());
-            impresionService.printGasto(gastoDto);
+            impresionService.printGasto(gastoDto, printerName, local);
         }
         return gasto;
     }

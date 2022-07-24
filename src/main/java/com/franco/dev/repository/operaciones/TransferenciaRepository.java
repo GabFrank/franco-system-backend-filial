@@ -21,6 +21,6 @@ public interface TransferenciaRepository extends HelperRepository<Transferencia,
 
     @Query("select e from Transferencia e " +
             " where (cast(e.creadoEn as date) = cast(?1 as date) and ?2 = ?1" +
-            "or cast(e.creadoEn as date) >= cast(?1 as date) AND cast(e.creadoEn as date) <= cast(?2 as date)) or e.estado = 'ABIERTO'")
+            "or cast(e.creadoEn as date) >= cast(?1 as date) AND cast(e.creadoEn as date) <= cast(?2 as date)) or e.estado = 'ABIERTA'")
     public List<Transferencia> findByDate(String start, String end);
 }

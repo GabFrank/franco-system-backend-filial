@@ -4,6 +4,8 @@ import com.franco.dev.domain.operaciones.TransferenciaItem;
 import com.franco.dev.repository.operaciones.TransferenciaItemRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,8 +21,16 @@ public class TransferenciaItemService extends CrudService<TransferenciaItem, Tra
         return repository;
     }
 
-    public List<TransferenciaItem> findByTransferenciaId(Long id){
-        return  repository.findByTransferenciaId(id);
+    public List<TransferenciaItem> findByTransferenciaItemId(Long id, Integer page, Integer size){
+        if(page==null && size == null){
+            return  repository.findByTransferenciaIdOrderByIdDesc(id);
+        }
+        Pageable pageable = PageRequest.of(page, size);
+        return  repository.findByTransferenciaIdOrderByIdDesc(id, pageable);
+    }
+
+    public List<TransferenciaItem> findByTransferenciaItemId(Long id){
+        return  repository.findByTransferenciaIdOrderByIdDesc(id);
     }
 
     @Override

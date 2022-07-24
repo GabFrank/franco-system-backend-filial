@@ -32,7 +32,7 @@ extend type Query {
 }
 
 extend type Mutation {
-    saveRetiro(retiro:RetiroInput!, retiroDetalleInputList: [RetiroDetalleInput]):Retiro!
+    saveRetiro(retiro:RetiroInput!, retiroDetalleInputList: [RetiroDetalleInput], printerName: String, local: String):Retiro!
     deleteRetiro(id:ID!):Boolean!
 }
 

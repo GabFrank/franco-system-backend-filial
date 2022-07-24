@@ -319,10 +319,12 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                                     if (cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")) {
                                         if (cobroDetalle.getDescuento()) {
                                             totalDescuento += cobroDetalle.getValor();
+                                            totalVentaGs += cobroDetalle.getValor();
                                         } else if (cobroDetalle.getAumento()) {
                                             totalAumento += cobroDetalle.getValor();
+                                        } else {
+                                            totalVentaGs += cobroDetalle.getValor();
                                         }
-                                        totalVentaGs += cobroDetalle.getValor();
                                     } else if (cobroDetalle.getFormaPago().getDescripcion().contains("TARJETA")) {
                                         totalTarjeta += cobroDetalle.getValor();
                                     }
@@ -363,7 +365,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             balance.setUsuario(pdvCaja.getUsuario());
             balance.setFechaApertura(pdvCaja.getFechaApertura());
             balance.setFechaCierre(pdvCaja.getFechaCierre());
-            balance.setDiferenciaGs(balance.getTotalGsCierre() - balance.getTotalGsAper() + balance.getTotalRetiroGs() + balance.getTotalGastoGs() - balance.getTotalVentaGs());
+            balance.setDiferenciaGs(balance.getTotalGsCierre() - balance.getTotalGsAper() + balance.getTotalRetiroGs() + balance.getTotalGastoGs() - balance.getTotalVentaGs() + balance.getTotalDescuento());
             balance.setDiferenciaRs(balance.getTotalRsCierre() - balance.getTotalRsAper() + balance.getTotalRetiroRs() + balance.getTotalGastoRs() - balance.getTotalVentaRs());
             balance.setDiferenciaDs(balance.getTotalDsCierre() - balance.getTotalDsAper() + balance.getTotalRetiroDs() + balance.getTotalGastoDs() - balance.getTotalVentaDs());
             balance.setSucursal(sucursalService.sucursalActual());
@@ -371,11 +373,11 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         return balance;
     }
 
-    public PdvCaja imprimirBalance(Long id){
+    public PdvCaja imprimirBalance(Long id, String printerName, String local){
         PdvCaja pdvCaja = findById(id).orElse(null);
         if(pdvCaja!=null){
             PdvCajaBalanceDto balanceDto = generarBalance(pdvCaja);
-            impresionService.printBalance(balanceDto);
+            impresionService.printBalance(balanceDto, printerName, local);
         }
         return pdvCaja;
     }

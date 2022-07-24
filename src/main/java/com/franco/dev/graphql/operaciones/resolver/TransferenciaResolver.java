@@ -16,7 +16,7 @@ public class TransferenciaResolver implements GraphQLResolver<Transferencia> {
     private TransferenciaItemService transferenciaItemService;
 
     public List<TransferenciaItem> transferenciaItemList(Transferencia e){
-        return transferenciaItemService.findByTransferenciaId(e.getId());
+        return transferenciaItemService.findByTransferenciaItemId(e.getId());
     }
 
 }
