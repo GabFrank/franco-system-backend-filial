@@ -1,6 +1,7 @@
 package com.franco.dev.rabbit.enums;
 
 public enum TipoEntidad {
+    ARCHIVO,
     PRODUCTO,
     CODIGO,
     PRESENTACION,

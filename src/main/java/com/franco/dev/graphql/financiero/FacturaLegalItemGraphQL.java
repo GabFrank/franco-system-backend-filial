@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Component
-public class FacturaLegalItemItemGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+public class FacturaLegalItemGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
     private FacturaLegalItemService service;

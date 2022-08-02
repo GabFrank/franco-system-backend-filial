@@ -9,6 +9,7 @@ import com.franco.dev.service.productos.CodigoService;
 import com.franco.dev.service.productos.PrecioPorSucursalService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.productos.TipoPrecioService;
+import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.reports.FacturaService;
 import com.franco.dev.service.utils.ImageService;
 import org.slf4j.Logger;
@@ -54,6 +55,9 @@ public class FrancoSystemsApplication {
     private InventarioService inventarioService;
     @Autowired
     private MovimientoStockService movimientoStockService;
+
+    @Autowired
+    private PropagacionService propagacionService;
 
     @Autowired
     private FacturaService facturaService;
@@ -102,7 +106,7 @@ public class FrancoSystemsApplication {
     @PostConstruct
     public void setUp() {
         objectMapper.registerModule(new JavaTimeModule());
-        facturaService.generarFactura();
+        propagacionService.verificarResourcesExists();
     }
 
 //	@Bean

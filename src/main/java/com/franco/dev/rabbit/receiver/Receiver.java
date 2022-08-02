@@ -1,6 +1,7 @@
 package com.franco.dev.rabbit.receiver;
 
 import com.franco.dev.rabbit.dto.RabbitDto;
+import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.rabbitmq.PropagacionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,10 @@ public class Receiver {
                 propagacionService.crudEntidad(dto);
                 break;
             case GUARDAR_IMAGEN:
+                propagacionService.guardarImagen(dto, dto.getTipoEntidad());
+                break;
+            case GUARDAR_ARCHIVO:
+                propagacionService.guardarArchivo(dto);
                 break;
             default:
                 break;

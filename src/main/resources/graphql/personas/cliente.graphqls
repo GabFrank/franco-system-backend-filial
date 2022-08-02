@@ -22,6 +22,7 @@ extend type Query {
     cliente(id:ID!):Cliente
     clientePorPersonaId(id:ID): Cliente
     clientePorPersona(texto:String): [Cliente]
+    clientePorPersonaDocumento(texto:String): Cliente
     clientePorTelefono(texto:String): [Cliente]
     clientes(page:Int = 0, size:Int = 10):[Cliente]!
     countCliente: Int

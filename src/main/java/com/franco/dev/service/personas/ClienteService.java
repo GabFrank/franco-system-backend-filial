@@ -25,6 +25,10 @@ public class ClienteService extends CrudService<Cliente, ClienteRepository> {
         return repository.findByPersonaId(id);
     }
 
+    public Cliente findByPersonaDocumento(String texto){
+        return repository.findByPersonaDocumento(texto);
+    }
+
     public List<Cliente> findByAll(String texto){
         texto = texto.replace(' ', '%');
         return  repository.findByPersona(texto);

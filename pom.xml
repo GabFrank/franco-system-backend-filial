@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.franco.dev</groupId>
 	<artifactId>franco-dev-systems</artifactId>
-	<version>1.1.7</version>
+	<version>1.2.0</version>
 	<name>Franco Systems</name>
 	<description>Sistema de gestion empresarial</description>
 
@@ -217,6 +217,12 @@
 			<groupId>org.imgscalr</groupId>
 			<artifactId>imgscalr-lib</artifactId>
 			<version>4.2</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.zeroturnaround</groupId>
+			<artifactId>zt-zip</artifactId>
+			<version>1.15</version>
 		</dependency>
 
 	</dependencies>

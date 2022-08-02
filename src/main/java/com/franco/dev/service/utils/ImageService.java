@@ -32,10 +32,10 @@ public class ImageService {
     boolean isWindows = true;
     boolean isMac = false;
 
-    public String storageDirectoryPath = userDirectory+"/FRC/images";
-    public String imagePresentaciones = userDirectory+"/FRC/images/productos/presentaciones";
-    public String imagePresentacionesThumbPath = userDirectory+"/FRC/images/productos/presentaciones/thumbnails";
-    public String storageDirectoryPathReports = userDirectory+"/FRC/reports";
+    public String storageDirectoryPath = userDirectory+"/FRC/resources/images";
+    public String imagePresentaciones = userDirectory+"/FRC/resources/images/productos/presentaciones";
+    public String imagePresentacionesThumbPath = userDirectory+"/FRC/resources/images/productos/presentaciones/thumbnails";
+    public String storageDirectoryPathReports = userDirectory+"/FRC/resources/reports";
 
     public ImageService(){
 
@@ -47,14 +47,22 @@ public class ImageService {
         isMac = osName.contains("Mac");
 
         if(isWindows) {
-            storageDirectoryPath = "C:\\\\FRC\\images\\";
-            storageDirectoryPathReports = "C:\\\\FRC\\reports\\";
-            imagePresentaciones = "C:\\\\FRC\\images\\productos\\presentaciones\\thumbnails\\";
+            storageDirectoryPath = "C:\\\\FRC\\resources\\images\\";
+            storageDirectoryPathReports = "C:\\\\FRC\\resources\\reports\\";
+            imagePresentaciones = "C:\\\\FRC\\resources\\images\\productos\\presentaciones\\thumbnails\\";
         } else {
             storageDirectoryPath = storageDirectoryPath+"/";
             storageDirectoryPathReports = storageDirectoryPathReports+"/";
             imagePresentaciones = imagePresentaciones+"/";
 
+        }
+    }
+
+    public String getResourcesPath() {
+        if (isWindows) {
+            return "C:\\\\FRC\\resources";
+        } else {
+            return userDirectory + "/FRC/resources";
         }
     }
 

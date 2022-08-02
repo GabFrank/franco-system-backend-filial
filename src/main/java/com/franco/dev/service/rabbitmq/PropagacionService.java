@@ -27,166 +27,131 @@ import com.franco.dev.service.productos.pdv.PdvCategoriaService;
 import com.franco.dev.service.productos.pdv.PdvGrupoService;
 import com.franco.dev.service.productos.pdv.PdvGruposProductosService;
 import com.franco.dev.service.utils.ImageService;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.http.*;
+import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.zeroturnaround.zip.ZipUtil;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
 public class PropagacionService {
 
+    @Autowired
+    public MovimientoStockService movimientoStockService;
+    @Autowired
+    public SectorService sectorService;
+    @Autowired
+    public ZonaService zonaService;
     Long sucursalVerificar = null;
     private Logger log = LoggerFactory.getLogger(PropagacionService.class);
     @Autowired
     private Environment env;
-
     @Autowired
     private Sender sender;
-
     @Autowired
     private SucursalService sucursalService;
-
     @Autowired
     private UsuarioService usuarioService;
-
     @Autowired
     private PersonaService personaService;
-
     @Autowired
     private InitDbService initDbService;
-
     @Autowired
     private PaisService paisService;
-
     @Autowired
     private CiudadService ciudadService;
-
     @Autowired
     private FamiliaService familiaService;
-
     @Autowired
     private SubFamiliaService subFamiliaService;
-
     @Autowired
     private ProductoService productoService;
-
     @Autowired
     private TipoPresentacionService tipoPresentacionService;
-
     @Autowired
     private PresentacionService presentacionService;
-
     @Autowired
     private PdvCategoriaService pdvCategoriaService;
-
     @Autowired
     private PdvGrupoService pdvGrupoService;
-
     @Autowired
     private PdvGruposProductosService pdvGruposProductosService;
-
     @Autowired
     private TipoPrecioService tipoPrecioService;
-
     @Autowired
     private PrecioPorSucursalService precioPorSucursalService;
-
     @Autowired
     private BancoService bancoService;
-
     @Autowired
     private CuentaBancariaService cuentaBancariaService;
-
     @Autowired
     private MonedaService monedaService;
-
     @Autowired
     private MonedaBilleteService monedaBilleteService;
-
     @Autowired
     private FormaPagoService formaPagoService;
-
     @Autowired
     private DocumentoService documentoService;
-
     @Autowired
     private MaletinService maletinService;
-
     @Autowired
     private CargoService cargoService;
-
     @Autowired
     private TipoGastoService tipoGastoService;
-
     @Autowired
     private CodigoService codigoService;
-
     @Autowired
     private CambioService cambioService;
-
     @Autowired
     private BarrioService barrioService;
-
     @Autowired
     private ContactoService contactoService;
-
     @Autowired
     private ClienteService clienteService;
-
     @Autowired
     private FuncionarioService funcionarioService;
-
     @Autowired
     private ProveedorService proveedorService;
-
     @Autowired
     private VendedorService vendedorService;
-
     @Autowired
     private VendedorProveedorService vendedorProveedorService;
-
     @Autowired
     private RoleService roleService;
-
     @Autowired
     private UsuarioRoleService usuarioRoleService;
-
     @Autowired
     private SincronizacionStatusPublisher sincronizacionStatusPublisher;
-
     @Autowired
     private LocalService localService;
-
     @Autowired
     private TransferenciaService transferenciaService;
-
     @Autowired
     private TransferenciaItemService transferenciaItemService;
-
     @Autowired
     private InventarioService inventarioService;
-
     @Autowired
     private InventarioProductoService inventarioProductoService;
-
     @Autowired
     private InventarioProductoItemService inventarioProductoItemService;
-
-    @Autowired
-    public MovimientoStockService movimientoStockService;
-
-    @Autowired
-    public SectorService sectorService;
-
-    @Autowired
-    public ZonaService zonaService;
-
     @Autowired
     private ImageService imageService;
+
+    @Autowired
+    private RestTemplate restTemplate;
 
     //    public Boolean verficarConexion(Long sucId) {
 //        sucursalVerificar = sucId;
@@ -359,6 +324,7 @@ public class PropagacionService {
             case USUARIO_ROLE:
                 log.info("cargando usuario role: ");
                 guardar(usuarioRoleService, dto, null);
+                solicitarResources();
                 break;
             default:
                 break;
@@ -555,15 +521,26 @@ public class PropagacionService {
 
     public void guardarImagen(RabbitDto dto, TipoEntidad tipoEntidad) {
         String filename = (String) dto.getEntidad();
-        switch (tipoEntidad){
+        switch (tipoEntidad) {
             case PRESENTACION:
                 try {
-                    imageService.saveImageToPath((String)dto.getEntidad(), (String)dto.getData(), true);
+                    imageService.saveImageToPath((String) dto.getEntidad(), (String) dto.getData(), true);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
                 break;
         }
+    }
+
+    public void guardarArchivo(RabbitDto dto) {
+        byte[] fileContent = (byte[]) dto.getData();
+        try {
+            FileUtils.writeByteArrayToFile(new File(imageService.storageDirectoryPath + dto.getEntidad() + ".zip"), fileContent);
+            ZipUtil.explode(new File(imageService.storageDirectoryPath + dto.getEntidad() + ".zip", imageService.storageDirectoryPath + dto.getEntidad()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public <T> Object guardar(CrudService service, RabbitDto dto) {
@@ -604,7 +581,39 @@ public class PropagacionService {
         localService.save(new Local(null, null, null, sucursal, null));
     }
 
-    public Inventario finalizarInventario(RabbitDto<Inventario> dto){
+    public Inventario finalizarInventario(RabbitDto<Inventario> dto) {
         return inventarioService.finalizarInventario(dto.getEntidad().getId());
+    }
+
+    public void verificarResourcesExists() {
+        Path path = Paths.get(imageService.getResourcesPath());
+        if (!Files.exists(path)) {
+            solicitarResources();
+        }
+    }
+
+    public void solicitarResources() {
+        String url = "http://" + env.getProperty("ipServidorCentral") + "/config/resources";
+        log.info("solicitando recursos a " + url);
+        restTemplate.getMessageConverters().add(
+                new ByteArrayHttpMessageConverter());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Arrays.asList(MediaType.APPLICATION_OCTET_STREAM));
+
+        HttpEntity<String> entity = new HttpEntity<String>(headers);
+
+        ResponseEntity<byte[]> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET, entity, byte[].class, "1");
+
+        if (response.getStatusCode() == HttpStatus.OK) {
+            try {
+                Files.write(Paths.get(imageService.getResourcesPath() + ".zip"), response.getBody());
+                ZipUtil.unpack(new File(imageService.getResourcesPath() + ".zip"), new File(imageService.getResourcesPath()));
+                imageService.deleteFile(imageService.getResourcesPath() + ".zip");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

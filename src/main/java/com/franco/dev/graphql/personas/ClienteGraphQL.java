@@ -56,6 +56,11 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         return service.findByAll(texto);
     }
 
+    public Cliente clientePorPersonaDocumento(String texto){
+        Cliente e = service.findByPersonaDocumento(texto);
+        return e;
+    }
+
     public Cliente saveCliente(ClienteInput input){
         ModelMapper m = new ModelMapper();
         Cliente e = m.map(input, Cliente.class);
@@ -75,5 +80,7 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     public Cliente clientePorPersonaId(Long id){
         return service.findByPersonaId(id);
     }
+
+
 
 }

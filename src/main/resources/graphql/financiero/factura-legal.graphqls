@@ -5,8 +5,8 @@ type FacturaLegal {
     nroFactura:String
     cliente: Cliente
     venta: Venta
-    fecha:Date,
-    credito	boolean,
+    fecha:Date
+    credito:Boolean
     nombre:String
     ruc:String
     direccion:String
@@ -28,8 +28,8 @@ input FacturaLegalInput {
     nroFactura:String
     clienteId: Int
     ventaId: Int
-    fecha:String,
-    credito	boolean,
+    fecha:String
+    credito:Boolean
     nombre:String
     ruc:String
     direccion:String
@@ -40,7 +40,7 @@ input FacturaLegalInput {
     totalParcial5:Float
     totalParcial10:Float
     totalFinal:Float
-    usuario: Usuario
+    usuarioId: Int
 }
 
 extend type Query {
@@ -50,7 +50,7 @@ extend type Query {
 }
 
 extend type Mutation {
-    saveFacturaLegal(facturaLegal:FacturaLegalInput!):FacturaLegal!
+    saveFacturaLegal(entity:FacturaLegalInput!, detalleList: [FacturaLegalItemInput], printerName: String):FacturaLegal!
     deleteFacturaLegal(id:ID!):Boolean!
 }
 

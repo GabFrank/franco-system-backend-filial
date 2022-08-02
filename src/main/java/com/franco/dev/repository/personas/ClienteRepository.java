@@ -18,4 +18,6 @@ public interface ClienteRepository extends HelperRepository<Cliente, Long> {
             "left join c.persona per " +
             " where CAST(per.id as text) like %?1% or UPPER(per.nombre) like %?1% or UPPER(per.apodo) like %?1%")
     List<Cliente> findByPersona(String texto);
+
+    public Cliente findByPersonaDocumento(String texto);
 }

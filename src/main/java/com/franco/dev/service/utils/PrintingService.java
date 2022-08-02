@@ -21,6 +21,7 @@ import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.print.PrinterJob;
 import java.io.*;
 import java.net.URL;
 import java.time.LocalDateTime;
@@ -40,21 +41,7 @@ public class PrintingService {
     }
 
     public PrintService getPrintService(String printerName){
-        List<PrintService> foundPrintServicesList = Arrays.asList(PrintServiceLookup.lookupPrintServices(null, null));
-        for(PrintService p: foundPrintServicesList){
-            log.info("Impresora: " + p.getName());
-        }
-        PrintService ps = printServiceList.stream()
-                .filter(x -> x.getName().equals(printerName))
-                .findAny()
-                .orElse(null);
-        if(ps==null){
-            log.info("Impresora no encontrada: " + printerName);
-            return setPrintService(printerName);
-        } else {
-            log.info("Impresora encontrada: " + ps.getName());
-            return ps;
-        }
+        return PrinterOutputStream.getPrintServiceByName(printerName);
     }
 
     public PrintService setPrintService(String printerName){

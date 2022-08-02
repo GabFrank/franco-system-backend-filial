@@ -30,11 +30,11 @@ public class FacturaLegal implements Serializable {
     private String nroFactura;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "usuario_id", nullable = true)
+    @JoinColumn(name = "cliente_id", nullable = true)
     private Cliente cliente;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "usuario_id", nullable = true)
+    @JoinColumn(name = "venta_id", nullable = true)
     private Venta venta;
 
     private LocalDateTime fecha;
