@@ -16,6 +16,6 @@ public interface PdvGrupoRepository extends HelperRepository<PdvGrupo, Long> {
     @Query("select f from PdvGrupo f where CAST(id as text) like %?1% or UPPER(descripcion) like %?1%")
     public List<PdvGrupo> findByAll(String texto);
 
-    public List<PdvGrupo> findByPdvCategoriaId(Long id);
+    public List<PdvGrupo> findByPdvCategoriaIdOrderByIdAsc(Long id);
 
 }

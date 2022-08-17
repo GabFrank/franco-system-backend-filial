@@ -10,8 +10,7 @@ import com.franco.dev.service.productos.PrecioPorSucursalService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.productos.TipoPrecioService;
 import com.franco.dev.service.rabbitmq.PropagacionService;
-import com.franco.dev.service.reports.FacturaService;
-import com.franco.dev.service.utils.ImageService;
+import com.franco.dev.service.financiero.FacturaService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,13 +25,11 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.Filter;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
 
 @EnableRetry
 @SpringBootApplication

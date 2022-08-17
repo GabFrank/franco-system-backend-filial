@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @AllArgsConstructor
@@ -17,6 +18,10 @@ public class FacturaLegalService extends CrudService<FacturaLegal, FacturaLegalR
     @Override
     public FacturaLegalRepository getRepository() {
         return repository;
+    }
+
+    public List<FacturaLegal> findByCajaId(Long id){
+        return repository.findByCajaId(id);
     }
 
     @Override

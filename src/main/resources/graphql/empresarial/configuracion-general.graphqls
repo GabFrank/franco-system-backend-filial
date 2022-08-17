@@ -1,0 +1,14 @@
+type ConfiguracionGeneral {
+    id:ID!
+    nombreEmpresa: String
+    razonSocial: String
+    ruc: String
+    creadoEn: Date
+    usuario: Usuario
+}
+
+extend type Query {
+    configuracionGeneral:ConfiguracionGeneral
+}
+
+

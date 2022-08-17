@@ -64,7 +64,7 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     public Cliente saveCliente(ClienteInput input){
         ModelMapper m = new ModelMapper();
         Cliente e = m.map(input, Cliente.class);
-        e.setUsuarioId(usuarioService.findById(input.getUsuarioId()).orElse(null));
+        e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         e.setPersona(personaService.findById(input.getPersonaId()).orElse(null));
         return service.save(e);
     }

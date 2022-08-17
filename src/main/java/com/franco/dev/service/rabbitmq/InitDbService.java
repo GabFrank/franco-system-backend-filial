@@ -28,6 +28,10 @@ public class InitDbService {
     public Boolean initDb() {
         String superUser = "INSERT INTO personas.usuario (id, password,usuario_id,creado_en,nickname,email,activo) " +
                 "values(1000,'admin',null,NULL,'admin',NULL,true);";
+        String personaSinNombre = "INSERT INTO personas.persona (id,nombre,apodo,documento,nacimiento,sexo,direccion,ciudad_id,telefono,social_media,imagenes,creado_en,usuario_id,email,id_central) VALUES " +
+                "(0,'SIN NOMBRE','','X',NULL,NULL,'',NULL,'',NULL,NULL,NULL,1000,'',NULL);";
+        String clienteSinNombre = "INSERT INTO personas.cliente (id,persona_id,usuario_id) " +
+                "VALUES (0,0,1000);";
         String truncQuery = "select public.reiniciartablas('franco','administrativo'),\n" +
                 " public.reiniciartablas('franco','configuraciones'),\n" +
                 " public.reiniciartablas('franco','empresarial'),\n" +

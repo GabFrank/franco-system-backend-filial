@@ -6,6 +6,7 @@ import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.graphql.financiero.input.BancoInput;
 import com.franco.dev.graphql.financiero.input.ConteoInput;
 import com.franco.dev.graphql.financiero.input.ConteoMonedaInput;
+import com.franco.dev.security.Unsecured;
 import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -59,6 +60,7 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     }
 
 
+    @Unsecured()
     public Conteo saveConteo(ConteoInput input, List<ConteoMonedaInput> conteoMonedaInputList, Long cajaId, Boolean apertura){
         ModelMapper m = new ModelMapper();
         Conteo e = m.map(input, Conteo.class);

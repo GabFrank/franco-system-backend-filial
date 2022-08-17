@@ -1,7 +1,6 @@
 package com.franco.dev.service.personas;
 
 import com.franco.dev.domain.personas.Persona;
-import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.repository.personas.PersonaRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
@@ -28,6 +27,10 @@ public class PersonaService extends CrudService<Persona, PersonaRepository> {
         return repository.findbyAll(texto);
     }
 
+    public Persona findByDocumento(String documento) {
+        return repository.findByDocumentoIgnoreCase(documento);
+    }
+
     @Override
     public Persona save(Persona entity) {
         if (entity.getId() == null) {
@@ -42,7 +45,7 @@ public class PersonaService extends CrudService<Persona, PersonaRepository> {
         return p;
     }
 
-    public List<Persona> saveAll(List<Persona> entityList){
+    public List<Persona> saveAll(List<Persona> entityList) {
         return repository.saveAll(entityList);
     }
 }

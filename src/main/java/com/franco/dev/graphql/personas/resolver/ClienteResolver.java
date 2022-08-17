@@ -2,7 +2,6 @@ package com.franco.dev.graphql.personas.resolver;
 
 import com.franco.dev.domain.general.Contacto;
 import com.franco.dev.domain.personas.Cliente;
-import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.service.general.ContactoService;
 import com.franco.dev.service.personas.PersonaService;
@@ -26,14 +25,20 @@ public class ClienteResolver implements GraphQLResolver<Cliente> {
     @Autowired
     private ContactoService contactoService;
 
-    public List<Contacto> contactos(Cliente e){
+    public List<Contacto> contactos(Cliente e) {
         return contactoService.findByPersonaId(e.getPersona().getId());
     }
 
-    public String nombre(Cliente e){ return e.getPersona().getNombre(); }
+    public String nombre(Cliente e) {
+        return e.getPersona().getNombre();
+    }
 
-    public Optional<Usuario> usuarioId(Cliente e){
-        return usuarioService.findById(e.getUsuarioId().getId());
+    public String documento(Cliente e) {
+        return e.getPersona().getDocumento();
+    }
+
+    public Optional<Usuario> usuarioId(Cliente e) {
+        return usuarioService.findById(e.getUsuario().getId());
     }
 
 }

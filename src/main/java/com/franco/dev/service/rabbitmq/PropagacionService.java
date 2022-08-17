@@ -2,10 +2,16 @@ package com.franco.dev.service.rabbitmq;
 
 import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.domain.empresarial.Sucursal;
+import com.franco.dev.domain.financiero.Conteo;
+import com.franco.dev.domain.financiero.Maletin;
+import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.operaciones.Inventario;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
+import com.franco.dev.graphql.financiero.ConteoGraphQL;
 import com.franco.dev.rabbit.RabbitMQConection;
 import com.franco.dev.rabbit.dto.RabbitDto;
+import com.franco.dev.rabbit.dto.SaveConteoDto;
+import com.franco.dev.rabbit.dto.SaveFacturaDto;
 import com.franco.dev.rabbit.enums.TipoAccion;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.rabbit.sender.Sender;
@@ -35,6 +41,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.zeroturnaround.zip.ZipUtil;
 
@@ -149,9 +156,18 @@ public class PropagacionService {
     private InventarioProductoItemService inventarioProductoItemService;
     @Autowired
     private ImageService imageService;
-
+    @Autowired
+    private PdvCajaService pdvCajaService;
+    @Autowired
+    private ConteoService conteoService;
     @Autowired
     private RestTemplate restTemplate;
+    @Autowired
+    private ConteoGraphQL conteoGraphQL;
+    @Autowired
+    private FacturaLegalService facturaLegalService;
+    @Autowired
+    private FacturaLegalItemService facturaLegalItemService;
 
     //    public Boolean verficarConexion(Long sucId) {
 //        sucursalVerificar = sucId;
@@ -505,10 +521,26 @@ public class PropagacionService {
             case SECTOR:
                 log.info("creando sector: ");
                 return guardar(sectorService, dto);
-
             case ZONA:
                 log.info("creando zona: ");
                 return guardar(zonaService, dto);
+            case CONTEO:
+                log.info("guardando conteo");
+                SaveConteoDto conteoDto = (SaveConteoDto) dto.getEntidad();
+                Conteo conteo = conteoGraphQL.saveConteo(conteoDto.getConteoInput(), conteoDto.getConteoMonedaInputList(), conteoDto.getCajaId(), conteoDto.getApertura());
+                if (conteo != null) {
+                    pdvCajaService.imprimirBalance(conteoDto.getCajaId(), null, null);
+                    return conteo;
+                }
+            case PDV_CAJA:
+                log.info("guardando caja: ");
+                return guardar(pdvCajaService, dto);
+            case FACTURA:
+                log.info("guardando factura: ");
+                return guardar(facturaLegalService, dto);
+            case FACTURA_ITEM:
+                log.info("guardando factura item: ");
+                return guardar(facturaLegalItemService, dto);
             default:
                 return null;
         }
@@ -572,6 +604,11 @@ public class PropagacionService {
         sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(entity, TipoAccion.GUARDAR, tipoEntidad, Long.valueOf(env.getProperty("sucursalId"))));
     }
 
+    public <T> Object propagarEntidadAndRecibir(T entity, TipoEntidad tipoEntidad) {
+        log.info("Propagando entidad a servidor y recibir: " + tipoEntidad.name());
+        return sender.enviarAndRecibir(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(entity, TipoAccion.GUARDAR, tipoEntidad, Long.valueOf(env.getProperty("sucursalId"))));
+    }
+
     public <T> void deleteEntidad(T entity, TipoEntidad tipoEntidad) {
         log.info("Propagando entidad a servidor: " + tipoEntidad.name());
         sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(entity, TipoAccion.DELETE, tipoEntidad, Long.valueOf(env.getProperty("sucursalId"))));
@@ -602,18 +639,51 @@ public class PropagacionService {
 
         HttpEntity<String> entity = new HttpEntity<String>(headers);
 
-        ResponseEntity<byte[]> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET, entity, byte[].class, "1");
+        try {
+            ResponseEntity<byte[]> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET, entity, byte[].class, "1");
 
-        if (response.getStatusCode() == HttpStatus.OK) {
-            try {
-                Files.write(Paths.get(imageService.getResourcesPath() + ".zip"), response.getBody());
-                ZipUtil.unpack(new File(imageService.getResourcesPath() + ".zip"), new File(imageService.getResourcesPath()));
-                imageService.deleteFile(imageService.getResourcesPath() + ".zip");
-            } catch (IOException e) {
-                e.printStackTrace();
+            if (response.getStatusCode() == HttpStatus.OK) {
+                try {
+                    Files.write(Paths.get(imageService.getResourcesPath() + ".zip"), response.getBody());
+                    ZipUtil.unpack(new File(imageService.getResourcesPath() + ".zip"), new File(imageService.getResourcesPath()));
+                    imageService.deleteFile(imageService.getResourcesPath() + ".zip");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
+        } catch (RestClientException e) {
+            e.printStackTrace();
         }
+
+
+    }
+
+    public Object solicitarGuardar(RabbitDto dto) {
+        return sender.enviarAndRecibir(RabbitMQConection.SERVIDOR_KEY, dto);
+    }
+
+    public Object cajaAbiertaPorUsuario(Long id) {
+        log.info("Enviando caja a servidor del usuario: " + id);
+        PdvCaja pdvCaja = pdvCajaService.findByUsuarioIdAndAbierto(id);
+        if (pdvCaja != null) {
+            if (pdvCaja.getConteoApertura() != null)
+                pdvCaja.setConteoApertura(conteoService.findById(pdvCaja.getConteoApertura().getId()).orElse(null));
+            if (pdvCaja.getUsuario() != null)
+                pdvCaja.setUsuario(usuarioService.findById(pdvCaja.getUsuario().getId()).orElse(null));
+            if (pdvCaja.getMaletin() != null)
+                pdvCaja.setMaletin(maletinService.findById(pdvCaja.getMaletin().getId()).orElse(null));
+        }
+        return pdvCaja;
+    }
+
+    public Maletin maletinPorDescripcion(String texto) {
+        return maletinService.findByDescripcion(texto);
+    }
+
+    public void propagarFactura(SaveFacturaDto saveFacturaDto) {
+        log.info("Propagando facturas a servidor y recibir: ");
+        sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(saveFacturaDto, TipoAccion.GUARDAR, TipoEntidad.FACTURA, Long.valueOf(env.getProperty("sucursalId"))));
     }
 }

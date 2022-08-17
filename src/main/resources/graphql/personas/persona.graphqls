@@ -1,37 +1,38 @@
 type Persona {
     id:ID!,
-    nombre: String,
-    apodo: String,
-    nacimiento: Date,
-    documento: String,
-    email: String,
-    sexo: String,
-    direccion: String,
-    ciudad: Ciudad,
-    telefono: String,
-    socialMedia: String,
-    imagenes: String,
-    creadoEn: Date,
-    usuario: Usuario,
+    nombre: String
+    apodo: String
+    nacimiento: Date
+    documento: String
+    email: String
+    sexo: String
+    direccion: String
+    ciudad: Ciudad
+    telefono: String
+    socialMedia: String
+    imagenes: String
+    creadoEn: Date
+    usuario: Usuario
     isFuncionario: Boolean
     isCliente: Boolean
     isProveedor: Boolean
+    isUsuario: Boolean
 }
 
 input PersonaInput {
-    id:ID,
-    nombre: String,
-    apodo: String,
-    documento: String,
-    nacimiento: Date,
-    sexo: String,
-    direccion: String,
-    email: String,
-    ciudadId: Int,
-    telefono: String,
-    socialMedia: String,
-    imagenes: String,
-    creadoEn: Date,
+    id:ID
+    nombre: String
+    apodo: String
+    documento: String
+    nacimiento: Date
+    sexo: String
+    direccion: String
+    email: String
+    ciudadId: Int
+    telefono: String
+    socialMedia: String
+    imagenes: String
+    creadoEn: Date
     usuarioId: Int
 }
 

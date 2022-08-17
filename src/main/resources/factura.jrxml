@@ -11,6 +11,8 @@
     <parameter name="totalFinal" class="java.lang.String"/>
     <parameter name="ivaTotal" class="java.lang.String"/>
     <parameter name="totalEnLetras" class="java.lang.String"/>
+    <parameter name="ivaTotal10" class="java.lang.String"/>
+    <parameter name="ivaTotal5" class="java.lang.String"/>
     <field name="cantidad" class="java.lang.String"/>
     <field name="descripcion" class="java.lang.String"/>
     <field name="precioUnitario" class="java.lang.String"/>
@@ -101,12 +103,17 @@
             <textField>
                 <reportElement x="312" y="47" width="70" height="18" uuid="42c933b4-e907-4ad0-b810-86196989ec07"/>
                 <textElement textAlignment="Center" verticalAlignment="Middle"/>
-                <textFieldExpression><![CDATA[$P{ivaTotal}]]></textFieldExpression>
+                <textFieldExpression><![CDATA[$P{ivaTotal10}]]></textFieldExpression>
             </textField>
             <textField>
                 <reportElement x="170" y="25" width="329" height="18" uuid="f93f54f7-5544-42e2-a517-0a251e8dd36c"/>
                 <textElement verticalAlignment="Middle"/>
                 <textFieldExpression><![CDATA[$P{totalEnLetras}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="207" y="47" width="70" height="18" uuid="9049292b-d57d-40e0-8441-699605aba59c"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$P{ivaTotal5}]]></textFieldExpression>
             </textField>
         </band>
     </pageFooter>

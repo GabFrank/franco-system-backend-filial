@@ -1,9 +1,7 @@
 package com.franco.dev.graphql.empresarial;
 
 import com.franco.dev.domain.empresarial.Sector;
-import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.graphql.empresarial.input.SectorInput;
-import com.franco.dev.graphql.empresarial.input.SucursalInput;
 import com.franco.dev.service.empresarial.SectorService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -12,8 +10,6 @@ import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

@@ -184,7 +184,7 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
         if(presentacionPrincipal!=null) {
             id = presentacionPrincipal.getId().toString();
         }
-        String image =  imageService.getImageWithMediaType("productos/presentaciones/"+id+".jpg");
+        String image =  imageService.getImageWithMediaType("productos/presentaciones/thumbnails/"+id+".jpg");
         return image;
     }
 

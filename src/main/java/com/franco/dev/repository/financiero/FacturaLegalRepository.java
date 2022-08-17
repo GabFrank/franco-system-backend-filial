@@ -4,10 +4,12 @@ import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.FormaPago;
 import com.franco.dev.repository.HelperRepository;
 
+import java.util.List;
+
 public interface FacturaLegalRepository extends HelperRepository<FacturaLegal, Long> {
 
-    default Class<FormaPago> getEntityClass() {
-        return FormaPago.class;
+    default Class<FacturaLegal> getEntityClass() {
+        return FacturaLegal.class;
     }
 
 //    @Query("select m from Moneda m " +
@@ -15,5 +17,7 @@ public interface FacturaLegalRepository extends HelperRepository<FacturaLegal, L
 //    public List<Moneda> findByAll(String texto);
 
 //    Moneda findByPaisId(Long id);
+
+    public List<FacturaLegal> findByCajaId(Long id);
 
 }

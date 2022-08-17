@@ -1,24 +1,34 @@
 package com.franco.dev.graphql.operaciones;
 
 import com.franco.dev.domain.empresarial.Sucursal;
+import com.franco.dev.domain.financiero.FacturaLegalItem;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.dto.VentaPorPeriodoV1Dto;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
+import com.franco.dev.domain.productos.Presentacion;
+import com.franco.dev.domain.productos.Producto;
+import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
+import com.franco.dev.graphql.financiero.input.FacturaLegalItemInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
 import com.franco.dev.graphql.operaciones.input.CobroInput;
 import com.franco.dev.graphql.operaciones.input.VentaInput;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
+import com.franco.dev.rabbit.dto.SaveFacturaDto;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.FormaPagoService;
 import com.franco.dev.service.financiero.MovimientoCajaService;
 import com.franco.dev.service.financiero.PdvCajaService;
+import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.productos.ProductoService;
+import com.franco.dev.service.financiero.FacturaService;
+import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.reports.TicketReportService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
@@ -30,11 +40,6 @@ import com.franco.dev.utilitarios.print.escpos.image.*;
 import com.franco.dev.utilitarios.print.output.PrinterOutputStream;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
-import net.sf.jasperreports.engine.*;
-import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
-import net.sf.jasperreports.engine.export.JRPrintServiceExporter;
-import net.sf.jasperreports.export.SimpleExporterInput;
-import net.sf.jasperreports.export.SimplePrintServiceExporterConfiguration;
 import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,18 +47,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
-import org.springframework.util.ResourceUtils;
 
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
-import javax.print.PrintServiceLookup;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 
 import static com.franco.dev.service.utils.PrintingService.resize;
 
@@ -92,6 +97,18 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     @Autowired
     private PrintingService printingService;
 
+    @Autowired
+    private ImpresionService impresionService;
+
+    @Autowired
+    private FacturaService facturaService;
+
+    @Autowired
+    private PresentacionService presentacionService;
+
+    @Autowired
+    private PropagacionService propagacionService;
+
     private Sucursal sucursal;
 
     public Optional<Venta> venta(Long id) {
@@ -107,7 +124,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 //        return service.findByAll(texto);
 //    }
 
-    public Boolean saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleList, Boolean ticket, String printerName, String local) throws Exception {
+    public Boolean saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleList, Boolean ticket, String printerName, String local, Long pdvId) throws Exception {
         Boolean ok = false;
         Venta venta = null;
         Cobro cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
@@ -116,7 +133,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             ModelMapper m = new ModelMapper();
             Venta e = m.map(ventaInput, Venta.class);
             if (e.getUsuario() != null) e.setUsuario(usuarioService.findById(ventaInput.getUsuarioId()).orElse(null));
-            if (e.getCliente() != null) e.setCliente(clienteService.findById(ventaInput.getClienteId()).orElse(null));
+            if (e.getCliente() != null) {
+                e.setCliente(clienteService.findById(ventaInput.getClienteId()).orElse(null));
+            } else {
+                e.setCliente(clienteService.findById((long) 0).orElse(null));
+            }
             if (e.getFormaPago() != null)
                 e.setFormaPago(formaPagoService.findById(ventaInput.getFormaPagoId()).orElse(null));
             if (e.getCaja() != null) e.setCaja(pdvCajaService.findById(ventaInput.getCajaId()).orElse(null));
@@ -131,7 +152,32 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             deshacerVenta(venta, cobro);
         } else {
             try {
-                if (ticket) printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local);
+                if (ticket) {
+                    FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
+                    facturaLegalInput.setNombre("SIN NOMBRE");
+                    facturaLegalInput.setRuc("X");
+                    facturaLegalInput.setCredito(false);
+                    facturaLegalInput.setUsuarioId(ventaInput.getUsuarioId());
+                    List<FacturaLegalItemInput> facturaLegalItemInputList = new ArrayList<>();
+                    for(VentaItemInput vi : ventaItemList){
+                        FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
+                        Presentacion p = presentacionService.findById(vi.getPresentacionId()).orElse(null);
+                        if(p!=null){
+                            fiInput.setIva(p.getProducto().getIva());
+                            fiInput.setDescripcion(p.getProducto().getDescripcionFactura());
+                            fiInput.setCantidad(vi.getCantidad());
+                            fiInput.setPrecioUnitario(vi.getPrecioVenta());
+                            fiInput.setUsuarioId(vi.getUsuarioId());
+                            fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
+                            facturaLegalItemInputList.add(fiInput);
+                        }
+                    }
+                    SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFacturaSinVenta(facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
+                    if (saveFacturaDto != null) {
+                        propagacionService.propagarFactura(saveFacturaDto);
+                        return true;
+                    }
+                }
             } catch (Exception e) {
                 return ok;
             }
@@ -211,17 +257,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 //
 //    }
 
-
-    public void printTicket58mm(Venta venta, Cobro cobro, List<VentaItem> ventaItemList, List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local) throws Exception {
-        PrintService selectedPrintService = null;
-        PrintService[] printServices = PrintServiceLookup.lookupPrintServices(null, null);
-        System.out.println("Number of print services: " + printServices.length);
-        for (PrintService printer : printServices) {
-            System.out.println("Printer: " + printer.getName());
-            if (printer.getName().equals(printerName)) {
-                selectedPrintService = printer;
-            }
-        }
+    public Boolean printTicket58mm(Venta venta, Cobro cobro, List<VentaItem> ventaItemList, List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local) throws Exception {
+        Boolean ok = null;
+        PrintService selectedPrintService = printingService.getPrintService(printerName);
 
         if (sucursal == null) {
             sucursal = sucursalService.sucursalActual();
@@ -255,105 +293,110 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
         }
 
-        if(selectedPrintService!=null) printerOutputStream = new PrinterOutputStream(selectedPrintService);
+        if (selectedPrintService != null) {
+            printerOutputStream = new PrinterOutputStream(selectedPrintService);
+            // creating the EscPosImage, need buffered image and algorithm.
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+            //Styles
+            Style center = new Style().setJustification(EscPosConst.Justification.Center);
+            Style factura = new Style().setJustification(EscPosConst.Justification.Center).setFontSize(Style.FontSize._1, Style.FontSize._1);
+            QRCode qrCode = new QRCode();
 
-        // creating the EscPosImage, need buffered image and algorithm.
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
-        //Styles
-        Style center = new Style().setJustification(EscPosConst.Justification.Center);
+            BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
+            imageBufferedImage = resize(imageBufferedImage, 200, 100);
+            RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
+            EscPos escpos = null;
+            escpos = new EscPos(printerOutputStream);
+            Bitonal algorithm = new BitonalThreshold();
+            EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
+            imageWrapper.setJustification(EscPosConst.Justification.Center);
+            escpos.write(imageWrapper, escposImage);
+            escpos.writeLF(factura, "FRANCO AREVALOS S.A.");
+            if (reimpresion == true) {
+                escpos.writeLF(center.setBold(true), "REIMPRESION");
+            }
+            if (sucursal != null) {
+                escpos.writeLF(center, "Suc: " + sucursal.getNombre());
+                if (sucursal.getCiudad() != null) {
+                    escpos.writeLF(center, sucursal.getCiudad().getDescripcion());
+                }
+            }
+            if (local != null) {
+                escpos.writeLF(center, "Local: " + local);
+            }
+            escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
 
-        QRCode qrCode = new QRCode();
+            if (venta.getUsuario().getPersona().getNombre().length() > 23) {
+                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre().substring(0, 23));
 
-        BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
-        imageBufferedImage = resize(imageBufferedImage, 200, 100);
-        RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
-        EscPos escpos = null;
-        escpos = new EscPos(printerOutputStream);
-        Bitonal algorithm = new BitonalThreshold();
-        EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
-        imageWrapper.setJustification(EscPosConst.Justification.Center);
-        escpos.write(imageWrapper, escposImage);
-        escpos.writeLF(center, "Av. Paraguay c/ 30 de julio");
-        escpos.writeLF(center, "Salto del Guairá");
-        if (reimpresion == true) {
-            escpos.writeLF(center.setBold(true), "REIMPRESION");
-        }
-        if (sucursal != null) {
-            escpos.writeLF(center, "Suc: " + sucursal.getNombre());
-        }
-        if (local != null) {
-            escpos.writeLF(center, "Local: " + local);
-        }
-        escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
+            } else {
+                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre());
+            }
 
-        if (venta.getUsuario().getPersona().getNombre().length() > 23) {
-            escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre().substring(0, 23));
-
-        } else {
-            escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre());
-        }
-
-        escpos.writeLF("Fecha: " + venta.getCreadoEn().format(formatter));
-        escpos.writeLF("--------------------------------");
-
-        if (venta.getCliente() != null) {
-            escpos.writeLF("Cliente: " + venta.getCliente().getPersona().getNombre().substring(0, 22));
-        }
-        escpos.writeLF("Producto");
-        escpos.writeLF("Cant    P.U                 P.T");
-        escpos.writeLF("--------------------------------");
-        for (VentaItem vi : ventaItemList) {
-            String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad() + ")";
-            log.info(vi.getProducto().getDescripcion());
-            escpos.writeLF(vi.getProducto().getDescripcion());
-            escpos.write(new Style().setBold(true), cantidad);
-            String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue());
-            String valorTotal = String.valueOf(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue());
-            for (int i = 10; i > cantidad.length(); i--) {
+            escpos.writeLF("Fecha: " + venta.getCreadoEn().format(formatter));
+            escpos.writeLF("--------------------------------");
+            escpos.writeLF("Producto");
+            escpos.writeLF("Cant  IVA   P.U              P.T");
+            escpos.writeLF("--------------------------------");
+            for (VentaItem vi : ventaItemList) {
+                String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad().intValue() + ") " + "10%";
+                escpos.writeLF(vi.getProducto().getDescripcion());
+                escpos.write(new Style().setBold(true), cantidad);
+                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue());
+                String valorTotal = String.valueOf(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue());
+                for (int i = 14; i > cantidad.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.write(valorUnitario);
+                for (int i = 16 - valorUnitario.length(); i > valorTotal.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
+            }
+            escpos.writeLF("--------------------------------");
+            escpos.write("Total Gs: ");
+            String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(venta.getTotalGs().intValue());
+            for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
-            escpos.write(valorUnitario);
-            for (int i = 20 - valorUnitario.length(); i > valorTotal.length(); i--) {
+            escpos.writeLF(new Style().setBold(true).setFontSize(Style.FontSize._0, Style.FontSize._0), valorGs);
+            escpos.write("Total Rs: ");
+            String valorRs = String.format("%.2f", venta.getTotalRs());
+            for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
-            escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
-        }
-        escpos.writeLF("--------------------------------");
-        String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(venta.getTotalGs().intValue());
-        for (int i = 22; i > valorGs.length(); i--) {
-            escpos.write(" ");
-        }
-        escpos.writeLF(valorGs);
-        log.info(valorGs);
-        escpos.write("Total Rs: ");
-        String valorRs = String.format("%.2f", venta.getTotalRs());
-        for (int i = 22; i > valorGs.length(); i--) {
-            escpos.write(" ");
-        }
-        escpos.writeLF(valorRs);
-        escpos.write("Total Ds: ");
+            escpos.writeLF(valorRs);
+            escpos.write("Total Ds: ");
 //      String valorDs = NumberFormat.getNumberInstance(new Locale("sk", "SK")).format(venta.getTotalDs());
-        String valorDs = String.format("%.2f", venta.getTotalDs());
-        for (int i = 22; i > valorGs.length(); i--) {
-            escpos.write(" ");
-        }
-        escpos.writeLF(valorDs);
-        if (sucursal != null && sucursal.getNroDelivery() != null) {
-            escpos.write(center, "Delivery? Escaneá el código qr o escribinos al ");
-            escpos.writeLF(center, sucursal.getNroDelivery());
-        }
-//        escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center), "wa.me/595986128000");
-        escpos.feed(1);
-        escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
-        escpos.feed(5);
+            String valorDs = String.format("%.2f", venta.getTotalDs());
+            for (int i = 22; i > valorGs.length(); i--) {
+                escpos.write(" ");
+            }
+            escpos.writeLF(valorDs);
+            escpos.writeLF("--------------------------------");
+            if (sucursal != null && sucursal.getNroDelivery() != null) {
+                escpos.write(center, "Delivery? Escaneá el código qr o escribinos al ");
+                escpos.writeLF(center, sucursal.getNroDelivery());
+            }
+            if (sucursal.getNroDelivery() != null) {
+                escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center), "wa.me/" + sucursal.getNroDelivery());
+            }
+            escpos.feed(1);
+            escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
+            escpos.feed(5);
 
-        try {
-            escpos.close();
-            printerOutputStream.close();
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
+            try {
+                escpos.close();
+                printerOutputStream.close();
+                ok = true;
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+                ok = false;
+            }
         }
+        return ok;
     }
+
 
     public List<Venta> ventasPorCajaId(Long id, Integer offset) {
         return service.findByCajaId(id, offset);

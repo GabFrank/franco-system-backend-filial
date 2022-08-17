@@ -1,0 +1,18 @@
+type PuntoDeVenta {
+    id:ID!
+    sucursal: Sucursal
+    nombre: String
+    nombreImpresoraTicket: String
+    tamanhoImpresoraTicket: String
+    nombreImpresoraReportes: String
+    creadoEn: Date
+    usuario: Usuario
+}
+
+extend type Query {
+    puntoDeVenta(id:ID!):PuntoDeVenta
+    puntoDeVentas(page:Int = 0, size:Int = 10):[PuntoDeVenta]!
+    countPuntoDeVenta: Int
+    puntoDeVentaPorSucursalId(id:Int):[PuntoDeVenta]
+}
+

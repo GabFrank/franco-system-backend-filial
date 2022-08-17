@@ -19,6 +19,6 @@ public class PdvCategoriaResolver implements GraphQLResolver<PdvCategoria> {
     @Autowired
     private PdvGrupoService pdvGrupoService;
 
-    public List<PdvGrupo> grupos(PdvCategoria e) { return pdvGrupoService.getRepository().findByPdvCategoriaId(e.getId()); }
+    public List<PdvGrupo> grupos(PdvCategoria e) { return pdvGrupoService.getRepository().findByPdvCategoriaIdOrderByIdAsc(e.getId()); }
 
 }

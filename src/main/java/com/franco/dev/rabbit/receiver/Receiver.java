@@ -1,7 +1,6 @@
 package com.franco.dev.rabbit.receiver;
 
 import com.franco.dev.rabbit.dto.RabbitDto;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.rabbitmq.PropagacionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +44,10 @@ public class Receiver {
         switch (dto.getTipoAccion()) {
             case SOLICITAR_STOCK_PRODUCTO:
                 return propagacionService.movimientoStockService.stockByProductoId((Long) dto.getEntidad());
+            case SOLICITAR_CAJA_ABIERTA:
+                return propagacionService.cajaAbiertaPorUsuario((Long) dto.getEntidad());
+            case SOLICITAR_MALETIN:
+                return propagacionService.maletinPorDescripcion((String) dto.getEntidad());
             case FINALIZAR_INVENTARIO:
                 return propagacionService.finalizarInventario(dto);
             case SOLICITAR_ENTIDAD:

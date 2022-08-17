@@ -49,22 +49,22 @@ public class PdvCaja implements Serializable {
     @Type( type = "pdv_caja_estado")
     private PdvCajaEstado estado;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "maletin_id", nullable = true)
     private Maletin maletin;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "conteo_apertura_id", nullable = true)
     private Conteo conteoApertura;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "conteo_cierre_id", nullable = true)
     private Conteo conteoCierre;
 
     @CreationTimestamp
     private LocalDateTime creadoEn;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
 }

@@ -2,14 +2,17 @@ package com.franco.dev.graphql.financiero.input;
 
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
-public class FacturaLegalInput {
+public class FacturaLegalInput implements Serializable {
     private Long id;
-    private String timbrado;
-    private String nroSucursal;
-    private String nroFactura;
+    private Long cajaId;
+    private Long timbradoDetalleId;
+    private Boolean autoimpreso;
+    private Boolean viaTributaria;
+    private Integer numeroFactura;
     private Long clienteId;
     private Long ventaId;
     private LocalDateTime fecha;

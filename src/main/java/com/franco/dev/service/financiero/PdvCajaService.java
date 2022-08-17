@@ -103,7 +103,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
 
         List<PdvCaja> aux = repository.findByUsuarioIdAndActivo(entity.getUsuario().getId(), true);
 
-        if(aux.size()>0 && aux.get(0).getId() != entity.getId()) throw new GraphQLException("Ya existe una caja abierta");
+        if(aux.size()>0 && !aux.get(0).getId().equals(entity.getId())) throw new GraphQLException("Ya existe una caja abierta");
 
         PdvCaja e = super.save(entity);
 //        personaPublisher.publish(p);

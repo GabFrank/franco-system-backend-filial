@@ -28,7 +28,7 @@ public class ConteoMoneda implements Serializable {
     @JoinColumn(name = "conteo_id", nullable = true)
     private Conteo conteo;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "moneda_billetes_id", nullable = true)
     private MonedaBilletes monedaBilletes;
 

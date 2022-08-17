@@ -9,4 +9,7 @@ public class ClienteInput {
     private Long sucursalId;
     private Long personaId;
     private Long usuarioId;
+    private String nombre;
+    private String documento;
+    private String direccion;
 }

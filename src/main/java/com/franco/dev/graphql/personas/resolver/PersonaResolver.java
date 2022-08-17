@@ -40,4 +40,8 @@ public class PersonaResolver implements GraphQLResolver<Persona> {
     public Boolean isProveedor(Persona p){
         return proveedorService.findByPersonaId(p.getId())!=null;
     }
+
+    public Boolean isUsuario(Persona p){
+        return usuarioService.findByPersonaId(p.getId())!=null;
+    }
 }

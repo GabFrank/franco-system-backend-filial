@@ -1,0 +1,20 @@
+type TimbradoDetalle {
+    id:ID!
+    timbrado: Timbrado
+    puntoDeVenta: PuntoDeVenta
+    puntoExpedicion: String
+    cantidad: Int
+    rangoDesde: Int
+    rangoHasta: Int
+    numeroActual: Int
+    activo: Boolean
+    creadoEn: Date
+    usuario: Usuario
+}
+
+extend type Query {
+    timbradoDetalle(id:ID!):TimbradoDetalle
+    timbradoDetalles(page:Int = 0, size:Int = 10):[TimbradoDetalle]!
+    countTimbradoDetalle: Int
+}
+

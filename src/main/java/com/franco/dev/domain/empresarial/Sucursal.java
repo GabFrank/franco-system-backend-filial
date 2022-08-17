@@ -27,7 +27,7 @@ public class Sucursal implements Serializable {
 
     private String localizacion;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ciudad_id", nullable = true)
     private Ciudad ciudad;
 
@@ -47,5 +47,8 @@ public class Sucursal implements Serializable {
     private String direccion;
 
     private String nroDelivery;
+
+    private String codigoEstablecimientoFactura;
+
 
 }

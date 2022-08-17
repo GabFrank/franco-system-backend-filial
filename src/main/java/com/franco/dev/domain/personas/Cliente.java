@@ -30,7 +30,7 @@ public class Cliente implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
-    private Usuario usuarioId;
+    private Usuario usuario;
 
     @Column(name = "creado_en")
     private LocalDateTime creadoEn;

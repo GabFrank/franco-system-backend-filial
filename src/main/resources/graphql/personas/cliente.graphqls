@@ -2,20 +2,21 @@ type Cliente {
     id:ID!
     persona: Persona
     nombre: String
+    documento: String
     credito: Float
     creadoEn: Date
     contactos: [Contacto]
-    usuarioId: Usuario
+    usuario: Usuario
 }
 
 input ClienteInput {
-
     id:ID
-    personaId: ID!
-    credito: Float!
-    creadoEn: Date
-    usuarioId: ID
-
+    nombre: String
+    documento: String
+    direccion: String
+    personaId: Int
+    credito: Float
+    usuarioId: Int
 }
 
 extend type Query {

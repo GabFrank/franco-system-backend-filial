@@ -35,6 +35,7 @@ public class Style implements EscPosConst {
      * @see #setFontSize(FontSize, FontSize)
      */
     public enum FontSize {
+        _0(-1),
         _1(0),
         _2(1),
         _3(2),

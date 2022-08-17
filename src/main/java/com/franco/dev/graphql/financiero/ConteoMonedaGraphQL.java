@@ -4,6 +4,7 @@ import com.franco.dev.domain.financiero.Banco;
 import com.franco.dev.domain.financiero.ConteoMoneda;
 import com.franco.dev.graphql.financiero.input.BancoInput;
 import com.franco.dev.graphql.financiero.input.ConteoMonedaInput;
+import com.franco.dev.security.Unsecured;
 import com.franco.dev.service.financiero.BancoService;
 import com.franco.dev.service.financiero.ConteoMonedaService;
 import com.franco.dev.service.general.PaisService;
@@ -38,7 +39,7 @@ public class ConteoMonedaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.findAll(pageable);
     }
 
-
+    @Unsecured
     public ConteoMoneda saveConteoMoneda(ConteoMonedaInput input){
         ModelMapper m = new ModelMapper();
         ConteoMoneda e = m.map(input, ConteoMoneda.class);

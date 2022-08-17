@@ -1,8 +1,9 @@
 type FacturaLegal {
     id:ID!
-    timbrado:String
-    nroSucursal:String
-    nroFactura:String
+    caja: PdvCaja
+    viaTributaria: Boolean
+    timbradoDetalle:TimbradoDetalle
+    numeroFactura:String
     cliente: Cliente
     venta: Venta
     fecha:Date
@@ -23,9 +24,8 @@ type FacturaLegal {
 
 input FacturaLegalInput {
     id:ID
-    timbrado:String
-    nroSucursal:String
-    nroFactura:String
+    cajaId: Int
+    viaTributaria: Boolean
     clienteId: Int
     ventaId: Int
     fecha:String
@@ -47,10 +47,11 @@ extend type Query {
     facturaLegal(id:ID!):FacturaLegal
     facturaLegales(page:Int = 0, size:Int = 10):[FacturaLegal]!
     countFacturaLegal: Int
+    imprimirFacturasPorCaja(id:Int, printerName: String):Boolean
 }
 
 extend type Mutation {
-    saveFacturaLegal(entity:FacturaLegalInput!, detalleList: [FacturaLegalItemInput], printerName: String):FacturaLegal!
+    saveFacturaLegal(entity:FacturaLegalInput!, detalleList: [FacturaLegalItemInput], printerName: String, pdvId: Int!):Boolean!
     deleteFacturaLegal(id:ID!):Boolean!
 }
 
