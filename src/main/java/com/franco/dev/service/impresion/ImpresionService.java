@@ -150,6 +150,14 @@ public class ImpresionService {
                 }
                 escpos.writeLF(valorTarjeta);
                 escpos.writeLF("--------------------------------");
+                escpos.writeLF(center, "VALORES DE CREDITO");
+                escpos.write("Guaranies G$: ");
+                String valorCredito = NumberFormat.getNumberInstance(Locale.GERMAN).format(balanceDto.getTotalCredito().intValue());
+                for (int i = 18; i > valorCredito.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(valorCredito);
+                escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "VALORES DE RETIRO");
                 String valorGsRetiro = NumberFormat.getNumberInstance(Locale.GERMAN).format(balanceDto.getTotalRetiroGs().intValue());
                 escpos.write("Guaranies G$: ");

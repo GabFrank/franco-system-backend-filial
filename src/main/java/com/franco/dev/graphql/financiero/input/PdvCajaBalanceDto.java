@@ -38,4 +38,5 @@ public class PdvCajaBalanceDto {
     private Double totalDescuento = 0.0;
     private Double totalAumento = 0.0;
     private Double totalCanceladas = 0.0;
+    private Double totalCredito = 0.0;
 }

@@ -1,0 +1,49 @@
+type VentaCredito {
+    id:ID!
+    sucursal: Sucursal
+    ventaId: Int
+    cliente: Cliente
+    tipoConfirmacion: TipoConfirmacion
+    cantidadCuotas: Int
+    valorTotal: Float
+    saldoTotal: Float
+    plazoEnDias: Int
+    interesPorDia: Float
+    interesMoraDia: Float
+    estado: EstadoVentaCredito
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input VentaCreditoInput {
+    id:ID
+    sucursalId: Int
+    ventaId: Int
+    clienteId: Int
+    tipoConfirmacion: TipoConfirmacion
+    cantidadCuotas: Int
+    valorTotal: Float
+    saldoTotal: Float
+    plazoEnDias: Int
+    interesPorDia: Float
+    interesMoraDia: Float
+    estado: EstadoVentaCredito
+    usuarioId: Int
+}
+
+enum TipoConfirmacion {
+    CONTRASENA,
+    PASSWORD,
+    QR,
+    LECTOR_HUELLAS,
+    FIRMA,
+    APP
+}
+
+enum EstadoVentaCredito {
+    ABIERTO,
+    FINALIZADO,
+    EN_MORA,
+    INCOBRABLE
+}
+

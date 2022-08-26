@@ -1,5 +1,6 @@
 type Cliente {
     id:ID!
+    tipo: TipoCliente
     persona: Persona
     nombre: String
     documento: String
@@ -7,15 +8,18 @@ type Cliente {
     creadoEn: Date
     contactos: [Contacto]
     usuario: Usuario
+    codigo: String
 }
 
 input ClienteInput {
     id:ID
+    tipo: TipoCliente
     nombre: String
     documento: String
     direccion: String
     personaId: Int
     credito: Float
+    codigo: String
     usuarioId: Int
 }
 
@@ -32,5 +36,13 @@ extend type Query {
 extend type Mutation {
     saveCliente(cliente:ClienteInput!):Cliente!
     deleteCliente(id:ID!):Boolean!
+}
+
+enum TipoCliente {
+    NORMAL,
+    ASOCIADO,
+    CONVENIADO,
+    FUNCIONARIO,
+    VIP
 }
 

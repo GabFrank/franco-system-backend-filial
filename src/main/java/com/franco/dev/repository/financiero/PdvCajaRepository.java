@@ -15,7 +15,7 @@ public interface PdvCajaRepository extends HelperRepository<PdvCaja, Long> {
     }
 
     @Query(value = "select * from financiero.pdv_caja ms \n" +
-            "where ms.creado_en between cast(?1 as timestamp) and cast(?2 as timestamp) order by ms.id", nativeQuery = true)
+            "where ms.creado_en between cast(?1 as timestamp) and cast(?2 as timestamp) order by ms.id desc", nativeQuery = true)
     public List<PdvCaja> findByDate(String inicio, String fin);
 
 //    @Query(value = "select * from financiero.pdv_caja pc \n" +

@@ -6,6 +6,7 @@ import com.franco.dev.domain.financiero.Conteo;
 import com.franco.dev.domain.financiero.Maletin;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.operaciones.Inventario;
+import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
 import com.franco.dev.graphql.financiero.ConteoGraphQL;
 import com.franco.dev.rabbit.RabbitMQConection;
@@ -685,5 +686,9 @@ public class PropagacionService {
     public void propagarFactura(SaveFacturaDto saveFacturaDto) {
         log.info("Propagando facturas a servidor y recibir: ");
         sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(saveFacturaDto, TipoAccion.GUARDAR, TipoEntidad.FACTURA, Long.valueOf(env.getProperty("sucursalId"))));
+    }
+
+    public Cliente solicitarCliente(Long id){
+        return (Cliente) sender.enviarAndRecibir(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(id, TipoAccion.SOLICITAR_ENTIDAD, TipoEntidad.CLIENTE, Long.valueOf(env.getProperty("sucursalId"))));
     }
 }

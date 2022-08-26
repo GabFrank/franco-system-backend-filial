@@ -103,7 +103,7 @@ public class FrancoSystemsApplication {
     @PostConstruct
     public void setUp() {
         objectMapper.registerModule(new JavaTimeModule());
-        propagacionService.verificarResourcesExists();
+//        propagacionService.verificarResourcesExists();
     }
 
 //	@Bean

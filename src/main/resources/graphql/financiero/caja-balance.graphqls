@@ -10,6 +10,7 @@ type CajaBalance {
     totalVentaRs: Float
     totalVentaDs: Float
     totalTarjeta: Float
+    totalCredito: Float
     totalDescuento: Float
     totalAumento: Float
     totalRetiroGs: Float

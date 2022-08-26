@@ -58,18 +58,21 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         Double totalVentaRs = 0.0;
         Double totalVentaDs = 0.0;
         Double totalVentaTarjeta = 0.0;
+        Double totalVentaCredito = 0.0;
         for (PdvCaja c : pdvCajaList) {
             CajaBalance cb = service.getBalance(c.getId());
             totalVentaGs = totalVentaGs + cb.getTotalVentaGs();
             totalVentaRs = totalVentaRs + cb.getTotalVentaRs();
             totalVentaDs = totalVentaDs + cb.getTotalVentaDs();
             totalVentaTarjeta = totalVentaTarjeta + cb.getTotalTarjeta();
+            totalVentaTarjeta = totalVentaCredito + cb.getTotalCredito();
         }
         CajaBalance cajaBalance = new CajaBalance();
         cajaBalance.setTotalVentaGs(totalVentaGs);
         cajaBalance.setTotalVentaRs(totalVentaRs);
         cajaBalance.setTotalVentaDs(totalVentaDs);
         cajaBalance.setTotalTarjeta(totalVentaTarjeta);
+        cajaBalance.setTotalCredito(totalVentaCredito);
         return cajaBalance;
     }
 

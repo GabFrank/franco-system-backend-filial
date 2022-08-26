@@ -1,18 +1,8 @@
 package com.franco.dev.domain.financiero;
 
-import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
-import com.franco.dev.domain.personas.Usuario;
-import com.franco.dev.utilitarios.PostgreSQLEnumType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Type;
-import org.hibernate.annotations.TypeDef;
-
-import javax.persistence.*;
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
@@ -29,6 +19,7 @@ public class CajaBalance {
     private Double totalVentaRs;
     private Double totalVentaDs;
     private Double totalTarjeta;
+    private Double totalCredito;
     private Double totalDescuento;
     private Double totalAumento;
     private Double totalRetiroGs;
