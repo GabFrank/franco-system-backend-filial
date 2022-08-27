@@ -161,6 +161,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                             facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
                             facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
                         }
+                        facturaLegalInput.setVentaId(venta.getId());
                         facturaLegalInput.setCredito(credito);
                         facturaLegalInput.setUsuarioId(ventaInput.getUsuarioId());
                         List<FacturaLegalItemInput> facturaLegalItemInputList = new ArrayList<>();
@@ -177,7 +178,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                                 facturaLegalItemInputList.add(fiInput);
                             }
                         }
-                        SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFacturaSinVenta(facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
+                        SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta, facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
                         if (saveFacturaDto != null) {
                             propagacionService.propagarFactura(saveFacturaDto);
                             return venta;
@@ -398,7 +399,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
             escpos.writeLF(valorDs);
             escpos.writeLF("--------------------------------");
-            if (pagare==true) {
+            if (pagare!=null && pagare==true) {
                 for (int x = 0; x < itens.size(); x++) {
                     escpos.writeLF(center, "PAGARÉ A LA ORDEN " + x + 1 + "/" + itens.size());
                     escpos.feed(1);

@@ -264,7 +264,7 @@ public class FacturaService {
         return null;
     }
 
-    public SaveFacturaDto printTicket58mmFacturaSinVenta(FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar) throws Exception {
+    public SaveFacturaDto printTicket58mmFactura(Venta venta, FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar) throws Exception {
         SaveFacturaDto saveFacturaDto = new SaveFacturaDto();
         PrintService selectedPrintService = printingService.getPrintService(printerName);
         Sucursal sucursal = sucursalService.sucursalActual();
@@ -285,7 +285,7 @@ public class FacturaService {
         Double totalFinal = 0.0;
 
         if (selectedPrintService != null) {
-            printerOutputStream = this.printerOutputStream!=null ? this.printerOutputStream : new PrinterOutputStream(selectedPrintService);
+            printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream : new PrinterOutputStream(selectedPrintService);
             // creating the EscPosImage, need buffered image and algorithm.
             //Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
@@ -295,7 +295,7 @@ public class FacturaService {
             BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
             imageBufferedImage = resize(imageBufferedImage, 200, 100);
             RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
-            EscPos escpos = this.escPos!=null ? this.escPos : null;
+            EscPos escpos = this.escPos != null ? this.escPos : null;
             escpos = new EscPos(printerOutputStream);
             Bitonal algorithm = new BitonalThreshold();
             EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
@@ -328,7 +328,14 @@ public class FacturaService {
                 }
             }
             escpos.writeLF(center, "Local: " + puntoDeVenta.getNombre());
+            if (venta != null) escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
 
+            if (venta.getUsuario().getPersona().getNombre().length() > 23) {
+                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre().substring(0, 23));
+
+            } else {
+                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre());
+            }
             escpos.writeLF("Fecha: " + LocalDateTime.now().format(shortDateTime));
             escpos.writeLF("--------------------------------");
 
@@ -433,7 +440,7 @@ public class FacturaService {
             escpos.feed(5);
 
             try {
-                if(continuar!=true){
+                if (continuar != true) {
                     escpos.close();
                     printerOutputStream.close();
                     this.escPos = null;
