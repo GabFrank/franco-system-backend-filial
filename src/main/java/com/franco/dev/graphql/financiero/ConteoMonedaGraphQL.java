@@ -46,7 +46,7 @@ public class ConteoMonedaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if(input.getUsuarioId()!=null){
             e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         }
-        return service.save(e);
+        return service.saveAndSend(e, false);
     }
 
     public List<ConteoMoneda> conteoMonedasPorConteoId(Long id){

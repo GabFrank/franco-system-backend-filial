@@ -18,12 +18,9 @@ public interface RetiroDetalleRepository extends HelperRepository<RetiroDetalle,
 //    public List<RetiroDetalle> findByAll(String texto);
 
     public List<RetiroDetalle> findByRetiroId(Long id);
+    public List<RetiroDetalle> findByRetiroIdAndMonedaId(Long id,Long monedaId);
 
-    @Query(value = "select rd.id, rd.retiro_id , rd.cambio , rd.cantidad , rd.creado_en , rd.moneda_id , rd.usuario_id from financiero.retiro_detalle rd " +
-            "left join financiero.retiro r on r.id = rd.retiro_id " +
-            "left join financiero.pdv_caja pc on pc.id = r.caja_salida_id " +
-            "where pc.id = ?1", nativeQuery = true)
-    public List<RetiroDetalle> findByCajaSalidaId(Long id);
+    public List<RetiroDetalle> findByRetiroCajaSalidaId(Long id);
 
 //    Moneda findByPaisId(Long id);
 

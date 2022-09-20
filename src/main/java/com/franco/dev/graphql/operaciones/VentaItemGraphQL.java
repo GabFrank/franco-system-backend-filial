@@ -66,7 +66,7 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         if(e.getPresentacion()!=null) e.setPresentacion(presentacionService.findById(input.getPresentacionId()).orElse(null));
         if(e.getVenta()!=null) e.setVenta(venta);
         if(e.getPrecioVenta()!=null) e.setPrecioVenta(precioPorSucursalService.findById(input.getPrecioVentaId()).orElse(null));
-        return service.save(e);
+        return service.saveAndSend(e, false);
     }
 
     public Boolean deleteVentaItem(Long id){
@@ -94,7 +94,7 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         List<VentaItem> ventaItemList = service.findByVentaId(id);
         for(VentaItem vi: ventaItemList){
             vi.setActivo(false);
-            service.save(vi);
+            service.saveAndSend(vi, false);
         }
         return true;
     }

@@ -3,15 +3,16 @@ package com.franco.dev.service.rabbitmq;
 import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.Conteo;
+import com.franco.dev.domain.financiero.ConteoMoneda;
 import com.franco.dev.domain.financiero.Maletin;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.operaciones.Inventario;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
 import com.franco.dev.graphql.financiero.ConteoGraphQL;
+import com.franco.dev.graphql.financiero.FacturaLegalGraphQL;
 import com.franco.dev.rabbit.RabbitMQConection;
 import com.franco.dev.rabbit.dto.RabbitDto;
-import com.franco.dev.rabbit.dto.SaveConteoDto;
 import com.franco.dev.rabbit.dto.SaveFacturaDto;
 import com.franco.dev.rabbit.enums.TipoAccion;
 import com.franco.dev.rabbit.enums.TipoEntidad;
@@ -162,6 +163,8 @@ public class PropagacionService {
     @Autowired
     private ConteoService conteoService;
     @Autowired
+    private ConteoMonedaService conteoMonedaService;
+    @Autowired
     private RestTemplate restTemplate;
     @Autowired
     private ConteoGraphQL conteoGraphQL;
@@ -169,6 +172,12 @@ public class PropagacionService {
     private FacturaLegalService facturaLegalService;
     @Autowired
     private FacturaLegalItemService facturaLegalItemService;
+    @Autowired
+    private FacturaLegalGraphQL facturaLegalGraphQL;
+    @Autowired
+    private VentaService ventaService;
+    @Autowired
+    private VentaItemService ventaItemService;
 
     //    public Boolean verficarConexion(Long sucId) {
 //        sucursalVerificar = sucId;
@@ -350,6 +359,7 @@ public class PropagacionService {
 
     public Object crudEntidad(RabbitDto dto) {
         log.info("recibiendo entidad para guardar");
+        dto.setRecibidoEnFilial(true);
         switch (dto.getTipoEntidad()) {
             case USUARIO:
                 log.info("cargando usuario: ");
@@ -527,12 +537,16 @@ public class PropagacionService {
                 return guardar(zonaService, dto);
             case CONTEO:
                 log.info("guardando conteo");
-                SaveConteoDto conteoDto = (SaveConteoDto) dto.getEntidad();
-                Conteo conteo = conteoGraphQL.saveConteo(conteoDto.getConteoInput(), conteoDto.getConteoMonedaInputList(), conteoDto.getCajaId(), conteoDto.getApertura());
-                if (conteo != null) {
-                    pdvCajaService.imprimirBalance(conteoDto.getCajaId(), null, null);
-                    return conteo;
-                }
+                return guardar(conteoService, dto);
+//                SaveConteoDto conteoDto = (SaveConteoDto) dto.getEntidad();
+//                Conteo conteo = conteoGraphQL.saveConteo(conteoDto.getConteoInput(), conteoDto.getConteoMonedaInputList(), conteoDto.getCajaId(), conteoDto.getApertura());
+//                if (conteo != null) {
+//                    pdvCajaService.imprimirBalance(conteoDto.getCajaId(), null, null);
+//                    return conteo;
+//                }
+            case CONTEO_ITEM:
+                log.info("guardando conteo");
+                return guardar(conteoMonedaService, dto);
             case PDV_CAJA:
                 log.info("guardando caja: ");
                 return guardar(pdvCajaService, dto);
@@ -542,6 +556,12 @@ public class PropagacionService {
             case FACTURA_ITEM:
                 log.info("guardando factura item: ");
                 return guardar(facturaLegalItemService, dto);
+            case VENTA:
+                log.info("creando venta: ");
+                return guardar(ventaService, dto);
+            case VENTA_ITEM:
+                log.info("creando venta item: ");
+                return guardar(ventaItemService, dto);
             default:
                 return null;
         }
@@ -579,7 +599,7 @@ public class PropagacionService {
     public <T> Object guardar(CrudService service, RabbitDto dto) {
         switch (dto.getTipoAccion()) {
             case GUARDAR:
-                T nuevaEntidad = (T) service.save(dto.getEntidad());
+                T nuevaEntidad = dto.getRecibidoEnFilial()!=true ? (T) service.saveAndSend(dto.getEntidad(), false): (T) service.save(dto.getEntidad());
                 if (nuevaEntidad != null) {
                     log.info("guardado con exito");
                 }
@@ -603,6 +623,11 @@ public class PropagacionService {
     public <T> void propagarEntidad(T entity, TipoEntidad tipoEntidad) {
         log.info("Propagando entidad a servidor: " + tipoEntidad.name());
         sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(entity, TipoAccion.GUARDAR, tipoEntidad, Long.valueOf(env.getProperty("sucursalId"))));
+    }
+
+    public <T> void propagarEntidad(T entity, TipoEntidad tipoEntidad, Boolean recibir) {
+        log.info("Propagando entidad a servidor: " + tipoEntidad.name());
+        sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(entity, TipoAccion.GUARDAR, tipoEntidad, Long.valueOf(env.getProperty("sucursalId")), false, !recibir));
     }
 
     public <T> Object propagarEntidadAndRecibir(T entity, TipoEntidad tipoEntidad) {
@@ -688,7 +713,7 @@ public class PropagacionService {
         sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(saveFacturaDto, TipoAccion.GUARDAR, TipoEntidad.FACTURA, Long.valueOf(env.getProperty("sucursalId"))));
     }
 
-    public Cliente solicitarCliente(Long id){
+    public Cliente solicitarCliente(Long id) {
         return (Cliente) sender.enviarAndRecibir(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(id, TipoAccion.SOLICITAR_ENTIDAD, TipoEntidad.CLIENTE, Long.valueOf(env.getProperty("sucursalId"))));
     }
 }

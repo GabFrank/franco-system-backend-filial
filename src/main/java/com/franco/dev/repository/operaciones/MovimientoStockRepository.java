@@ -18,8 +18,7 @@ public interface MovimientoStockRepository extends HelperRepository<MovimientoSt
 
     @Query("select SUM(p.cantidad) from MovimientoStock p " +
             "left outer join p.producto as pro " +
-            "left outer join p.sucursal as suc " +
-            "where p.estado = true and pro.id = ?1 and suc.id = ?2")
+            "where p.estado = true and pro.id = ?1 and p.sucursalId = ?2")
     public Float stockByProductoIdAndSucursalId(Long proId, Long sucId);
 
     @Query("select SUM(p.cantidad) from MovimientoStock p " +

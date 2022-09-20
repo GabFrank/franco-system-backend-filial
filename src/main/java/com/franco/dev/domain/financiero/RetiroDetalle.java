@@ -25,6 +25,8 @@ public class RetiroDetalle implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long sucursalId;
+
     private Double cantidad;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -27,5 +27,6 @@ public class FacturaLegalInput implements Serializable {
     private Double totalParcial5;
     private Double totalParcial10;
     private Double totalFinal;
+    private Boolean activo;
     private Long usuarioId;
 }

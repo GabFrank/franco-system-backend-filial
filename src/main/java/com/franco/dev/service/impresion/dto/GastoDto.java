@@ -29,4 +29,5 @@ public class GastoDto {
     Double vueltoGs;
     Double vueltoRs;
     Double vueltoDs;
+    Boolean reimpresion = false;
 }

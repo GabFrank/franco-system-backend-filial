@@ -1,9 +1,7 @@
 package com.franco.dev.service.operaciones;
 
 import com.franco.dev.domain.operaciones.MotivoDiferenciaPedido;
-import com.franco.dev.domain.operaciones.NotaPedido;
 import com.franco.dev.repository.operaciones.MotivoDiferenciaPedidoRepository;
-import com.franco.dev.repository.operaciones.NotaPedidoRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;

@@ -31,6 +31,8 @@ public class MovimientoCaja implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long sucursalId;
+
     @Column(name = "referencia_id")
     private Long referencia;
     private Double cantidad;

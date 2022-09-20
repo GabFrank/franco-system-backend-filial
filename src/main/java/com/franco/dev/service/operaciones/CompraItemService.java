@@ -1,6 +1,5 @@
 package com.franco.dev.service.operaciones;
 
-import com.franco.dev.domain.operaciones.Compra;
 import com.franco.dev.domain.operaciones.CompraItem;
 import com.franco.dev.repository.operaciones.CompraItemRepository;
 import com.franco.dev.service.CrudService;

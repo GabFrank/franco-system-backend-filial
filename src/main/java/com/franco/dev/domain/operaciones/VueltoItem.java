@@ -23,6 +23,8 @@ public class VueltoItem implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long sucursalId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "moneda_id", nullable = true)
     private Moneda moneda;

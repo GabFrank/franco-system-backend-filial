@@ -1,12 +1,14 @@
 package com.franco.dev.graphql.financiero;
 
-import com.franco.dev.domain.financiero.*;
+import com.franco.dev.domain.financiero.Conteo;
+import com.franco.dev.domain.financiero.Moneda;
+import com.franco.dev.domain.financiero.MovimientoCaja;
+import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
-import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
-import com.franco.dev.graphql.financiero.input.BancoInput;
 import com.franco.dev.graphql.financiero.input.ConteoInput;
 import com.franco.dev.graphql.financiero.input.ConteoMonedaInput;
 import com.franco.dev.security.Unsecured;
+import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -27,73 +29,71 @@ import java.util.Optional;
 @Component
 public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
+    private static final Logger log = LoggerFactory.getLogger(ConteoGraphQL.class);
     @Autowired
     private ConteoService service;
-
     @Autowired
     private UsuarioService usuarioService;
-
     @Autowired
     private PaisService paisService;
-
     @Autowired
     private ConteoMonedaGraphQL conteoMonedaGraphQL;
-
     @Autowired
     private PdvCajaService pdvCajaService;
-
     @Autowired
     private MovimientoCajaService movimientoCajaService;
-
     @Autowired
     private MonedaService monedaService;
+    @Autowired
+    private CambioService cambioService;
+    @Autowired
+    private SucursalService sucursalService;
 
-    @Autowired CambioService cambioService;
+    public Optional<Conteo> conteo(Long id) {
+        return service.findById(id);
+    }
 
-    private static final Logger log = LoggerFactory.getLogger(ConteoGraphQL.class);
-
-    public Optional<Conteo> conteo(Long id) {return service.findById(id);}
-
-    public List<Conteo> conteos(int page, int size){
-        Pageable pageable = PageRequest.of(page,size);
+    public List<Conteo> conteos(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
 
     @Unsecured()
-    public Conteo saveConteo(ConteoInput input, List<ConteoMonedaInput> conteoMonedaInputList, Long cajaId, Boolean apertura){
+    public Conteo saveConteo(ConteoInput input, List<ConteoMonedaInput> conteoMonedaInputList, Long cajaId, Boolean apertura) {
         ModelMapper m = new ModelMapper();
         Conteo e = m.map(input, Conteo.class);
         Conteo conteo = null;
         PdvCaja pdvCaja = pdvCajaService.findById(cajaId).orElse(null);
-        if(pdvCaja!=null){
-            if(input.getUsuarioId()!=null){
+        if (pdvCaja != null) {
+            if (input.getUsuarioId() != null) {
                 e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
             }
-            conteo = service.save(e);
-            if(conteo!=null){
-                if(pdvCaja.getConteoApertura()==null){
+            e.setSucursalId(sucursalService.sucursalActual().getId());
+            conteo = service.saveAndSend(e, false);
+            if (conteo != null) {
+                if (pdvCaja.getConteoApertura() == null) {
                     log.warn("entranndo enn apertura");
                     pdvCaja.setConteoApertura(conteo);
                     pdvCaja.setFechaApertura(LocalDateTime.now());
-                    pdvCajaService.save(pdvCaja);
+                    pdvCajaService.saveAndSend(pdvCaja, false);
                     List<Moneda> monedaList = monedaService.findAll2();
-                    for(Moneda moneda: monedaList){
+                    for (Moneda moneda : monedaList) {
                         MovimientoCaja movimientoCaja = new MovimientoCaja();
-                        if(moneda.getDenominacion().contains("GUARANI")) {
+                        if (moneda.getDenominacion().contains("GUARANI")) {
                             movimientoCaja.setMoneda(moneda);
                             movimientoCaja.setCambio(cambioService.findLastByMonedaId(moneda.getId()));
                             movimientoCaja.setCantidad(input.getTotalGs());
-                        } else if(moneda.getDenominacion().contains("REAL")) {
+                        } else if (moneda.getDenominacion().contains("REAL")) {
                             movimientoCaja.setMoneda(moneda);
                             movimientoCaja.setCambio(cambioService.findLastByMonedaId(moneda.getId()));
                             movimientoCaja.setCantidad(input.getTotalRs());
-                        } else if(moneda.getDenominacion().contains("DOLAR")) {
+                        } else if (moneda.getDenominacion().contains("DOLAR")) {
                             movimientoCaja.setMoneda(moneda);
                             movimientoCaja.setCambio(cambioService.findLastByMonedaId(moneda.getId()));
                             movimientoCaja.setCantidad(input.getTotalDs());
                         }
-                        if(movimientoCaja.getMoneda()!=null){
+                        if (movimientoCaja.getMoneda() != null) {
                             movimientoCaja.setPdvCaja(pdvCaja);
                             movimientoCaja.setReferencia(conteo.getId());
                             movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.CAJA_INICIAL);
@@ -104,12 +104,13 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                     pdvCaja.setConteoCierre(conteo);
                     pdvCaja.setFechaCierre(LocalDateTime.now());
                     pdvCaja.setActivo(false);
-                    pdvCajaService.save(pdvCaja);
+                    pdvCajaService.saveAndSend(pdvCaja, false);
                 }
-                if(!conteoMonedaInputList.isEmpty()){
-                    for(ConteoMonedaInput conteoMonedaInput: conteoMonedaInputList){
+                if (!conteoMonedaInputList.isEmpty()) {
+                    for (ConteoMonedaInput conteoMonedaInput : conteoMonedaInputList) {
                         conteoMonedaInput.setConteoId(conteo.getId());
                         conteoMonedaInput.setUsuarioId(input.getUsuarioId());
+                        conteoMonedaInput.setSucursalId(conteo.getSucursalId());
                         conteoMonedaGraphQL.saveConteoMoneda(conteoMonedaInput);
                     }
                 }
@@ -117,15 +118,15 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                 pdvCajaService.deleteById(pdvCaja.getId());
             }
         }
-        log.info("retornando conteo: "+ conteo.getId());
+        log.info("retornando conteo: " + conteo.getId());
         return conteo;
     }
 
-    public Boolean deleteConteo(Long id){
+    public Boolean deleteConteo(Long id) {
         return service.deleteById(id);
     }
 
-    public Long countConteo(){
+    public Long countConteo() {
         return service.count();
     }
 

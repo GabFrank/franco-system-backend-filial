@@ -20,6 +20,7 @@ import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.apache.tomcat.jni.Local;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -46,6 +47,9 @@ public class MovimientoGraphQL implements GraphQLQueryResolver, GraphQLMutationR
     @Autowired
     private CodigoService codigoService;
 
+    @Autowired
+    private Environment env;
+
     public Optional<MovimientoStock> movimientoStock(Long id) {return service.findById(id);}
 
     public List<MovimientoStock> movimientosStock(int page, int size){
@@ -57,9 +61,8 @@ public class MovimientoGraphQL implements GraphQLQueryResolver, GraphQLMutationR
         ModelMapper m = new ModelMapper();
         MovimientoStock e = m.map(input, MovimientoStock.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
-        e.setSucursal(sucursalService.findById(input.getSucursalId()).orElse(null));
         e.setProducto(productoService.findById(input.getProductoId()).orElse(null));
-        return service.save(e);
+        return service.saveAndSend(e, false);
     }
 
     public Boolean deleteMovimientoStock(Long id){

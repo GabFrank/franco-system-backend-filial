@@ -1,5 +1,6 @@
 package com.franco.dev.domain.operaciones;
 
+import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.FormaPago;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.domain.personas.Cliente;
@@ -28,6 +29,8 @@ public class Cobro implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    private Long sucursalId;
 
     @Column(name = "creado_en")
     private LocalDateTime creadoEn;

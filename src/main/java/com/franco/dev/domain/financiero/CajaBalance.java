@@ -28,7 +28,12 @@ public class CajaBalance {
     private Double totalGastoGs;
     private Double totalGastoRs;
     private Double totalGastoDs;
-    private Double totalCanceladas;
+    private Double totalCanceladasGs;
+    private Double totalCanceladasRs;
+    private Double totalCanceladasDs;
+    private Double vueltoGs;
+    private Double vueltoRs;
+    private Double vueltoDs;
 }
 
 

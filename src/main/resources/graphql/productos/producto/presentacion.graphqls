@@ -1,6 +1,5 @@
 type Presentacion {
     id:ID!
-    idCentral: Int
     descripcion: String
     activo: Boolean
     principal: Boolean
@@ -18,7 +17,6 @@ type Presentacion {
 
 input PresentacionInput {
     id:Int
-    idCentral: Int
     descripcion: String
     activo: Boolean
     principal: Boolean

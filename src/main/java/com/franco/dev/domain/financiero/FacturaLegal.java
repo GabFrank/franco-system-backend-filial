@@ -22,7 +22,10 @@ public class FacturaLegal implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    private Long sucursalId;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "timbrado_detalle_id", nullable = true)

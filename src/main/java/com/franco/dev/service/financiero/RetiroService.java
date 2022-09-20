@@ -1,14 +1,14 @@
 package com.franco.dev.service.financiero;
 
-import com.franco.dev.domain.financiero.Banco;
 import com.franco.dev.domain.financiero.Retiro;
-import com.franco.dev.repository.financiero.BancoRepository;
 import com.franco.dev.repository.financiero.RetiroRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+
+import static com.franco.dev.rabbit.enums.TipoEntidad.RETIRO;
 
 @Service
 @AllArgsConstructor
@@ -39,6 +39,15 @@ public class RetiroService extends CrudService<Retiro, RetiroRepository> {
     public Retiro save(Retiro entity) {
         Retiro e = super.save(entity);
 //        personaPublisher.publish(p);
+        return e;
+    }
+
+    @Override
+    public Retiro saveAndSend(Retiro entity, Boolean recibir) {
+        entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        Retiro e = super.save(entity);
+//        personaPublisher.publish(p);
+        propagacionService.propagarEntidad(e, RETIRO, recibir);
         return e;
     }
 }

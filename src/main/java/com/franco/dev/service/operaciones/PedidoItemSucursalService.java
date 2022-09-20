@@ -1,8 +1,6 @@
 package com.franco.dev.service.operaciones;
 
-import com.franco.dev.domain.operaciones.PedidoItem;
 import com.franco.dev.domain.operaciones.PedidoItemSucursal;
-import com.franco.dev.repository.operaciones.PedidoItemRepository;
 import com.franco.dev.repository.operaciones.PedidoItemSucursalRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

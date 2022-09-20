@@ -8,6 +8,9 @@ type Retiro {
     creadoEn: Date
     usuario: Usuario
     retiroDetalleList: [RetiroDetalle]
+    retiroGs: Float
+    retiroRs: Float
+    retiroDs: Float
 }
 
 input RetiroInput {
@@ -28,6 +31,7 @@ extend type Query {
     retiro(id:ID!):Retiro
     retiros(page:Int = 0, size:Int = 10):[Retiro]!
     retiroListPorCajaSalidaId(id:ID!):[Retiro]!
+    reimprimirRetiro(id:ID!, printerName: String, local: String):Boolean
     countRetiro: Int
 }
 

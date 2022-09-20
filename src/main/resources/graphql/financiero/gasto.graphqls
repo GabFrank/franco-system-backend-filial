@@ -16,6 +16,7 @@ type Gasto {
     vueltoGs: Float
     vueltoRs: Float
     vueltoDs: Float
+    sucursalVuelto: Sucursal
 }
 
 input GastoInput {
@@ -43,10 +44,12 @@ extend type Query {
     countGasto: Int
     gastosPorFecha(inicio:String, fin:String):[Gasto]
     gastosPorCajaId(id:ID!):[Gasto]
+    reimprimirGasto(id:ID!, printerName: String):Boolean
 }
 
 extend type Mutation {
     saveGasto(entity:GastoInput!, printerName: String, local: String):Gasto!
+    saveVueltoGasto(id:ID!, valorGs:Float, valorRs:Float, valorDs:Float):Gasto!
     deleteGasto(id:ID!):Boolean!
 }
 

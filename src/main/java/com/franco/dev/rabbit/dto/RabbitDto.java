@@ -20,6 +20,8 @@ public class RabbitDto<T> implements Serializable {
     private T entidad;
     private Long idSucursalOrigen;
     private Object data;
+    private Boolean recibidoEnServidor = false;
+    private Boolean recibidoEnFilial = false;
 
     public RabbitDto(T entidad, TipoAccion tipoAccion, TipoEntidad tipoEntidad, Long idSucursalOrigen) {
         this.entidad = entidad;
@@ -39,5 +41,14 @@ public class RabbitDto<T> implements Serializable {
         this.tipoAccion = tipoAccion;
         this.tipoEntidad = tipoEntidad;
         this.data = data;
+    }
+
+    public RabbitDto(T entidad, TipoAccion tipoAccion, TipoEntidad tipoEntidad, Object data, Boolean central, Boolean sucursal) {
+        this.entidad = entidad;
+        this.tipoAccion = tipoAccion;
+        this.tipoEntidad = tipoEntidad;
+        this.data = data;
+        this.recibidoEnFilial = sucursal;
+        this.recibidoEnServidor = central;
     }
 }

@@ -3,7 +3,6 @@ package com.franco.dev.service.operaciones;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.graphql.operaciones.publisher.DeliveryPublisher;
-import com.franco.dev.graphql.personas.publisher.PersonaPublisher;
 import com.franco.dev.repository.operaciones.DeliveryRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

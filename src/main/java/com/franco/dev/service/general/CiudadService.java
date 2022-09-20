@@ -1,9 +1,7 @@
 package com.franco.dev.service.general;
 
 import com.franco.dev.domain.general.Ciudad;
-import com.franco.dev.domain.general.Pais;
 import com.franco.dev.repository.general.CiudadRepository;
-import com.franco.dev.repository.general.PaisRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;

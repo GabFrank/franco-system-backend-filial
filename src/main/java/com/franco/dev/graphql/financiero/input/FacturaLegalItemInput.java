@@ -7,6 +7,7 @@ import java.io.Serializable;
 @Data
 public class FacturaLegalItemInput implements Serializable {
     private Long id;
+    private Long presentacionId;
     private Long clienteId;
     private Long facturaLegalId;
     private Long ventaItemId;

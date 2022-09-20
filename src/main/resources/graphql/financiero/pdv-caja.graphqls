@@ -34,7 +34,6 @@ input PdvCajaInput {
 extend type Query {
     pdvCaja(id:ID!):PdvCaja
     pdvCajas(page:Int = 0, size:Int = 10):[PdvCaja]!
-    pdvCajas(page:Int = 0, size:Int = 10):[PdvCaja]!
     countPdvCaja: Int
     cajasPorFecha(inicio:String, fin:String):[PdvCaja]
     balancePorFecha(inicio:String, fin:String):CajaBalance

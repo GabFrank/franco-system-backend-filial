@@ -4,10 +4,8 @@ import com.franco.dev.domain.operaciones.InventarioProducto;
 import com.franco.dev.repository.operaciones.InventarioProductoRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service

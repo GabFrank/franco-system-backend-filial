@@ -9,6 +9,7 @@ import com.franco.dev.repository.productos.ProductoRepository;
 import com.franco.dev.service.CrudService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.utils.ImageService;
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;

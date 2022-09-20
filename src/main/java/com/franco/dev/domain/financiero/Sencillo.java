@@ -25,6 +25,8 @@ public class Sencillo implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long sucursalId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "responsable_id", nullable = true)
     private Funcionario responsable;

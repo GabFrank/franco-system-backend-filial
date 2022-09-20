@@ -1,8 +1,6 @@
 package com.franco.dev.service.productos;
 
-import com.franco.dev.domain.productos.Ingrediente;
 import com.franco.dev.domain.productos.ProductoImagen;
-import com.franco.dev.repository.productos.IngredienteRepository;
 import com.franco.dev.repository.productos.ProductoImagenRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

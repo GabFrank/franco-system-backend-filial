@@ -1,9 +1,7 @@
 package com.franco.dev.service.operaciones;
 
-import com.franco.dev.domain.operaciones.InventarioProducto;
 import com.franco.dev.domain.operaciones.InventarioProductoItem;
 import com.franco.dev.repository.operaciones.InventarioProductoItemRepository;
-import com.franco.dev.repository.operaciones.InventarioProductoRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;

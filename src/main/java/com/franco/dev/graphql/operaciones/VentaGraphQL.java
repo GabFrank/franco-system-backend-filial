@@ -6,7 +6,8 @@ import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.dto.VentaPorPeriodoV1Dto;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
-import com.franco.dev.domain.productos.Presentacion;
+import com.franco.dev.graphql.financiero.FacturaLegalGraphQL;
+import com.franco.dev.graphql.financiero.FacturaLegalItemGraphQL;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
 import com.franco.dev.graphql.financiero.input.FacturaLegalItemInput;
 import com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput;
@@ -14,7 +15,6 @@ import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
 import com.franco.dev.graphql.operaciones.input.CobroInput;
 import com.franco.dev.graphql.operaciones.input.VentaInput;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
-import com.franco.dev.rabbit.dto.SaveFacturaDto;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.FacturaService;
 import com.franco.dev.service.financiero.FormaPagoService;
@@ -37,15 +37,18 @@ import com.franco.dev.utilitarios.print.escpos.Style;
 import com.franco.dev.utilitarios.print.escpos.barcode.QRCode;
 import com.franco.dev.utilitarios.print.escpos.image.*;
 import com.franco.dev.utilitarios.print.output.PrinterOutputStream;
+import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
@@ -110,6 +113,15 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     @Autowired
     private PropagacionService propagacionService;
 
+    @Autowired
+    private Environment env;
+
+    @Autowired
+    private FacturaLegalGraphQL facturaLegalGraphQL;
+
+    @Autowired
+    private FacturaLegalItemGraphQL facturaLegalItemGraphQL;
+
     private Sucursal sucursal;
 
     public Optional<Venta> venta(Long id) {
@@ -125,7 +137,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 //        return service.findByAll(texto);
 //    }
 
-    public Venta saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleList, Boolean ticket, String printerName, String local, Long pdvId, Boolean credito) throws Exception {
+    @Transactional
+    public Venta saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleList, Boolean ticket, String printerName, String local, Long pdvId, Boolean credito) throws Exception, GraphQLException {
         Venta venta = null;
         Cobro cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
         List<VentaItem> ventaItemList1 = new ArrayList<>();
@@ -142,7 +155,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 e.setFormaPago(formaPagoService.findById(ventaInput.getFormaPagoId()).orElse(null));
             if (e.getCaja() != null) e.setCaja(pdvCajaService.findById(ventaInput.getCajaId()).orElse(null));
             e.setCobro(cobro);
-            venta = service.save(e);
+            e.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+            venta = service.saveAndSend(e, false);
             if (venta != null) {
                 ventaItemList1 = ventaItemGraphQL.saveVentaItemList(ventaItemList, venta.getId());
             }
@@ -162,34 +176,31 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                             facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
                         }
                         facturaLegalInput.setVentaId(venta.getId());
-                        facturaLegalInput.setCredito(credito);
+                        facturaLegalInput.setCredito(credito == true ? true : false);
                         facturaLegalInput.setUsuarioId(ventaInput.getUsuarioId());
                         List<FacturaLegalItemInput> facturaLegalItemInputList = new ArrayList<>();
-                        for (VentaItemInput vi : ventaItemList) {
+                        for (VentaItem vi : ventaItemList1) {
                             FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
-                            Presentacion p = presentacionService.findById(vi.getPresentacionId()).orElse(null);
-                            if (p != null) {
-                                fiInput.setIva(p.getProducto().getIva());
-                                fiInput.setDescripcion(p.getProducto().getDescripcionFactura());
-                                fiInput.setCantidad(vi.getCantidad());
-                                fiInput.setPrecioUnitario(vi.getPrecioVenta());
-                                fiInput.setUsuarioId(vi.getUsuarioId());
-                                fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
-                                facturaLegalItemInputList.add(fiInput);
-                            }
+                            fiInput.setVentaItemId(vi.getId());
+                            fiInput.setPresentacionId(vi.getPresentacion().getId());
+                            fiInput.setIva(vi.getPresentacion().getProducto().getIva());
+                            fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
+                            fiInput.setCantidad(vi.getCantidad());
+                            fiInput.setPrecioUnitario(vi.getPrecioVenta().getPrecio());
+                            fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
+                            facturaLegalItemInputList.add(fiInput);
                         }
-                        SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta, facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
-                        if (saveFacturaDto != null) {
-                            propagacionService.propagarFactura(saveFacturaDto);
-                            return venta;
-                        }
+//                        SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta, facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
+                        Boolean facturado = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, facturaLegalItemInputList, printerName, pdvId);
+                        if (facturado == false) throw new GraphQLException("Problema al generar factura");
+                        return venta;
                     } else {
                         printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local, false, null);
                     }
 
                 }
             } catch (Exception e) {
-                return null;
+                return venta;
             }
         }
         return venta;
@@ -399,7 +410,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
             escpos.writeLF(valorDs);
             escpos.writeLF("--------------------------------");
-            if (pagare!=null && pagare==true) {
+            if (pagare != null && pagare == true) {
                 for (int x = 0; x < itens.size(); x++) {
                     escpos.writeLF(center, "PAGARÉ A LA ORDEN " + x + 1 + "/" + itens.size());
                     escpos.feed(1);
@@ -467,13 +478,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     public Boolean cancelarVenta(Long id) {
         Venta venta = service.findById(id).orElse(null);
         if (venta != null && venta.getEstado() != VentaEstado.CANCELADA) {
-            venta.setEstado(VentaEstado.CANCELADA);
-            venta = service.save(venta);
-            if (venta != null) {
-                return true;
-            } else {
-                return false;
-            }
+            return service.cancelarVenta(venta);
         }
         return false;
     }

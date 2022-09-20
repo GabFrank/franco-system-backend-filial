@@ -1,14 +1,10 @@
 package com.franco.dev.service.rabbitmq;
 
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,7 +43,7 @@ public class InitDbService {
         try {
             jdbcTemplate.execute(truncQuery);
             jdbcTemplate.execute(superUser);
-        } catch (Exception e){
+        } catch (Exception e) {
             return false;
         }
         return true;

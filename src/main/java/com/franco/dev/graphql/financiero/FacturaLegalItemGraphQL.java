@@ -49,7 +49,7 @@ public class FacturaLegalItemGraphQL implements GraphQLQueryResolver, GraphQLMut
         if (input.getUsuarioId() != null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         if (input.getFacturaLegalId() != null) e.setFacturaLegal(facturaLegalService.findById(input.getFacturaLegalId()).orElse(null));
         if (input.getVentaItemId() != null) e.setVentaItem(ventaItemService.findById(input.getVentaItemId()).orElse(null));
-        return service.save(e);
+        return service.saveAndSend(e, false);
     }
 
     public Boolean deleteFacturaLegalItem(Long id) {

@@ -1,9 +1,7 @@
 package com.franco.dev.service.operaciones;
 
-import com.franco.dev.domain.operaciones.NotaRecepcion;
 import com.franco.dev.domain.operaciones.NotaRecepcionItem;
 import com.franco.dev.repository.operaciones.NotaRecepcionItemRepository;
-import com.franco.dev.repository.operaciones.NotaRecepcionRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;

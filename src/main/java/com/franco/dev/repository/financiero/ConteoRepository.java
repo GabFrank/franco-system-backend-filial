@@ -23,5 +23,7 @@ public interface ConteoRepository extends HelperRepository<Conteo, Long> {
             "join financiero.moneda_billetes mb on mb.id = cm.moneda_billetes_id " +
             "where c.id = ?1 and mb.moneda_id = ?2", nativeQuery = true)
     public Double getTotalPorMoneda(Long conteoId, Long monedaId);
+
+    public Conteo findByIdAndSucursalId(Long id, Long sucId);
     
 }

@@ -24,6 +24,8 @@ public class SencilloDetalle implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long sucursalId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sencillo_id", nullable = true)
     private Sencillo sencillo;

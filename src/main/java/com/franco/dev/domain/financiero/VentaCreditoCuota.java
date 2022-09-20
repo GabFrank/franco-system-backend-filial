@@ -21,7 +21,10 @@ public class VentaCreditoCuota implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    private Long sucursalId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venta_credito_id", nullable = true)

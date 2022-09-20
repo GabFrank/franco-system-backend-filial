@@ -16,6 +16,7 @@ public class VentaItemInput {
     private Double existencia;
     private Double precioCosto;
     private Long precioVentaId;
+    private Double precio;
     private Double precioVenta;
     private Double valorDescuento;
     private LocalDateTime creadoEn;

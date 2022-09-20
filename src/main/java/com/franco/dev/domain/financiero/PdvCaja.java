@@ -1,7 +1,6 @@
 package com.franco.dev.domain.financiero;
 
 import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
-import com.franco.dev.domain.operaciones.enums.TipoEntrada;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.utilitarios.PostgreSQLEnumType;
 import lombok.AllArgsConstructor;
@@ -14,7 +13,6 @@ import org.hibernate.annotations.TypeDef;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Date;
 
 @Data
 @AllArgsConstructor
@@ -33,6 +31,8 @@ public class PdvCaja implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long sucursalId;
+
     private String descripcion;
     private String observacion;
     private Boolean activo;
@@ -46,7 +46,7 @@ public class PdvCaja implements Serializable {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado")
-    @Type( type = "pdv_caja_estado")
+    @Type(type = "pdv_caja_estado")
     private PdvCajaEstado estado;
 
     @ManyToOne(fetch = FetchType.EAGER)

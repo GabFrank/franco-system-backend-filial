@@ -1,5 +1,6 @@
 package com.franco.dev.domain.operaciones;
 
+import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.FormaPago;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
@@ -37,19 +38,21 @@ public class Venta implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    private Long sucursalId;
+
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cliente_id", nullable = true)
     private Cliente cliente;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "forma_pago_id", nullable = true)
     private FormaPago formaPago;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cobro_id", nullable = true)
     private Cobro cobro;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "caja_id", nullable = true)
     private PdvCaja caja;
 
@@ -61,7 +64,7 @@ public class Venta implements Serializable {
     @Column(name = "creado_en")
     private LocalDateTime creadoEn;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
 

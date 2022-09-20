@@ -1,5 +1,6 @@
 type Conteo {
     id:ID!
+    sucursalId: Int
     observacion: String
     creadoEn: Date
     usuario: Usuario

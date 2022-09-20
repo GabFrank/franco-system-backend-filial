@@ -1,14 +1,10 @@
 package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.Cambio;
-import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.repository.financiero.CambioRepository;
-import com.franco.dev.repository.financiero.MonedaRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 @AllArgsConstructor

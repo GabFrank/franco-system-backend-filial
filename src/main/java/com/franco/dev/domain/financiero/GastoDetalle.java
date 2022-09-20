@@ -24,6 +24,8 @@ public class GastoDetalle implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long sucursalId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "gasto_id", nullable = true)
     private Gasto gasto;

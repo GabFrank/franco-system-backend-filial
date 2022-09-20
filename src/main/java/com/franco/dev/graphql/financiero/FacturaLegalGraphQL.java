@@ -13,10 +13,7 @@ import com.franco.dev.rabbit.dto.SaveFacturaDto;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.empresarial.PuntoDeVentaService;
 import com.franco.dev.service.empresarial.SucursalService;
-import com.franco.dev.service.financiero.FacturaLegalItemService;
-import com.franco.dev.service.financiero.FacturaLegalService;
-import com.franco.dev.service.financiero.FacturaService;
-import com.franco.dev.service.financiero.TimbradoDetalleService;
+import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
@@ -117,6 +114,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private FacturaLegalItemService facturaLegalItemService;
 
+    @Autowired
+    private PdvCajaService pdvCajaService;
+
     public Optional<FacturaLegal> facturaLegal(Long id) {
         return service.findById(id);
     }
@@ -128,12 +128,28 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Transactional
     public Boolean saveFacturaLegal(FacturaLegalInput input, List<FacturaLegalItemInput> facturaLegalItemInputList, String printerName, Long pdvId) {
-        SaveFacturaDto saveFacturaDto = generarFacturaAutoImpreso(input, facturaLegalItemInputList, printerName, pdvId, false);
-        if(saveFacturaDto!=null){
-            propagacionService.propagarFactura(saveFacturaDto);
+        Venta venta = input.getVentaId() != null ? ventaService.findById(input.getVentaId()).orElse(null) : null;
+        SaveFacturaDto saveFacturaDto = generarFacturaAutoImpreso(venta, input, facturaLegalItemInputList, printerName, pdvId, false);
+        input = saveFacturaDto.getFacturaLegalInput();
+        facturaLegalItemInputList = saveFacturaDto.getFacturaLegalItemInputList();
+        ModelMapper m = new ModelMapper();
+        FacturaLegal e = m.map(input, FacturaLegal.class);
+        if (input.getUsuarioId() != null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
+        if (input.getVentaId() != null) e.setVenta(ventaService.findById(input.getVentaId()).orElse(null));
+        if (input.getCajaId() != null) e.setCaja(pdvCajaService.findById(input.getCajaId()).orElse(null));
+        if (input.getTimbradoDetalleId() != null)
+            e.setTimbradoDetalle(timbradoDetalleService.findById(input.getTimbradoDetalleId()).orElse(null));
+        if (input.getClienteId() != null) e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
+        e = service.saveAndSend(e, false);
+        if (e != null) {
+            for (FacturaLegalItemInput c : facturaLegalItemInputList) {
+                c.setFacturaLegalId(e.getId());
+                facturaLegalItemGraphQL.saveFacturaLegalItem(c);
+            }
             return true;
+        } else {
+            return false;
         }
-        return false;
     }
 
     public Boolean deleteFacturaLegal(Long id) {
@@ -144,12 +160,12 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.count();
     }
 
-    public SaveFacturaDto generarFacturaAutoImpreso(FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar) {
+    public SaveFacturaDto generarFacturaAutoImpreso(Venta venta, FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar) {
         PuntoDeVenta puntoDeVenta = puntoDeVentaService.getPuntoDeVentaActual(pdvId);
         TimbradoDetalle timbradoDetalle = puntoDeVenta != null ? timbradoDetalleService.getTimbradoDetalleActual(puntoDeVenta.getId()) : null;
         if (timbradoDetalle != null) {
             try {
-                return facturaService.printTicket58mmFactura(null, facturaLegal, facturaLegalItemList, printerName, pdvId, continuar);
+                return facturaService.printTicket58mmFactura(venta, facturaLegal, facturaLegalItemList, printerName, pdvId, continuar);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -501,35 +517,35 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
     }
 
-    public Boolean imprimirFacturasPorCaja(Long id, String printerName){
+    public Boolean imprimirFacturasPorCaja(Long id, String printerName) {
         Boolean ok = false;
         List<FacturaLegal> facturaLegalList = service.findByCajaId(id);
         Integer count = 0;
-        for(FacturaLegal fl : facturaLegalList){
+        for (FacturaLegal fl : facturaLegalList) {
             count++;
             List<FacturaLegalItem> facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(fl.getId());
-            List<FacturaLegalItemInput> facturaLegalItemInputList =  new ArrayList<>();
+            List<FacturaLegalItemInput> facturaLegalItemInputList = new ArrayList<>();
             ModelMapper m = new ModelMapper();
             FacturaLegalInput input = m.map(fl, FacturaLegalInput.class);
             input.setClienteId(fl.getCliente().getId());
-            if(fl.getCaja()!=null) input.setCajaId(fl.getCaja().getId());
-            if(fl.getVenta()!=null) input.setVentaId(fl.getVenta().getId());
+            if (fl.getCaja() != null) input.setCajaId(fl.getCaja().getId());
+            if (fl.getVenta() != null) input.setVentaId(fl.getVenta().getId());
             input.setUsuarioId(fl.getUsuario().getId());
             input.setTimbradoDetalleId(fl.getTimbradoDetalle().getId());
-            for(FacturaLegalItem flItem: facturaLegalItemList){
+            for (FacturaLegalItem flItem : facturaLegalItemList) {
                 ModelMapper i = new ModelMapper();
                 FacturaLegalItemInput itemInput = i.map(flItem, FacturaLegalItemInput.class);
-                if(flItem.getUsuario()!=null) itemInput.setUsuarioId(flItem.getUsuario().getId());
-                if(flItem.getVentaItem()!=null) itemInput.setVentaItemId(flItem.getVentaItem().getId());
-                if(flItem.getFacturaLegal()!=null) itemInput.setFacturaLegalId(flItem.getFacturaLegal().getId());
+                if (flItem.getUsuario() != null) itemInput.setUsuarioId(flItem.getUsuario().getId());
+                if (flItem.getVentaItem() != null) itemInput.setVentaItemId(flItem.getVentaItem().getId());
+                if (flItem.getFacturaLegal() != null) itemInput.setFacturaLegalId(flItem.getFacturaLegal().getId());
                 facturaLegalItemInputList.add(itemInput);
             }
             Boolean continuar = true;
-            if(facturaLegalList.size() == count){
+            if (facturaLegalList.size() == count) {
                 continuar = false;
             }
-            SaveFacturaDto dto = generarFacturaAutoImpreso(input, facturaLegalItemInputList, printerName, fl.getTimbradoDetalle().getPuntoDeVenta().getId(), continuar);
-            if(dto!=null){
+            SaveFacturaDto dto = generarFacturaAutoImpreso(fl.getVenta() != null ? fl.getVenta() : null, input, facturaLegalItemInputList, printerName, fl.getTimbradoDetalle().getPuntoDeVenta().getId(), continuar);
+            if (dto != null) {
                 fl.setViaTributaria(true);
                 propagacionService.propagarEntidad(fl, TipoEntidad.FACTURA);
                 ok = true;

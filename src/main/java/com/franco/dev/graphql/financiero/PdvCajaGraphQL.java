@@ -3,6 +3,7 @@ package com.franco.dev.graphql.financiero;
 import com.franco.dev.domain.financiero.CajaBalance;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.graphql.financiero.input.PdvCajaInput;
+import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.ConteoService;
 import com.franco.dev.service.financiero.MaletinService;
 import com.franco.dev.service.financiero.PdvCajaService;
@@ -38,6 +39,9 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
     @Autowired
     private ConteoMonedaGraphQL conteoMonedaGraphQL;
+
+    @Autowired
+    private SucursalService sucursalService;
 
     public Optional<PdvCaja> pdvCaja(Long id) {
         return service.findById(id);
@@ -76,15 +80,6 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         return cajaBalance;
     }
 
-//    public List<PdvCaja> searchCajaFilter(Long id, String fechaInicio, String fechaFin, Long maletinId, Long cajeroId){
-//        if(id!=null){
-//            return service.findById(id).orElse(null);
-//        } else {
-//
-//        }
-//    }
-
-
     public PdvCaja savePdvCaja(PdvCajaInput input) {
         ModelMapper m = new ModelMapper();
         PdvCaja e = m.map(input, PdvCaja.class);
@@ -96,7 +91,8 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         if (input.getConteoCierreId() != null)
             e.setConteoCierre(conteoService.findById(input.getConteoCierreId()).orElse(null));
         if (input.getMaletinId() != null) e.setMaletin(maletinService.findById(input.getMaletinId()).orElse(null));
-        PdvCaja pdvCaja = service.save(e);
+        e.setSucursalId(sucursalService.sucursalActual().getId());
+        PdvCaja pdvCaja = service.saveAndSend(e, false);
         return pdvCaja;
     }
 

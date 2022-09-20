@@ -279,6 +279,9 @@ public class FacturaService {
         Double pagadoGs = 0.0;
         Double pagadoRs = 0.0;
         Double pagadoDs = 0.0;
+        Double ventaIva10 = 0.0;
+        Double ventaIva5 = 0.0;
+        Double ventaIva0 = 0.0;
         Double totalIva10 = 0.0;
         Double totalIva5 = 0.0;
         Double totalIva = 0.0;
@@ -357,10 +360,15 @@ public class FacturaService {
                 }
                 switch (iva) {
                     case 10:
+                        ventaIva10 += total;
                         totalIva10 += total / 11;
                         break;
                     case 5:
                         totalIva5 += total / 21;
+                        ventaIva5 += total;
+                        break;
+                    case 0:
+                        ventaIva0 += total;
                         break;
 
                 }
@@ -452,9 +460,20 @@ public class FacturaService {
                 if (facturaLegal.getId() == null) {
                     Long numero = timbradoDetalleService.aumentarNumeroFactura(timbradoDetalle);
                     facturaLegal.setTimbradoDetalleId(timbradoDetalle.getId());
+                    facturaLegal.setCajaId(venta.getCaja().getId());
+                    facturaLegal.setVentaId(venta.getId());
+                    facturaLegal.setTotalFinal(totalFinal);
+                    facturaLegal.setIvaParcial5(totalIva5);
+                    facturaLegal.setIvaParcial10(totalIva10);
+                    facturaLegal.setFecha(venta.getCreadoEn());
+                    facturaLegal.setViaTributaria(true);
+                    facturaLegal.setAutoimpreso(true);
+                    facturaLegal.setClienteId(venta.getCliente().getId());
                     facturaLegal.setNumeroFactura(numero.intValue());
+                    facturaLegal.setTotalParcial5(ventaIva5);
+                    facturaLegal.setTotalParcial10(ventaIva10);
+                    facturaLegal.setTotalParcial0(ventaIva0);
                 }
-
             } catch (IOException ioe) {
                 ioe.printStackTrace();
             }

@@ -1,5 +1,6 @@
 package com.franco.dev.domain.financiero;
 
+import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.personas.Funcionario;
 import com.franco.dev.domain.personas.Usuario;
 import lombok.AllArgsConstructor;
@@ -25,19 +26,21 @@ public class Gasto implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    private Long sucursalId;
+
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "responsable_id", nullable = true)
     private Funcionario responsable;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "caja_id", nullable = true)
     private PdvCaja caja;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "tipo_gasto_id", nullable = true)
     private TipoGasto tipoGasto;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "autorizado_por_id", nullable = true)
     private Funcionario autorizadoPor;
 
@@ -46,7 +49,7 @@ public class Gasto implements Serializable {
     @CreationTimestamp
     private LocalDateTime creadoEn;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
 
@@ -60,6 +63,10 @@ public class Gasto implements Serializable {
     private Double vueltoGs;
     private Double vueltoRs;
     private Double vueltoDs;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "sucursal_vuelto_id", nullable = true)
+    private Sucursal sucursalVuelto;
 }
 
 

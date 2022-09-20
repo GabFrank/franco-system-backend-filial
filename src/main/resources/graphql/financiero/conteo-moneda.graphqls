@@ -1,5 +1,6 @@
 type ConteoMoneda {
     id:ID!
+    sucursalId: Int
     conteo: Conteo
     monedaBilletes: MonedaBilletes
     cantidad: Float

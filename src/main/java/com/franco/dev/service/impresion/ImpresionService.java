@@ -1,15 +1,7 @@
 package com.franco.dev.service.impresion;
 
 import com.franco.dev.domain.empresarial.Sucursal;
-import com.franco.dev.domain.financiero.FacturaDto;
-import com.franco.dev.domain.financiero.FacturaLegal;
-import com.franco.dev.domain.financiero.FacturaLegalItem;
-import com.franco.dev.domain.financiero.TimbradoDetalle;
-import com.franco.dev.domain.operaciones.Cobro;
-import com.franco.dev.domain.operaciones.Venta;
-import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto;
-import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.TimbradoDetalleService;
 import com.franco.dev.service.impresion.dto.GastoDto;
@@ -32,7 +24,6 @@ import java.io.File;
 import java.io.IOException;
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Locale;
 
 import static com.franco.dev.service.utils.PrintingService.resize;
@@ -40,30 +31,23 @@ import static com.franco.dev.service.utils.PrintingService.resize;
 @Service
 public class ImpresionService {
 
-    PrintService selectedPrintService = null;
-
-    @Autowired
-    private ImageService imageService;
-
-    @Autowired
-    private PrintingService printingService;
-
-    private PrinterOutputStream printerOutputStream;
-
-    @Autowired
-    private SucursalService sucursalService;
-
-    @Autowired
-    private TimbradoDetalleService timbradoDetalleService;
-
-    private Sucursal sucursal = null;
-
     public static DateTimeFormatter shortDate = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     public static DateTimeFormatter shortDateTime = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+    PrintService selectedPrintService = null;
+    @Autowired
+    private ImageService imageService;
+    @Autowired
+    private PrintingService printingService;
+    private PrinterOutputStream printerOutputStream;
+    @Autowired
+    private SucursalService sucursalService;
+    @Autowired
+    private TimbradoDetalleService timbradoDetalleService;
+    private Sucursal sucursal = null;
 
     public Boolean printBalance(PdvCajaBalanceDto balanceDto, String printerName, String local) {
         try {
-            if(printerName==null){
+            if (printerName == null) {
                 selectedPrintService = printingService.getLasUsedPrinter();
             } else {
                 selectedPrintService = printingService.getPrintService(printerName);
@@ -279,6 +263,7 @@ public class ImpresionService {
                 EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
                 imageWrapper.setJustification(EscPosConst.Justification.Center);
                 escpos.write(imageWrapper, escposImage);
+                if (gastoDto.getReimpresion() == true) escpos.writeLF(center, "REIMPRESION");
                 if (sucursalService.sucursalActual() != null) {
                     escpos.writeLF(center, "Suc: " + sucursalService.sucursalActual().getNombre());
                 }
@@ -429,7 +414,7 @@ public class ImpresionService {
 //        }
     }
 
-    public void printRetiro(RetiroDto retiroDto, String printerName, String local) {
+    public void printRetiro(RetiroDto retiroDto, String printerName, String local, Boolean reimpresion) {
         try {
             selectedPrintService = printingService.getPrintService(printerName);
             if (selectedPrintService != null) {
@@ -449,6 +434,9 @@ public class ImpresionService {
                 EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
                 imageWrapper.setJustification(EscPosConst.Justification.Center);
                 escpos.write(imageWrapper, escposImage);
+                if (reimpresion == true) {
+                    escpos.writeLF(center, "REIMPRESION");
+                }
                 if (sucursalService.sucursalActual() != null) {
                     escpos.writeLF(center, "Suc: " + sucursalService.sucursalActual().getNombre());
                 }

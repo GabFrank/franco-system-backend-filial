@@ -59,7 +59,7 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if(input.getMonedaId()!=null) e.setMoneda(monedaService.findById(input.getMonedaId()).orElse(null));
         if(input.getFormaPagoId()!=null) e.setFormaPago(formaPagoService.findById(input.getFormaPagoId()).orElse(null));
         if(input.getCobroId()!=null) e.setCobro(cobroService.findById(input.getCobroId()).orElse(null));
-        CobroDetalle cobroDetalle = service.save(e);
+        CobroDetalle cobroDetalle = service.saveAndSend(e, false);
         return cobroDetalle;
     }
 

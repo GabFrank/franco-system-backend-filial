@@ -1,11 +1,13 @@
 type VentaItem {
     id:ID!
+    sucursalId: Int
     venta: Venta
     producto: Producto
     presentacion: Presentacion
     cantidad: Float
     precioCosto: Float
     precioVenta: PrecioPorSucursal
+    precio: Float
     valorDescuento: Float
     unidadMedida: UnidadMedida
     creadoEn: Date
@@ -24,7 +26,7 @@ input VentaItemInput {
     cantidad: Float
     precioCosto: Float
     precioVentaId: Int
-    precioVenta: Float
+    precio: Float
     valorDescuento: Float
     usuarioId: Int
 }

@@ -3,14 +3,6 @@ package com.franco.dev;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
-import com.franco.dev.service.operaciones.InventarioService;
-import com.franco.dev.service.operaciones.MovimientoStockService;
-import com.franco.dev.service.productos.CodigoService;
-import com.franco.dev.service.productos.PrecioPorSucursalService;
-import com.franco.dev.service.productos.ProductoService;
-import com.franco.dev.service.productos.TipoPrecioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
-import com.franco.dev.service.financiero.FacturaService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,43 +28,25 @@ import java.util.Collections;
 public class FrancoSystemsApplication {
 
     public final static String SFG_MESSAGE_QUEUE = "test-queue";
-    @Autowired
-    ProductoService productoService;
-    @Autowired
-    TipoPrecioService tipoPrecioService;
-    @Autowired
-    PrecioPorSucursalService precioPorSucursalService;
+
     private Logger log = LoggerFactory.getLogger(FrancoSystemsApplication.class);
+
     @Autowired
     private ObjectMapper objectMapper;
-    @Autowired
-    private CodigoService codigoService;
-
-    @Autowired
-    private InventarioService inventarioService;
-    @Autowired
-    private MovimientoStockService movimientoStockService;
-
-    @Autowired
-    private PropagacionService propagacionService;
-
-    @Autowired
-    private FacturaService facturaService;
-
-    @Bean
-    public RestTemplate getResTemplate(){
-    	return new RestTemplate();
-	}
-
-    @Bean
-    public SincronizacionStatusPublisher getSinPublisher(){
-        return new SincronizacionStatusPublisher();
-    }
-
 
     public static void main(String[] args) throws IOException {
         System.out.println("Iniciando sistema");
         SpringApplication.run(FrancoSystemsApplication.class, args);
+    }
+
+    @Bean
+    public RestTemplate getResTemplate() {
+        return new RestTemplate();
+    }
+
+    @Bean
+    public SincronizacionStatusPublisher getSinPublisher() {
+        return new SincronizacionStatusPublisher();
     }
 
     /**

@@ -35,6 +35,8 @@ public class Retiro implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long sucursalId;
+
     private String observacion;
 
     @Enumerated(EnumType.STRING)

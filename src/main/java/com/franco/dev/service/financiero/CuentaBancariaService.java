@@ -1,8 +1,6 @@
 package com.franco.dev.service.financiero;
 
-import com.franco.dev.domain.financiero.Banco;
 import com.franco.dev.domain.financiero.CuentaBancaria;
-import com.franco.dev.repository.financiero.BancoRepository;
 import com.franco.dev.repository.financiero.CuentaBancariaRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

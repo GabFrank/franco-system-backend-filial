@@ -1,8 +1,6 @@
 package com.franco.dev.service.productos.pdv;
 
-import com.franco.dev.domain.productos.Familia;
 import com.franco.dev.domain.productos.pdv.PdvCategoria;
-import com.franco.dev.repository.productos.FamiliaRepository;
 import com.franco.dev.repository.productos.pdv.PdvCategoriaRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

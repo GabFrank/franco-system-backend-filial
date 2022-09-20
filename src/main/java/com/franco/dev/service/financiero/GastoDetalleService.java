@@ -1,11 +1,8 @@
 package com.franco.dev.service.financiero;
 
-import com.franco.dev.domain.financiero.Banco;
-import com.franco.dev.domain.financiero.Gasto;
 import com.franco.dev.domain.financiero.GastoDetalle;
 import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
-import com.franco.dev.repository.financiero.BancoRepository;
 import com.franco.dev.repository.financiero.GastoDetalleRepository;
 import com.franco.dev.service.CrudService;
 import graphql.GraphQLException;

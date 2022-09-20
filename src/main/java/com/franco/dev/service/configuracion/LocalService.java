@@ -1,9 +1,7 @@
 package com.franco.dev.service.configuracion;
 
 import com.franco.dev.domain.configuracion.Local;
-import com.franco.dev.domain.empresarial.Cargo;
 import com.franco.dev.repository.configuraciones.LocalRepository;
-import com.franco.dev.repository.empresarial.CargoRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;

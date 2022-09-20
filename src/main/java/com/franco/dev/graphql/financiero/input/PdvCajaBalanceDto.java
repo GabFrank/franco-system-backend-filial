@@ -1,7 +1,6 @@
 package com.franco.dev.graphql.financiero.input;
 
 import com.franco.dev.domain.empresarial.Sucursal;
-import com.franco.dev.domain.operaciones.enums.TipoEntrada;
 import com.franco.dev.domain.personas.Usuario;
 import lombok.Data;
 
@@ -37,6 +36,11 @@ public class PdvCajaBalanceDto {
     private Double totalGastoDs = 0.0;
     private Double totalDescuento = 0.0;
     private Double totalAumento = 0.0;
-    private Double totalCanceladas = 0.0;
+    private Double totalCanceladasGs = 0.0;
+    private Double totalCanceladasRs = 0.0;
+    private Double totalCanceladasDs = 0.0;
     private Double totalCredito = 0.0;
+    private Double vueltoGs = 0.0;
+    private Double vueltoRs = 0.0;
+    private Double vueltoDs = 0.0;
 }

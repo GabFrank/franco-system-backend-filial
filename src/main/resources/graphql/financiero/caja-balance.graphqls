@@ -19,7 +19,12 @@ type CajaBalance {
     totalGastoGs: Float
     totalGastoRs: Float
     totalGastoDs: Float
-    totalCanceladas: Float
+    totalCanceladasGs: Float
+    totalCanceladasRs: Float
+    totalCanceladasDs: Float
+    vueltoGs: Float
+    vueltoRs: Float
+    vueltoDs: Float
 }
 
 

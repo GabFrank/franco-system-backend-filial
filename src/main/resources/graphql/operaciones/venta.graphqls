@@ -1,5 +1,6 @@
 type Venta {
     id:ID!
+    sucursalId: Int
     caja: PdvCaja
     cliente: Cliente
     formaPago: FormaPago

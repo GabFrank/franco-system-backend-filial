@@ -5,16 +5,11 @@ import com.franco.dev.domain.operaciones.enums.PedidoEstado;
 import com.franco.dev.repository.operaciones.PedidoRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
-import org.hibernate.Session;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Service;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import javax.persistence.Query;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service

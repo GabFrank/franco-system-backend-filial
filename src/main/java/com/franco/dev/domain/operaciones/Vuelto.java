@@ -24,6 +24,8 @@ public class Vuelto implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long sucursalId;
+
     private Boolean activo;
 
     @ManyToOne(fetch = FetchType.LAZY)

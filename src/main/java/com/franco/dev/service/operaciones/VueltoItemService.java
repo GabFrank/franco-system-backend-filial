@@ -1,9 +1,7 @@
 package com.franco.dev.service.operaciones;
 
-import com.franco.dev.domain.operaciones.Vuelto;
 import com.franco.dev.domain.operaciones.VueltoItem;
 import com.franco.dev.repository.operaciones.VueltoItemRepository;
-import com.franco.dev.repository.operaciones.VueltoRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;

@@ -7,7 +7,7 @@ type MovimientoStock {
     usuario: Usuario
     cantidad: Float
     estado: Boolean
-    sucursal: Sucursal
+    sucursalId: Int
     proveedor: Proveedor
 }
 

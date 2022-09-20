@@ -1,5 +1,6 @@
 type Cobro {
     id:ID
+    sucursalId: Int
     creadoEn: Date,
     usuario: Usuario,
     totalGs: Float

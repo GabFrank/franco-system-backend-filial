@@ -8,6 +8,7 @@ import java.util.Date;
 @Data
 public class ConteoMonedaInput implements Serializable {
     private Long id;
+    private Long sucursalId;
     private Long conteoId;
     private Long monedaBilletesId;
     private Double cantidad;

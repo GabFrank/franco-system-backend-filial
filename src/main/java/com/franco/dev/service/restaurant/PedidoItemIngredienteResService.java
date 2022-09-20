@@ -1,9 +1,7 @@
 package com.franco.dev.service.restaurant;
 
 import com.franco.dev.domain.restaurant.PedidoItemIngredienteRes;
-import com.franco.dev.domain.restaurant.PedidoItemRes;
 import com.franco.dev.repository.restaurant.PedidoItemIngredienteResRepository;
-import com.franco.dev.repository.restaurant.PedidoItemResRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,8 +1,6 @@
 package com.franco.dev.service.productos.pdv;
 
-import com.franco.dev.domain.productos.pdv.PdvGrupo;
 import com.franco.dev.domain.productos.pdv.PdvGruposProductos;
-import com.franco.dev.repository.productos.pdv.PdvGrupoRepository;
 import com.franco.dev.repository.productos.pdv.PdvGruposProductosRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

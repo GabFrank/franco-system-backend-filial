@@ -1,5 +1,6 @@
 package com.franco.dev.domain.operaciones;
 
+import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.PrecioPorSucursal;
 import com.franco.dev.domain.productos.Presentacion;
@@ -33,16 +34,18 @@ public class VentaItem implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long sucursalId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venta_id", nullable = true)
     private Venta venta;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "producto_id", nullable = true)
     private Producto producto;
 
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "presentacion_id", nullable = true)
     private Presentacion presentacion;
 
@@ -53,9 +56,11 @@ public class VentaItem implements Serializable {
     @Column(name = "costo_unitario")
     private Double precioCosto;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "precio_id", nullable = true)
     private PrecioPorSucursal precioVenta;
+
+    private Double precio;
 
     @Column(name = "descuento_unitario")
     private Double valorDescuento;

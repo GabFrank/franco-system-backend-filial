@@ -21,7 +21,7 @@ public interface MovimientoCajaRepository extends HelperRepository<MovimientoCaj
 
 //    Moneda findByPaisId(Long id);
 
-    public MovimientoCaja findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento tipoMovimiento, Long referencia);
+    public List<MovimientoCaja> findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento tipoMovimiento, Long referencia);
 
     public List<MovimientoCaja> findByPdvCajaIdAndActivo(Long id, Boolean activo);
 

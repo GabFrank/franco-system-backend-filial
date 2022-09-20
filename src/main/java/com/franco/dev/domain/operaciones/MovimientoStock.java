@@ -1,9 +1,7 @@
 package com.franco.dev.domain.operaciones;
 
-import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.domain.personas.Usuario;
-import com.franco.dev.domain.productos.Codigo;
 import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.utilitarios.PostgreSQLEnumType;
 import lombok.AllArgsConstructor;
@@ -33,6 +31,8 @@ public class MovimientoStock implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long sucursalId;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "producto_id", nullable = true)
     private Producto producto;
@@ -47,10 +47,6 @@ public class MovimientoStock implements Serializable {
     @Column(name = "tipo_movimiento")
     @Type(type = "tipo_movimiento")
     private TipoMovimiento tipoMovimiento;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "sucursal_id", nullable = true)
-    private Sucursal sucursal;
 
     @Column(name = "creado_en")
     private LocalDateTime creadoEn;

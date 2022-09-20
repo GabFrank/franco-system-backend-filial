@@ -1,6 +1,7 @@
 package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.TimbradoDetalle;
+import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.financiero.TimbradoDetalleRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
@@ -25,7 +26,9 @@ public class TimbradoDetalleService extends CrudService<TimbradoDetalle, Timbrad
 
     public Long aumentarNumeroFactura(TimbradoDetalle timbradoDetalle){
         timbradoDetalle.setNumeroActual(timbradoDetalle.getNumeroActual() + 1);
-        return save(timbradoDetalle).getNumeroActual();
+        timbradoDetalle = save(timbradoDetalle);
+        propagacionService.propagarEntidad(timbradoDetalle, TipoEntidad.TIMBRADO_DETALLE, false);
+        return timbradoDetalle.getNumeroActual();
     }
 
     @Override

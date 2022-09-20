@@ -1,8 +1,6 @@
 package com.franco.dev.service.productos;
 
-import com.franco.dev.domain.productos.PrecioPorSucursal;
 import com.franco.dev.domain.productos.ProductoPorSucursal;
-import com.franco.dev.repository.productos.PrecioPorSucursalRepository;
 import com.franco.dev.repository.productos.ProductoPorSucursalRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

@@ -1,9 +1,7 @@
 package com.franco.dev.service.empresarial;
 
 import com.franco.dev.domain.empresarial.Cargo;
-import com.franco.dev.domain.general.Ciudad;
 import com.franco.dev.repository.empresarial.CargoRepository;
-import com.franco.dev.repository.general.CiudadRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;

@@ -2,7 +2,6 @@ package com.franco.dev.service.operaciones;
 
 import com.franco.dev.domain.operaciones.*;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
-import com.franco.dev.repository.operaciones.EntradaRepository;
 import com.franco.dev.repository.operaciones.SalidaRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

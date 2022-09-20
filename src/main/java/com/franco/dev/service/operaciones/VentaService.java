@@ -1,23 +1,25 @@
 package com.franco.dev.service.operaciones;
 
 import com.franco.dev.domain.financiero.MovimientoCaja;
+import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.domain.operaciones.Venta;
+import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.dto.VentaPorPeriodoV1Dto;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
+import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.VentaRepository;
 import com.franco.dev.service.CrudService;
 import com.franco.dev.service.financiero.MovimientoCajaService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.AsyncResult;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Future;
 
 import static java.time.temporal.ChronoUnit.DAYS;
 
@@ -31,6 +33,11 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
 
     @Autowired
     private CobroDetalleService cobroDetalleService;
+    @Autowired
+    private Environment env;
+
+    @Autowired
+    private VentaItemService ventaItemService;
 
     @Override
     public VentaRepository getRepository() {
@@ -55,13 +62,20 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         Venta e = super.save(entity);
-        MovimientoCaja movimientoCaja = new MovimientoCaja();
-//        movimientoCaja.setMoneda();
-//        personaPublisher.publish(p);
         return e;
     }
 
-    public List<VentaPorPeriodoV1Dto> ventaPorPeriodo(String inicio, String fin){
+    @Override
+    public Venta saveAndSend(Venta entity, Boolean recibir) {
+        if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
+        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        Venta e = super.save(entity);
+        propagacionService.propagarEntidad(e, TipoEntidad.VENTA, recibir);
+        return e;
+    }
+
+    public List<VentaPorPeriodoV1Dto> ventaPorPeriodo(String inicio, String fin) {
         List<VentaPorPeriodoV1Dto> ventaPorPeriodoList = new ArrayList<>();
         LocalDateTime fechaInicio = LocalDateTime.parse(inicio);
         LocalDateTime fechaFin = LocalDateTime.parse(fin);
@@ -110,5 +124,17 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
             }
         }
         return ventaPorPeriodoList;
+    }
+
+    @Transactional
+    public Boolean cancelarVenta(Venta venta){
+        venta.setEstado(VentaEstado.CANCELADA);
+        saveAndSend(venta, false);
+        List<MovimientoCaja> movimientoCajaList = movimientoCajaService.findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.VENTA, venta.getCobro().getId());
+        for(MovimientoCaja mov : movimientoCajaList){
+            mov.setActivo(false);
+            movimientoCajaService.saveAndSend(mov, false);
+        }
+        return true;
     }
 }
