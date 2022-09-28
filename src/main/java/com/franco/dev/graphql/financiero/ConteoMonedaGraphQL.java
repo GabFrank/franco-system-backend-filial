@@ -1,11 +1,8 @@
 package com.franco.dev.graphql.financiero;
 
-import com.franco.dev.domain.financiero.Banco;
 import com.franco.dev.domain.financiero.ConteoMoneda;
-import com.franco.dev.graphql.financiero.input.BancoInput;
 import com.franco.dev.graphql.financiero.input.ConteoMonedaInput;
 import com.franco.dev.security.Unsecured;
-import com.franco.dev.service.financiero.BancoService;
 import com.franco.dev.service.financiero.ConteoMonedaService;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -32,24 +29,26 @@ public class ConteoMonedaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private PaisService paisService;
 
-    public Optional<ConteoMoneda> conteoMoneda(Long id) {return service.findById(id);}
+    public Optional<ConteoMoneda> conteoMoneda(Long id, Long sucId) {
+        return service.findById(id);
+    }
 
-    public List<ConteoMoneda> conteoMonedas(int page, int size){
-        Pageable pageable = PageRequest.of(page,size);
+    public List<ConteoMoneda> conteoMonedas(int page, int size, Long sucId) {
+        Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
     @Unsecured
-    public ConteoMoneda saveConteoMoneda(ConteoMonedaInput input){
+    public ConteoMoneda saveConteoMoneda(ConteoMonedaInput input) {
         ModelMapper m = new ModelMapper();
         ConteoMoneda e = m.map(input, ConteoMoneda.class);
-        if(input.getUsuarioId()!=null){
+        if (input.getUsuarioId() != null) {
             e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         }
         return service.saveAndSend(e, false);
     }
 
-    public List<ConteoMoneda> conteoMonedasPorConteoId(Long id){
+    public List<ConteoMoneda> conteoMonedasPorConteoId(Long id, Long sucId) {
         return service.findByConteoId(id);
     }
 
@@ -57,11 +56,11 @@ public class ConteoMonedaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 //        return service.findByAll(texto);
 //    }
 
-    public Boolean deleteConteoMoneda(Long id){
+    public Boolean deleteConteoMoneda(Long id, Long sucId) {
         return service.deleteById(id);
     }
 
-    public Long countConteoMoneda(){
+    public Long countConteoMoneda() {
         return service.count();
     }
 

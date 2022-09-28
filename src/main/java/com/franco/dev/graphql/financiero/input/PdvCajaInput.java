@@ -1,6 +1,7 @@
 package com.franco.dev.graphql.financiero.input;
 
 import com.franco.dev.domain.operaciones.enums.TipoEntrada;
+import com.franco.dev.domain.personas.Usuario;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -25,4 +26,6 @@ public class PdvCajaInput {
     private Double totalGs;
     private Double totalRs;
     private Double totalDs;
+    private Boolean verificado;
+    private Long verificadoPorId;
 }

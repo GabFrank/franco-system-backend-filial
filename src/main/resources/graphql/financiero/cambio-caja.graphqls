@@ -8,6 +8,7 @@ type CambioCaja {
     observacion: String
     creadoEn: Date
     usuario: Usuario
+    sucursalId: Int
 }
 
 input CambioCajaInput {
@@ -20,16 +21,17 @@ input CambioCajaInput {
     observacion: String
     creadoEn: Date
     usuarioId: Int
+    sucursalId: Int
 }
 
 extend type Query {
-    cambioCaja(id:ID!):CambioCaja
-    cambioCajas(page:Int = 0, size:Int = 10):[CambioCaja]!
+    cambioCaja(id:ID!, sucId: ID):CambioCaja
+    cambioCajas(page:Int = 0, size:Int = 10, sucId: ID):[CambioCaja]!
     countCambioCaja: Int
 }
 
 extend type Mutation {
     saveCambioCaja(cambioCaja:CambioCajaInput!):CambioCaja!
-    deleteCambioCaja(id:ID!):Boolean!
+    deleteCambioCaja(id:ID!, sucId: ID):Boolean!
 }
 

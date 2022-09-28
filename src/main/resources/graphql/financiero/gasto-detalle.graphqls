@@ -6,6 +6,7 @@ type GastoDetalle {
     cantidad: Float
     creadoEn: Date
     usuario: Usuario
+    sucursalId: Int
 }
 
 input GastoDetalleInput {
@@ -16,16 +17,17 @@ input GastoDetalleInput {
     cantidad: Float
     creadoEn: Date
     usuarioId: Int
+    sucursalId: Int
 }
 
 extend type Query {
-    gastoDetalle(id:ID!):GastoDetalle
-    gastoDetalles(page:Int = 0, size:Int = 10):[GastoDetalle]!
+    gastoDetalle(id:ID!, sucId: ID):GastoDetalle
+    gastoDetalles(page:Int = 0, size:Int = 10, sucId: ID):[GastoDetalle]!
     countGastoDetalle: Int
 }
 
 extend type Mutation {
     saveGastoDetalle(gastoDetalle:GastoDetalleInput!):GastoDetalle!
-    deleteGastoDetalle(id:ID!):Boolean!
+    deleteGastoDetalle(id:ID!, sucId: ID):Boolean!
 }
 

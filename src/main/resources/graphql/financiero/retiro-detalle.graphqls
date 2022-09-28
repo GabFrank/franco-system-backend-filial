@@ -6,6 +6,7 @@ type RetiroDetalle {
     cantidad: Float
     creadoEn: Date
     usuario: Usuario
+    sucursalId: Int
 }
 
 input RetiroDetalleInput {
@@ -16,16 +17,17 @@ input RetiroDetalleInput {
     cantidad: Float
     creadoEn: Date
     usuarioId: Int
+    sucursal: Int
 }
 
 extend type Query {
-    retiroDetalle(id:ID!):RetiroDetalle
-    retiroDetalles(page:Int = 0, size:Int = 10):[RetiroDetalle]!
+    retiroDetalle(id:ID!, sucId: ID):RetiroDetalle
+    retiroDetalles(page:Int = 0, size:Int = 10, sucId: ID):[RetiroDetalle]!
     countRetiroDetalle: Int
 }
 
 extend type Mutation {
     saveRetiroDetalle(retiroDetalle:RetiroDetalleInput!):RetiroDetalle!
-    deleteRetiroDetalle(id:ID!):Boolean!
+    deleteRetiroDetalle(id:ID!, sucId: ID):Boolean!
 }
 

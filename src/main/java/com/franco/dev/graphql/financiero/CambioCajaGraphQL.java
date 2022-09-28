@@ -36,9 +36,9 @@ public class CambioCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationR
     @Autowired
     private ClienteService clienteService;
 
-    public Optional<CambioCaja> cambioCaja(Long id) {return service.findById(id);}
+    public Optional<CambioCaja> cambioCaja(Long id, Long sucId) {return service.findById(id);}
 
-    public List<CambioCaja> cambioCajas(int page, int size){
+    public List<CambioCaja> cambioCajas(int page, int size, Long sucId){
         Pageable pageable = PageRequest.of(page,size);
         return service.findAll(pageable);
     }
@@ -59,7 +59,7 @@ public class CambioCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationR
 //        return service.findByAll(texto);
 //    }
 
-    public Boolean deleteCambioCaja(Long id){
+    public Boolean deleteCambioCaja(Long id, Long sucId){
         return service.deleteById(id);
     }
 

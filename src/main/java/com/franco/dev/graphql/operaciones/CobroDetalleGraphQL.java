@@ -43,11 +43,11 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private CompraService compraService;
 
-    public Optional<CobroDetalle> cobroDetalle(Long id) {return service.findById(id);}
+    public Optional<CobroDetalle> cobroDetalle(Long id, Long sucId) {return service.findById(id);}
 
-    public List<CobroDetalle> cobroDetallePorCobroId(Long id){ return service.findByCobroId(id) ;}
+    public List<CobroDetalle> cobroDetallePorCobroId(Long id, Long sucId){ return service.findByCobroId(id) ;}
 
-    public List<CobroDetalle> cobroDetalleList(int page, int size){
+    public List<CobroDetalle> cobroDetalleList(int page, int size, Long sucId){
         Pageable pageable = PageRequest.of(page,size);
         return service.findAll(pageable);
     }
@@ -64,7 +64,7 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     }
 
 
-    public Boolean deleteCobroDetalle(Long id){
+    public Boolean deleteCobroDetalle(Long id, Long sucId){
         return service.deleteById(id);
     }
 

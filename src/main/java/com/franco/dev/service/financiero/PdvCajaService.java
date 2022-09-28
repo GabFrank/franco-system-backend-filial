@@ -22,6 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+
+import static com.franco.dev.utilitarios.DateUtils.toDate;
 
 @Service
 @AllArgsConstructor
@@ -64,18 +67,12 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         return repository;
     }
 
-//    public List<PdvCaja> findByDenominacion(String texto){
-//        texto = texto.replace(' ', '%');
-//        return  repository.findByDenominacionIgnoreCaseLike(texto);
-//    }
-
-//    public List<PdvCaja> findByAll(String texto){
-//        texto = texto.replace(' ', '%');
-//        return repository.findByAll(texto);
-//    }
+    public Optional<PdvCaja> findById(Long id) {
+        return repository.findById(id);
+    }
 
     public List<PdvCaja> findByDate(String inicio, String fin) {
-        return repository.findByDate(inicio, fin);
+        return repository.findByCreadoEnBetween(toDate(inicio), toDate(fin));
     }
 
     @Override
@@ -130,7 +127,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
 
         if (aux.size() > 0 && !aux.get(0).getId().equals(entity.getId()))
             throw new GraphQLException("Ya existe una caja abierta");
-
+        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         PdvCaja e = super.save(entity);
         maletinService.save(m);
         propagacionService.propagarEntidad(e, TipoEntidad.PDV_CAJA, recibir);
@@ -358,7 +355,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                                         totalAumento += cobroDetalle.getValor();
                                     } else if (!cobroDetalle.getVuelto()) {
                                         totalVentaGs += cobroDetalle.getValor();
-                                    } else if(cobroDetalle.getVuelto()){
+                                    } else if (cobroDetalle.getVuelto()) {
                                         vueltoGs += cobroDetalle.getValor();
                                     }
                                 } else if (cobroDetalle.getFormaPago().getDescripcion().contains("TARJETA")) {
@@ -372,7 +369,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                                         totalAumento += cobroDetalle.getValor() * cobroDetalle.getCambio();
                                     } else if (!cobroDetalle.getVuelto()) {
                                         totalVentaRs += cobroDetalle.getValor();
-                                    }  else if(cobroDetalle.getVuelto()){
+                                    } else if (cobroDetalle.getVuelto()) {
                                         vueltoRs += cobroDetalle.getValor();
                                     }
                                 }
@@ -382,7 +379,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                                         totalAumento += cobroDetalle.getValor() * cobroDetalle.getCambio();
                                     } else if (!cobroDetalle.getVuelto()) {
                                         totalVentaDs += cobroDetalle.getValor();
-                                    }  else if(cobroDetalle.getVuelto()){
+                                    } else if (cobroDetalle.getVuelto()) {
                                         vueltoDs += cobroDetalle.getValor();
                                     }
                                 }
@@ -390,11 +387,11 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                         }
                     } else if (venta.getEstado() == VentaEstado.CANCELADA) {
                         for (CobroDetalle cobroDetalle : cobroDetalleList) {
-                            if (cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")){
+                            if (cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")) {
                                 totalCanceladasGs += cobroDetalle.getValor();
-                            } else if (cobroDetalle.getMoneda().getDenominacion().contains("REAL")){
+                            } else if (cobroDetalle.getMoneda().getDenominacion().contains("REAL")) {
                                 totalCanceladasRs += cobroDetalle.getValor();
-                            } else if (cobroDetalle.getMoneda().getDenominacion().contains("DOLAR")){
+                            } else if (cobroDetalle.getMoneda().getDenominacion().contains("DOLAR")) {
                                 totalCanceladasDs += cobroDetalle.getValor();
                             }
                         }

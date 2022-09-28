@@ -1,6 +1,5 @@
 package com.franco.dev.repository.operaciones;
 
-import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.repository.HelperRepository;
 

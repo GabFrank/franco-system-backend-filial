@@ -67,6 +67,12 @@ public class PdvCaja implements Serializable {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
+
+    private Boolean verificado;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "verificado_por_id", nullable = true)
+    private Usuario verificadoPor;
 }
 
 

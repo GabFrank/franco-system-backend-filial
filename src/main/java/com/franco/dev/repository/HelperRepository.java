@@ -8,4 +8,6 @@ import java.util.List;
 @NoRepositoryBean
 public interface HelperRepository<T, Long> extends JpaRepository<T, Long> {
     List<T> findAllByOrderByIdAsc();
+
+
 }

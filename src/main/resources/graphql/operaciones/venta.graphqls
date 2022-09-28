@@ -31,19 +31,19 @@ input VentaInput {
 }
 
 extend type Query {
-    venta(id:ID!):Venta
-    ventas(page:Int = 0, size:Int = 10):[Venta]!
+    venta(id:ID!, sucId: ID):Venta
+    ventas(page:Int = 0, size:Int = 10, sucId: ID):[Venta]!
     countVenta: Int
-    ventasPorCajaId(id:ID!, offset: Int):[Venta]
-    ventaPorPeriodo(inicio:String, fin:String): [VentaPorPeriodo]
+    ventasPorCajaId(id:ID!, offset: Int, sucId: ID):[Venta]
+    ventaPorPeriodo(inicio:String, fin:String, sucId: ID): [VentaPorPeriodo]
 }
 
 extend type Mutation {
     saveVenta(ventaInput:VentaInput!, ventaItemList: [VentaItemInput], cobro: CobroInput, cobroDetalleList: [CobroDetalleInput], ticket: Boolean, printerName: String, local: String, pdvId: Int, credito: Boolean):Venta
-    deleteVenta(id:ID!):Boolean!
-    cancelarVenta(id:ID!):Boolean!
-    reimprimirVenta(id:ID!, printerName: String, local: String):Boolean!
-    imprimirPagare(id:ID!, itens:[VentaCreditoCuotaInput]!, printerName: String, local: String):Boolean!
+    deleteVenta(id:ID!, sucId: ID):Boolean!
+    cancelarVenta(id:ID!, sucId: ID):Boolean!
+    reimprimirVenta(id:ID!, printerName: String, local: String, sucId: ID):Boolean!
+    imprimirPagare(id:ID!, itens:[VentaCreditoCuotaInput]!, printerName: String, local: String, sucId: ID):Boolean!
 }
 
 enum VentaEstado {

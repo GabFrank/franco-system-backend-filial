@@ -49,11 +49,11 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     @Autowired
     private SucursalService sucursalService;
 
-    public Optional<Conteo> conteo(Long id) {
+    public Optional<Conteo> conteo(Long id, Long sucId) {
         return service.findById(id);
     }
 
-    public List<Conteo> conteos(int page, int size) {
+    public List<Conteo> conteos(int page, int size, Long sucId) {
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
@@ -122,7 +122,7 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         return conteo;
     }
 
-    public Boolean deleteConteo(Long id) {
+    public Boolean deleteConteo(Long id, Long sucId) {
         return service.deleteById(id);
     }
 

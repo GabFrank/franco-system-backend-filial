@@ -11,6 +11,7 @@ type CobroDetalle {
     pago: Boolean
     creadoEn: Date
     usuario: Usuario
+    sucursalId: Int
 }
 
 input CobroDetalleInput {
@@ -26,17 +27,18 @@ input CobroDetalleInput {
     pago: Boolean
     creadoEn: Date
     usuarioId: Int
+    sucursalId: Int
 }
 
 extend type Query {
-    cobroDetalle(id:ID!):CobroDetalle
-    cobroDetalleList(page:Int = 0, size:Int = 10):[CobroDetalle]!
+    cobroDetalle(id:ID!, sucId: ID):CobroDetalle
+    cobroDetalleList(page:Int = 0, size:Int = 10, sucId: ID):[CobroDetalle]!
     countCobroDetalle: Int
 }
 
 extend type Mutation {
     saveCobroDetalle(cobroDetalle:CobroDetalleInput!):CobroDetalle!
-    deleteCobroDetalle(id:ID!):Boolean!
+    deleteCobroDetalle(id:ID!, sucId: ID):Boolean!
 }
 
 

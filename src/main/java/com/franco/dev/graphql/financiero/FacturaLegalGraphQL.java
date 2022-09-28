@@ -117,11 +117,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private PdvCajaService pdvCajaService;
 
-    public Optional<FacturaLegal> facturaLegal(Long id) {
+    public Optional<FacturaLegal> facturaLegal(Long id, Long sucId) {
         return service.findById(id);
     }
 
-    public List<FacturaLegal> facturaLegales(int page, int size) {
+    public List<FacturaLegal> facturaLegales(int page, int size, Long sucId) {
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
@@ -152,7 +152,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
     }
 
-    public Boolean deleteFacturaLegal(Long id) {
+    public Boolean deleteFacturaLegal(Long id, Long sucId) {
         return service.deleteById(id);
     }
 
@@ -517,7 +517,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
     }
 
-    public Boolean imprimirFacturasPorCaja(Long id, String printerName) {
+    public Boolean imprimirFacturasPorCaja(Long id, String printerName, Long sucId) {
         Boolean ok = false;
         List<FacturaLegal> facturaLegalList = service.findByCajaId(id);
         Integer count = 0;

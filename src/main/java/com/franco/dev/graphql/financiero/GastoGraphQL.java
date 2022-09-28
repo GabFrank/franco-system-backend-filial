@@ -49,20 +49,20 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     @Autowired
     private SucursalService sucursalService;
 
-    public Optional<Gasto> gasto(Long id) {
+    public Optional<Gasto> gasto(Long id, Long sucId) {
         return service.findById(id);
     }
 
-    public List<Gasto> gastos(int page, int size) {
+    public List<Gasto> gastos(int page, int size, Long sucId) {
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
-    public List<Gasto> gastosPorCajaId(Long id) {
+    public List<Gasto> gastosPorCajaId(Long id, Long sucId) {
         return service.findByCajaId(id);
     }
 
-    public List<Gasto> gastosPorFecha(String inicio, String fin) {
+    public List<Gasto> gastosPorFecha(String inicio, String fin, Long sucId) {
         return service.findByDate(inicio, fin);
     }
 
@@ -122,7 +122,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 //        return service.findByAll(texto);
 //    }
 
-    public Boolean deleteGasto(Long id) {
+    public Boolean deleteGasto(Long id, Long sucId) {
         return service.deleteById(id);
     }
 
@@ -130,7 +130,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return service.count();
     }
 
-    public Boolean reimprimirGasto(Long id, String printerName) {
+    public Boolean reimprimirGasto(Long id, String printerName, Long sucId) {
         try {
             Gasto gasto = service.findById(id).orElse(null);
             GastoDto gastoDto = new GastoDto();
@@ -156,7 +156,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         }
     }
 
-    public Gasto saveVueltoGasto(Long id, Double valorGs, Double valorRs, Double valorDs) throws GraphQLException {
+    public Gasto saveVueltoGasto(Long id, Double valorGs, Double valorRs, Double valorDs, Long sucId) throws GraphQLException {
         Gasto gasto = service.findById(id).orElse(null);
         if (gasto == null) {
             throw new GraphQLException("Gasto no encontrado");

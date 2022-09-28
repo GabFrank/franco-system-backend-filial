@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+import static com.franco.dev.utilitarios.DateUtils.toDate;
+
 @Service
 @AllArgsConstructor
 public class GastoService extends CrudService<Gasto, GastoRepository> {
@@ -37,7 +39,7 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
 //    }
 
     public List<Gasto> findByDate(String inicio, String fin) {
-        return repository.findByDate(inicio, fin);
+        return repository.findByCreadoEnBetween(toDate(inicio), toDate(fin));
     }
 
     public List<Gasto> findByCajaId(Long id) {
@@ -130,22 +132,22 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
     public Gasto saveAndSend(Gasto entity, Boolean recibir) {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Boolean isNew = entity.getId() == null;
-        if(isNew){
-            if(entity.getRetiroGs() > 0){
+        if (isNew) {
+            if (entity.getRetiroGs() > 0) {
                 Double totalEnCajaGs = movimientoCajaService.totalEnCajaPorCajaIdAndMonedaId(entity.getCaja().getId(), Long.valueOf(1));
-                if(entity.getRetiroGs() > totalEnCajaGs){
+                if (entity.getRetiroGs() > totalEnCajaGs) {
                     throw new GraphQLException("El valor de gasto es mayor al total en caja: Guaraiens");
                 }
             }
-            if(entity.getRetiroRs() > 0){
+            if (entity.getRetiroRs() > 0) {
                 Double totalEnCajaRs = movimientoCajaService.totalEnCajaPorCajaIdAndMonedaId(entity.getCaja().getId(), Long.valueOf(2));
-                if(entity.getRetiroRs() > totalEnCajaRs){
+                if (entity.getRetiroRs() > totalEnCajaRs) {
                     throw new GraphQLException("El valor de gasto es mayor al total en caja: Reales");
                 }
             }
-            if(entity.getRetiroDs() > 0){
+            if (entity.getRetiroDs() > 0) {
                 Double totalEnCajaDs = movimientoCajaService.totalEnCajaPorCajaIdAndMonedaId(entity.getCaja().getId(), Long.valueOf(3));
-                if(entity.getRetiroDs() > totalEnCajaDs){
+                if (entity.getRetiroDs() > totalEnCajaDs) {
                     throw new GraphQLException("El valor de gasto es mayor al total en caja: Dolares");
                 }
             }

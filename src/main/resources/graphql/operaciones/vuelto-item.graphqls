@@ -5,6 +5,7 @@ type VueltoItem {
     valor: Float
     creadoEn: Date
     usuario: Usuario
+    sucursalId: Int
 }
 
 input VueltoItemInput {
@@ -13,17 +14,18 @@ input VueltoItemInput {
     valor: Float
     monedaId: Int
     usuarioId: Int
+    sucursalId: Int
 }
 
 extend type Query {
-    vueltoItem(id:ID!):VueltoItem
-    vueltoItems(page:Int = 0, size:Int = 10):[VueltoItem]!
+    vueltoItem(id:ID!, sucId: ID):VueltoItem
+    vueltoItems(page:Int = 0, size:Int = 10, sucId: ID):[VueltoItem]!
     countVueltoItem: Int
 }
 
 extend type Mutation {
     saveVueltoItem(vueltoItem:VueltoItemInput!):VueltoItem!
-    deleteVueltoItem(id:ID!):Boolean!
+    deleteVueltoItem(id:ID!, sucId: ID):Boolean!
 }
 
 

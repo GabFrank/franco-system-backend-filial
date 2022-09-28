@@ -34,9 +34,9 @@ public class VueltoItemGraphQL implements GraphQLQueryResolver, GraphQLMutationR
     @Autowired
     private VueltoService vueltoService;
 
-    public Optional<VueltoItem> vueltoItem(Long id) {return service.findById(id);}
+    public Optional<VueltoItem> vueltoItem(Long id, Long sucId) {return service.findById(id);}
 
-    public List<VueltoItem> vueltoItems(int page, int size){
+    public List<VueltoItem> vueltoItems(int page, int size, Long sucId){
         Pageable pageable = PageRequest.of(page,size);
         return service.findAll(pageable);
     }
@@ -60,7 +60,7 @@ public class VueltoItemGraphQL implements GraphQLQueryResolver, GraphQLMutationR
         return service.save(e);
     }
 
-    public Boolean deleteVueltoItem(Long id){
+    public Boolean deleteVueltoItem(Long id, Long sucId){
         return service.deleteById(id);
     }
 

@@ -32,9 +32,9 @@ public class SencilloGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     @Autowired
     private FuncionarioService funcionarioService;
 
-    public Optional<Sencillo> sencillo(Long id) {return service.findById(id);}
+    public Optional<Sencillo> sencillo(Long id, Long sucId) {return service.findById(id);}
 
-    public List<Sencillo> sencillos(int page, int size){
+    public List<Sencillo> sencillos(int page, int size, Long sucId){
         Pageable pageable = PageRequest.of(page,size);
         return service.findAll(pageable);
     }
@@ -54,7 +54,7 @@ public class SencilloGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 //        return service.findByAll(texto);
 //    }
 
-    public Boolean deleteSencillo(Long id){
+    public Boolean deleteSencillo(Long id, Long sucId){
         return service.deleteById(id);
     }
 

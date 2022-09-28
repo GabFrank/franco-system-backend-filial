@@ -33,11 +33,11 @@ public class MovimientoCajaGraphQL implements GraphQLQueryResolver, GraphQLMutat
     @Autowired
     private MonedaService monedaService;
 
-    public Optional<MovimientoCaja> movimientoCaja(Long id) {
+    public Optional<MovimientoCaja> movimientoCaja(Long id, Long sucId) {
         return service.findById(id);
     }
 
-    public List<MovimientoCaja> movimientoCajas(int page, int size) {
+    public List<MovimientoCaja> movimientoCajas(int page, int size, Long sucId) {
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
@@ -62,7 +62,7 @@ public class MovimientoCajaGraphQL implements GraphQLQueryResolver, GraphQLMutat
 //        return service.findByAll(texto);
 //    }
 
-    public void desactivarByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento tipoMovimiento, Long referencia) {
+    public void desactivarByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento tipoMovimiento, Long referencia, Long sucId) {
         List<MovimientoCaja> movimientoCajaList = service.findByTipoMovimientoAndReferencia(tipoMovimiento, referencia);
         for(MovimientoCaja movimientoCaja: movimientoCajaList){
             if (movimientoCaja != null) {
@@ -72,7 +72,7 @@ public class MovimientoCajaGraphQL implements GraphQLQueryResolver, GraphQLMutat
         }
     }
 
-    public Boolean deleteMovimientoCaja(Long id) {
+    public Boolean deleteMovimientoCaja(Long id, Long sucId) {
         return service.deleteById(id);
     }
 

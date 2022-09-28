@@ -49,9 +49,9 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     @Autowired
     private MovimientoCajaGraphQL movimientoCajaGraphQL;
 
-    public Optional<Cobro> cobro(Long id) {return service.findById(id);}
+    public Optional<Cobro> cobro(Long id, Long sucId) {return service.findById(id);}
 
-    public List<Cobro> cobros(int page, int size){
+    public List<Cobro> cobros(int page, int size, Long sucId){
         Pageable pageable = PageRequest.of(page,size);
         return service.findAll(pageable);
     }
@@ -84,10 +84,10 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     }
 
-    public Boolean deleteCobro(Long id){
-        List<CobroDetalle> cobroDetalleList = cobroDetalleGraphQL.cobroDetallePorCobroId(id);
+    public Boolean deleteCobro(Long id, Long sucId){
+        List<CobroDetalle> cobroDetalleList = cobroDetalleGraphQL.cobroDetallePorCobroId(id, null);
         for(CobroDetalle c : cobroDetalleList){
-            movimientoCajaGraphQL.desactivarByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.VENTA, c.getId());
+            movimientoCajaGraphQL.desactivarByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.VENTA, c.getId(), null);
             return true;
         }
         return false;

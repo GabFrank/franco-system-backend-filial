@@ -8,6 +8,7 @@ type MovimientoCaja {
     tipoMovimiento: PdvCajaTipoMovimiento
     creadoEn: Date
     usuario: Usuario
+    sucursalId: Int
 }
 
 input MovimientoCajaInput {
@@ -20,17 +21,18 @@ input MovimientoCajaInput {
     tipoMovimiento: PdvCajaTipoMovimiento
     creadoEn: Date
     usuarioId: Int
+    sucursalId: Int
 }
 
 extend type Query {
-    movimientoCaja(id:ID!):MovimientoCaja
-    movimientoCajas(page:Int = 0, size:Int = 10):[MovimientoCaja]!
+    movimientoCaja(id:ID!, sucId: ID):MovimientoCaja
+    movimientoCajas(page:Int = 0, size:Int = 10, sucId: ID):[MovimientoCaja]!
     countMovimientoCaja: Int
 }
 
 extend type Mutation {
     saveMovimientoCaja(movimientoCaja:MovimientoCajaInput!):MovimientoCaja!
-    deleteMovimientoCaja(id:ID!):Boolean!
+    deleteMovimientoCaja(id:ID!, sucId: ID):Boolean!
 }
 
 enum PdvCajaTipoMovimiento {

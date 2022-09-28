@@ -1,12 +1,10 @@
 package com.franco.dev.repository.financiero;
 
-import com.franco.dev.domain.financiero.Banco;
 import com.franco.dev.domain.financiero.Conteo;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
 
-import java.net.ConnectException;
-import java.util.List;
+import java.util.Optional;
 
 public interface ConteoRepository extends HelperRepository<Conteo, Long> {
 
@@ -24,6 +22,6 @@ public interface ConteoRepository extends HelperRepository<Conteo, Long> {
             "where c.id = ?1 and mb.moneda_id = ?2", nativeQuery = true)
     public Double getTotalPorMoneda(Long conteoId, Long monedaId);
 
-    public Conteo findByIdAndSucursalId(Long id, Long sucId);
-    
+    public Optional<Conteo> findById(Long id);
+
 }

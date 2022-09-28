@@ -7,6 +7,7 @@ type ConteoMoneda {
     observacion: String
     creadoEn: Date
     usuario: Usuario
+    sucursalId: Int
 }
 
 input ConteoMonedaInput {
@@ -17,17 +18,18 @@ input ConteoMonedaInput {
     observacion: String
     creadoEn: Date
     usuarioId: Int
+    sucursalId: Int
 }
 
 extend type Query {
-    conteoMoneda(id:ID!):ConteoMoneda
-    conteoMonedas(page:Int = 0, size:Int = 10):[ConteoMoneda]!
+    conteoMoneda(id:ID!, sucId: ID):ConteoMoneda
+    conteoMonedas(page:Int = 0, size:Int = 10, sucId: ID):[ConteoMoneda]!
     countConteoMoneda: Int
-    conteoMonedasPorConteoId(id:ID!):[ConteoMoneda]
+    conteoMonedasPorConteoId(id:ID!, sucId: ID):[ConteoMoneda]
 }
 
 extend type Mutation {
     saveConteoMoneda(conteoMoneda:ConteoMonedaInput!):ConteoMoneda!
-    deleteConteoMoneda(id:ID!):Boolean!
+    deleteConteoMoneda(id:ID!, sucId: ID):Boolean!
 }
 

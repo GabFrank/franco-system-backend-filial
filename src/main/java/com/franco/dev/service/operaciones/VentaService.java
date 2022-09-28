@@ -4,7 +4,6 @@ import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.domain.operaciones.Venta;
-import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.dto.VentaPorPeriodoV1Dto;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.rabbit.enums.TipoEntidad;
@@ -14,6 +13,8 @@ import com.franco.dev.service.financiero.MovimientoCajaService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,7 +51,8 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
 //    }
 
     public List<Venta> findByCajaId(Long id, Integer offset) {
-        return repository.findByCajaId(id, offset);
+        Pageable page = PageRequest.of(offset != null ? offset : 0, 20);
+        return repository.findByCajaId(id, page);
     }
 
     public List<Venta> findAllByCajaId(Long id) {
@@ -69,7 +71,7 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
     public Venta saveAndSend(Venta entity, Boolean recibir) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
-        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Venta e = super.save(entity);
         propagacionService.propagarEntidad(e, TipoEntidad.VENTA, recibir);
         return e;
@@ -86,7 +88,7 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
             ventaPorPeriodoList.add(ventaPorPeriodoV1Dto);
         }
         for (VentaPorPeriodoV1Dto ventaPorPeriodo : ventaPorPeriodoList) {
-            List<Venta> ventaList = repository.ventaPorPeriodo(ventaPorPeriodo.getCreadoEn(), ventaPorPeriodo.getCreadoEn().plusDays(1));
+            List<Venta> ventaList = repository.findByCreadoEnBetween(ventaPorPeriodo.getCreadoEn(), ventaPorPeriodo.getCreadoEn().plusDays(1));
             ventaPorPeriodo.setCantVenta(ventaList.size());
             for (Venta venta : ventaList) {
                 if (venta.getEstado() != VentaEstado.CANCELADA || venta.getEstado() != VentaEstado.ABIERTA) {
@@ -127,11 +129,11 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
     }
 
     @Transactional
-    public Boolean cancelarVenta(Venta venta){
+    public Boolean cancelarVenta(Venta venta) {
         venta.setEstado(VentaEstado.CANCELADA);
         saveAndSend(venta, false);
         List<MovimientoCaja> movimientoCajaList = movimientoCajaService.findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.VENTA, venta.getCobro().getId());
-        for(MovimientoCaja mov : movimientoCajaList){
+        for (MovimientoCaja mov : movimientoCajaList) {
             mov.setActivo(false);
             movimientoCajaService.saveAndSend(mov, false);
         }

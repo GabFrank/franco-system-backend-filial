@@ -4,8 +4,8 @@ import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.graphql.operaciones.input.DeliveryInput;
 import com.franco.dev.service.general.BarrioService;
-import com.franco.dev.service.operaciones.PrecioDeliveryService;
 import com.franco.dev.service.operaciones.DeliveryService;
+import com.franco.dev.service.operaciones.PrecioDeliveryService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.operaciones.VueltoService;
 import com.franco.dev.service.personas.FuncionarioService;
@@ -45,56 +45,58 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     @Autowired
     private VueltoService vueltoService;
 
-    public Optional<Delivery> delivery(Long id) {return service.findById(id);}
+    public Optional<Delivery> delivery(Long id, Long sucId) {
+        return service.findById(id);
+    }
 
-    public List<Delivery> deliverys(int page, int size){
-        Pageable pageable = PageRequest.of(page,size);
+    public List<Delivery> deliverys(int page, int size, Long sucId) {
+        Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
-    public List<Delivery> deliverysByEstado(DeliveryEstado estado){
+    public List<Delivery> deliverysByEstado(DeliveryEstado estado, Long sucId) {
         return service.findByEstado(estado);
     }
 
-    public List<Delivery> deliverysByEstadoNotIn(DeliveryEstado estado){
+    public List<Delivery> deliverysByEstadoNotIn(DeliveryEstado estado, Long sucId) {
         return service.findByEstadoNotIn(estado);
     }
 
-    public List<Delivery> deliverysUltimos10(){
+    public List<Delivery> deliverysUltimos10(Long sucId) {
         return service.findTop10();
     }
 
 
-    public Delivery saveDelivery(DeliveryInput input){
+    public Delivery saveDelivery(DeliveryInput input) {
         ModelMapper m = new ModelMapper();
         Delivery e = m.map(input, Delivery.class);
-        if(input.getUsuarioId()!=null){
+        if (input.getUsuarioId() != null) {
             e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         }
-        if(input.getFuncionarioId()!=null){
+        if (input.getFuncionarioId() != null) {
             e.setEntregador(funcionarioService.findById(input.getFuncionarioId()).orElse(null));
         }
-        if(input.getVentaId()!=null){
+        if (input.getVentaId() != null) {
             e.setVenta(ventaService.findById(input.getVentaId()).orElse(null));
         }
-        if(input.getPrecioId()!=null){
+        if (input.getPrecioId() != null) {
             e.setPrecio(deliveryPrecioService.findById(input.getPrecioId()).orElse(null));
         }
-        if(input.getBarrioId()!=null){
+        if (input.getBarrioId() != null) {
             e.setBarrio(barrioService.findById(input.getBarrioId()).orElse(null));
         }
 
-        if(input.getVueltoId()!=null){
+        if (input.getVueltoId() != null) {
             e.setVuelto(vueltoService.findById(input.getVueltoId()).orElse(null));
         }
         return service.save(e);
     }
 
-    public Boolean deleteDelivery(Long id){
+    public Boolean deleteDelivery(Long id, Long sucId) {
         return service.deleteById(id);
     }
 
-    public Long countDelivery(){
+    public Long countDelivery() {
         return service.count();
     }
 

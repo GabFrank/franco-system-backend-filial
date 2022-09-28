@@ -6,6 +6,7 @@ type Sencillo {
     observacion: String
     creadoEn: Date
     usuario: Usuario
+    sucursalId: Int
 }
 
 input SencilloInput {
@@ -19,13 +20,13 @@ input SencilloInput {
 }
 
 extend type Query {
-    sencillo(id:ID!):Sencillo
-    sencillos(page:Int = 0, size:Int = 10):[Sencillo]!
+    sencillo(id:ID!, sucId: ID):Sencillo
+    sencillos(page:Int = 0, size:Int = 10, sucId: ID):[Sencillo]!
     countSencillo: Int
 }
 
 extend type Mutation {
     saveSencillo(sencillo:SencilloInput!):Sencillo!
-    deleteSencillo(id:ID!):Boolean!
+    deleteSencillo(id:ID!, sucId: ID):Boolean!
 }
 

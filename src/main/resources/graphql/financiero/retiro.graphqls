@@ -11,6 +11,7 @@ type Retiro {
     retiroGs: Float
     retiroRs: Float
     retiroDs: Float
+    sucursalId: Int
 }
 
 input RetiroInput {
@@ -25,19 +26,20 @@ input RetiroInput {
     retiroGs: Float
     retiroRs: Float
     retiroDs: Float
+    sucursalId: Int
 }
 
 extend type Query {
-    retiro(id:ID!):Retiro
-    retiros(page:Int = 0, size:Int = 10):[Retiro]!
-    retiroListPorCajaSalidaId(id:ID!):[Retiro]!
-    reimprimirRetiro(id:ID!, printerName: String, local: String):Boolean
+    retiro(id:ID!, sucId: ID):Retiro
+    retiros(page:Int = 0, size:Int = 10, sucId: ID):[Retiro]!
+    retiroListPorCajaSalidaId(id:ID!, sucId: ID):[Retiro]!
+    reimprimirRetiro(id:ID!, printerName: String, local: String, sucId: ID):Boolean
     countRetiro: Int
 }
 
 extend type Mutation {
     saveRetiro(retiro:RetiroInput!, retiroDetalleInputList: [RetiroDetalleInput], printerName: String, local: String):Retiro!
-    deleteRetiro(id:ID!):Boolean!
+    deleteRetiro(id:ID!, sucId: ID):Boolean!
 }
 
 enum EstadoRetiro {

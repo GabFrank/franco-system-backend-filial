@@ -1,8 +1,6 @@
 package com.franco.dev.repository.operaciones;
 
-import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.operaciones.MovimientoStock;
-import com.franco.dev.domain.operaciones.Pedido;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,11 +13,6 @@ public interface MovimientoStockRepository extends HelperRepository<MovimientoSt
     }
 
     public List<MovimientoStock> findByProductoId(String texto);
-
-    @Query("select SUM(p.cantidad) from MovimientoStock p " +
-            "left outer join p.producto as pro " +
-            "where p.estado = true and pro.id = ?1 and p.sucursalId = ?2")
-    public Float stockByProductoIdAndSucursalId(Long proId, Long sucId);
 
     @Query("select SUM(p.cantidad) from MovimientoStock p " +
             "left outer join p.producto as pro " +
@@ -45,8 +38,6 @@ public interface MovimientoStockRepository extends HelperRepository<MovimientoSt
 
     public MovimientoStock findByProductoIdAndTipoMovimientoAndReferencia(Long proId, TipoMovimiento tipoMovimiento, Long refId);
 
-    @Query(value = "select * from operaciones.movimiento_stock ms " +
-            "where ms.referencia = ?1", nativeQuery = true)
     public List<MovimientoStock> findByReferencia(Long id);
 
 }

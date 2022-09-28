@@ -1,6 +1,5 @@
 package com.franco.dev.repository.operaciones;
 
-import com.franco.dev.domain.operaciones.NotaPedido;
 import com.franco.dev.domain.operaciones.Vuelto;
 import com.franco.dev.repository.HelperRepository;
 

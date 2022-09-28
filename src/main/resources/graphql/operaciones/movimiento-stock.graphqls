@@ -23,16 +23,16 @@ input MovimientoStockInput {
 }
 
 extend type Query {
-    movimientoStock(id:ID!):MovimientoStock
-    movimientosStock(page:Int = 0, size:Int = 10):[MovimientoStock]!
+    movimientoStock(id:ID!, sucId: ID):MovimientoStock
+    movimientosStock(page:Int = 0, size:Int = 10, sucId: ID):[MovimientoStock]!
     countMovimientoStock: Int
-    movimientoStockByFecha(inicio: String, fin: String):[MovimientoStock]
-    stockPorProducto(id:ID!):Float
+    movimientoStockByFecha(inicio: String, fin: String, sucId: ID):[MovimientoStock]
+    stockPorProducto(id:ID!, sucId: ID):Float
 }
 
 extend type Mutation {
     saveMovimientoStock(movimientoStock:MovimientoStockInput!):MovimientoStock!
-    deleteMovimientoStock(id:ID!):Boolean!
+    deleteMovimientoStock(id:ID!, sucId: ID):Boolean!
 }
 
 enum TipoMovimiento {

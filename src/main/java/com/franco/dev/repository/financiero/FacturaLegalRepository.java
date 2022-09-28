@@ -1,7 +1,6 @@
 package com.franco.dev.repository.financiero;
 
 import com.franco.dev.domain.financiero.FacturaLegal;
-import com.franco.dev.domain.financiero.FormaPago;
 import com.franco.dev.repository.HelperRepository;
 
 import java.util.List;

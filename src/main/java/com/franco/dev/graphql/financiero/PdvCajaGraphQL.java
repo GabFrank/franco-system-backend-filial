@@ -43,20 +43,20 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     @Autowired
     private SucursalService sucursalService;
 
-    public Optional<PdvCaja> pdvCaja(Long id) {
+    public Optional<PdvCaja> pdvCaja(Long id, Long sucId) {
         return service.findById(id);
     }
 
-    public List<PdvCaja> pdvCajas(int page, int size) {
+    public List<PdvCaja> pdvCajas(int page, int size, Long sucId) {
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
-    public List<PdvCaja> cajasPorFecha(String inicio, String fin) {
+    public List<PdvCaja> cajasPorFecha(String inicio, String fin, Long sucId) {
         return service.findByDate(inicio, fin);
     }
 
-    public CajaBalance balancePorFecha(String inicio, String fin) {
+    public CajaBalance balancePorFecha(String inicio, String fin, Long sucId) {
         List<PdvCaja> pdvCajaList = service.findByDate(inicio, fin);
         Double totalVentaGs = 0.0;
         Double totalVentaRs = 0.0;
@@ -86,12 +86,14 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         if (input.getUsuarioId() != null) {
             e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         }
+        if (input.getVerificadoPorId() != null) {
+            e.setVerificadoPor(usuarioService.findById(input.getVerificadoPorId()).orElse(null));
+        }
         if (input.getConteoAperturaId() != null)
             e.setConteoApertura(conteoService.findById(input.getConteoAperturaId()).orElse(null));
         if (input.getConteoCierreId() != null)
             e.setConteoCierre(conteoService.findById(input.getConteoCierreId()).orElse(null));
         if (input.getMaletinId() != null) e.setMaletin(maletinService.findById(input.getMaletinId()).orElse(null));
-        e.setSucursalId(sucursalService.sucursalActual().getId());
         PdvCaja pdvCaja = service.saveAndSend(e, false);
         return pdvCaja;
     }
@@ -100,7 +102,7 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     //        return service.findByAll(texto);
     //    }
 
-    public Boolean deletePdvCaja(Long id) {
+    public Boolean deletePdvCaja(Long id, Long sucId) {
         return service.deleteById(id);
     }
 
@@ -108,11 +110,11 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         return service.count();
     }
 
-    public PdvCaja cajaAbiertoPorUsuarioId(Long id) {
+    public PdvCaja cajaAbiertoPorUsuarioId(Long id, Long sucId) {
         return service.findByUsuarioIdAndAbierto(id);
     }
 
-    public PdvCaja imprimirBalance(Long id, String printerName, String local) {
+    public PdvCaja imprimirBalance(Long id, String printerName, String local, Long sucId) {
         return service.imprimirBalance(id, printerName, local);
     }
 

@@ -1,7 +1,6 @@
 package com.franco.dev.repository.operaciones;
 
 import com.franco.dev.domain.operaciones.Cobro;
-import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.repository.HelperRepository;
 
 public interface CobroRepository extends HelperRepository<Cobro, Long> {

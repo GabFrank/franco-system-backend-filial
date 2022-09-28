@@ -6,6 +6,7 @@ type Vuelto {
     creadoEn: Date
     usuario: Usuario
     vueltoItemList: [VueltoItem]
+    sucursalId: Int
 }
 
 input VueltoInput {
@@ -14,17 +15,18 @@ input VueltoInput {
     autorizadoPorId: Int
     activo: Boolean
     usuarioId: Int
+    sucursalId: Int
 }
 
 extend type Query {
-    vuelto(id:ID!):Vuelto
-    vueltos(page:Int = 0, size:Int = 10):[Vuelto]!
+    vuelto(id:ID!, sucId: ID):Vuelto
+    vueltos(page:Int = 0, size:Int = 10, sucId: ID):[Vuelto]!
     countVuelto: Int
 }
 
 extend type Mutation {
     saveVuelto(vuelto:VueltoInput!):Vuelto!
-    deleteVuelto(id:ID!):Boolean!
+    deleteVuelto(id:ID!, sucId: ID):Boolean!
 }
 
 

@@ -34,11 +34,11 @@ public class FacturaLegalItemGraphQL implements GraphQLQueryResolver, GraphQLMut
     @Autowired
     private VentaItemService ventaItemService;
 
-    public Optional<FacturaLegalItem> facturaLegalItem(Long id) {
+    public Optional<FacturaLegalItem> facturaLegalItem(Long id, Long sucId) {
         return service.findById(id);
     }
 
-    public List<FacturaLegalItem> facturaLegalItens(int page, int size) {
+    public List<FacturaLegalItem> facturaLegalItens(int page, int size, Long sucId) {
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
@@ -52,7 +52,7 @@ public class FacturaLegalItemGraphQL implements GraphQLQueryResolver, GraphQLMut
         return service.saveAndSend(e, false);
     }
 
-    public Boolean deleteFacturaLegalItem(Long id) {
+    public Boolean deleteFacturaLegalItem(Long id, Long sucId) {
         return service.deleteById(id);
     }
 

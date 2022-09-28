@@ -17,6 +17,7 @@ type Gasto {
     vueltoRs: Float
     vueltoDs: Float
     sucursalVuelto: Sucursal
+    sucursalId: Int
 }
 
 input GastoInput {
@@ -36,20 +37,21 @@ input GastoInput {
     vueltoDs: Float
     activo: Boolean
     finalizado: Boolean
+    sucursalId: Int
 }
 
 extend type Query {
-    gasto(id:ID!):Gasto
-    gastos(page:Int = 0, size:Int = 10):[Gasto]!
+    gasto(id:ID!, sucId: ID):Gasto
+    gastos(page:Int = 0, size:Int = 10, sucId: ID):[Gasto]!
     countGasto: Int
-    gastosPorFecha(inicio:String, fin:String):[Gasto]
-    gastosPorCajaId(id:ID!):[Gasto]
-    reimprimirGasto(id:ID!, printerName: String):Boolean
+    gastosPorFecha(inicio:String, fin:String, sucId: ID):[Gasto]
+    gastosPorCajaId(id:ID!, sucId: ID):[Gasto]
+    reimprimirGasto(id:ID!, printerName: String, sucId: ID):Boolean
 }
 
 extend type Mutation {
     saveGasto(entity:GastoInput!, printerName: String, local: String):Gasto!
-    saveVueltoGasto(id:ID!, valorGs:Float, valorRs:Float, valorDs:Float):Gasto!
-    deleteGasto(id:ID!):Boolean!
+    saveVueltoGasto(id:ID!, valorGs:Float, valorRs:Float, valorDs:Float, sucId: ID):Gasto!
+    deleteGasto(id:ID!, sucId: ID):Boolean!
 }
 

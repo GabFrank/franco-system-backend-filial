@@ -20,6 +20,7 @@ type FacturaLegal {
     totalFinal:Float
     usuario: Usuario
     creadoEn: Date
+    sucursalId: Int
 }
 
 input FacturaLegalInput {
@@ -41,17 +42,18 @@ input FacturaLegalInput {
     totalParcial10:Float
     totalFinal:Float
     usuarioId: Int
+    sucursalId: Int
 }
 
 extend type Query {
-    facturaLegal(id:ID!):FacturaLegal
-    facturaLegales(page:Int = 0, size:Int = 10):[FacturaLegal]!
+    facturaLegal(id:ID!, sucId: ID):FacturaLegal
+    facturaLegales(page:Int = 0, size:Int = 10, sucId: ID):[FacturaLegal]!
     countFacturaLegal: Int
-    imprimirFacturasPorCaja(id:Int, printerName: String):Boolean
+    imprimirFacturasPorCaja(id:Int, printerName: String, sucId: ID):Boolean
 }
 
 extend type Mutation {
     saveFacturaLegal(entity:FacturaLegalInput!, detalleList: [FacturaLegalItemInput], printerName: String, pdvId: Int!):Boolean!
-    deleteFacturaLegal(id:ID!):Boolean!
+    deleteFacturaLegal(id:ID!, sucId: ID):Boolean!
 }
 

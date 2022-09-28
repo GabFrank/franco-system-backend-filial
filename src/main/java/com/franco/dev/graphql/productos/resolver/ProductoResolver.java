@@ -101,7 +101,7 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
         List<Sucursal> sucursalList = sucursalService.findAll2();
         for (Sucursal s : sucursalList ){
             ExistenciaCostoPorSucursal eps = new ExistenciaCostoPorSucursal();
-            eps.setExistencia(movimientoStockService.stockByProductoIdAndSucursalId(p.getId(), s.getId()));
+            eps.setExistencia(movimientoStockService.stockByProductoId(p.getId()));
             eps.setSucursal(s);
             CostoPorProducto cps = costosPorSucursalService.findLastByProductoId(p.getId());
             MovimientoStock ms = null;

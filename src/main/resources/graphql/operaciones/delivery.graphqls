@@ -13,6 +13,7 @@ type Delivery {
     barrio: Barrio
     vuelto: Vuelto
     formaPago: FormaPago
+    sucursalId: Int
 }
 
 type DeliveryUpdate {
@@ -30,6 +31,7 @@ type DeliveryUpdate {
     barrio: Barrio
     vuelto: Vuelto
     formaPago: FormaPago
+    sucursalId: Int
 }
 
 input DeliveryInput {
@@ -46,20 +48,21 @@ input DeliveryInput {
     barrioId: Int
     vueltoId: Int
     formaPagoId: Int
+    sucursalId: Int
 }
 
 extend type Query {
-    delivery(id:ID!):Delivery
-    deliverys(page:Int = 0, size:Int = 10):[Delivery]!
-    deliverysByEstado(estado: DeliveryEstado):[Delivery]
-    deliverysByEstadoNotIn(estado: DeliveryEstado):[Delivery]
-    deliverysUltimos10:[Delivery]
+    delivery(id:ID!, sucId: ID):Delivery
+    deliverys(page:Int = 0, size:Int = 10, sucId: ID):[Delivery]!
+    deliverysByEstado(estado: DeliveryEstado, sucId: ID):[Delivery]
+    deliverysByEstadoNotIn(estado: DeliveryEstado, sucId: ID):[Delivery]
+    deliverysUltimos10(sucId: ID):[Delivery]
     countDelivery: Int
 }
 
 extend type Mutation {
     saveDelivery(delivery:DeliveryInput!):Delivery!
-    deleteDelivery(id:ID!):Boolean!
+    deleteDelivery(id:ID!, sucId: ID):Boolean!
 }
 
 enum DeliveryEstado {

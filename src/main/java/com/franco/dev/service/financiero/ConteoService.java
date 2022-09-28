@@ -7,6 +7,8 @@ import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 @AllArgsConstructor
 public class ConteoService extends CrudService<Conteo, ConteoRepository> {
@@ -24,8 +26,8 @@ public class ConteoService extends CrudService<Conteo, ConteoRepository> {
 //        return  repository.findByDenominacionIgnoreCaseLike(texto);
 //    }
 
-    public Conteo findByIdAndSucursalId(Long id, Long sucId) {
-        return repository.findByIdAndSucursalId(id, sucId);
+    public Optional<Conteo> findById(Long id) {
+        return repository.findById(id);
     }
 
     public Double getTotalPorMoneda(Long conteoId, Long monedaId) {
@@ -40,6 +42,7 @@ public class ConteoService extends CrudService<Conteo, ConteoRepository> {
 
     @Override
     public Conteo saveAndSend(Conteo entity, Boolean recibir) {
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Conteo e = super.save(entity);
         propagacionService.propagarEntidad(e, TipoEntidad.CONTEO, recibir);
         return e;

@@ -1,6 +1,5 @@
 package com.franco.dev.repository.operaciones;
 
-import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -24,6 +23,6 @@ public interface CobroDetalleRepository extends HelperRepository<CobroDetalle, L
             "left join operaciones.cobro c on cd.cobro_id = c.id " +
             "left join operaciones.venta v on v.cobro_id = c.id " +
             "left join financiero.pdv_caja pc on pc.id = v.caja_id " +
-            "where v.estado = 'CONCLUIDA' and pc.id = ?1", nativeQuery = true)
+            "where v.estado = 'CONCLUIDA' and pc.id = ?1 and cd.sucursal_id", nativeQuery = true)
     public List<CobroDetalle> findByCajaId(Long id);
 }

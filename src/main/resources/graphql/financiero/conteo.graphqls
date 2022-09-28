@@ -18,17 +18,17 @@ input ConteoInput {
     totalGs: Float
     totalRs: Float
     totalDs: Float
+    sucursalId: Int
 }
 
 extend type Query {
-    conteo(id:ID!):Conteo
-#    conteosPorCajaId(id:ID!):[Conteo]
-    conteos(page:Int = 0, size:Int = 10):[Conteo]!
+    conteo(id:ID!, sucId: ID):Conteo
     countConteo: Int
+    conteos(page:Int = 0, size:Int = 10, sucId: ID):[Conteo]!
 }
 
 extend type Mutation {
     saveConteo(conteo:ConteoInput!, conteoMonedaInputList: [ConteoMonedaInput], cajaId: Int, apertura: Boolean):Conteo!
-    deleteConteo(id:ID!):Boolean!
+    deleteConteo(id:ID!, sucId: ID):Boolean!
 }
 

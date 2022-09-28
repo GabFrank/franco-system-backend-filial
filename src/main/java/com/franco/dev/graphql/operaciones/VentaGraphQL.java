@@ -124,11 +124,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     private Sucursal sucursal;
 
-    public Optional<Venta> venta(Long id) {
+    public Optional<Venta> venta(Long id, Long sucId) {
         return service.findById(id);
     }
 
-    public List<Venta> ventas(int page, int size) {
+    public List<Venta> ventas(int page, int size, Long sucId) {
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
@@ -162,7 +162,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
         }
         if (venta.getId() == null) {
-            deshacerVenta(venta, cobro);
+            deshacerVenta(venta, cobro, null);
         } else {
             try {
                 if (ticket) {
@@ -206,11 +206,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return venta;
     }
 
-    public Boolean imprimirPagare(Long ventaId, List<VentaCreditoCuotaInput> itens, String printerName, String local) throws Exception {
+    public Boolean imprimirPagare(Long ventaId, List<VentaCreditoCuotaInput> itens, String printerName, String local, Long sucId) throws Exception {
         Venta venta = service.findById(ventaId).orElse(null);
         if (venta != null) {
-            Cobro cobro = cobroGraphQL.cobro(venta.getCobro().getId()).orElse(null);
-            List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId());
+            Cobro cobro = cobroGraphQL.cobro(venta.getCobro().getId(), null).orElse(null);
+            List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
             if (cobro != null) {
                 List<CobroDetalleInput> cobroDetalleList = new ArrayList<>();
                 printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, true, printerName, local, true, itens);
@@ -220,7 +220,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return false;
     }
 
-    public Boolean deleteVenta(Long id) {
+    public Boolean deleteVenta(Long id, Long sucId) {
         return service.deleteById(id);
     }
 
@@ -228,10 +228,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return service.count();
     }
 
-    public void deshacerVenta(Venta venta, Cobro cobro) {
+    public void deshacerVenta(Venta venta, Cobro cobro, Long sucId) {
 
         if (cobro != null) {
-            cobroGraphQL.deleteCobro(cobro.getId());
+            cobroGraphQL.deleteCobro(cobro.getId(), null);
         }
     }
 
@@ -471,11 +471,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
 
-    public List<Venta> ventasPorCajaId(Long id, Integer offset) {
+    public List<Venta> ventasPorCajaId(Long id, Integer offset, Long sucId) {
         return service.findByCajaId(id, offset);
     }
 
-    public Boolean cancelarVenta(Long id) {
+    public Boolean cancelarVenta(Long id, Long sucId) {
         Venta venta = service.findById(id).orElse(null);
         if (venta != null && venta.getEstado() != VentaEstado.CANCELADA) {
             return service.cancelarVenta(venta);
@@ -483,11 +483,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return false;
     }
 
-    public Boolean reimprimirVenta(Long id, String printerName, String local) throws Exception {
+    public Boolean reimprimirVenta(Long id, String printerName, String local, Long sucId) throws Exception {
         Venta venta = service.findById(id).orElse(null);
         if (venta != null) {
-            Cobro cobro = cobroGraphQL.cobro(venta.getCobro().getId()).orElse(null);
-            List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId());
+            Cobro cobro = cobroGraphQL.cobro(venta.getCobro().getId(), null).orElse(null);
+            List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
             if (cobro != null) {
                 List<CobroDetalleInput> cobroDetalleList = new ArrayList<>();
                 printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, true, printerName, local, null, null);
@@ -497,7 +497,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return false;
     }
 
-    public List<VentaPorPeriodoV1Dto> ventaPorPeriodo(String inicio, String fin) {
+    public List<VentaPorPeriodoV1Dto> ventaPorPeriodo(String inicio, String fin, Long sucId) {
         return service.ventaPorPeriodo(inicio, fin);
     }
 }

@@ -46,9 +46,9 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
     @Autowired
     private PrecioPorSucursalService precioPorSucursalService;
 
-    public Optional<VentaItem> ventaItem(Long id) {return service.findById(id);}
+    public Optional<VentaItem> ventaItem(Long id, Long sucId) {return service.findById(id);}
 
-    public List<VentaItem> ventaItems(int page, int size){
+    public List<VentaItem> ventaItems(int page, int size, Long sucId){
         Pageable pageable = PageRequest.of(page,size);
         return service.findAll(pageable);
     }
@@ -69,7 +69,7 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         return service.saveAndSend(e, false);
     }
 
-    public Boolean deleteVentaItem(Long id){
+    public Boolean deleteVentaItem(Long id, Long sucId){
         return service.deleteById(id);
     }
 
@@ -90,7 +90,7 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         return ventaItemList;
     }
 
-    public Boolean cancelarVentaItens(Long id){
+    public Boolean cancelarVentaItens(Long id, Long sucId){
         List<VentaItem> ventaItemList = service.findByVentaId(id);
         for(VentaItem vi: ventaItemList){
             vi.setActivo(false);
@@ -99,7 +99,7 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         return true;
     }
 
-    public List<VentaItem> ventaItemListPorVentaId(Long id){
+    public List<VentaItem> ventaItemListPorVentaId(Long id, Long sucId){
         return service.findByVentaId(id);
     }
 

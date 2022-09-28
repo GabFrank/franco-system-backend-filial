@@ -1,6 +1,5 @@
 package com.franco.dev.domain.operaciones;
 
-import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.domain.personas.Funcionario;
 import com.franco.dev.domain.personas.Usuario;
 import lombok.AllArgsConstructor;

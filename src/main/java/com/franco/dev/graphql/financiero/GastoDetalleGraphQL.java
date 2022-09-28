@@ -43,9 +43,9 @@ public class GastoDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private GastoService gastoService;
 
-    public Optional<GastoDetalle> gastoDetalle(Long id) {return service.findById(id);}
+    public Optional<GastoDetalle> gastoDetalle(Long id, Long sucId) {return service.findById(id);}
 
-    public List<GastoDetalle> gastoDetalles(int page, int size){
+    public List<GastoDetalle> gastoDetalles(int page, int size, Long sucId){
         Pageable pageable = PageRequest.of(page,size);
         return service.findAll(pageable);
     }
@@ -65,11 +65,11 @@ public class GastoDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
     }
 
-    public List<GastoDetalle> gastoDetalleListPorGastoId(Long id){
+    public List<GastoDetalle> gastoDetalleListPorGastoId(Long id, Long sucId){
         return service.findByGastoId(id);
     }
 
-    public Boolean deleteGastoDetalle(Long id){
+    public Boolean deleteGastoDetalle(Long id, Long sucId){
         return service.deleteById(id);
     }
 

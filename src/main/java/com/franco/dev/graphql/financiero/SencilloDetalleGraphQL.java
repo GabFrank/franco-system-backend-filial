@@ -32,9 +32,9 @@ public class SencilloDetalleGraphQL implements GraphQLQueryResolver, GraphQLMuta
     @Autowired
     private CambioService cambioService;
 
-    public Optional<SencilloDetalle> sencilloDetalle(Long id) {return service.findById(id);}
+    public Optional<SencilloDetalle> sencilloDetalle(Long id, Long sucId) {return service.findById(id);}
 
-    public List<SencilloDetalle> sencilloDetalles(int page, int size){
+    public List<SencilloDetalle> sencilloDetalles(int page, int size, Long sucId){
         Pageable pageable = PageRequest.of(page,size);
         return service.findAll(pageable);
     }
@@ -50,11 +50,11 @@ public class SencilloDetalleGraphQL implements GraphQLQueryResolver, GraphQLMuta
         return service.save(e);
     }
 
-    public List<SencilloDetalle> sencilloDetalleListPorSencilloId(Long id){
+    public List<SencilloDetalle> sencilloDetalleListPorSencilloId(Long id, Long sucId){
         return service.findBySencilloId(id);
     }
 
-    public Boolean deleteSencilloDetalle(Long id){
+    public Boolean deleteSencilloDetalle(Long id, Long sucId){
         return service.deleteById(id);
     }
 

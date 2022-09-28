@@ -1,6 +1,7 @@
 package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.CambioCaja;
+import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.financiero.CambioCajaRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
@@ -33,4 +34,14 @@ public class CambioCajaService extends CrudService<CambioCaja, CambioCajaReposit
 //        personaPublisher.publish(p);
         return e;
     }
+
+    @Override
+    public CambioCaja saveAndSend(CambioCaja entity, Boolean recibir) {
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        CambioCaja e = super.save(entity);
+        propagacionService.propagarEntidad(e, TipoEntidad.CAMBIO_CAJA, recibir);
+        return e;
+    }
+
 }
+

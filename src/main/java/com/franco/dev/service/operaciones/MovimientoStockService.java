@@ -25,8 +25,8 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
         return repository;
     }
 
-    public Float stockByProductoIdAndSucursalId(Long proId, Long sucId) {
-        return repository.stockByProductoIdAndSucursalId(proId, sucId) != null ? repository.stockByProductoIdAndSucursalId(proId, sucId) : 0;
+    public Float stockByProductoIdAndSucursalId(Long proId) {
+        return repository.stockByProductoId(proId) != null ? repository.stockByProductoId(proId) : 0;
     }
 
     public Float stockByProductoId(Long proId) {
@@ -44,7 +44,7 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
     @Override
     public MovimientoStock save(MovimientoStock entity) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
-        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         MovimientoStock e = super.save(entity);
 //        personaPublisher.publish(p);
         return e;
@@ -53,7 +53,7 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
     @Override
     public MovimientoStock saveAndSend(MovimientoStock entity, Boolean recibir) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
-        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         MovimientoStock e = super.save(entity);
 //        personaPublisher.publish(p);
         propagacionService.propagarEntidad(e, TipoEntidad.MOVIMIENTO_STOCK, recibir);

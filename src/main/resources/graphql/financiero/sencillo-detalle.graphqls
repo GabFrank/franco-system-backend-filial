@@ -6,6 +6,7 @@ type SencilloDetalle {
     cantidad: Float
     creadoEn: Date
     usuario: Usuario
+    sucursalId: Int
 }
 
 input SencilloDetalleInput {
@@ -16,17 +17,18 @@ input SencilloDetalleInput {
     cantidad: Float
     creadoEn: Date
     usuarioId: Int
+    sucursalId: Int
 }
 
 extend type Query {
-    sencilloDetalle(id:ID!):SencilloDetalle
-    sencilloDetalles(page:Int = 0, size:Int = 10):[SencilloDetalle]!
+    sencilloDetalle(id:ID!, sucId: ID):SencilloDetalle
+    sencilloDetalles(page:Int = 0, size:Int = 10, sucId: ID):[SencilloDetalle]!
     countSencilloDetalle: Int
-    sencilloDetalleListPorSencilloId(id:ID!):[SencilloDetalle]
+    sencilloDetalleListPorSencilloId(id:ID!, sucId: ID):[SencilloDetalle]
 }
 
 extend type Mutation {
     saveSencilloDetalle(sencilloDetalle:SencilloDetalleInput!):SencilloDetalle!
-    deleteSencilloDetalle(id:ID!):Boolean!
+    deleteSencilloDetalle(id:ID!, sucId: ID):Boolean!
 }
 

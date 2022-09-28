@@ -5,7 +5,6 @@ import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.financiero.FacturaLegalRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -22,7 +21,7 @@ public class FacturaLegalService extends CrudService<FacturaLegal, FacturaLegalR
         return repository;
     }
 
-    public List<FacturaLegal> findByCajaId(Long id){
+    public List<FacturaLegal> findByCajaId(Long id) {
         return repository.findByCajaId(id);
     }
 

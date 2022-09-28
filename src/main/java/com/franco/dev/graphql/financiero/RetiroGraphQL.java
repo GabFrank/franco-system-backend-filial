@@ -54,16 +54,16 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     @Autowired
     private RetiroDetalleService retiroDetalleService;
 
-    public Optional<Retiro> retiro(Long id) {
+    public Optional<Retiro> retiro(Long id, Long sucId) {
         return service.findById(id);
     }
 
-    public List<Retiro> retiros(int page, int size) {
+    public List<Retiro> retiros(int page, int size, Long sucId) {
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
-    public List<Retiro> retiroListPorCajaSalidaId(Long id) {
+    public List<Retiro> retiroListPorCajaSalidaId(Long id, Long sucId) {
         return service.findByCajaSalidaId(id);
     }
 
@@ -108,7 +108,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
 //        return service.findByAll(texto);
 //    }
 
-    public Boolean deleteRetiro(Long id) {
+    public Boolean deleteRetiro(Long id, Long sucId) {
         return service.deleteById(id);
     }
 
@@ -116,7 +116,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         return service.count();
     }
 
-    public Boolean reimprimirRetiro(Long id, String printerName, String local) {
+    public Boolean reimprimirRetiro(Long id, String printerName, String local, Long sucId) {
         try {
             Retiro retiro = service.findById(id).orElse(null);
             RetiroDto retiroDto = new RetiroDto();
