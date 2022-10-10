@@ -12,6 +12,7 @@ public class PdvCajaBalanceDto {
     private Sucursal sucursal;
     private LocalDateTime creadoEn;
     private Usuario usuario;
+    private Double totalGeneral = 0.0;
     private Double totalGsAper = 0.0;
     private Double totalRsAper = 0.0;
     private Double totalDsAper = 0.0;

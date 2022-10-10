@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
 @Data
 public class PdvCajaInput {
     private Long id;
-    private Long idCentral;
     private Long sucursalId;
     private String descripcion;
     private String observacion;

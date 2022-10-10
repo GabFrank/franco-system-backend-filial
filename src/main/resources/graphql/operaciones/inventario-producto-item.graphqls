@@ -1,6 +1,5 @@
 type InventarioProductoItem {
     id:ID!
-    idCentral: Int
     idOrigen: Int
     inventarioProducto: InventarioProducto
     zona: Zona
@@ -15,7 +14,6 @@ type InventarioProductoItem {
 
 input InventarioProductoItemInput {
     id:Int
-    idCentral: Int
     idOrigen: Int
     inventarioProductoId: Int
     zonaId: Int

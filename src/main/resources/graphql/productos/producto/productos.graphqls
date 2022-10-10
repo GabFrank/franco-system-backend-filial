@@ -1,7 +1,5 @@
 type Producto {
     id:ID!
-    idCentral:Int
-    idSucursalOrigen:Int
     propagado:Boolean
     descripcion: String
     descripcionFactura: String
@@ -36,8 +34,6 @@ type Producto {
 
 input ProductoInput {
     id:ID
-    idCentral:Int
-    idSucursalOrigen:Int
     propagado:Boolean
     descripcion: String
     descripcionFactura: String

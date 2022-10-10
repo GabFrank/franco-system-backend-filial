@@ -19,4 +19,6 @@ public interface PdvCajaRepository extends HelperRepository<PdvCaja, Long> {
 
     public List<PdvCaja> findByCreadoEnBetween(LocalDateTime inicio, LocalDateTime fin);
 
+    Optional<PdvCaja> findFirstByMaletinIdOrderByCreadoEnDesc(Long id);
+
 }

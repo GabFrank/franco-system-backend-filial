@@ -35,7 +35,11 @@ public class FacturaLegalService extends CrudService<FacturaLegal, FacturaLegalR
 
     @Override
     public FacturaLegal saveAndSend(FacturaLegal entity, Boolean recibir) {
-        if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getId() == null) {
+            entity.setCreadoEn(LocalDateTime.now());
+            entity.setActivo(true);
+            entity.setViaTributaria(false);
+        }
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         entity.setSucursalId(Long.valueOf(super.env.getProperty("sucursalId")));
         FacturaLegal e = super.save(entity);

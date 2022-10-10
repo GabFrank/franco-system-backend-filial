@@ -89,7 +89,7 @@ public class RetiroDetalleService extends CrudService<RetiroDetalle, RetiroDetal
             throw new GraphQLException("El valor de retiro es mayor al total en caja");
         } else {
             entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
-            RetiroDetalle e = save(entity);
+            RetiroDetalle e = super.save(entity);
             propagacionService.propagarEntidad(e, TipoEntidad.RETIRO_DETALLE, recibir);
             MovimientoCaja movimientoCaja = new MovimientoCaja();
             movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.RETIRO);

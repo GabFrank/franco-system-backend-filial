@@ -1,6 +1,5 @@
 type Inventario {
     id:ID!
-    idCentral: Int
     idOrigen: Int
     sucursal: Sucursal
     fechaInicio: Date

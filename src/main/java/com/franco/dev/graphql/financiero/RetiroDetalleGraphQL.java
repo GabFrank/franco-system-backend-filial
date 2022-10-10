@@ -55,7 +55,7 @@ public class RetiroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutati
         }
         if(input.getMonedaId()!=null) e.setMoneda(monedaService.findById(input.getMonedaId()).orElse(null));
         if(input.getRetiroId()!=null) e.setRetiro(retiroService.findById(input.getRetiroId()).orElse(null));
-        return service.save(e);
+        return service.saveAndSend(e, false);
     }
 
     public List<RetiroDetalle> retiroDetalleListPorRetiroId(Long id, Long sucId){

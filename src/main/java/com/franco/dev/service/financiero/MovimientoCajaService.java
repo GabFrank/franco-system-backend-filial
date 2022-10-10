@@ -74,7 +74,6 @@ public class MovimientoCajaService extends CrudService<MovimientoCaja, Movimient
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         MovimientoCaja e = super.save(entity);
-//        personaPublisher.publish(p);
         propagacionService.propagarEntidad(e, TipoEntidad.MOVIMIENTO_CAJA, recibir);
         return e;
     }

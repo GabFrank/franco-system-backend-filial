@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 @Data
 public class InventarioInput {
     private Long id;
-    private Long idCentral;
     private Long idOrigen;
     private Long sucursalId;
     private String fechaInicio;

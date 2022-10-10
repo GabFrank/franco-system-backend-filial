@@ -31,19 +31,19 @@ public class PresentacionService extends CrudService<Presentacion, PresentacionR
         return repository.findByProductoId(id);
     }
 
-    public Presentacion recibirPresentacion(Presentacion pCentral) {
-        Presentacion foundPresentacion = repository.findByIdCentral(pCentral.getId());
-        Producto producto = productoRepository.findByIdCentral(pCentral.getProducto().getId());
-        if (producto != null) {
-            if (foundPresentacion == null) {
-                foundPresentacion = pCentral;
-                foundPresentacion.setIdCentral(pCentral.getId());
-                foundPresentacion.setId(null);
-                foundPresentacion = save(foundPresentacion);
-            }
-        }
-        return foundPresentacion;
-    }
+//    public Presentacion recibirPresentacion(Presentacion pCentral) {
+//        Presentacion foundPresentacion = repository.findByIdCentral(pCentral.getId());
+//        Producto producto = productoRepository.findByIdCentral(pCentral.getProducto().getId());
+//        if (producto != null) {
+//            if (foundPresentacion == null) {
+//                foundPresentacion = pCentral;
+//                foundPresentacion.setIdCentral(pCentral.getId());
+//                foundPresentacion.setId(null);
+//                foundPresentacion = save(foundPresentacion);
+//            }
+//        }
+//        return foundPresentacion;
+//    }
 
     @Override
     public Presentacion save(Presentacion entity) {

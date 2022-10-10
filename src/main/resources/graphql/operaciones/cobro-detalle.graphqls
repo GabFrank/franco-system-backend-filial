@@ -12,6 +12,7 @@ type CobroDetalle {
     creadoEn: Date
     usuario: Usuario
     sucursalId: Int
+    identificadorTransaccion: String
 }
 
 input CobroDetalleInput {
@@ -28,6 +29,7 @@ input CobroDetalleInput {
     creadoEn: Date
     usuarioId: Int
     sucursalId: Int
+    identificadorTransaccion: String
 }
 
 extend type Query {

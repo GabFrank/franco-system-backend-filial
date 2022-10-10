@@ -20,7 +20,6 @@ public class Presentacion implements Serializable {
 
     @Id
     private Long id;
-    private Long idCentral;
     private String descripcion;
     private Double cantidad;
     private Boolean activo;

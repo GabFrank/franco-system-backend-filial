@@ -1,5 +1,6 @@
 type CajaBalance {
     cajaId: Int
+    totalGeneral: Float
     totalAperGs: Float
     totalAperRs: Float
     totalAperDs: Float
@@ -25,6 +26,9 @@ type CajaBalance {
     vueltoGs: Float
     vueltoRs: Float
     vueltoDs: Float
+    diferenciaGs: Float
+    diferenciaRs: Float
+    diferenciaDs: Float
 }
 
 

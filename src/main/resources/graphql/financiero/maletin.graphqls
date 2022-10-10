@@ -5,6 +5,8 @@ type Maletin {
     abierto: Boolean
     creadoEn: Date
     usuario: Usuario
+    cajaActual: PdvCaja
+
 }
 
 input MaletinInput {

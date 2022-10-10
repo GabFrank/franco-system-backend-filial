@@ -10,5 +10,6 @@ public enum PdvCajaTipoMovimiento {
         SALIDA_SENCILLO,
         CAMBIO,
         AJUSTE,
-        ENTRADA_SENCILLO
+        ENTRADA_SENCILLO,
+        CAJA_FINAL
 }

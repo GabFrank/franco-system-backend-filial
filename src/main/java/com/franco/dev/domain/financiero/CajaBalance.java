@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CajaBalance {
     private Long cajaId;
+    private Double totalGeneral;
     private Double totalAperGs;
     private Double totalAperRs;
     private Double totalAperDs;
@@ -34,6 +35,9 @@ public class CajaBalance {
     private Double vueltoGs;
     private Double vueltoRs;
     private Double vueltoDs;
+    private Double diferenciaGs;
+    private Double diferenciaRs;
+    private Double diferenciaDs;
 }
 
 

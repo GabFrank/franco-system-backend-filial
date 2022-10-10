@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class RabbitEntity {
-    private Long idCentral;
     private Long idSucursalOrigen;
     private Boolean propagado;
 }

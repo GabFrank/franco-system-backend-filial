@@ -7,6 +7,7 @@ import com.franco.dev.domain.financiero.ConteoMoneda;
 import com.franco.dev.domain.financiero.Maletin;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.operaciones.Inventario;
+import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
 import com.franco.dev.graphql.financiero.ConteoGraphQL;
@@ -178,6 +179,8 @@ public class PropagacionService {
     private VentaService ventaService;
     @Autowired
     private VentaItemService ventaItemService;
+    @Autowired
+    private MovimientoCajaService movimientoCajaService;
 
     //    public Boolean verficarConexion(Long sucId) {
 //        sucursalVerificar = sucId;
@@ -528,7 +531,6 @@ public class PropagacionService {
             case MOVIMIENTO_STOCK:
                 log.info("creando movimiento stock: ");
                 return guardar(movimientoStockService, dto);
-
             case SECTOR:
                 log.info("creando sector: ");
                 return guardar(sectorService, dto);
@@ -562,6 +564,9 @@ public class PropagacionService {
             case VENTA_ITEM:
                 log.info("creando venta item: ");
                 return guardar(ventaItemService, dto);
+            case MOVIMIENTO_CAJA:
+                log.info("creando mov caja: ");
+                return guardar(movimientoCajaService, dto);
             default:
                 return null;
         }

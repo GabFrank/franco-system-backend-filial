@@ -16,8 +16,6 @@ import java.util.Date;
 public class ProductoInput extends RabbitEntity {
 
     private Long id;
-    private Long idCentral;
-    private Long idSucursalOrigen;
     private Boolean propagado;
     private String descripcion;
     private String descripcionFactura;

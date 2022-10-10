@@ -6,6 +6,7 @@ import com.franco.dev.domain.financiero.TimbradoDetalle;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
+import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
 import com.franco.dev.graphql.financiero.input.FacturaLegalItemInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
@@ -13,6 +14,7 @@ import com.franco.dev.rabbit.dto.SaveFacturaDto;
 import com.franco.dev.service.empresarial.PuntoDeVentaService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.impresion.ImpresionService;
+import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
@@ -66,6 +68,8 @@ public class FacturaService {
     private TimbradoDetalleService timbradoDetalleService;
     @Autowired
     private ImpresionService impresionService;
+    @Autowired
+    private UsuarioService usuarioService;
 
     public Long printTicket58mmFacturaConVenta(Venta venta, Cobro cobro, List<VentaItem> ventaItemList, List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local, FacturaLegalInput facturaLegal, Long pdvId, Long numeroFactura) throws Exception {
         PrintService selectedPrintService = printingService.getPrintService(printerName);
@@ -270,7 +274,7 @@ public class FacturaService {
         Sucursal sucursal = sucursalService.sucursalActual();
         PuntoDeVenta puntoDeVenta = puntoDeVentaService.getPuntoDeVentaActual(pdvId);
         TimbradoDetalle timbradoDetalle = timbradoDetalleService.getTimbradoDetalleActual(puntoDeVenta.getId());
-
+        Usuario cajero = venta != null ? venta.getUsuario() : usuarioService.findById(facturaLegal.getUsuarioId()).orElse(null);
         Double descuento = 0.0;
         Double aumento = 0.0;
         Double vueltoGs = 0.0;
@@ -333,17 +337,15 @@ public class FacturaService {
             escpos.writeLF(center, "Local: " + puntoDeVenta.getNombre());
             if (venta != null) escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
 
-            if (venta.getUsuario().getPersona().getNombre().length() > 23) {
-                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre().substring(0, 23));
-
-            } else {
-                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre());
+            if (cajero != null) {
+                escpos.writeLF("Cajero: " + cajero.getPersona().getNombre());
             }
+
             escpos.writeLF("Fecha: " + LocalDateTime.now().format(shortDateTime));
             escpos.writeLF("--------------------------------");
 
             escpos.writeLF("Cliente: " + facturaLegal.getNombre().toUpperCase());
-            escpos.writeLF("CI/RUC: " + facturaLegal.getRuc() + getDigitoVerificadorString(facturaLegal.getRuc()));
+            escpos.writeLF("CI/RUC: " + facturaLegal.getRuc());
             if (facturaLegal.getDireccion() != null)
                 escpos.writeLF("Dir: " + facturaLegal.getDireccion());
 
@@ -460,15 +462,17 @@ public class FacturaService {
                 if (facturaLegal.getId() == null) {
                     Long numero = timbradoDetalleService.aumentarNumeroFactura(timbradoDetalle);
                     facturaLegal.setTimbradoDetalleId(timbradoDetalle.getId());
-                    facturaLegal.setCajaId(venta.getCaja().getId());
-                    facturaLegal.setVentaId(venta.getId());
+                    if(venta!=null){
+                        facturaLegal.setVentaId(venta.getId());
+                        facturaLegal.setFecha(venta.getCreadoEn());
+                        facturaLegal.setClienteId(venta.getCliente().getId());
+                        facturaLegal.setCajaId(venta.getCaja().getId());
+                    }
                     facturaLegal.setTotalFinal(totalFinal);
                     facturaLegal.setIvaParcial5(totalIva5);
                     facturaLegal.setIvaParcial10(totalIva10);
-                    facturaLegal.setFecha(venta.getCreadoEn());
-                    facturaLegal.setViaTributaria(true);
+                    facturaLegal.setViaTributaria(false);
                     facturaLegal.setAutoimpreso(true);
-                    facturaLegal.setClienteId(venta.getCliente().getId());
                     facturaLegal.setNumeroFactura(numero.intValue());
                     facturaLegal.setTotalParcial5(ventaIva5);
                     facturaLegal.setTotalParcial10(ventaIva10);

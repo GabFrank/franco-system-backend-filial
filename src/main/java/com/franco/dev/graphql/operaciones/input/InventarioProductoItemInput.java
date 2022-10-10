@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 @Data
 public class InventarioProductoItemInput {
     private Long id;
-    private Long idCentral;
     private Long idOrigen;
     private Long inventarioProductoId;
     private Long presentacionId;

@@ -20,7 +20,9 @@ public interface VentaRepository extends HelperRepository<Venta, Long> {
     //@Query("select p from Producto p where CAST(id as text) like %?1% or LOWER(p.descripcion) like %?1% or LOWER(p.descripcionFactura) like %?1%")
     //public List<Producto> findbyAll(String texto);
 
-    public List<Venta> findByCajaId(Long id, Pageable pageable);
+    public List<Venta> findByCajaIdOrderByIdAsc(Long id, Pageable pageable);
+
+    public List<Venta> findByCajaIdOrderByIdDesc(Long id, Pageable pageable);
 
     public List<Venta> findByCajaId(Long id);
 

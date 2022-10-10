@@ -35,8 +35,6 @@ public class Inventario implements Serializable {
     @Id
     private Long id;
 
-    private Long idCentral;
-
     private Long idOrigen;
 
     @ManyToOne(fetch = FetchType.LAZY)

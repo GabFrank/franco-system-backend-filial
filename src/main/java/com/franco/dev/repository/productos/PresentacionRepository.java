@@ -20,6 +20,4 @@ public interface PresentacionRepository extends HelperRepository<Presentacion, L
 
     public Presentacion findByPrincipalAndProductoId(Boolean principal, Long id);
 
-    public Presentacion findByIdCentral(Long id);
-
 }

@@ -8,7 +8,6 @@ import java.util.Date;
 public class PresentacionInput {
 
     private Long id;
-    private Long idCentral;
     private String descripcion;
     private Boolean principal;
     private Double cantidad;

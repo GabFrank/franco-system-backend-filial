@@ -55,4 +55,6 @@ public class CobroDetalle implements Serializable {
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
 
+    private String identificadorTransaccion;
+
 }

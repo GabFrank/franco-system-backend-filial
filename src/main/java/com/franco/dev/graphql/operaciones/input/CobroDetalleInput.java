@@ -24,4 +24,5 @@ public class CobroDetalleInput {
     private Boolean vuelto;
     private LocalDateTime creadoEn;
     private Long usuarioId;
+    private String identificadorTransaccion;
 }

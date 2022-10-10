@@ -87,7 +87,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                 r.setRetiroId(retiro.getId());
                 r.setUsuarioId(retiro.getUsuario().getId());
                 r.setCreadoEn(retiro.getCreadoEn());
-                retiroDetalleGraphQL.saveRetiroDetalle(r);
+                if(r.getCantidad()!=null && r.getCantidad()>0) retiroDetalleGraphQL.saveRetiroDetalle(r);
             }
 
             RetiroDto retiroDto = new RetiroDto();

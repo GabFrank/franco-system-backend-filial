@@ -29,8 +29,6 @@ public class Producto implements Serializable {
 
     @Id
     private Long id;
-    private Long idCentral;
-    private Long idSucursalOrigen;
     private Boolean propagado;
     private String descripcion;
     private String descripcionFactura;

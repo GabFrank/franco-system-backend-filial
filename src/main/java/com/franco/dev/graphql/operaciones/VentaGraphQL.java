@@ -471,8 +471,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
 
-    public List<Venta> ventasPorCajaId(Long id, Integer offset, Long sucId) {
-        return service.findByCajaId(id, offset);
+    public List<Venta> ventasPorCajaId(Long id, Integer page, Integer size, Boolean asc, Long sucId, Long formaPago, VentaEstado estado) {
+        return service.findByCajaId(id, page, size, asc);
     }
 
     public Boolean cancelarVenta(Long id, Long sucId) {

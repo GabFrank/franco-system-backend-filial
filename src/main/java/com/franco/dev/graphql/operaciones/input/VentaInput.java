@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 @Data
 public class VentaInput {
     private Long id;
-    private Long idCentral;
     private Long clienteId;
     private Long formaPagoId;
     private VentaEstado estado;

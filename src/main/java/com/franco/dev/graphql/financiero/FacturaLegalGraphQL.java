@@ -60,6 +60,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static com.franco.dev.service.utils.PrintingService.resize;
+import static com.franco.dev.utilitarios.CalcularVerificadorRuc.getDigitoVerificadorString;
 import static com.franco.dev.utilitarios.DateUtils.dateToStringShort;
 
 @Component
@@ -140,6 +141,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (input.getTimbradoDetalleId() != null)
             e.setTimbradoDetalle(timbradoDetalleService.findById(input.getTimbradoDetalleId()).orElse(null));
         if (input.getClienteId() != null) e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
+        if(input.getRuc()!=null && input.getRuc()!= "X"){
+            e.setRuc(input.getRuc()+getDigitoVerificadorString(input.getRuc()));
+        }
         e = service.saveAndSend(e, false);
         if (e != null) {
             for (FacturaLegalItemInput c : facturaLegalItemInputList) {

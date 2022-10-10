@@ -76,31 +76,31 @@ public class ProductoService extends CrudService<Producto, ProductoRepository> {
         return new ArrayList<>();
     }
 
-    public Producto encontrarProductoCentralFilial(Producto pCentral) {
-        Producto pFilial = findByIdCentral(pCentral.getId());
-        log.info("recibiendo " + pCentral.getId());
-        if (pFilial == null) {
-            pFilial = findByDescripcionn(pCentral.getDescripcion());
-            if (pFilial == null) {
-                pFilial = pCentral;
-                pFilial.setIdCentral(pFilial.getId());
-                pFilial.setId(null);
-                pFilial = repository.save(pFilial);
-            } else {
-                if (pFilial.getIdCentral() == null) {
-                    pFilial.setIdCentral(pCentral.getId());
-                    pFilial = repository.save(pFilial);
-                } else {
-
-                }
-            }
-        } else {
-            pCentral.setIdCentral(pCentral.getId());
-            pCentral.setId(pFilial.getId());
-            pFilial = repository.save(pCentral);
-        }
-        return pFilial;
-    }
+//    public Producto encontrarProductoCentralFilial(Producto pCentral) {
+//        Producto pFilial = findByIdCentral(pCentral.getId());
+//        log.info("recibiendo " + pCentral.getId());
+//        if (pFilial == null) {
+//            pFilial = findByDescripcionn(pCentral.getDescripcion());
+//            if (pFilial == null) {
+//                pFilial = pCentral;
+//                pFilial.setIdCentral(pFilial.getId());
+//                pFilial.setId(null);
+//                pFilial = repository.save(pFilial);
+//            } else {
+//                if (pFilial.getIdCentral() == null) {
+//                    pFilial.setIdCentral(pCentral.getId());
+//                    pFilial = repository.save(pFilial);
+//                } else {
+//
+//                }
+//            }
+//        } else {
+//            pCentral.setIdCentral(pCentral.getId());
+//            pCentral.setId(pFilial.getId());
+//            pFilial = repository.save(pCentral);
+//        }
+//        return pFilial;
+//    }
 
     public Producto save(ProductoInput entity) throws GraphQLException {
         Producto p = null;
@@ -198,9 +198,6 @@ public class ProductoService extends CrudService<Producto, ProductoRepository> {
 //        else if(dto.getAccion().equals(ELIMINAR)) deleteByInput(input, dto.getIdSucursalOrigen());
 //    }
 
-    public Producto findByIdCentral(Long id) {
-        return repository.findByIdCentral(id);
-    }
 
     public List<Producto> findAllForPdv() {
         return repository.findAllForPdv();

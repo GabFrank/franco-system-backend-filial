@@ -31,8 +31,6 @@ public class InventarioProductoItem implements Serializable {
     @Id
     private Long id;
 
-    private Long idCentral;
-
     private Long idOrigen;
 
     @ManyToOne(fetch = FetchType.EAGER)
