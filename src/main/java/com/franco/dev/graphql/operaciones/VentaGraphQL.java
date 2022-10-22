@@ -395,7 +395,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
-            escpos.writeLF(new Style().setBold(true).setFontSize(Style.FontSize._0, Style.FontSize._0), valorGs);
+            escpos.writeLF(valorGs);
             escpos.write("Total Rs: ");
             String valorRs = String.format("%.2f", venta.getTotalRs());
             for (int i = 22; i > valorGs.length(); i--) {

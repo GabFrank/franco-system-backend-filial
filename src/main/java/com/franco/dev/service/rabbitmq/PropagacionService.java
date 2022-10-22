@@ -14,6 +14,7 @@ import com.franco.dev.graphql.financiero.ConteoGraphQL;
 import com.franco.dev.graphql.financiero.FacturaLegalGraphQL;
 import com.franco.dev.rabbit.RabbitMQConection;
 import com.franco.dev.rabbit.dto.RabbitDto;
+import com.franco.dev.rabbit.dto.SaveConteoDto;
 import com.franco.dev.rabbit.dto.SaveFacturaDto;
 import com.franco.dev.rabbit.enums.TipoAccion;
 import com.franco.dev.rabbit.enums.TipoEntidad;
@@ -539,13 +540,13 @@ public class PropagacionService {
                 return guardar(zonaService, dto);
             case CONTEO:
                 log.info("guardando conteo");
-                return guardar(conteoService, dto);
-//                SaveConteoDto conteoDto = (SaveConteoDto) dto.getEntidad();
-//                Conteo conteo = conteoGraphQL.saveConteo(conteoDto.getConteoInput(), conteoDto.getConteoMonedaInputList(), conteoDto.getCajaId(), conteoDto.getApertura());
-//                if (conteo != null) {
-//                    pdvCajaService.imprimirBalance(conteoDto.getCajaId(), null, null);
-//                    return conteo;
-//                }
+//                return guardar(conteoService, dto);
+                SaveConteoDto conteoDto = (SaveConteoDto) dto.getEntidad();
+                Conteo conteo = conteoGraphQL.saveConteo(conteoDto.getConteoInput(), conteoDto.getConteoMonedaInputList(), conteoDto.getCajaId(), conteoDto.getApertura());
+                if (conteo != null) {
+                    pdvCajaService.imprimirBalance(conteoDto.getCajaId(), null, null);
+                    return conteo;
+                }
             case CONTEO_ITEM:
                 log.info("guardando conteo");
                 return guardar(conteoMonedaService, dto);
