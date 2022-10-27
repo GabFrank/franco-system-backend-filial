@@ -583,7 +583,7 @@ public class PropagacionService {
         switch (tipoEntidad) {
             case PRESENTACION:
                 try {
-                    imageService.saveImageToPath((String) dto.getEntidad(), (String) dto.getData(), true);
+                    imageService.saveImageToPath((String) dto.getEntidad(), (String) dto.getData(), imageService.imagePresentaciones, imageService.imagePresentacionesThumbPath, true);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -662,33 +662,34 @@ public class PropagacionService {
     }
 
     public void solicitarResources() {
-        String url = "http://" + env.getProperty("ipServidorCentral") + "/config/resources";
-        log.info("solicitando recursos a " + url);
-        restTemplate.getMessageConverters().add(
-                new ByteArrayHttpMessageConverter());
-        HttpHeaders headers = new HttpHeaders();
-        headers.setAccept(Arrays.asList(MediaType.APPLICATION_OCTET_STREAM));
+//        String url = "http://" + env.getProperty("ipServidorCentral") + "/config/resources";
+//        log.info("solicitando recursos a " + url);
+//        restTemplate.getMessageConverters().add(
+//                new ByteArrayHttpMessageConverter());
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setAccept(Arrays.asList(MediaType.APPLICATION_OCTET_STREAM));
+//
+//        HttpEntity<String> entity = new HttpEntity<String>(headers);
+//
+//        try {
+//            ResponseEntity<byte[]> response = restTemplate.exchange(
+//                    url,
+//                    HttpMethod.GET, entity, byte[].class, "1");
+//
+//            if (response.getStatusCode() == HttpStatus.OK) {
+//                try {
+//                    Files.write(Paths.get(imageService.getResourcesPath() + ".zip"), response.getBody());
+//                    ZipUtil.unpack(new File(imageService.getResourcesPath() + ".zip"), new File(imageService.getResourcesPath()));
+//                    imageService.deleteFile(imageService.getResourcesPath() + ".zip");
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//            }
+//        } catch (RestClientException e) {
+//            e.printStackTrace();
+//        }
 
-        HttpEntity<String> entity = new HttpEntity<String>(headers);
-
-        try {
-            ResponseEntity<byte[]> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET, entity, byte[].class, "1");
-
-            if (response.getStatusCode() == HttpStatus.OK) {
-                try {
-                    Files.write(Paths.get(imageService.getResourcesPath() + ".zip"), response.getBody());
-                    ZipUtil.unpack(new File(imageService.getResourcesPath() + ".zip"), new File(imageService.getResourcesPath()));
-                    imageService.deleteFile(imageService.getResourcesPath() + ".zip");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        } catch (RestClientException e) {
-            e.printStackTrace();
-        }
-
+        sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(null, TipoAccion.SOLICITAR_RESOURCES, null, Long.valueOf(env.getProperty("sucursalId"))));
 
     }
 

@@ -49,12 +49,13 @@ public class ImageService {
         if(isWindows) {
             storageDirectoryPath = "C:\\\\FRC\\resources\\images\\";
             storageDirectoryPathReports = "C:\\\\FRC\\resources\\reports\\";
+            imagePresentaciones = "C:\\\\FRC\\resources\\images\\productos\\presentaciones\\";
             imagePresentaciones = "C:\\\\FRC\\resources\\images\\productos\\presentaciones\\thumbnails\\";
         } else {
             storageDirectoryPath = storageDirectoryPath+"/";
             storageDirectoryPathReports = storageDirectoryPathReports+"/";
             imagePresentaciones = imagePresentaciones+"/";
-
+            imagePresentacionesThumbPath = imagePresentacionesThumbPath+"/";
         }
     }
 
@@ -66,12 +67,12 @@ public class ImageService {
         }
     }
 
-    public  String getImageWithMediaType(String imageName) {
+    public  String getImageWithMediaType(String imageName, String imagePath) {
 
         byte[] fileContent = new byte[0];
         try {
             String filePath;
-            filePath = storageDirectoryPath+imageName;
+            filePath = imagePath+imageName;
             fileContent = FileUtils.readFileToByteArray(new File(filePath));
             String image = Base64.getEncoder().encodeToString(fileContent);
             return "data:image/jpg;base64,"+image;
@@ -80,10 +81,10 @@ public class ImageService {
         }
     }
 
-    public Boolean saveImageToPath(String imageBase64, String fileName, Boolean thumbnail)throws IOException{
+    public Boolean saveImageToPath(String imageBase64, String fileName, String imagePath, String imageThumbPath, Boolean thumbnail)throws IOException{
         Boolean res = false;
         String filePath;
-        filePath = storageDirectoryPath+fileName;
+        filePath = imagePath+fileName;
         Path path = Paths.get(filePath);
         log.warn("borrando "+ path);
         deleteFile(path.toString());
@@ -93,7 +94,7 @@ public class ImageService {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        saveScaledImage(filePath,filePath, fileName+"t", 100);
+        saveScaledImage(filePath, imageThumbPath, fileName, 100);
         return res;
     }
 
@@ -106,7 +107,6 @@ public class ImageService {
         } else {
             log.warn("falla al borrar");
         }
-
         return success;
     }
 
@@ -127,13 +127,13 @@ public class ImageService {
         File input = new File(originalFilePath);
         try {
             BufferedImage image = ImageIO.read(input);
-            BufferedImage resized = resize(image, 120, 120);
+            BufferedImage resized = resize(image, 250, 250);
             File output = new File(path, fileNameToSave);
             deleteFile(output.toString());
             ImageIO.write(resized, "jpeg", output);
             return true;
         } catch (IOException e) {
-            // handle
+            e.printStackTrace();
         }
         return false;
     }

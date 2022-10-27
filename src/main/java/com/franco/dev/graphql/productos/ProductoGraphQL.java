@@ -106,7 +106,7 @@ public class ProductoGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     ;
 
     public Boolean saveImagenProducto(String image, String filename) throws IOException {
-        return imageService.saveImageToPath(image, filename, true);
+        return imageService.saveImageToPath(image, filename, imageService.imagePresentaciones, imageService.imagePresentacionesThumbPath, true);
     }
 
     public Boolean productoDescripcionExists(String descripcion) {

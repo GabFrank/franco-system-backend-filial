@@ -9,6 +9,7 @@ type ConfiguracionGeneral {
 
 extend type Query {
     configuracionGeneral:ConfiguracionGeneral
+    solicitarResources:Boolean
 }
 
 

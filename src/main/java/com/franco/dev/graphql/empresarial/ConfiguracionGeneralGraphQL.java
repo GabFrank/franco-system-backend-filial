@@ -30,4 +30,9 @@ public class ConfiguracionGeneralGraphQL implements GraphQLQueryResolver, GraphQ
         return service.findById((long) 1);
     }
 
+    public Boolean solicitarResources(){
+        propagacionService.solicitarResources();
+        return true;
+    }
+
 }
