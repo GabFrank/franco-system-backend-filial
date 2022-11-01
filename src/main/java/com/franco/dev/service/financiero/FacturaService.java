@@ -395,7 +395,7 @@ public class FacturaService {
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
-            escpos.writeLF(new Style().setBold(true).setFontSize(Style.FontSize._0, Style.FontSize._0), valorGs);
+            escpos.writeLF(new Style().setBold(true), valorGs);
             escpos.writeLF("--------Liquidación IVA---------");
             escpos.write("Gravadas 10%:");
             String totalIva10S = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIva10.intValue());

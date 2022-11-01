@@ -186,7 +186,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                             fiInput.setIva(vi.getPresentacion().getProducto().getIva());
                             fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
                             fiInput.setCantidad(vi.getCantidad());
-                            fiInput.setPrecioUnitario(vi.getPrecioVenta().getPrecio());
+                            fiInput.setPrecioUnitario(vi.getPrecioVenta().getPrecio() - vi.getValorDescuento());
                             fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
                             facturaLegalItemInputList.add(fiInput);
                         }
@@ -314,7 +314,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 aumento += cdi.getValor() * cdi.getCambio();
             }
             if (cdi.getDescuento()) {
-                aumento += cdi.getValor() * cdi.getCambio();
+                descuento += cdi.getValor() * cdi.getCambio();
             }
             if (cdi.getVuelto()) {
                 if (cdi.getMonedaId() == 1) {
@@ -378,8 +378,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad().intValue() + ") " + "10%";
                 escpos.writeLF(vi.getProducto().getDescripcion());
                 escpos.write(new Style().setBold(true), cantidad);
-                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue());
-                String valorTotal = String.valueOf(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue());
+                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue());
+                String valorTotal = String.valueOf((vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue()) * vi.getCantidad().intValue());
                 for (int i = 14; i > cantidad.length(); i--) {
                     escpos.write(" ");
                 }
@@ -388,6 +388,12 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     escpos.write(" ");
                 }
                 escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
+            }
+            escpos.writeLF("--------------------------------");
+            escpos.write("Descuento Gs: ");
+            String valorDescuentoGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(descuento.intValue());
+            for (int i = 22; i > valorDescuentoGs.length(); i--) {
+                escpos.write(" ");
             }
             escpos.writeLF("--------------------------------");
             escpos.write("Total Gs: ");
