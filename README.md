@@ -10,4 +10,7 @@ Anotaciones de cambios discriminado por fechas
   - Luego de guardar todo se puede propagar al servidor
   - Modificaciones en bd servidor central (ok)
     - ALTER TABLE financiero.venta_credito_cuota ADD sucursal_id int8 NULL; 
+    - ALTER TABLE financiero.venta_credito_cuota ADD CONSTRAINT venta_credito_cuota_sucursal_fk FOREIGN KEY (sucursal_id) REFERENCES empresarial.sucursal(id) ON UPDATE CASCADE ON DELETE CASCADE;
+    - ALTER TABLE financiero.venta_credito_cuota ADD CONSTRAINT venta_credito_cuota_usuario_fk FOREIGN KEY (usuario_id) REFERENCES personas.usuario(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
 
