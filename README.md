@@ -5,7 +5,7 @@ Anotaciones de cambios discriminado por fechas
 19-12-2022
 
 Modificacion en enum delivery_estado; (not ok)
-ALTER TYPE operaciones.delivery_estado ADD VALUE 'CONCLUIDO';
+  - ALTER TYPE operaciones.delivery_estado ADD VALUE 'CONCLUIDO';
 
 
 --------------------------------------------------------------------------------------------------------------------------------------
