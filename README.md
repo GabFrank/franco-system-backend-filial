@@ -1,6 +1,14 @@
 # franco-system-backend-filial
 
 Anotaciones de cambios discriminado por fechas
+--------------------------------------------------------------------------------------------------------------------------------------
+19-12-2022
+
+Modificacion en enum delivery_estado; (not ok)
+ALTER TYPE operaciones.delivery_estado ADD VALUE 'CONCLUIDO';
+
+
+--------------------------------------------------------------------------------------------------------------------------------------
 
 29-11-2022
 
@@ -19,5 +27,6 @@ Anotaciones de cambios discriminado por fechas
     - ALTER TABLE financiero.venta_credito_cuota DROP CONSTRAINT venta_credito_cuota_sucursal_fk;
     - ALTER TABLE financiero.venta_credito_cuota ADD CONSTRAINT venta_credito_cuota_sucursal_fk FOREIGN KEY (sucursal_id) REFERENCES empresarial.sucursal(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
+--------------------------------------------------------------------------------------------------------------------------------------
 
 
