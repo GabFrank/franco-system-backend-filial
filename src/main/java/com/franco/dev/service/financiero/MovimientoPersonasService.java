@@ -1,6 +1,8 @@
 package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.MovimientoPersonas;
+import com.franco.dev.domain.financiero.VentaCreditoCuota;
+import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.financiero.MovimientoPersonasRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

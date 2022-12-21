@@ -55,18 +55,22 @@ extend type Query {
     delivery(id:ID!, sucId: ID):Delivery
     deliverys(page:Int = 0, size:Int = 10, sucId: ID):[Delivery]!
     deliverysByEstado(estado: DeliveryEstado, sucId: ID):[Delivery]
+    deliverysByEstadoList(estadoList: [DeliveryEstado], sucId: ID):[Delivery]
     deliverysByEstadoNotIn(estado: DeliveryEstado, sucId: ID):[Delivery]
     deliverysUltimos10(sucId: ID):[Delivery]
     countDelivery: Int
+    reimprimirDelivery(id: Int!, printerName: String, local: String): Boolean
 }
 
 extend type Mutation {
     saveDelivery(delivery:DeliveryInput!):Delivery!
+    saveDeliveryAndVenta(deliveryInput:DeliveryInput!, ventaInput:VentaInput, ventaItemInputList:[VentaItemInput], vueltoInput:VueltoInput, vueltoItemInputList:[VueltoItemInput], cobroInput: CobroInput, cobroDetalleInputList: [CobroDetalleInput]):Delivery
     deleteDelivery(id:ID!, sucId: ID):Boolean!
+    saveDeliveryEstado(deliveryId: Int!, deliveryEstado: DeliveryEstado!, printerName: String, local: String, pdvId: Int): Delivery
 }
 
 enum DeliveryEstado {
-    ABIERTO, EN_CAMINO, ENTREGADO, CANCELADO, DEVOLVIDO
+    ABIERTO, EN_CAMINO, ENTREGADO, CANCELADO, DEVOLVIDO, PARA_ENTREGA, CONCLUIDO
 }
 
 extend type Subscription {

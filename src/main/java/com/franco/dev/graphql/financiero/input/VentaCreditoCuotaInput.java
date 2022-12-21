@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class VentaCreditoCuotaInput {
     private Long id;
+    private Long sucursalId;
     private Long ventaCreditoId;
     private Long cobroId;
     private Double valor;

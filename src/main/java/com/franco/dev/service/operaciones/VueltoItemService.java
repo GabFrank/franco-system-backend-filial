@@ -1,6 +1,7 @@
 package com.franco.dev.service.operaciones;
 
 import com.franco.dev.domain.operaciones.VueltoItem;
+import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.VueltoItemRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
@@ -20,6 +21,14 @@ public class VueltoItemService extends CrudService<VueltoItem, VueltoItemReposit
 
     public List<VueltoItem> findByVueltoId(Long id){
         return repository.findByVueltoId(id);
+    }
+
+    @Override
+    public VueltoItem saveAndSend(VueltoItem entity, Boolean recibir) {
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        VueltoItem e = super.save(entity);
+        propagacionService.propagarEntidad(e, TipoEntidad.VUELTO_ITEM, recibir);
+        return e;
     }
 
     @Override

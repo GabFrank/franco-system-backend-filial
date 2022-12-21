@@ -14,6 +14,7 @@ type Venta {
     totalRs: Float
     totalDs: Float
     cobro: Cobro
+    delivery: Delivery
 }
 
 input VentaInput {
@@ -28,6 +29,7 @@ input VentaInput {
     totalGs: Float
     totalRs: Float
     totalDs: Float
+    sucursalId: Int
 }
 
 extend type Query {
@@ -39,7 +41,7 @@ extend type Query {
 }
 
 extend type Mutation {
-    saveVenta(ventaInput:VentaInput!, ventaItemList: [VentaItemInput], cobro: CobroInput, cobroDetalleList: [CobroDetalleInput], ticket: Boolean, printerName: String, local: String, pdvId: Int, credito: Boolean):Venta
+    saveVenta(ventaInput:VentaInput!, ventaItemList: [VentaItemInput], cobro: CobroInput, cobroDetalleList: [CobroDetalleInput], ticket: Boolean, printerName: String, local: String, pdvId: Int, ventaCreditoInput: VentaCreditoInput, ventaCreditoCuotaInputList: [VentaCreditoCuotaInput]):Venta
     deleteVenta(id:ID!, sucId: ID):Boolean!
     cancelarVenta(id:ID!, sucId: ID):Boolean!
     reimprimirVenta(id:ID!, printerName: String, local: String, sucId: ID):Boolean!

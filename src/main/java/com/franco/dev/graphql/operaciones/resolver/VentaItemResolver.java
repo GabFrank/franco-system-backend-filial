@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 @Component
 public class VentaItemResolver implements GraphQLResolver<VentaItem> {
@@ -22,6 +23,10 @@ public class VentaItemResolver implements GraphQLResolver<VentaItem> {
         if(v.getUnidadMedida() == UnidadMedida.CAJA){
             cantidad = v.getProducto().getUnidadPorCaja();
         }
-        return (v.getPrecioVenta().getPrecio() * v.getCantidad() * cantidad);
+        try {
+            return (v.getPrecioVenta().getPrecio() * v.getCantidad() * cantidad);
+        } catch (Exception e){
+            return 0.0;
+        }
     }
 }

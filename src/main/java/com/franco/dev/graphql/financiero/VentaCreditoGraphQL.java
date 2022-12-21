@@ -67,4 +67,32 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
+
+    @Transactional
+    public VentaCredito saveVentaCredito(VentaCreditoInput input, List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) {
+        ModelMapper m = new ModelMapper();
+        VentaCredito e = m.map(input, VentaCredito.class);
+        if (input.getUsuarioId() != null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
+        if (input.getClienteId() != null) e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
+        if (input.getSucursalId() != null) e.setSucursalId(input.getSucursalId());
+        e = service.saveAndSend(e, false);
+        if (e.getId() != null) {
+            for (VentaCreditoCuotaInput vc : ventaCreditoCuotaInputList) {
+                vc.setVentaCreditoId(e.getId());
+                vc.setUsuarioId(input.getUsuarioId());
+                VentaCreditoCuota ventaCreditoCuota = ventaCreditoCuotasGraphQL.saveVentaCreditoCuota(vc);
+                if (ventaCreditoCuota != null) {
+                    MovimientoPersonas movimientoPersonas = new MovimientoPersonas();
+                    movimientoPersonas.setVencimiento(ventaCreditoCuota.getVencimiento());
+                    movimientoPersonas.setPersona(e.getCliente().getPersona());
+                    movimientoPersonas.setActivo(true);
+                    movimientoPersonas.setReferenciaId(ventaCreditoCuota.getId());
+                    movimientoPersonas.setTipo(TipoMovimientoPersonas.VENTA_CREDITO);
+                    movimientoPersonas.setValorTotal(vc.getValor() * -1);
+                    propagacionService.propagarEntidad(movimientoPersonas, TipoEntidad.MOVIMIENTO_PERSONA, false);
+                }
+            }
+        }
+        return e;
+    }
 }

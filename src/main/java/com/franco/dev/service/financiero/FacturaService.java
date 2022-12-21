@@ -4,6 +4,7 @@ import com.franco.dev.domain.empresarial.PuntoDeVenta;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.TimbradoDetalle;
 import com.franco.dev.domain.operaciones.Cobro;
+import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.personas.Usuario;
@@ -70,8 +71,10 @@ public class FacturaService {
     private ImpresionService impresionService;
     @Autowired
     private UsuarioService usuarioService;
+    @Autowired
+    private CambioService cambioService;
 
-    public Long printTicket58mmFacturaConVenta(Venta venta, Cobro cobro, List<VentaItem> ventaItemList, List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local, FacturaLegalInput facturaLegal, Long pdvId, Long numeroFactura) throws Exception {
+    public Long printTicket58mmFacturaConVenta(Venta venta, Cobro cobro, List<VentaItem> ventaItemList, List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local, FacturaLegalInput facturaLegal, Long pdvId, Long numeroFactura, Delivery delivery) throws Exception {
         PrintService selectedPrintService = printingService.getPrintService(printerName);
         Sucursal sucursal = sucursalService.sucursalActual();
         PuntoDeVenta puntoDeVenta = puntoDeVentaService.getPuntoDeVentaActual(pdvId);
@@ -268,7 +271,7 @@ public class FacturaService {
         return null;
     }
 
-    public SaveFacturaDto printTicket58mmFactura(Venta venta, FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar) throws Exception {
+    public SaveFacturaDto printTicket58mmFactura(Venta venta, FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar, Delivery delivery) throws Exception {
         SaveFacturaDto saveFacturaDto = new SaveFacturaDto();
         PrintService selectedPrintService = printingService.getPrintService(printerName);
         Sucursal sucursal = sucursalService.sucursalActual();
@@ -290,6 +293,17 @@ public class FacturaService {
         Double totalIva5 = 0.0;
         Double totalIva = 0.0;
         Double totalFinal = 0.0;
+        Double precioDeliveryGs = 0.0;
+        Double precioDeliveryRs = 0.0;
+        Double precioDeliveryDs = 0.0;
+        Double cambioRs = cambioService.findLastByMonedaId(Long.valueOf(2)).getValorEnGs();
+        Double cambioDs = cambioService.findLastByMonedaId(Long.valueOf(3)).getValorEnGs();
+
+        if(delivery!=null){
+            precioDeliveryGs = delivery.getPrecio().getValor();
+            precioDeliveryRs = precioDeliveryGs / cambioRs;
+            precioDeliveryDs = precioDeliveryGs / cambioDs;
+        }
 
         if (selectedPrintService != null) {
             printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream : new PrinterOutputStream(selectedPrintService);
@@ -336,7 +350,9 @@ public class FacturaService {
             }
             escpos.writeLF(center, "Local: " + puntoDeVenta.getNombre());
             if (venta != null) escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
-
+            if(delivery!=null){
+                escpos.writeLF(center, "Modo: Delivery");
+            }
             if (cajero != null) {
                 escpos.writeLF("Cajero: " + cajero.getPersona().getNombre());
             }

@@ -3,10 +3,7 @@ package com.franco.dev.graphql.operaciones.resolver;
 import com.franco.dev.domain.operaciones.*;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.enums.UnidadMedida;
-import com.franco.dev.service.operaciones.PedidoItemService;
-import com.franco.dev.service.operaciones.PedidoItemSucursalService;
-import com.franco.dev.service.operaciones.VentaItemService;
-import com.franco.dev.service.operaciones.VentaService;
+import com.franco.dev.service.operaciones.*;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLResolver;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +20,9 @@ public class VentaResolver implements GraphQLResolver<Venta> {
 
     @Autowired
     private VentaItemService ventaItemService;
+
+    @Autowired
+    private DeliveryService deliveryService;
 
     public List<VentaItem> ventaItemList(Venta v){
         return ventaItemService.findByVentaId(v.getId());
@@ -47,9 +47,17 @@ public class VentaResolver implements GraphQLResolver<Venta> {
             if(vi.getUnidadMedida() == UnidadMedida.CAJA){
                 cantidad = vi.getProducto().getUnidadPorCaja();
             }
-            precio += vi.getPrecioVenta().getPrecio() * (vi.getCantidad() * cantidad);
+            try {
+                precio += vi.getPrecioVenta().getPrecio() * (vi.getCantidad() * cantidad);
+            } catch (Exception e){
+
+            }
             cantidad = 1;
         }
         return precio;
+    }
+
+    public Delivery delivery(Venta v){
+        return deliveryService.findByVentaId(v.getId(), v.getSucursalId());
     }
 }

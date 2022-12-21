@@ -3,6 +3,7 @@ package com.franco.dev.service.operaciones;
 import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
+import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.VentaItemRepository;
 import com.franco.dev.service.CrudService;
@@ -47,7 +48,7 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
                 movimientoStock.setEstado(false);
                 movimientoStockService.saveAndSend(movimientoStock, false);
             }
-        } else {
+        } else if(e.getVenta().getEstado() == VentaEstado.CONCLUIDA) {
             MovimientoStock movimientoStock = new MovimientoStock();
             movimientoStock.setCreadoEn(entity.getCreadoEn());
             movimientoStock.setUsuario(entity.getUsuario());

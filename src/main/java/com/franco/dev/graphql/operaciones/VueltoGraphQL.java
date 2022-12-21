@@ -53,7 +53,7 @@ public class VueltoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         if (input.getAutorizadoPorId() != null) {
             e.setAutorizadoPor(funcionarioService.findById(input.getAutorizadoPorId()).orElse(null));
         }
-        return service.save(e);
+        return service.saveAndSend(e, false);
     }
 
     public Boolean deleteVuelto(Long id, Long sucId) {

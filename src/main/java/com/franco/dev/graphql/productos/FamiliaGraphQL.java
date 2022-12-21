@@ -29,7 +29,7 @@ public class FamiliaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
     public List<Familia> familias(int page, int size){
         Pageable pageable = PageRequest.of(page,size);
-        return service.findAll(pageable);
+        return service.findAll2();
     }
 
     public Familia saveFamilia(FamiliaInput input){

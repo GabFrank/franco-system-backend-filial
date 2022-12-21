@@ -1,8 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
-import com.franco.dev.domain.operaciones.Vuelto;
 import com.franco.dev.domain.operaciones.VueltoItem;
-import com.franco.dev.graphql.operaciones.input.VueltoInput;
 import com.franco.dev.graphql.operaciones.input.VueltoItemInput;
 import com.franco.dev.service.financiero.MonedaService;
 import com.franco.dev.service.operaciones.VueltoItemService;
@@ -16,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,10 +33,12 @@ public class VueltoItemGraphQL implements GraphQLQueryResolver, GraphQLMutationR
     @Autowired
     private VueltoService vueltoService;
 
-    public Optional<VueltoItem> vueltoItem(Long id, Long sucId) {return service.findById(id);}
+    public Optional<VueltoItem> vueltoItem(Long id, Long sucId) {
+        return service.findById(id);
+    }
 
-    public List<VueltoItem> vueltoItems(int page, int size, Long sucId){
-        Pageable pageable = PageRequest.of(page,size);
+    public List<VueltoItem> vueltoItems(int page, int size, Long sucId) {
+        Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
@@ -45,26 +46,35 @@ public class VueltoItemGraphQL implements GraphQLQueryResolver, GraphQLMutationR
 //        return service.findByAll(texto);
 //    }
 
-    public VueltoItem saveVueltoItem(VueltoItemInput input){
+    public VueltoItem saveVueltoItem(VueltoItemInput input) {
         ModelMapper m = new ModelMapper();
         VueltoItem e = m.map(input, VueltoItem.class);
-        if(input.getUsuarioId()!= null){
+        if (input.getUsuarioId() != null) {
             e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         }
-        if(input.getMonedaId()!= null){
+        if (input.getMonedaId() != null) {
             e.setMoneda(monedaService.findById(input.getMonedaId()).orElse(null));
         }
-        if(input.getVueltoId()!= null){
+        if (input.getVueltoId() != null) {
             e.setVuelto(vueltoService.findById(input.getVueltoId()).orElse(null));
         }
-        return service.save(e);
+        return service.saveAndSend(e, false);
     }
 
-    public Boolean deleteVueltoItem(Long id, Long sucId){
+    public List<VueltoItem> saveVueltoItemList(List<VueltoItemInput> vueltoItemInputList, Long vueltoId) {
+        List<VueltoItem> vueltoItemList = new ArrayList<>();
+        for(VueltoItemInput vi: vueltoItemInputList){
+            vi.setVueltoId(vueltoId);
+            vueltoItemList.add(saveVueltoItem(vi));
+        }
+        return vueltoItemList;
+    }
+
+    public Boolean deleteVueltoItem(Long id, Long sucId) {
         return service.deleteById(id);
     }
 
-    public Long countVueltoItem(){
+    public Long countVueltoItem() {
         return service.count();
     }
 

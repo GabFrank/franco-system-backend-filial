@@ -39,7 +39,8 @@ extend type Query {
 }
 
 extend type Mutation {
-    saveCobroDetalle(cobroDetalle:CobroDetalleInput!):CobroDetalle!
+    saveCobroDetalle(entity:CobroDetalleInput!):CobroDetalle!
+    saveCobroDetalleList(cobroDetalleList:[CobroDetalleInput]!):[CobroDetalle]!
     deleteCobroDetalle(id:ID!, sucId: ID):Boolean!
 }
 

@@ -169,7 +169,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         TimbradoDetalle timbradoDetalle = puntoDeVenta != null ? timbradoDetalleService.getTimbradoDetalleActual(puntoDeVenta.getId()) : null;
         if (timbradoDetalle != null) {
             try {
-                return facturaService.printTicket58mmFactura(venta, facturaLegal, facturaLegalItemList, printerName, pdvId, continuar);
+                return facturaService.printTicket58mmFactura(venta, facturaLegal, facturaLegalItemList, printerName, pdvId, continuar, null);
             } catch (Exception e) {
                 e.printStackTrace();
             }

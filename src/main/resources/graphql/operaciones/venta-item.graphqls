@@ -13,7 +13,7 @@ type VentaItem {
     creadoEn: Date
     usuario: Usuario
     valorTotal: Float
-
+    activo: Boolean
 }
 
 input VentaItemInput {
@@ -29,6 +29,8 @@ input VentaItemInput {
     precio: Float
     valorDescuento: Float
     usuarioId: Int
+    sucursalId: Int
+    activo: Boolean
 }
 
 extend type Query {
@@ -39,7 +41,7 @@ extend type Query {
 }
 
 extend type Mutation {
-    saveVentaItem(ventaItem:VentaItemInput!):VentaItem!
+    saveVentaItem(entity:VentaItemInput!):VentaItem!
     deleteVentaItem(id:ID!, sucId: ID):Boolean!
 }
 
