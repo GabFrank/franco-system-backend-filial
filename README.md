@@ -5,7 +5,8 @@ Anotaciones de cambios discriminado por fechas
 --------------------------------------------------------------------------------------------------------------------------------------
 29-12-22 (only filial dev)
 
-CREATE TABLE configuraciones.rabbitmq_msg (
+Creacion de tabla para guardar mensajes de rabbit que no se pueden enviar
+  - CREATE TABLE configuraciones.rabbitmq_msg (
 	id bigserial primary key,
 	tipo_accion text,
 	tipo_entidad text,
@@ -16,6 +17,7 @@ CREATE TABLE configuraciones.rabbitmq_msg (
 	recibido_en_filial boolean,
 	key text
 );
+
 --------------------------------------------------------------------------------------------------------------------------------------
 19-12-2022
 
