@@ -1,6 +1,21 @@
 # franco-system-backend-filial
 
 Anotaciones de cambios discriminado por fechas
+
+--------------------------------------------------------------------------------------------------------------------------------------
+29-12-22 (only filial dev)
+
+CREATE TABLE configuraciones.rabbitmq_msg (
+	id bigserial primary key,
+	tipo_accion text,
+	tipo_entidad text,
+	entidad text,
+	id_sucursal_origen numeric,
+	data text,
+	recibido_en_servidor boolean,
+	recibido_en_filial boolean,
+	key text
+);
 --------------------------------------------------------------------------------------------------------------------------------------
 19-12-2022
 
