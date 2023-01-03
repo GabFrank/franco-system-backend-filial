@@ -16,7 +16,8 @@ Creacion de tabla para guardar mensajes de rabbit que no se pueden enviar
 	recibido_en_servidor boolean,
 	recibido_en_filial boolean,
 	exchange text,
-	key text
+	key text,
+	class_type text
 );
 
 --------------------------------------------------------------------------------------------------------------------------------------
