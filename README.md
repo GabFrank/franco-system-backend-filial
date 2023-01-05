@@ -2,6 +2,39 @@
 
 Anotaciones de cambios discriminado por fechas
 
+05-10-23 (only filial dev)
+
+Creacion de tabla actualizacion para las filiales
+
+ - CREATE TYPE configuraciones."nivel_actualizacion" AS ENUM (
+	'CRITICO',
+	'MODERADO',
+	'MANTENIMIENTO');
+	
+ - CREATE TYPE configuraciones."tipo_actualizacion" AS ENUM (
+	'MOBILE',
+	'DESKTOP',
+	'SERVIDOR_FILIAL',
+	'SERVIDOR_CENTRAL');
+	
+ - CREATE TABLE configuraciones.actualizacion (
+	id bigserial NOT NULL,
+	current_version varchar NULL,
+	enabled bool NULL,
+	tipo configuraciones."tipo_actualizacion" NULL,
+	nivel configuraciones."nivel_actualizacion" NULL,
+	title varchar NULL,
+	msg varchar NULL,
+	btn varchar NULL,
+	usuario_id int8 NULL,
+	creado_en timestamp NULL,
+	sucursal_id int8 NOT NULL DEFAULT 0,
+	CONSTRAINT actualizacion_current_version_key UNIQUE (current_version),
+	CONSTRAINT actualizacion_pk PRIMARY KEY (id, sucursal_id)
+);
+
+
+
 --------------------------------------------------------------------------------------------------------------------------------------
 29-12-22 (only filial dev)
 
