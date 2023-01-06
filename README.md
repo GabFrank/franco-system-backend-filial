@@ -28,9 +28,7 @@ Creacion de tabla actualizacion para las filiales
 	btn varchar NULL,
 	usuario_id int8 NULL,
 	creado_en timestamp NULL,
-	sucursal_id int8 NOT NULL DEFAULT 0,
-	CONSTRAINT actualizacion_current_version_key UNIQUE (current_version),
-	CONSTRAINT actualizacion_pk PRIMARY KEY (id, sucursal_id)
+	CONSTRAINT actualizacion_current_version_key UNIQUE (current_version)
 );
 
 
