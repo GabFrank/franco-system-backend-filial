@@ -1,0 +1,50 @@
+type Actualizacion {
+    id:ID!
+    currentVersion: String
+    enabled: Boolean
+    nivel: NivelActualizacion
+    tipo: TipoActualizacion
+    title: String
+    msg: String
+    btn: String
+    usuario: Usuario
+    creadoEn: Date
+}
+
+input ActualizacionInput {
+    id:ID
+    currentVersion: String
+    enabled: Boolean
+    nivel: NivelActualizacion
+    tipo: TipoActualizacion
+    title: String
+    msg: String
+    btn: String
+    usuarioId: Int
+}
+
+extend type Query {
+    actualizacion(id:ID!):Actualizacion
+    actualizaciones(page:Int = 0, size:Int = 10):[Actualizacion]!
+    countActualizacion: Int
+    ultimaActualizacion(tipo:TipoActualizacion):Actualizacion
+}
+
+extend type Mutation {
+    saveActualizacion(actualizacion:ActualizacionInput!):Actualizacion!
+    deleteActualizacion(id:ID!):Boolean!
+}
+
+enum NivelActualizacion {
+        CRITICO,
+        MODERADO,
+        MANTENIMIENTO
+}
+
+enum TipoActualizacion {
+        MOBILE,
+        DESKTOP,
+        SERVIDOR_FILIAL,
+        SERVIDOR_CENTRAL
+}
+

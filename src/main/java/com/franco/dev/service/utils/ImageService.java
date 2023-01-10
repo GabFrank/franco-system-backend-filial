@@ -1,22 +1,16 @@
 package com.franco.dev.service.utils;
 
-import com.sun.istack.Nullable;
 import org.apache.commons.io.FileUtils;
-import org.apache.juli.logging.LogFactory;
 import org.imgscalr.Scalr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-
 import javax.imageio.ImageIO;
-import javax.validation.constraints.Null;
-import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,15 +23,16 @@ public class ImageService {
     public final Logger log = LoggerFactory.getLogger(ImageService.class);
 
     String userDirectory = System.getProperty("user.home");
+    public String storageDirectoryPath = userDirectory + "/FRC/resources/images";
+    public String imagePresentaciones = userDirectory + "/FRC/resources/images/productos/presentaciones";
+    public String imagePresentacionesThumbPath = userDirectory + "/FRC/resources/images/productos/presentaciones/thumbnails";
+    public String storageDirectoryPathReports = userDirectory + "/FRC/resources/reports";
+    public String serverPath = userDirectory + "/FRC/frc-server";
+    public String appPath = userDirectory + File.separator + "FRC";
     boolean isWindows = true;
     boolean isMac = false;
 
-    public String storageDirectoryPath = userDirectory+"/FRC/resources/images";
-    public String imagePresentaciones = userDirectory+"/FRC/resources/images/productos/presentaciones";
-    public String imagePresentacionesThumbPath = userDirectory+"/FRC/resources/images/productos/presentaciones/thumbnails";
-    public String storageDirectoryPathReports = userDirectory+"/FRC/resources/reports";
-
-    public ImageService(){
+    public ImageService() {
 
         String osName = System.getProperty("os.name");
 
@@ -46,17 +41,34 @@ public class ImageService {
         isWindows = osName.contains("Windows");
         isMac = osName.contains("Mac");
 
-        if(isWindows) {
+        if (isWindows) {
             storageDirectoryPath = "C:\\\\FRC\\resources\\images\\";
             storageDirectoryPathReports = "C:\\\\FRC\\resources\\reports\\";
             imagePresentaciones = "C:\\\\FRC\\resources\\images\\productos\\presentaciones\\";
-            imagePresentaciones = "C:\\\\FRC\\resources\\images\\productos\\presentaciones\\thumbnails\\";
+            imagePresentacionesThumbPath = "C:\\\\FRC\\resources\\images\\productos\\presentaciones\\thumbnails\\";
+            serverPath = "C:\\\\FRC\\frc-service\\";
+            appPath = "C:\\\\FRC\\";
         } else {
-            storageDirectoryPath = storageDirectoryPath+"/";
-            storageDirectoryPathReports = storageDirectoryPathReports+"/";
-            imagePresentaciones = imagePresentaciones+"/";
-            imagePresentacionesThumbPath = imagePresentacionesThumbPath+"/";
+            storageDirectoryPath = storageDirectoryPath + "/";
+            storageDirectoryPathReports = storageDirectoryPathReports + "/";
+            imagePresentaciones = imagePresentaciones + "/";
+            imagePresentacionesThumbPath = imagePresentacionesThumbPath + "/";
+            serverPath = serverPath + "/";
+            appPath = appPath + "/";
         }
+    }
+
+    public static MultipartFile converter(String source) {
+        String[] charArray = source.split(",");
+        Base64.Decoder decoder = Base64.getDecoder();
+        byte[] bytes = new byte[0];
+        bytes = decoder.decode(charArray[1]);
+        for (int i = 0; i < bytes.length; i++) {
+            if (bytes[i] < 0) {
+                bytes[i] += 256;
+            }
+        }
+        return Base64Decoder.multipartFile(bytes, charArray[0]);
     }
 
     public String getResourcesPath() {
@@ -67,28 +79,28 @@ public class ImageService {
         }
     }
 
-    public  String getImageWithMediaType(String imageName, String imagePath) {
+    public String getImageWithMediaType(String imageName, String imagePath) {
 
         byte[] fileContent = new byte[0];
         try {
             String filePath;
-            filePath = imagePath+imageName;
+            filePath = imagePath + imageName;
             fileContent = FileUtils.readFileToByteArray(new File(filePath));
             String image = Base64.getEncoder().encodeToString(fileContent);
-            return "data:image/jpg;base64,"+image;
+            return "data:image/jpg;base64," + image;
         } catch (IOException e) {
             return null;
         }
     }
 
-    public Boolean saveImageToPath(String imageBase64, String fileName, String imagePath, String imageThumbPath, Boolean thumbnail)throws IOException{
+    public Boolean saveImageToPath(String imageBase64, String fileName, String imagePath, String imageThumbPath, Boolean thumbnail) throws IOException {
         Boolean res = false;
         String filePath;
-        filePath = imagePath+fileName;
+        filePath = imagePath + fileName;
         Path path = Paths.get(filePath);
-        log.warn("borrando "+ path);
+        log.warn("borrando " + path);
         deleteFile(path.toString());
-        try{
+        try {
             Files.copy(converter(imageBase64).getInputStream(), path);
             res = true;
         } catch (IOException e) {
@@ -98,29 +110,16 @@ public class ImageService {
         return res;
     }
 
-    public Boolean deleteFile(String path) throws IOException{
+    public Boolean deleteFile(String path) throws IOException {
         FileUtils.touch(new File(path));
         File fileToDelete = FileUtils.getFile(path);
         boolean success = FileUtils.deleteQuietly(fileToDelete);
-        if(success){
+        if (success) {
             log.warn("borrado conn exito");
         } else {
             log.warn("falla al borrar");
         }
         return success;
-    }
-
-    public static MultipartFile converter(String source){
-        String [] charArray = source.split(",");
-        Base64.Decoder decoder = Base64.getDecoder();
-        byte[] bytes = new byte[0];
-        bytes = decoder.decode(charArray[1]);
-        for (int i=0;i<bytes.length;i++){
-            if(bytes[i]<0){
-                bytes[i]+=256;
-            }
-        }
-        return Base64Decoder.multipartFile(bytes,charArray[0]);
     }
 
     public boolean saveScaledImage(String originalFilePath, String path, String fileNameToSave, int width) {
@@ -145,14 +144,14 @@ public class ImageService {
         return Scalr.resize(img, 100, 100);
     }
 
-    public Boolean crearThumbs(){
+    public Boolean crearThumbs() {
         try (Stream<Path> paths = Files.walk(Paths.get(imagePresentaciones))) {
 
             paths
                     .filter(Files::isRegularFile)
                     .forEach(f -> {
-                        if(f.toString().contains(".jpg")){
-                            System.out.println("convirtiendo imagen: "+ f.getFileName().toString());
+                        if (f.toString().contains(".jpg")) {
+                            System.out.println("convirtiendo imagen: " + f.getFileName().toString());
                             Boolean res = saveScaledImage(f.toString(), imagePresentacionesThumbPath, f.getFileName().toString(), 100);
                             System.out.println(res);
                         }

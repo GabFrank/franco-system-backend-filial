@@ -38,6 +38,7 @@ public class Usuario extends GenericDomain implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
+    @JsonIgnore
     private Usuario usuario;
 
     @Column(name = "creado_en")

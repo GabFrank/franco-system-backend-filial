@@ -1,5 +1,6 @@
 package com.franco.dev.domain.productos;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.franco.dev.domain.personas.Usuario;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -34,6 +35,7 @@ public class Subfamilia implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sub_familia_id", nullable = false)
+    @JsonIgnore
     private Subfamilia subfamilia;
 
     @ManyToOne(fetch = FetchType.LAZY)

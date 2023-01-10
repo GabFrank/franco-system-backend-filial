@@ -1,13 +1,35 @@
 package com.franco.dev.rabbit;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import com.franco.dev.rabbit.dto.RabbitDto;
+import com.franco.dev.rabbit.dto.RabbitmqMsg;
+import com.franco.dev.rabbit.enums.TipoAccion;
+import com.franco.dev.rabbit.enums.TipoEntidad;
+import com.franco.dev.service.configuracion.RabbitmqMsgService;
+import com.rabbitmq.client.ShutdownSignalException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.*;
+import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
+import org.springframework.amqp.rabbit.connection.Connection;
+import org.springframework.amqp.rabbit.connection.ConnectionListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.health.Health;
+import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.net.ConnectException;
+import java.util.Collections;
+import java.util.List;
 
 @Component
 public class RabbitMQConection {
@@ -15,11 +37,22 @@ public class RabbitMQConection {
     @Autowired
     private Environment env;
 
+    private final Logger logger = LoggerFactory.getLogger(RabbitMQConection.class);
+
     public static final String NOME_EXCHANGE = "amq.topic";
     public static final String NOME_EXCHANGE_DIRECT = "amq.direct";
     public static final String FILIAL_KEY = "filial";
     public static final String SERVIDOR_KEY = "servidor";
     private AmqpAdmin amqpAdmin;
+
+    @Autowired
+    private RabbitTemplate template;
+
+    @Autowired
+    private RabbitmqMsgService rabbitmqMsgService;
+
+    @Autowired
+    private CachingConnectionFactory cachingConnectionFactory;
 
     public RabbitMQConection(AmqpAdmin amqpAdmin){
         this.amqpAdmin = amqpAdmin;
@@ -53,6 +86,52 @@ public class RabbitMQConection {
         Binding binding2 = this.binding(filaProducto, exchange, filaProducto.getName());
         Binding binding3 = this.bindingDirect(filaProductoReplyTo, exchangeDirect, filaProductoReplyTo.getName());
 
+        ConnectionListener connectionListener = new ConnectionListener() {
+            @Override
+            public void onCreate(Connection connection) {
+                logger.info("la conexcion con rabbit fue establecida");
+                List<RabbitmqMsg> rabbitmqMsgList = rabbitmqMsgService.findAll();
+                if (rabbitmqMsgList.size() > 0) {
+                    for (RabbitmqMsg r : rabbitmqMsgList) {
+                        try {
+                            RabbitDto dto = new RabbitDto();
+                            if (r.getRecibidoEnFilial() != null) dto.setRecibidoEnFilial(r.getRecibidoEnFilial());
+                            if (r.getData() != null) dto.setData(r.getData());
+                            if (r.getIdSucursalOrigen() != null) dto.setIdSucursalOrigen(r.getIdSucursalOrigen());
+                            if (r.getRecibidoEnServidor() != null) dto.setRecibidoEnServidor(r.getRecibidoEnServidor());
+                            if (r.getTipoAccion() != null) dto.setTipoAccion(TipoAccion.valueOf(r.getTipoAccion()));
+                            if (r.getTipoEntidad() != null) dto.setTipoEntidad(TipoEntidad.valueOf(r.getTipoEntidad()));
+                            //deserializar entidad
+                            ObjectMapper mapper = new ObjectMapper()
+                                    .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                                    .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+                            Object newEntidad = mapper.readValue(r.getEntidad(), r.getClassType());
+                            dto.setEntidad(newEntidad);
+                            //deserializar data
+                            Object newData = mapper.readValue(r.getEntidad(), Object.class);
+                            dto.setData(newData);
+                            template.convertAndSend(r.getExchange(), r.getKey(), dto);
+                            rabbitmqMsgService.deleteById(r.getId());
+                        } catch (Exception ex1) {
+                            ex1.printStackTrace();
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onClose(Connection connection) {
+                logger.info("la conexcion con rabbit fue perdida");
+            }
+
+            @Override
+            public void onShutDown(ShutdownSignalException signal) {
+                logger.info("la conexcion con rabbit fue interrimpida");
+            }
+        };
+
+        cachingConnectionFactory.addConnectionListener(connectionListener);
+        cachingConnectionFactory.getRabbitConnectionFactory().setRequestedHeartbeat(1);
         try {
             this.amqpAdmin.declareQueue(filaProducto);
             this.amqpAdmin.declareQueue(filaProductoReplyTo);

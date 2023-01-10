@@ -1,13 +1,12 @@
 package com.franco.dev.service.rabbitmq;
 
+import com.franco.dev.domain.configuracion.Actualizacion;
 import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.Conteo;
-import com.franco.dev.domain.financiero.ConteoMoneda;
 import com.franco.dev.domain.financiero.Maletin;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.operaciones.Inventario;
-import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
 import com.franco.dev.graphql.financiero.ConteoGraphQL;
@@ -20,7 +19,10 @@ import com.franco.dev.rabbit.enums.TipoAccion;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.rabbit.sender.Sender;
 import com.franco.dev.service.CrudService;
+import com.franco.dev.service.configuracion.ActualizacionService;
 import com.franco.dev.service.configuracion.LocalService;
+import com.franco.dev.service.configuracion.UpdateData;
+import com.franco.dev.service.configuracion.UpdateService;
 import com.franco.dev.service.empresarial.CargoService;
 import com.franco.dev.service.empresarial.SectorService;
 import com.franco.dev.service.empresarial.SucursalService;
@@ -42,10 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
-import org.springframework.http.*;
-import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.zeroturnaround.zip.ZipUtil;
 
@@ -54,7 +53,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -182,6 +181,10 @@ public class PropagacionService {
     private VentaItemService ventaItemService;
     @Autowired
     private MovimientoCajaService movimientoCajaService;
+    @Autowired
+    private UpdateService updateService;
+    @Autowired
+    private ActualizacionService actualizacionService;
 
     //    public Boolean verficarConexion(Long sucId) {
 //        sucursalVerificar = sucId;
@@ -568,6 +571,9 @@ public class PropagacionService {
             case MOVIMIENTO_CAJA:
                 log.info("creando mov caja: ");
                 return guardar(movimientoCajaService, dto);
+            case ACTUALIZACION:
+                log.info("creando actualizacion: ");
+                return actualizar(dto);
             default:
                 return null;
         }
@@ -605,7 +611,7 @@ public class PropagacionService {
     public <T> Object guardar(CrudService service, RabbitDto dto) {
         switch (dto.getTipoAccion()) {
             case GUARDAR:
-                T nuevaEntidad = dto.getRecibidoEnFilial()!=true ? (T) service.saveAndSend(dto.getEntidad(), false): (T) service.save(dto.getEntidad());
+                T nuevaEntidad = dto.getRecibidoEnFilial() != true ? (T) service.saveAndSend(dto.getEntidad(), false) : (T) service.save(dto.getEntidad());
                 if (nuevaEntidad != null) {
                     log.info("guardado con exito");
                 }
@@ -722,5 +728,33 @@ public class PropagacionService {
 
     public Cliente solicitarCliente(Long id) {
         return (Cliente) sender.enviarAndRecibir(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(id, TipoAccion.SOLICITAR_ENTIDAD, TipoEntidad.CLIENTE, Long.valueOf(env.getProperty("sucursalId"))));
+    }
+
+    public Actualizacion actualizar(RabbitDto dto) {
+        UpdateData data = new UpdateData();
+        log.info("Actualizacion recibida, buscando...");
+        Actualizacion actualizacion = (Actualizacion) dto.getEntidad();
+        actualizacionService.save(actualizacion);
+//        log.info("Actualizacion guardada");
+//        data.setTag(actualizacion.getCurrentVersion());
+//        data.setFileName(actualizacion.getTitle());
+//        if (actualizacion != null) {
+//            String currentVersion = env.getProperty("app.java.version");
+//            if (!currentVersion.equals(actualizacion.getCurrentVersion())) {
+//                log.info("Actual: " + currentVersion);
+//                log.info("Encontrada: " + actualizacion.getCurrentVersion());
+//                log.info("Iniciando actualizacion");
+//                Boolean ok = updateService.runUpdate(data.getTag(), data.getFileName());
+//                if (ok) {
+//                    actualizacion.setEnabled(true);
+//                    actualizacion.setCreadoEn(LocalDateTime.now());
+//                    return actualizacion;
+//                }
+//            } else {
+//                log.info("Actualizacion al dia");
+//            }
+//        }
+
+        return null;
     }
 }

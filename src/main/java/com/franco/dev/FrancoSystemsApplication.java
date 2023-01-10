@@ -2,7 +2,9 @@ package com.franco.dev;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
+import com.franco.dev.service.configuracion.UpdateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
+import org.springframework.core.env.Environment;
 import org.springframework.orm.jpa.support.OpenEntityManagerInViewFilter;
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.web.client.RestTemplate;
@@ -34,9 +37,16 @@ public class FrancoSystemsApplication {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private Environment env;
+
+    @Autowired
+    private UpdateService updateService;
+
     public static void main(String[] args) throws IOException {
         System.out.println("Iniciando sistema");
         SpringApplication.run(FrancoSystemsApplication.class, args);
+
     }
 
     @Bean
@@ -76,26 +86,12 @@ public class FrancoSystemsApplication {
 
     @PostConstruct
     public void setUp() {
-        objectMapper.registerModule(new JavaTimeModule());
-//        propagacionService.verificarResourcesExists();
+        objectMapper
+                .registerModule(new JavaTimeModule())
+                .registerModule(new ParameterNamesModule());
+
+//        updateService.checkForUpdates();
     }
 
-//	@Bean
-//	public void setPrecios(){
-//		List<Producto> productoList = this.productoService.findAll2();
-//		for(Producto p : productoList){
-//			List<Codigo> codigoList = this.codigoService.findByProductoId(p.getId());
-//			for(Codigo c : codigoList){
-//				List<PrecioPorSucursal> precioPorSucursalList = this.precioPorSucursalService.findByCodigoId(Long.valueOf(1));
-//				for(PrecioPorSucursal precioPorSucursal : precioPorSucursalList){
-//					if(precioPorSucursal.getSucursal().getId()==1){
-//						c.setPrecio(precioPorSucursal.getPrecio());
-//						log.info(c.toString());
-//						codigoService.save(c);
-//					}
-//				}
-//			}
-//		}
-//	}
 
 }

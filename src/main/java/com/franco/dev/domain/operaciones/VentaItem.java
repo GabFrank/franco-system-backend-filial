@@ -1,5 +1,6 @@
 package com.franco.dev.domain.operaciones;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.PrecioPorSucursal;
@@ -38,6 +39,7 @@ public class VentaItem implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venta_id", nullable = true)
+    @JsonIgnore
     private Venta venta;
 
     @ManyToOne(fetch = FetchType.EAGER)

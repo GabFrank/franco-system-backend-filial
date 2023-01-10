@@ -34,6 +34,9 @@ public class Receiver {
             case GUARDAR_ARCHIVO:
                 propagacionService.guardarArchivo(dto);
                 break;
+            case ACTUALIZAR:
+                propagacionService.actualizar(dto);
+                break;
             default:
                 break;
         }
