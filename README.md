@@ -2,6 +2,19 @@
 
 Anotaciones de cambios discriminado por fechas
 
+
+-------------------------------------------------------------------------------------------------------
+11-01-23 
+
+ - ALTER TABLE financiero.venta_credito_cuota DROP CONSTRAINT venta_credito_cuota_pkey cascade;
+ - ALTER TABLE financiero.venta_credito_cuota ADD CONSTRAINT venta_credito_cuota_pk PRIMARY KEY (id,sucursal_id);
+
+ - ALTER TABLE financiero.venta_credito DROP CONSTRAINT venta_credito_pkey cascade;
+ - ALTER TABLE financiero.venta_credito ADD CONSTRAINT venta_credito_pk PRIMARY KEY (id,sucursal_id);
+ 
+ --------------------------------------------------------------------------------------------------------
+
+
 05-10-23 (only filial dev)
 
 Creacion de tabla actualizacion para las filiales
