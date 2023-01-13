@@ -4,7 +4,7 @@ Anotaciones de cambios discriminado por fechas
 
 
 -------------------------------------------------------------------------------------------------------
-11-01-23 
+11-01-23 (only server)
 
  - ALTER TABLE financiero.venta_credito_cuota DROP CONSTRAINT venta_credito_cuota_pkey cascade;
  - ALTER TABLE financiero.venta_credito_cuota ADD CONSTRAINT venta_credito_cuota_pk PRIMARY KEY (id,sucursal_id);
