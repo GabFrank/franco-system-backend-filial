@@ -43,7 +43,9 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.zeroturnaround.zip.ZipUtil;
@@ -53,137 +55,198 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class PropagacionService {
 
     @Autowired
+    @Lazy
     public MovimientoStockService movimientoStockService;
     @Autowired
+    @Lazy
     public SectorService sectorService;
     @Autowired
+    @Lazy
     public ZonaService zonaService;
     Long sucursalVerificar = null;
     private Logger log = LoggerFactory.getLogger(PropagacionService.class);
     @Autowired
+    @Lazy
     private Environment env;
     @Autowired
+    @Lazy
     private Sender sender;
     @Autowired
+    @Lazy
     private SucursalService sucursalService;
     @Autowired
+    @Lazy
     private UsuarioService usuarioService;
     @Autowired
+    @Lazy
     private PersonaService personaService;
     @Autowired
+    @Lazy
     private InitDbService initDbService;
     @Autowired
+    @Lazy
     private PaisService paisService;
     @Autowired
+    @Lazy
     private CiudadService ciudadService;
     @Autowired
+    @Lazy
     private FamiliaService familiaService;
     @Autowired
+    @Lazy
     private SubFamiliaService subFamiliaService;
     @Autowired
+    @Lazy
     private ProductoService productoService;
     @Autowired
+    @Lazy
     private TipoPresentacionService tipoPresentacionService;
     @Autowired
+    @Lazy
     private PresentacionService presentacionService;
     @Autowired
+    @Lazy
     private PdvCategoriaService pdvCategoriaService;
     @Autowired
+    @Lazy
     private PdvGrupoService pdvGrupoService;
     @Autowired
+    @Lazy
     private PdvGruposProductosService pdvGruposProductosService;
     @Autowired
+    @Lazy
     private TipoPrecioService tipoPrecioService;
     @Autowired
+    @Lazy
     private PrecioPorSucursalService precioPorSucursalService;
     @Autowired
+    @Lazy
     private BancoService bancoService;
     @Autowired
+    @Lazy
     private CuentaBancariaService cuentaBancariaService;
     @Autowired
+    @Lazy
     private MonedaService monedaService;
     @Autowired
+    @Lazy
     private MonedaBilleteService monedaBilleteService;
     @Autowired
+    @Lazy
     private FormaPagoService formaPagoService;
     @Autowired
+    @Lazy
     private DocumentoService documentoService;
     @Autowired
+    @Lazy
     private MaletinService maletinService;
     @Autowired
+    @Lazy
     private CargoService cargoService;
     @Autowired
+    @Lazy
     private TipoGastoService tipoGastoService;
     @Autowired
+    @Lazy
     private CodigoService codigoService;
     @Autowired
+    @Lazy
     private CambioService cambioService;
     @Autowired
+    @Lazy
     private BarrioService barrioService;
     @Autowired
+    @Lazy
     private ContactoService contactoService;
     @Autowired
+    @Lazy
     private ClienteService clienteService;
     @Autowired
+    @Lazy
     private FuncionarioService funcionarioService;
     @Autowired
+    @Lazy
     private ProveedorService proveedorService;
     @Autowired
+    @Lazy
     private VendedorService vendedorService;
     @Autowired
+    @Lazy
     private VendedorProveedorService vendedorProveedorService;
     @Autowired
+    @Lazy
     private RoleService roleService;
     @Autowired
+    @Lazy
     private UsuarioRoleService usuarioRoleService;
     @Autowired
+    @Lazy
     private SincronizacionStatusPublisher sincronizacionStatusPublisher;
     @Autowired
+    @Lazy
     private LocalService localService;
     @Autowired
+    @Lazy
     private TransferenciaService transferenciaService;
     @Autowired
+    @Lazy
     private TransferenciaItemService transferenciaItemService;
     @Autowired
+    @Lazy
     private InventarioService inventarioService;
     @Autowired
+    @Lazy
     private InventarioProductoService inventarioProductoService;
     @Autowired
+    @Lazy
     private InventarioProductoItemService inventarioProductoItemService;
     @Autowired
+    @Lazy
     private ImageService imageService;
     @Autowired
+    @Lazy
     private PdvCajaService pdvCajaService;
     @Autowired
+    @Lazy
     private ConteoService conteoService;
     @Autowired
+    @Lazy
     private ConteoMonedaService conteoMonedaService;
     @Autowired
+    @Lazy
     private RestTemplate restTemplate;
     @Autowired
+    @Lazy
     private ConteoGraphQL conteoGraphQL;
     @Autowired
+    @Lazy
     private FacturaLegalService facturaLegalService;
     @Autowired
+    @Lazy
     private FacturaLegalItemService facturaLegalItemService;
     @Autowired
+    @Lazy
     private FacturaLegalGraphQL facturaLegalGraphQL;
     @Autowired
+    @Lazy
     private VentaService ventaService;
     @Autowired
+    @Lazy
     private VentaItemService ventaItemService;
     @Autowired
+    @Lazy
     private MovimientoCajaService movimientoCajaService;
     @Autowired
+    @Lazy
     private UpdateService updateService;
     @Autowired
+    @Lazy
     private ActualizacionService actualizacionService;
 
     //    public Boolean verficarConexion(Long sucId) {
@@ -632,14 +695,18 @@ public class PropagacionService {
         }
     }
 
+    @Async
     public <T> void propagarEntidad(T entity, TipoEntidad tipoEntidad) {
         log.info("Propagando entidad a servidor: " + tipoEntidad.name());
         sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(entity, TipoAccion.GUARDAR, tipoEntidad, Long.valueOf(env.getProperty("sucursalId"))));
+        log.info("entidad propagada: " + tipoEntidad);
     }
 
+    @Async
     public <T> void propagarEntidad(T entity, TipoEntidad tipoEntidad, Boolean recibir) {
         log.info("Propagando entidad a servidor: " + tipoEntidad.name());
         sender.enviar(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(entity, TipoAccion.GUARDAR, tipoEntidad, Long.valueOf(env.getProperty("sucursalId")), false, !recibir));
+        log.info("entidad propagada: " + tipoEntidad);
     }
 
     public <T> Object propagarEntidadAndRecibir(T entity, TipoEntidad tipoEntidad) {

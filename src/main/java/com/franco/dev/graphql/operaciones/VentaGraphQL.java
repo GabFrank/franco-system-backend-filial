@@ -169,6 +169,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     @Transactional
     public Venta saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleList, Boolean ticket, String printerName, String local, Long pdvId, VentaCreditoInput ventaCreditoInput, List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) throws Exception, GraphQLException {
+        log.info("inicio de la venta");
         Venta venta = null;
         Cobro cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
         List<VentaItem> ventaItemList1 = new ArrayList<>();
@@ -190,12 +191,14 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             if (venta != null) {
                 ventaItemList1 = ventaItemGraphQL.saveVentaItemList(ventaItemList, venta.getId());
             }
+            log.info("Todo guardado");
         }
         if (venta.getId() == null) {
             deshacerVenta(venta, cobro, null);
         } else {
             try {
-                if (ticket) {
+                if (ticket!=null && ticket==true) {
+
                     if (pdvId != null) {
                         FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
                         if (venta.getCliente() == null) {
@@ -238,9 +241,12 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 }
 
             } catch (Exception e) {
+                log.info("retornando venta con exepcion");
+                e.printStackTrace();
                 return venta;
             }
         }
+        log.info("retornando venta sin excepcion");
         return venta;
     }
 

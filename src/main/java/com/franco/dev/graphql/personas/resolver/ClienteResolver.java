@@ -32,6 +32,9 @@ public class ClienteResolver implements GraphQLResolver<Cliente> {
     public String nombre(Cliente e) {
         return e.getPersona().getNombre();
     }
+    public Double saldo(Cliente e) {
+        return 0.0;
+    }
 
     public String documento(Cliente e) {
         return e.getPersona().getDocumento();

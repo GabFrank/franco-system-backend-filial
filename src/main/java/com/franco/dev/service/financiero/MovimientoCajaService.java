@@ -2,7 +2,6 @@ package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.financiero.MovimientoCajaRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
@@ -57,13 +56,13 @@ public class MovimientoCajaService extends CrudService<MovimientoCaja, Movimient
 
     public Double totalEnCajaPorCajaIdAndMonedaId(Long cajaId, Long monedaId) {
         Double total = repository.totalEnCajaByCajaIdandMonedaId(cajaId, monedaId);
-        return total!=null ? total : 0.0;
+        return total != null ? total : 0.0;
     }
 
     @Override
     public MovimientoCaja save(MovimientoCaja entity) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
-        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         MovimientoCaja e = super.save(entity);
 //        personaPublisher.publish(p);
         return e;
@@ -72,9 +71,8 @@ public class MovimientoCajaService extends CrudService<MovimientoCaja, Movimient
     @Override
     public MovimientoCaja saveAndSend(MovimientoCaja entity, Boolean recibir) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
-        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         MovimientoCaja e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.MOVIMIENTO_CAJA, recibir);
         return e;
     }
 }

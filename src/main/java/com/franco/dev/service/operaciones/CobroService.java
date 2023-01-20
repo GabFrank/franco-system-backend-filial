@@ -28,7 +28,7 @@ public class CobroService extends CrudService<Cobro, CobroRepository> {
     public Cobro save(Cobro entity) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
-        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Cobro e = super.save(entity);
         return e;
     }
@@ -37,7 +37,7 @@ public class CobroService extends CrudService<Cobro, CobroRepository> {
     public Cobro saveAndSend(Cobro entity, Boolean recibir) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
-        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Cobro e = super.save(entity);
         propagacionService.propagarEntidad(e, TipoEntidad.COBRO, recibir);
         return e;

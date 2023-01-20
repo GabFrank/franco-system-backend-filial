@@ -85,38 +85,11 @@ public class RabbitMQConection {
         Binding binding = this.binding(filaProducto, exchange, FILIAL_KEY);
         Binding binding2 = this.binding(filaProducto, exchange, filaProducto.getName());
         Binding binding3 = this.bindingDirect(filaProductoReplyTo, exchangeDirect, filaProductoReplyTo.getName());
-
         ConnectionListener connectionListener = new ConnectionListener() {
             @Override
             public void onCreate(Connection connection) {
                 logger.info("la conexcion con rabbit fue establecida");
-                List<RabbitmqMsg> rabbitmqMsgList = rabbitmqMsgService.findAll();
-                if (rabbitmqMsgList.size() > 0) {
-                    for (RabbitmqMsg r : rabbitmqMsgList) {
-                        try {
-                            RabbitDto dto = new RabbitDto();
-                            if (r.getRecibidoEnFilial() != null) dto.setRecibidoEnFilial(r.getRecibidoEnFilial());
-                            if (r.getData() != null) dto.setData(r.getData());
-                            if (r.getIdSucursalOrigen() != null) dto.setIdSucursalOrigen(r.getIdSucursalOrigen());
-                            if (r.getRecibidoEnServidor() != null) dto.setRecibidoEnServidor(r.getRecibidoEnServidor());
-                            if (r.getTipoAccion() != null) dto.setTipoAccion(TipoAccion.valueOf(r.getTipoAccion()));
-                            if (r.getTipoEntidad() != null) dto.setTipoEntidad(TipoEntidad.valueOf(r.getTipoEntidad()));
-                            //deserializar entidad
-                            ObjectMapper mapper = new ObjectMapper()
-                                    .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                                    .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-                            Object newEntidad = mapper.readValue(r.getEntidad(), r.getClassType());
-                            dto.setEntidad(newEntidad);
-                            //deserializar data
-                            Object newData = mapper.readValue(r.getEntidad(), Object.class);
-                            dto.setData(newData);
-                            template.convertAndSend(r.getExchange(), r.getKey(), dto);
-                            rabbitmqMsgService.deleteById(r.getId());
-                        } catch (Exception ex1) {
-                            ex1.printStackTrace();
-                        }
-                    }
-                }
+
             }
 
             @Override

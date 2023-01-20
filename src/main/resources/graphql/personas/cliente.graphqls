@@ -9,6 +9,7 @@ type Cliente {
     contactos: [Contacto]
     usuario: Usuario
     codigo: String
+    saldo: Float
 }
 
 input ClienteInput {

@@ -42,7 +42,7 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
     public CobroDetalle save(CobroDetalle entity) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
-        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         CobroDetalle e = super.save(entity);
 //        personaPublisher.publish(p);
         return e;
@@ -52,7 +52,7 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
     public CobroDetalle saveAndSend(CobroDetalle entity, Boolean recibir) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
-        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         CobroDetalle e = super.save(entity);
 //        personaPublisher.publish(p);
         propagacionService.propagarEntidad(e, TipoEntidad.COBRO_DETALLE, recibir);

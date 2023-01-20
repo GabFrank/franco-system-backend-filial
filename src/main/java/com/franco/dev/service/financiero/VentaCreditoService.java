@@ -1,19 +1,14 @@
 package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.VentaCredito;
-import com.franco.dev.domain.financiero.VentaCreditoCuota;
-import com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.financiero.VentaCreditoRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
-import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
-import static com.franco.dev.utilitarios.DateUtils.toDate;
 
 @Service
 @AllArgsConstructor

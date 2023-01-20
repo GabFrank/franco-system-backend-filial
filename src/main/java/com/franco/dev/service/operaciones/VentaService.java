@@ -50,10 +50,10 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
 //        return  repository.findByProveedor(texto.toLowerCase());
 //    }
 
-    public List<Venta> findByCajaId(Long id, Integer page, Integer size,  Boolean asc) {
+    public List<Venta> findByCajaId(Long id, Integer page, Integer size, Boolean asc) {
         Pageable pagina = PageRequest.of(page, size);
-        if(asc==true) return repository.findByCajaIdOrderByIdAsc(id, pagina);
-        if(asc!=true) return repository.findByCajaIdOrderByIdDesc(id, pagina);
+        if (asc == true) return repository.findByCajaIdOrderByIdAsc(id, pagina);
+        if (asc != true) return repository.findByCajaIdOrderByIdDesc(id, pagina);
         return null;
     }
 

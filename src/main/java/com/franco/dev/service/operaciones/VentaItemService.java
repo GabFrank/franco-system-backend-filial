@@ -7,7 +7,6 @@ import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.VentaItemRepository;
 import com.franco.dev.service.CrudService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
@@ -40,7 +39,7 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
 
     @Override
     public VentaItem save(VentaItem entity) {
-        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         VentaItem e = super.save(entity);
         if (entity.getActivo() == false && entity.getId() != null) {
             MovimientoStock movimientoStock = movimientoStockService.findByTipoMovimientoAndReferencia(TipoMovimiento.VENTA, entity.getId());
@@ -48,7 +47,7 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
                 movimientoStock.setEstado(false);
                 movimientoStockService.saveAndSend(movimientoStock, false);
             }
-        } else if(e.getVenta().getEstado() == VentaEstado.CONCLUIDA) {
+        } else if (e.getVenta().getEstado() == VentaEstado.CONCLUIDA) {
             MovimientoStock movimientoStock = new MovimientoStock();
             movimientoStock.setCreadoEn(entity.getCreadoEn());
             movimientoStock.setUsuario(entity.getUsuario());
@@ -69,8 +68,8 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
 
     @Override
     public VentaItem saveAndSend(VentaItem entity, Boolean recibir) {
-        if(entity.getPrecio()==null) entity.setPrecio(entity.getPrecioVenta().getPrecio());
-        if(entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getPrecio() == null) entity.setPrecio(entity.getPrecioVenta().getPrecio());
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         VentaItem e = super.save(entity);
         propagacionService.propagarEntidad(e, TipoEntidad.VENTA_ITEM, recibir);
         if (entity.getActivo() == false && entity.getId() != null) {

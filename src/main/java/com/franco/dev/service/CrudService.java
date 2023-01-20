@@ -26,6 +26,7 @@ public abstract class CrudService<T, Repository extends HelperRepository<T, Long
     public PropagacionService propagacionService;
 
     @Autowired
+    @Lazy
     public void setpropagacionService(PropagacionService propagacionService) {
         this.propagacionService = propagacionService;
     }
