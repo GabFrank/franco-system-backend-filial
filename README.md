@@ -2,6 +2,25 @@
 
 Anotaciones de cambios discriminado por fechas
 
+-------------------------------------------------------------------------------------------------------
+25-01-23 (ONLY filiales)
+- DROP TABLE configuraciones.rabbitmq_msg;
+
+- CREATE TABLE configuraciones.rabbitmq_msg (
+	id bigserial NOT NULL,
+	tipo_accion text NULL,
+	tipo_entidad text NULL,
+	entidad JSONB NULL,
+	id_sucursal_origen numeric NULL,
+	"data" text NULL,
+	recibido_en_servidor bool NULL,
+	recibido_en_filial bool NULL,
+	exchange text NULL,
+	"key" text NULL,
+	class_type text NULL,
+	CONSTRAINT rabbitmq_msg_pkey PRIMARY KEY (id)
+);
+
 
 -------------------------------------------------------------------------------------------------------
 11-01-23 (only server)
