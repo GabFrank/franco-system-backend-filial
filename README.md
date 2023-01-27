@@ -1,6 +1,12 @@
 # franco-system-backend-filial
 
 Anotaciones de cambios discriminado por fechas
+-------------------------------------------------------------------------------------------------------
+27-01-23 (only server): 
+
+- ALTER TABLE empresarial.sucursal ADD ip varchar NULL;
+- ALTER TABLE empresarial.sucursal ADD puerto int NULL;
+
 
 -------------------------------------------------------------------------------------------------------
 25-01-23 (ONLY filiales)
