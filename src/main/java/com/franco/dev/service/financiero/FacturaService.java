@@ -95,12 +95,13 @@ public class FacturaService {
 
             BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
             imageBufferedImage = resize(imageBufferedImage, 200, 100);
-            RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
+            BitImageWrapper imageWrapper = new BitImageWrapper();
             EscPos escpos = null;
             escpos = new EscPos(printerOutputStream);
             Bitonal algorithm = new BitonalThreshold();
             EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
             imageWrapper.setJustification(EscPosConst.Justification.Center);
+            escpos.feed(5);
             escpos.write(imageWrapper, escposImage);
             escpos.writeLF(factura, timbradoDetalle.getTimbrado().getRazonSocial());
             escpos.writeLF(factura, "RUC: " + timbradoDetalle.getTimbrado().getRuc());
@@ -315,12 +316,13 @@ public class FacturaService {
 
             BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
             imageBufferedImage = resize(imageBufferedImage, 200, 100);
-            RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
+            BitImageWrapper imageWrapper = new BitImageWrapper();
             EscPos escpos = this.escPos != null ? this.escPos : null;
             escpos = new EscPos(printerOutputStream);
             Bitonal algorithm = new BitonalThreshold();
             EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
             imageWrapper.setJustification(EscPosConst.Justification.Center);
+            escpos.writeLF("--------------------------------");
             escpos.write(imageWrapper, escposImage);
             escpos.writeLF(factura, timbradoDetalle.getTimbrado().getRazonSocial().toUpperCase());
             escpos.writeLF(factura, "RUC: " + timbradoDetalle.getTimbrado().getRuc());
@@ -360,7 +362,21 @@ public class FacturaService {
             escpos.writeLF("Fecha: " + LocalDateTime.now().format(shortDateTime));
             escpos.writeLF("--------------------------------");
 
-            escpos.writeLF("Cliente: " + facturaLegal.getNombre().toUpperCase());
+            String nombreCliente = facturaLegal.getNombre().toUpperCase();
+            nombreCliente = nombreCliente.replace("Ñ", "N")
+                    .replace("Á", "A")
+                    .replace("É", "E")
+                    .replace("Í", "I")
+                    .replace("Ó", "O")
+                    .replace("Ú", "U");
+            escpos.writeLF("Cliente: " + nombreCliente);
+
+            if(facturaLegal.getRuc()!=null){
+                if(!facturaLegal.getRuc().contains("-")){
+                    facturaLegal.setRuc(facturaLegal.getRuc()+getDigitoVerificadorString(facturaLegal.getRuc()));
+                };
+            }
+
             escpos.writeLF("CI/RUC: " + facturaLegal.getRuc());
             if (facturaLegal.getDireccion() != null)
                 escpos.writeLF("Dir: " + facturaLegal.getDireccion());

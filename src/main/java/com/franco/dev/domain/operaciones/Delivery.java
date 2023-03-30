@@ -36,7 +36,7 @@ public class Delivery implements Serializable {
 
     private Long sucursalId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "venta_id", nullable = true)
     private Venta venta;
 

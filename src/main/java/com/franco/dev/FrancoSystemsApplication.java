@@ -7,6 +7,7 @@ import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPubl
 import com.franco.dev.service.configuracion.UpdateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -16,7 +17,6 @@ import org.springframework.core.Ordered;
 import org.springframework.core.env.Environment;
 import org.springframework.orm.jpa.support.OpenEntityManagerInViewFilter;
 import org.springframework.retry.annotation.EnableRetry;
-import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -27,6 +27,7 @@ import javax.servlet.Filter;
 import java.io.IOException;
 import java.util.Collections;
 
+@EnableRabbit
 @EnableRetry
 @SpringBootApplication
 public class FrancoSystemsApplication {
@@ -60,6 +61,7 @@ public class FrancoSystemsApplication {
         return new SincronizacionStatusPublisher();
     }
 
+
     /**
      * Register the {@link OpenEntityManagerInViewFilter} so that the
      * GraphQL-Servlet can handle lazy loads during execution.
@@ -90,9 +92,6 @@ public class FrancoSystemsApplication {
         objectMapper
                 .registerModule(new JavaTimeModule())
                 .registerModule(new ParameterNamesModule());
-
-//        updateService.checkForUpdates();
     }
-
 
 }

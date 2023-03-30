@@ -1,12 +1,13 @@
 package com.franco.dev.domain.personas;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonView;
 import com.franco.dev.domain.GenericDomain;
+import com.franco.dev.utilitarios.JsonIdView;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -23,6 +24,7 @@ public class Usuario extends GenericDomain implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
+    @JsonView(JsonIdView.Id.class)
     private Long id;
 
     private String password;
@@ -38,13 +40,14 @@ public class Usuario extends GenericDomain implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
-    @JsonIgnore
+    @JsonBackReference
     private Usuario usuario;
 
     @Column(name = "creado_en")
     private LocalDateTime creadoEn;
 
 }
+
 
 
 

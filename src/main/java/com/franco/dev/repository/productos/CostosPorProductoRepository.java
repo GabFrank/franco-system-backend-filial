@@ -4,7 +4,7 @@ import com.franco.dev.domain.productos.CostoPorProducto;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
 
-public interface CostosPorSucursalRepository extends HelperRepository<CostoPorProducto, Long> {
+public interface CostosPorProductoRepository extends HelperRepository<CostoPorProducto, Long> {
 
     default Class<CostoPorProducto> getEntityClass() {
         return CostoPorProducto.class;

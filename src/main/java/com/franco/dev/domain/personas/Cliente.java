@@ -1,6 +1,8 @@
 package com.franco.dev.domain.personas;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.franco.dev.domain.personas.enums.TipoCliente;
+import com.franco.dev.utilitarios.JsonIdView;
 import com.franco.dev.utilitarios.PostgreSQLEnumType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -26,6 +28,7 @@ public class Cliente implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
+    @JsonView(JsonIdView.Id.class)
     private Long id;
 
     @Enumerated(EnumType.STRING)

@@ -30,7 +30,8 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
     }
 
     public Float stockByProductoId(Long proId) {
-        return repository.stockByProductoId(proId) != null ? repository.stockByProductoId(proId) : 0;
+        Float stock = repository.stockByProductoId(proId);
+        return stock != null ? stock : 0;
     }
 
     public MovimientoStock findByProductoIdAndTIpoAndReferenciaId(Long proId, Long referenciaId) {

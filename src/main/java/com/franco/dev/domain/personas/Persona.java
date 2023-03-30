@@ -1,7 +1,9 @@
 package com.franco.dev.domain.personas;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonView;
 import com.franco.dev.domain.general.Ciudad;
+import com.franco.dev.utilitarios.JsonIdView;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,6 +24,7 @@ public class Persona implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
+    @JsonView(JsonIdView.Id.class)
     private Long id;
     private String nombre;
     private String apodo;
@@ -34,7 +37,7 @@ public class Persona implements Serializable {
     private String imagenes;
     private String email;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ciudad_id", nullable = true)
     @JsonIgnore
     private Ciudad ciudad;

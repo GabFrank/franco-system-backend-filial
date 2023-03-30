@@ -23,7 +23,7 @@ public class Ciudad implements Serializable {
 
     private String descripcion;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "pais_id", nullable = true)
     private Pais pais;
 

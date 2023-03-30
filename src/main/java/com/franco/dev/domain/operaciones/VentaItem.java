@@ -1,5 +1,6 @@
 package com.franco.dev.domain.operaciones;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.personas.Usuario;
@@ -39,7 +40,6 @@ public class VentaItem implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venta_id", nullable = true)
-    @JsonIgnore
     private Venta venta;
 
     @ManyToOne(fetch = FetchType.EAGER)

@@ -1,5 +1,18 @@
-queue: filial.1001
-queue-reply-to: filial.1001.reply.to
-sucursal-id: 1001
+queue: filial.4
+queue-reply-to: filial.4.reply.to
+sucursal-id: 4
 server-url: http://localhost:8082
-
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: franco
+    password: franco
+  multirabbitmq:
+    enabled: true
+    connections:
+      servidor:
+        host: 172.25.0.1
+        port: 5672
+        username: franco
+        password: franco

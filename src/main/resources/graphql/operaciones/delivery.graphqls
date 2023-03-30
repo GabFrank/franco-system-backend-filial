@@ -60,6 +60,7 @@ extend type Query {
     deliverysUltimos10(sucId: ID):[Delivery]
     countDelivery: Int
     reimprimirDelivery(id: Int!, printerName: String, local: String): Boolean
+    deliveryPorCajaIdAndEstados(id: ID!, estadoList: [DeliveryEstado]!):[Delivery]
 }
 
 extend type Mutation {

@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.VentaCredito;
 import com.franco.dev.domain.financiero.enums.TipoConfirmacion;
@@ -24,6 +25,7 @@ import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.operaciones.CobroService;
+import com.franco.dev.service.operaciones.DeliveryService;
 import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
@@ -47,6 +49,7 @@ import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -56,8 +59,10 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
 import java.awt.image.BufferedImage;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -134,6 +139,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     @Autowired
     private CambioService cambioService;
 
+    @Autowired
+    private DeliveryService deliveryService;
+
     private Sucursal sucursal;
 
     public Optional<Venta> venta(Long id, Long sucId) {
@@ -153,23 +161,25 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     public Venta saveVenta(VentaInput ventaInput) {
         ModelMapper m = new ModelMapper();
         Venta e = m.map(ventaInput, Venta.class);
-        if (e.getUsuario() != null) e.setUsuario(usuarioService.findById(ventaInput.getUsuarioId()).orElse(null));
-        if (e.getCliente() != null) {
+        if (ventaInput.getUsuarioId() != null) e.setUsuario(usuarioService.findById(ventaInput.getUsuarioId()).orElse(null));
+        if (ventaInput.getClienteId() != null) {
             e.setCliente(clienteService.findById(ventaInput.getClienteId()).orElse(null));
         } else {
             e.setCliente(clienteService.findById((long) 0).orElse(null));
         }
-        if (e.getFormaPago() != null)
+        if (ventaInput.getFormaPagoId() != null)
             e.setFormaPago(formaPagoService.findById(ventaInput.getFormaPagoId()).orElse(null));
-        if (e.getCaja() != null) e.setCaja(pdvCajaService.findById(ventaInput.getCajaId()).orElse(null));
-        if (e.getCobro() != null) e.setCobro(cobroService.findById(ventaInput.getCobroId()).orElse(null));
+        if (ventaInput.getCajaId() != null) e.setCaja(pdvCajaService.findById(ventaInput.getCajaId()).orElse(null));
+        if (ventaInput.getCobroId() != null) e.setCobro(cobroService.findById(ventaInput.getCobroId()).orElse(null));
         e.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         return service.saveAndSend(e, false);
     }
 
     @Transactional
     public Venta saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleList, Boolean ticket, String printerName, String local, Long pdvId, VentaCreditoInput ventaCreditoInput, List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) throws Exception, GraphQLException {
-        log.info("inicio de la venta");
+        if(ventaItemList==null && cobroDetalleList == null && cobroDetalleList == null){
+            return this.saveVenta(ventaInput);
+        }
         Venta venta = null;
         Cobro cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
         List<VentaItem> ventaItemList1 = new ArrayList<>();
@@ -197,7 +207,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             deshacerVenta(venta, cobro, null);
         } else {
             try {
-                if (ticket!=null && ticket==true) {
+                if (ticket != null && ticket == true) {
 
                     if (pdvId != null) {
                         FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
@@ -226,7 +236,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 //                        SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta, facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
                         Boolean facturado = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, facturaLegalItemInputList, printerName, pdvId);
                         if (facturado == false) throw new GraphQLException("Problema al generar factura");
-                        return venta;
                     } else {
                         printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local, false, null, null);
                     }
@@ -234,10 +243,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         ventaCreditoInput.setVentaId(venta.getId());
                         ventaCreditoInput.setSucursalId(venta.getSucursalId());
                         VentaCredito ventaCredito = ventaCreditoGraphQL.saveVentaCredito(ventaCreditoInput, ventaCreditoCuotaInputList);
-                        if (ventaCredito != null && ventaCredito.getTipoConfirmacion() == TipoConfirmacion.FIRMA) {
+                        if (ventaCredito != null) {
                             printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local, true, ventaCreditoCuotaInputList, null);
                         }
                     }
+                    return venta;
                 }
 
             } catch (Exception e) {
@@ -364,7 +374,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         Double cambioRs = cambioService.findLastByMonedaId(Long.valueOf(2)).getValorEnGs();
         Double cambioDs = cambioService.findLastByMonedaId(Long.valueOf(3)).getValorEnGs();
 
-        if(delivery!=null){
+        if (delivery != null) {
             precioDeliveryGs = delivery.getPrecio().getValor();
             precioDeliveryRs = precioDeliveryGs / cambioRs;
             precioDeliveryDs = precioDeliveryGs / cambioDs;
@@ -404,12 +414,15 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
             BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
             imageBufferedImage = resize(imageBufferedImage, 200, 100);
-            RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
+            BitImageWrapper imageWrapper = new BitImageWrapper();
             EscPos escpos = null;
             escpos = new EscPos(printerOutputStream);
+//            escpos.setPrinterCharacterTable(EscPos.CharacterCodeTable.WPC1252.value);
+//            escpos.setCharsetName("UTF-8");
             Bitonal algorithm = new BitonalThreshold();
             EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
             imageWrapper.setJustification(EscPosConst.Justification.Center);
+            escpos.writeLF("--------------------------------");
             escpos.write(imageWrapper, escposImage);
             escpos.writeLF(factura, "FRANCO AREVALOS S.A.");
             if (reimpresion == true) {
@@ -424,13 +437,17 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             if (local != null) {
                 escpos.writeLF(center, "Local: " + local);
             }
-            if(delivery!=null){
+            if (delivery != null) {
+                escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "Modo: Delivery");
+                if(delivery.getTelefono()!=null) escpos.writeLF("Telefono: " + delivery.getTelefono());
+                if(delivery.getDireccion()!=null) escpos.writeLF("Direccion: " + delivery.getDireccion());
+                escpos.writeLF("--------------------------------");
             }
             escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
 
             if (venta.getUsuario().getPersona().getNombre().length() > 23) {
-                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre().substring(0, 23));
+                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre());
 
             } else {
                 escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre());
@@ -459,7 +476,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 }
                 escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
             }
-            if(delivery!=null){
+            if (delivery != null) {
                 escpos.writeLF("--------------------------------");
                 escpos.write("Delivery: ");
                 String deliveryGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(precioDeliveryGs.intValue());
@@ -497,14 +514,14 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             escpos.writeLF("--------------------------------");
             if (pagare != null && pagare == true) {
                 for (int x = 0; x < itens.size(); x++) {
-                    escpos.writeLF(center, "PAGARÉ A LA ORDEN " + x + 1 + "/" + itens.size());
+                    escpos.writeLF(center, "PAGARE A LA ORDEN " + x + 1 + "/" + itens.size());
                     escpos.feed(1);
                     escpos.write("Total Gs: ");
                     String valorPagare = NumberFormat.getNumberInstance(Locale.GERMAN).format(itens.get(x).getValor().intValue());
                     for (int i = 22; i > valorPagare.length(); i--) {
                         escpos.write(" ");
                     }
-                    escpos.writeLF(new Style().setBold(true).setFontSize(Style.FontSize._0, Style.FontSize._0), valorPagare);
+                    escpos.writeLF(valorPagare);
                     escpos.writeLF("Fecha: " + venta.getCreadoEn().format(formatter));
                     escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
                     if (sucursal != null) {
@@ -520,9 +537,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     StringBuilder sb = new StringBuilder();
                     sb.append("El dia ");
                     sb.append(toDate(itens.get(x).getVencimiento()).format(formatter));
-                    sb.append(" pagaré solidariamente al Sr. FRANCO AREVALOS S.A. la suma de G$ ");
+                    sb.append(" pagare solidariamente al Sr. FRANCO AREVALOS S.A. la suma de G$ ");
                     sb.append(valorPagare);
-                    sb.append("por el valor recibido a mi/nuestro entera satisfacción. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedará contituída la MORA automática, sin necesidad de interpelación alguna.");
+                    sb.append("por el valor recibido a mi/nuestro entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara contituida la MORA automatica, sin necesidad de interpelacion alguna.");
                     escpos.write(sb.toString());
                     escpos.feed(4);
                     escpos.writeLF("   --------------------------   ");
@@ -532,10 +549,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 }
             } else {
                 if (sucursal != null && sucursal.getNroDelivery() != null) {
-                    escpos.write(center, "Delivery? Escaneá el código qr o escribinos al ");
+                    escpos.write(center, "Delivery? Escanea el codigo qr o escribinos al ");
                     escpos.writeLF(center, sucursal.getNroDelivery());
                 }
-                if (sucursal.getNroDelivery() != null) {
+                if (sucursal.getNroDelivery() != null && sucursal.getNroDelivery().contains("595")) {
                     escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center), "wa.me/" + sucursal.getNroDelivery());
                 }
             }
@@ -556,8 +573,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
 
-    public List<Venta> ventasPorCajaId(Long id, Integer page, Integer size, Boolean asc, Long sucId, Long formaPago, VentaEstado estado) {
-        return service.findByCajaId(id, page, size, asc);
+    public List<Venta> ventasPorCajaId(Long id, Integer page, Integer size, Boolean asc, Long sucId, Long formaPago, VentaEstado estado, Boolean isDelivery) {
+        return service.findByCajaId(id, sucId, page, size, asc, formaPago, estado, isDelivery);
     }
 
     public Boolean cancelarVenta(Long id, Long sucId) {
@@ -575,7 +592,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
             if (cobro != null) {
                 List<CobroDetalleInput> cobroDetalleList = new ArrayList<>();
-                printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, true, printerName, local, null, null, null);
+                Delivery delivery = deliveryService.findByVentaId(venta.getId(), venta.getSucursalId());
+                printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, true, printerName, local, null, null, delivery);
                 return true;
             }
         }

@@ -31,8 +31,9 @@ public class ImageService {
     public String appPath = userDirectory + File.separator + "FRC";
     boolean isWindows = true;
     boolean isMac = false;
+    private BufferedImage imageBufferedImage;
 
-    public ImageService() {
+    public ImageService() throws IOException {
 
         String osName = System.getProperty("os.name");
 
@@ -56,6 +57,10 @@ public class ImageService {
             serverPath = serverPath + "/";
             appPath = appPath + "/";
         }
+    }
+
+    public BufferedImage getLogo(){
+        return imageBufferedImage;
     }
 
     public static MultipartFile converter(String source) {

@@ -1,5 +1,6 @@
 package com.franco.dev.service.operaciones;
 
+import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
@@ -95,5 +96,15 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
 
 //        personaPublisher.publish(p);
         return e;
+    }
+
+    @Override
+    public Boolean deleteById(Long id) {
+        VentaItem ventaItem = findById(id).orElse(null);
+        Boolean ok = ventaItem!=null ? super.deleteById(id) : false;
+        if(ok){
+            propagacionService.deleteEntidad(ventaItem.getId(), TipoEntidad.VENTA_ITEM);
+        }
+        return ok;
     }
 }

@@ -80,6 +80,10 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         return cajaBalance;
     }
 
+    public CajaBalance balancePorCajaId(Long id) {
+        return service.getBalance(id);
+    }
+
     public PdvCaja savePdvCaja(PdvCajaInput input) {
         ModelMapper m = new ModelMapper();
         PdvCaja e = m.map(input, PdvCaja.class);

@@ -1,8 +1,10 @@
 package com.franco.dev.domain.operaciones;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.franco.dev.domain.financiero.FormaPago;
 import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.domain.personas.Usuario;
+import com.franco.dev.utilitarios.JsonIdView;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,6 +24,7 @@ public class CobroDetalle implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JsonView(JsonIdView.Id.class)
     private Long id;
 
     private Long sucursalId;
@@ -58,3 +61,4 @@ public class CobroDetalle implements Serializable {
     private String identificadorTransaccion;
 
 }
+

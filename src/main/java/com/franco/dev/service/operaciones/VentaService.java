@@ -1,5 +1,6 @@
 package com.franco.dev.service.operaciones;
 
+import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.domain.operaciones.CobroDetalle;
@@ -50,10 +51,18 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
 //        return  repository.findByProveedor(texto.toLowerCase());
 //    }
 
-    public List<Venta> findByCajaId(Long id, Integer page, Integer size, Boolean asc) {
+    public List<Venta> findByCajaId(Long id, Long sucId, Integer page, Integer size, Boolean asc, Long formaPago, VentaEstado estado, Boolean isDelivery) {
         Pageable pagina = PageRequest.of(page, size);
-        if (asc == true) return repository.findByCajaIdOrderByIdAsc(id, pagina);
-        if (asc != true) return repository.findByCajaIdOrderByIdDesc(id, pagina);
+        if (formaPago != null || estado != null || isDelivery != null)
+            if (isDelivery == null) {
+                return repository.findWithFilters(id, formaPago, estado, pagina);
+            } else {
+                return repository.findWithFilters(id, formaPago, estado, pagina, isDelivery);
+            }
+        if (asc == true)
+            return repository.findByCajaIdOrderByIdAsc(id, pagina);
+        if (asc != true)
+            return repository.findByCajaIdOrderByIdDesc(id, pagina);
         return null;
     }
 

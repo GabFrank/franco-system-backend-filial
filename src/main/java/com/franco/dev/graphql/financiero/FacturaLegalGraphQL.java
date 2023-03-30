@@ -131,6 +131,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     public Boolean saveFacturaLegal(FacturaLegalInput input, List<FacturaLegalItemInput> facturaLegalItemInputList, String printerName, Long pdvId) {
         Venta venta = input.getVentaId() != null ? ventaService.findById(input.getVentaId()).orElse(null) : null;
         SaveFacturaDto saveFacturaDto = generarFacturaAutoImpreso(venta, input, facturaLegalItemInputList, printerName, pdvId, false);
+        if(saveFacturaDto.getFacturaLegalInput().getTimbradoDetalleId()==null){
+            return false;
+        }
         input = saveFacturaDto.getFacturaLegalInput();
         facturaLegalItemInputList = saveFacturaDto.getFacturaLegalItemInputList();
         ModelMapper m = new ModelMapper();
@@ -432,12 +435,13 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
         BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
         imageBufferedImage = resize(imageBufferedImage, 200, 100);
-        RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
+        BitImageWrapper imageWrapper = new BitImageWrapper();
         EscPos escpos = null;
         escpos = new EscPos(printerOutputStream);
         Bitonal algorithm = new BitonalThreshold();
         EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
         imageWrapper.setJustification(EscPosConst.Justification.Center);
+        escpos.feed(5);
         escpos.write(imageWrapper, escposImage);
         escpos.writeLF(center, "Av. Paraguay c/ 30 de julio");
         escpos.writeLF(center, "Salto del Guairá");

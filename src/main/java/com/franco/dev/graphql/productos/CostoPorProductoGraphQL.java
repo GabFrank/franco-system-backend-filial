@@ -2,7 +2,7 @@ package com.franco.dev.graphql.productos;
 
 import com.franco.dev.domain.productos.CostoPorProducto;
 import com.franco.dev.graphql.productos.input.CostoPorProductoInput;
-import com.franco.dev.service.productos.CostosPorSucursalService;
+import com.franco.dev.service.productos.CostosPorProductoService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class CostoPorProductoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
-    private CostosPorSucursalService service;
+    private CostosPorProductoService service;
 
 //    public CostosPorSucursal costoPorProductoLastPorProductoId(Long proId, Long sucId) {return service.findLastByProductoIdAndSucursalId(proId, sucId);}
 //    public List<CostoPorProducto> costosPorPorProductoId(Long id) {return service.findLastByProductoId(id);}

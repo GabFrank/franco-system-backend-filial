@@ -97,6 +97,8 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                             movimientoCaja.setPdvCaja(pdvCaja);
                             movimientoCaja.setReferencia(conteo.getId());
                             movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.CAJA_INICIAL);
+                            movimientoCaja.setActivo(true);
+                            movimientoCaja.setUsuario(conteo.getUsuario());
                             movimientoCajaService.saveAndSend(movimientoCaja, false);
                         }
                     }
@@ -124,6 +126,8 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                             movimientoCaja.setPdvCaja(pdvCaja);
                             movimientoCaja.setReferencia(conteo.getId());
                             movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.CAJA_FINAL);
+                            movimientoCaja.setActivo(true);
+                            movimientoCaja.setUsuario(conteo.getUsuario());
                             movimientoCajaService.saveAndSend(movimientoCaja, false);
                         }
                     }

@@ -1,5 +1,6 @@
 package com.franco.dev.domain.productos;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.franco.dev.domain.personas.Usuario;
 import lombok.AllArgsConstructor;
@@ -29,13 +30,13 @@ public class Subfamilia implements Serializable {
     @Column(name = "creado_en")
     private LocalDateTime creadoEn;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "familia_id", nullable = false)
     private Familia familia;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sub_familia_id", nullable = false)
-    @JsonIgnore
+    @JsonBackReference
     private Subfamilia subfamilia;
 
     @ManyToOne(fetch = FetchType.LAZY)

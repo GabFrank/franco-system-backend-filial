@@ -4,6 +4,7 @@ import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Pedido;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.repository.HelperRepository;
+import com.franco.dev.service.operaciones.DeliveryService;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -24,6 +25,10 @@ public interface DeliveryRepository extends HelperRepository<Delivery, Long> {
     public List<Delivery> findUltimos10();
 
     public Delivery findByVentaIdAndSucursalId(Long id, Long sucIds);
+
+    public List<Delivery> findByVentaCajaId(Long id);
+
+    public List<Delivery> findByVentaCajaIdAndEstadoIn(Long id, List<DeliveryEstado> estado);
 
     Iterable<Delivery> findByEstadoIn(List<DeliveryEstado> estadoList);
 

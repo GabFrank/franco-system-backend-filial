@@ -45,6 +45,7 @@ extend type Query {
     cajasPorFecha(inicio:String, fin:String, sucId:ID):[PdvCaja]
     cajaAbiertoPorUsuarioId(id:ID!, sucId: ID):PdvCaja
     imprimirBalance(id:ID!, printerName: String, local: String, sucId: ID):PdvCaja
+    balancePorCajaId(id:ID!):CajaBalance
 }
 
 extend type Mutation {

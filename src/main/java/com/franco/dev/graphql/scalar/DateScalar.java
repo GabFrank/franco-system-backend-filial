@@ -1,5 +1,4 @@
 package com.franco.dev.graphql.scalar;
-import com.franco.dev.utilitarios.DateUtils;
 import graphql.language.StringValue;
 import graphql.schema.Coercing;
 import graphql.schema.CoercingParseLiteralException;
@@ -8,47 +7,45 @@ import graphql.schema.CoercingSerializeException;
 import graphql.schema.GraphQLScalarType;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Date;
+import java.time.format.DateTimeFormatter;
 
 @Component
 public class DateScalar extends GraphQLScalarType {
-    private static final String NAME = "Date";
 
     public DateScalar() {
-        super(NAME, "Date type", new Coercing<LocalDateTime, String>() {
-
+        super("Date", "LocalDateTime scalar type", new Coercing<LocalDateTime, String>() {
             @Override
-            public String serialize(Object input) {
+            public String serialize(Object input) throws CoercingSerializeException {
                 if (input instanceof LocalDateTime) {
-                    return DateUtils.toString((LocalDateTime) input);
+                    LocalDateTime localDateTime = (LocalDateTime) input;
+                    return DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(localDateTime);
                 }
-                throw new CoercingSerializeException("Invalid Date: " + input);
+                throw new CoercingSerializeException("Unable to serialize " + input + " as LocalDateTime.");
             }
 
             @Override
-            public LocalDateTime parseValue(Object input) {
-                if (input instanceof String) {
-                    LocalDateTime dt = DateUtils.toDate((String) input);
-                    if(dt != null) {
-                        return dt;
+            public LocalDateTime parseValue(Object input) throws CoercingParseValueException {
+                try {
+                    return LocalDateTime.parse((String) input, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+                } catch (Exception e) {
+                    throw new CoercingParseValueException("Unable to parse value " + input + " as LocalDateTime.");
+                }
+            }
+
+            @Override
+            public LocalDateTime parseLiteral(Object input) throws CoercingParseLiteralException {
+                if (input instanceof StringValue) {
+                    try {
+                        return LocalDateTime.parse(((StringValue) input).getValue(), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+                    } catch (Exception e) {
+                        throw new CoercingParseLiteralException("Unable to parse literal " + input + " as LocalDateTime.");
                     }
                 }
-                throw new CoercingParseValueException("Invalid Date: " + input);
-            }
-
-            @Override
-            public LocalDateTime parseLiteral(Object input) {
-                if (!(input instanceof StringValue)) return null;
-                String s = ((StringValue) input).getValue();
-                LocalDateTime dt = DateUtils.toDate(s);
-                if(dt != null) {
-                    return dt;
-                }
-                throw new CoercingParseLiteralException("Invalid Date: " + input);
+                throw new CoercingParseLiteralException("Unable to parse literal " + input + " as LocalDateTime.");
             }
         });
     }
 }
+
 

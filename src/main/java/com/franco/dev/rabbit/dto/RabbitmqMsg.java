@@ -1,8 +1,11 @@
 package com.franco.dev.rabbit.dto;
 
+import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -12,6 +15,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @Entity
 @Table(name = "rabbitmq_msg", schema = "configuraciones")
+@TypeDef(name = "jsonb", typeClass = JsonBinaryType.class)
 public class RabbitmqMsg implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -24,7 +28,9 @@ public class RabbitmqMsg implements Serializable {
 
     private String tipoEntidad;
 
-    private String entidad;
+    @Type(type = "jsonb")
+    @Column(name = "entidad", nullable = false)
+    private Object entidad;
 
     private Long idSucursalOrigen;
 

@@ -58,4 +58,14 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
         propagacionService.propagarEntidad(e, TipoEntidad.COBRO_DETALLE, recibir);
         return e;
     }
+
+    @Override
+    public Boolean deleteById(Long id) {
+        CobroDetalle cobro = findById(id).orElse(null);
+        Boolean ok = cobro!=null ? super.deleteById(id) : false;
+        if(ok){
+            propagacionService.deleteEntidad(cobro.getId(), TipoEntidad.COBRO_DETALLE);
+        }
+        return ok;
+    }
 }

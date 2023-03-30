@@ -8,6 +8,7 @@ import com.franco.dev.domain.financiero.Maletin;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.operaciones.Inventario;
 import com.franco.dev.domain.personas.Cliente;
+import com.franco.dev.domain.productos.CostoPorProducto;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
 import com.franco.dev.graphql.financiero.ConteoGraphQL;
 import com.franco.dev.graphql.financiero.FacturaLegalGraphQL;
@@ -19,10 +20,8 @@ import com.franco.dev.rabbit.enums.TipoAccion;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.rabbit.sender.Sender;
 import com.franco.dev.service.CrudService;
-import com.franco.dev.service.configuracion.ActualizacionService;
-import com.franco.dev.service.configuracion.LocalService;
-import com.franco.dev.service.configuracion.UpdateData;
-import com.franco.dev.service.configuracion.UpdateService;
+import com.franco.dev.service.ServiceFinder;
+import com.franco.dev.service.configuracion.*;
 import com.franco.dev.service.empresarial.CargoService;
 import com.franco.dev.service.empresarial.SectorService;
 import com.franco.dev.service.empresarial.SucursalService;
@@ -42,9 +41,11 @@ import com.franco.dev.service.utils.ImageService;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -56,6 +57,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static com.franco.dev.utilitarios.EnumUtils.getTipoEntidadByClassFullName;
+import static org.hibernate.boot.model.source.internal.hbm.Helper.getValue;
 
 @Service
 public class PropagacionService {
@@ -70,6 +76,12 @@ public class PropagacionService {
     @Lazy
     public ZonaService zonaService;
     Long sucursalVerificar = null;
+    @Autowired
+    @Lazy
+    private RabbitTemplate template;
+    @Autowired
+    @Lazy
+    private RabbitmqMsgService rabbitmqMsgService;
     private Logger log = LoggerFactory.getLogger(PropagacionService.class);
     @Autowired
     @Lazy
@@ -241,6 +253,18 @@ public class PropagacionService {
     private VentaItemService ventaItemService;
     @Autowired
     @Lazy
+    private GastoService gastoService;
+    @Autowired
+    @Lazy
+    private GastoDetalleService gastoDetalleService;
+    @Autowired
+    @Lazy
+    private RetiroService retiroService;
+    @Autowired
+    @Lazy
+    private RetiroDetalleService retiroDetalleService;
+    @Autowired
+    @Lazy
     private MovimientoCajaService movimientoCajaService;
     @Autowired
     @Lazy
@@ -248,6 +272,18 @@ public class PropagacionService {
     @Autowired
     @Lazy
     private ActualizacionService actualizacionService;
+    @Autowired
+    @Lazy
+    private CobroService cobroService;
+    @Autowired
+    @Lazy
+    private CobroDetalleService cobroDetalleService;
+    @Autowired
+    @Lazy
+    private ServiceFinder serviceFinder;
+    @Autowired
+    @Lazy
+    private CostosPorProductoService costosPorProductoService;
 
     //    public Boolean verficarConexion(Long sucId) {
 //        sucursalVerificar = sucId;
@@ -584,15 +620,15 @@ public class PropagacionService {
                 return guardar(transferenciaItemService, dto);
 
             case INVENTARIO:
-                log.info("creando INVENTARIO item: ");
+                log.info("creando INVENTARIO: ");
                 return guardar(inventarioService, dto);
 
             case INVENTARIO_PRODUCTO:
-                log.info("creando innventario producto item: ");
+                log.info("creando innventario producto: ");
                 return guardar(inventarioProductoService, dto);
 
             case INVENTARIO_PRODUCTO_ITEM:
-                log.info("creando inventario producto item item: ");
+                log.info("creando inventario producto item: ");
                 return guardar(inventarioProductoItemService, dto);
 
             case MOVIMIENTO_STOCK:
@@ -606,13 +642,17 @@ public class PropagacionService {
                 return guardar(zonaService, dto);
             case CONTEO:
                 log.info("guardando conteo");
-//                return guardar(conteoService, dto);
-                SaveConteoDto conteoDto = (SaveConteoDto) dto.getEntidad();
-                Conteo conteo = conteoGraphQL.saveConteo(conteoDto.getConteoInput(), conteoDto.getConteoMonedaInputList(), conteoDto.getCajaId(), conteoDto.getApertura());
-                if (conteo != null) {
-                    pdvCajaService.imprimirBalance(conteoDto.getCajaId(), null, null);
-                    return conteo;
+                if (dto.getTipoAccion().equals(TipoAccion.SOLICITAR_ENTIDAD)) {
+                    return guardar(conteoService, dto);
+                } else {
+                    SaveConteoDto conteoDto = (SaveConteoDto) dto.getEntidad();
+                    Conteo conteo = conteoGraphQL.saveConteo(conteoDto.getConteoInput(), conteoDto.getConteoMonedaInputList(), conteoDto.getCajaId(), conteoDto.getApertura());
+                    if (conteo != null) {
+                        pdvCajaService.imprimirBalance(conteoDto.getCajaId(), null, null);
+                        return conteo;
+                    }
                 }
+
             case CONTEO_ITEM:
                 log.info("guardando conteo");
                 return guardar(conteoMonedaService, dto);
@@ -631,12 +671,30 @@ public class PropagacionService {
             case VENTA_ITEM:
                 log.info("creando venta item: ");
                 return guardar(ventaItemService, dto);
+            case RETIRO:
+                log.info("creando retiro: ");
+                return guardar(retiroService, dto);
+            case RETIRO_DETALLE:
+                log.info("creando retiro detalle: ");
+                return guardar(retiroDetalleService, dto);
+            case GASTO:
+                log.info("creando gasto: ");
+                return guardar(gastoService, dto);
+            case COBRO:
+                log.info("creando cobro: ");
+                return guardar(cobroService, dto);
+            case COBRO_DETALLE:
+                log.info("creando cobro item: ");
+                return guardar(cobroDetalleService, dto);
             case MOVIMIENTO_CAJA:
                 log.info("creando mov caja: ");
                 return guardar(movimientoCajaService, dto);
             case ACTUALIZACION:
                 log.info("creando actualizacion: ");
                 return actualizar(dto);
+            case COSTO_POR_PRODUCTO:
+                log.info("creando costo de producto: ");
+                return guardar(costosPorProductoService ,dto);
             default:
                 return null;
         }
@@ -674,11 +732,15 @@ public class PropagacionService {
     public <T> Object guardar(CrudService service, RabbitDto dto) {
         switch (dto.getTipoAccion()) {
             case GUARDAR:
-                T nuevaEntidad = dto.getRecibidoEnFilial() != true ? (T) service.saveAndSend(dto.getEntidad(), false) : (T) service.save(dto.getEntidad());
-                if (nuevaEntidad != null) {
-                    log.info("guardado con exito");
+                try {
+                    T nuevaEntidad = dto.getRecibidoEnFilial() != true ? (T) service.saveAndSend(dto.getEntidad(), false) : (T) service.save(dto.getEntidad());
+                    if (nuevaEntidad != null) {
+                        log.info("guardado con exito");
+                    }
+                    return nuevaEntidad;
+                } catch (Exception e){
+                    e.printStackTrace();
                 }
-                return nuevaEntidad;
             case DELETE:
                 Boolean ok = false;
                 if (dto.getEntidad() instanceof Long) {
@@ -690,6 +752,10 @@ public class PropagacionService {
                     log.info("eliminado con exito");
                 }
                 return ok;
+            case SOLICITAR_ENTIDAD:
+                T foundEntidad = (T) service.findById((Long) dto.getEntidad()).orElse(null);
+                propagarEntidad(foundEntidad, dto.getTipoEntidad(), false);
+                return foundEntidad;
             default:
                 return null;
         }
@@ -784,6 +850,10 @@ public class PropagacionService {
         return pdvCaja;
     }
 
+    public Float stockByProductoId(Long id){
+        return movimientoStockService.stockByProductoId(id);
+    }
+
     public Maletin maletinPorDescripcion(String texto) {
         return maletinService.findByDescripcion(texto);
     }
@@ -823,5 +893,9 @@ public class PropagacionService {
 //        }
 
         return null;
+    }
+
+    public Object solicitarEntidad(TipoEntidad tipoEntidad, Long idEntidad){
+        return sender.enviarAndRecibir(RabbitMQConection.SERVIDOR_KEY, new RabbitDto(idEntidad, TipoAccion.SOLICITAR_ENTIDAD, tipoEntidad, Long.valueOf(env.getProperty("sucursalId"))));
     }
 }

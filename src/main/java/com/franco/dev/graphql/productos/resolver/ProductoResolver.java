@@ -41,7 +41,7 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
     private ProductoIngredienteService productoIngredienteService;
 
     @Autowired
-    private CostosPorSucursalService costosPorSucursalService;
+    private CostosPorProductoService costosPorProductoService;
 
     @Autowired
     private CodigoService codigoService;
@@ -103,7 +103,7 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
             ExistenciaCostoPorSucursal eps = new ExistenciaCostoPorSucursal();
             eps.setExistencia(movimientoStockService.stockByProductoId(p.getId()));
             eps.setSucursal(s);
-            CostoPorProducto cps = costosPorSucursalService.findLastByProductoId(p.getId());
+            CostoPorProducto cps = costosPorProductoService.findLastByProductoId(p.getId());
             MovimientoStock ms = null;
             if(cps!=null){
                 if(cps.getMovimientoStock()!=null){
@@ -165,7 +165,7 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
             pc.setCantidad(ms.getCantidad());
             pc.setCreadoEn(ms.getCreadoEn());
             pc.setPedido(pedidoService.findById(ms.getReferencia()).orElse(null));
-            CostoPorProducto cps = costosPorSucursalService.findByMovimientoStockId(ms.getId());
+            CostoPorProducto cps = costosPorProductoService.findByMovimientoStockId(ms.getId());
             if(cps!=null){
                 pc.setPrecio(cps.getUltimoPrecioCompra());
             }
@@ -211,7 +211,7 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
     }
 
     public CostoPorProducto costo(Producto p){
-        return costosPorSucursalService.findLastByProductoId(p.getId());
+        return costosPorProductoService.findLastByProductoId(p.getId());
     }
 
 }

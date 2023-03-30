@@ -23,7 +23,7 @@ public class RabbitmqMsgService extends CrudService<RabbitmqMsg, RabbitmqMsgRepo
     }
 
     public List<RabbitmqMsg> findAll(){
-        return repository.findAll();
+        return repository.findAllByOrderByIdAsc();
     }
 
     @Override

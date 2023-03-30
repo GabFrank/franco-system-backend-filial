@@ -63,11 +63,12 @@ public class ImpresionService {
 
                 BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
                 imageBufferedImage = resize(imageBufferedImage, 200, 100);
-                RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
+                BitImageWrapper imageWrapper = new BitImageWrapper();
                 EscPos escpos = new EscPos(printerOutputStream);
                 Bitonal algorithm = new BitonalThreshold();
                 EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
                 imageWrapper.setJustification(EscPosConst.Justification.Center);
+                escpos.feed(5);
                 escpos.write(imageWrapper, escposImage);
 //                escpos.writeLF(center.setBold(true), "SUC. CENTRO");
 //                escpos.writeLF(center, "Salto del Guairá");
@@ -257,11 +258,12 @@ public class ImpresionService {
 
                 BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
                 imageBufferedImage = resize(imageBufferedImage, 200, 100);
-                RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
+                BitImageWrapper imageWrapper = new BitImageWrapper();
                 EscPos escpos = new EscPos(printerOutputStream);
                 Bitonal algorithm = new BitonalThreshold();
                 EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
                 imageWrapper.setJustification(EscPosConst.Justification.Center);
+                escpos.feed(5);
                 escpos.write(imageWrapper, escposImage);
                 if (gastoDto.getReimpresion() == true) escpos.writeLF(center, "REIMPRESION");
                 if (sucursalService.sucursalActual() != null) {
@@ -428,11 +430,12 @@ public class ImpresionService {
 
                 BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
                 imageBufferedImage = resize(imageBufferedImage, 200, 100);
-                RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
+                BitImageWrapper imageWrapper = new BitImageWrapper();
                 EscPos escpos = new EscPos(printerOutputStream);
                 Bitonal algorithm = new BitonalThreshold();
                 EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
                 imageWrapper.setJustification(EscPosConst.Justification.Center);
+                escpos.feed(5);
                 escpos.write(imageWrapper, escposImage);
                 if (reimpresion == true) {
                     escpos.writeLF(center, "REIMPRESION");

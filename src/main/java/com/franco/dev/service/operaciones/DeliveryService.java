@@ -10,7 +10,6 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -27,26 +26,34 @@ public class DeliveryService extends CrudService<Delivery, DeliveryRepository> {
         return repository;
     }
 
-    public List<Delivery> findByEstado(DeliveryEstado estado){
-        return  repository.findByEstado(estado);
+    public List<Delivery> findByEstado(DeliveryEstado estado) {
+        return repository.findByEstado(estado);
     }
 
-    public List<Delivery> findByEstadoList(List<DeliveryEstado> estadoList, Long sucId){
+    public List<Delivery> findByEstadoList(List<DeliveryEstado> estadoList, Long sucId) {
         Iterable<Delivery> deliveryIterable = repository.findByEstadoIn(estadoList);
         return StreamSupport.stream(deliveryIterable.spliterator(), false)
                 .collect(Collectors.toList());
     }
 
-    public List<Delivery> findByEstadoNotIn(DeliveryEstado estado){
-        return  repository.findActivos();
+    public List<Delivery> findByEstadoNotIn(DeliveryEstado estado) {
+        return repository.findActivos();
     }
 
-    public List<Delivery> findTop10(){
+    public List<Delivery> findTop10() {
         return repository.findUltimos10();
     }
 
-    public Delivery findByVentaId(Long id, Long sucId){
+    public Delivery findByVentaId(Long id, Long sucId) {
         return repository.findByVentaIdAndSucursalId(id, sucId);
+    }
+
+    public List<Delivery> findByVentaCajaId(Long id) {
+        return repository.findByVentaCajaId(id);
+    }
+
+    public List<Delivery> findByVentaCajaIdAndEstadoIn(Long id, List<DeliveryEstado> estado){
+        return repository.findByVentaCajaIdAndEstadoIn(id,estado);
     }
 
     @Override
