@@ -1,6 +1,20 @@
 # franco-system-backend-filial
 
 Anotaciones de cambios discriminado por fechas
+
+-------------------------------------------------------------------------------------------------------
+17-04-23
+// para servidor
+ALTER TABLE financiero.venta_credito ADD sucursal_cobro_id int8 NULL;
+ALTER TABLE financiero.venta_credito ADD cobro_id int8 NULL;
+ALTER TABLE financiero.venta_credito ADD CONSTRAINT venta_credito_cobro_fk FOREIGN KEY (sucursal_cobro_id,cobro_id) REFERENCES operaciones.cobro(id,sucursal_id) ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+// para sucursal
+ALTER TABLE financiero.venta_credito ADD sucursal_cobro_id int8 NULL;
+ALTER TABLE financiero.venta_credito ADD cobro_id int8 NULL;
+ALTER TABLE financiero.venta_credito ADD CONSTRAINT venta_credito_fk FOREIGN KEY (cobro_id) REFERENCES operaciones.cobro(id);
+
 -------------------------------------------------------------------------------------------------------
 27-01-23 (only server): 
 
