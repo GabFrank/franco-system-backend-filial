@@ -86,11 +86,11 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
             if (ti.getMotivoRechazoPreTransferencia() == null && ti.getMotivoRechazoPreparacion() == null && ti.getMotivoRechazoTransporte() == null) {
                 MovimientoStock movimientoStock = new MovimientoStock();
                 movimientoStock.setEstado(true);
-                movimientoStock.setCantidad(ti.getCantidadTransporte() * ti.getPresentacionTransporte().getCantidad() * (-1));
+                movimientoStock.setCantidad(ti.getCantidadPreTransferencia() * ti.getPresentacionPreTransferencia().getCantidad() * (-1));
                 movimientoStock.setProducto(ti.getPresentacionPreTransferencia().getProducto());
-                movimientoStock.setReferencia(id);
+                movimientoStock.setReferencia(ti.getId());
                 movimientoStock.setTipoMovimiento(TipoMovimiento.TRANSFERENCIA);
-                save(movimientoStock);
+                saveAndSend(movimientoStock, false);
             }
             ok = true;
         }
@@ -108,7 +108,7 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
                 movimientoStock.setProducto(ti.getPresentacionPreTransferencia().getProducto());
                 movimientoStock.setReferencia(id);
                 movimientoStock.setTipoMovimiento(TipoMovimiento.TRANSFERENCIA);
-                save(movimientoStock);
+                saveAndSend(movimientoStock, false);
             }
             ok = true;
         }

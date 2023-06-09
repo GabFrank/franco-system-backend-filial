@@ -61,7 +61,7 @@ public class ProductoService extends CrudService<Producto, ProductoRepository> {
     }
 
 
-    public List<Producto> findByAll(String texto, Integer offset, Boolean isEnvase) {
+    public List<Producto> findByAll(String texto, Integer offset, Boolean isEnvase, Boolean activo) {
         if (texto.length() > 0) {
             texto = texto.replace(' ', '%').toUpperCase();
             if (offset == null) {
@@ -204,7 +204,7 @@ public class ProductoService extends CrudService<Producto, ProductoRepository> {
     }
 
     public String exportarReporte(String texto) throws FileNotFoundException {
-        List<Producto> productoList = findByAll(texto, 0, false);
+        List<Producto> productoList = findByAll(texto, 0, false, true);
         List<ProductoReportDto> productosDtoList = new ArrayList<>();
         PrecioPorSucursal precioVenta = null;
         PrecioPorSucursal precioCosto = null;

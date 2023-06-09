@@ -1,5 +1,6 @@
 package com.franco.dev.service.operaciones;
 
+import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.graphql.operaciones.publisher.DeliveryPublisher;
@@ -10,6 +11,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -30,8 +32,8 @@ public class DeliveryService extends CrudService<Delivery, DeliveryRepository> {
         return repository.findByEstado(estado);
     }
 
-    public List<Delivery> findByEstadoList(List<DeliveryEstado> estadoList, Long sucId) {
-        Iterable<Delivery> deliveryIterable = repository.findByEstadoIn(estadoList);
+    public List<Delivery> findByEstadoList(List<DeliveryEstado> estadoList, Long cajaId) {
+        Iterable<Delivery> deliveryIterable = repository.findByEstadoInAndVentaCajaIdOrderByIdDesc(estadoList, cajaId);
         return StreamSupport.stream(deliveryIterable.spliterator(), false)
                 .collect(Collectors.toList());
     }

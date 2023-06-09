@@ -710,7 +710,7 @@ public class PropagacionService {
         switch (tipoEntidad) {
             case PRESENTACION:
                 try {
-                    imageService.saveImageToPath((String) dto.getEntidad(), (String) dto.getData(), imageService.imagePresentaciones, imageService.imagePresentacionesThumbPath, true);
+                    imageService.saveImageToPath((String) dto.getEntidad(), (String) dto.getData(), imageService.getImagePresentaciones(), imageService.getImagePresentacionesThumbPath(), true);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

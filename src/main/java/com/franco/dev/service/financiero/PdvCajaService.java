@@ -367,39 +367,39 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                         for (CobroDetalle cobroDetalle : cobroDetalleList) {
                             if (cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")) {
                                 if (cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")) {
-                                    if (cobroDetalle.getDescuento()) {
+                                    if (cobroDetalle.getDescuento() != null && cobroDetalle.getDescuento()) {
                                         totalDescuento += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getAumento()) {
+                                    } else if (cobroDetalle.getAumento() != null && cobroDetalle.getAumento()) {
                                         totalAumento += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getVuelto()) {
+                                    } else if (cobroDetalle.getVuelto() != null && cobroDetalle.getVuelto()) {
                                         vueltoGs += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getPago()) {
+                                    } else if (cobroDetalle.getPago() != null && cobroDetalle.getPago()) {
                                         totalVentaGs += cobroDetalle.getValor();
                                     }
                                 } else if (cobroDetalle.getFormaPago().getDescripcion().contains("TARJETA")) {
-                                    if(!cobroDetalle.getAumento()) totalTarjeta += cobroDetalle.getValor();
+                                    if(cobroDetalle.getAumento() != null && !cobroDetalle.getAumento()) totalTarjeta += cobroDetalle.getValor();
                                 } else if (cobroDetalle.getFormaPago().getDescripcion().contains("CONVENIO")) {
                                     totalConvenio += cobroDetalle.getValor();
                                 }
                             } else if (cobroDetalle.getMoneda().getDenominacion().contains("REAL")) {
                                 if (cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")) {
-                                    if (cobroDetalle.getAumento()) {
+                                    if (cobroDetalle.getAumento() != null && cobroDetalle.getAumento()) {
                                         totalAumento += cobroDetalle.getValor() * cobroDetalle.getCambio();
-                                    } else if (cobroDetalle.getVuelto()) {
+                                    } else if (cobroDetalle.getVuelto() != null && cobroDetalle.getVuelto()) {
                                         vueltoRs += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getPago()) {
+                                    } else if (cobroDetalle.getPago() != null && cobroDetalle.getPago()) {
                                         totalVentaRs += cobroDetalle.getValor();
                                     }
                                 }
                             } else if (cobroDetalle.getMoneda().getDenominacion().contains("DOLAR")) {
                                 if (cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")) {
-                                    if (cobroDetalle.getAumento()) {
+                                    if (cobroDetalle.getAumento() != null && cobroDetalle.getAumento()) {
                                         totalAumento += cobroDetalle.getValor() * cobroDetalle.getCambio();
-                                    } else if (cobroDetalle.getVuelto()) {
+                                    } else if (cobroDetalle.getVuelto() != null && cobroDetalle.getVuelto()) {
                                         vueltoDs += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getPago()) {
+                                    } else if (cobroDetalle.getPago() != null && cobroDetalle.getPago()) {
                                         totalVentaDs += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getPago()) {
+                                    } else if (cobroDetalle.getPago() != null && cobroDetalle.getPago()) {
                                         totalVentaDs += cobroDetalle.getValor();
                                     }
                                 }

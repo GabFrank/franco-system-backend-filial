@@ -2,6 +2,7 @@ package com.franco.dev.utilitarios;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import java.text.Normalizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,6 +49,12 @@ public class StringUtils {
             return matcher.group(1);
         }
         return "";
+    }
+
+    public static String removeAccents(String text) {
+        String decomposed = Normalizer.normalize(text, Normalizer.Form.NFD);
+        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        return pattern.matcher(decomposed).replaceAll("");
     }
 
 }

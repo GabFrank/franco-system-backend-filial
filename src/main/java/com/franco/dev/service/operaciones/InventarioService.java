@@ -65,42 +65,48 @@ public class InventarioService extends CrudService<Inventario, InventarioReposit
 
     public Inventario finalizarInventario(Long id) throws GraphQLException {
         Inventario inventario = findById(id).orElse(null);
-        if (inventario.getId() != null) {
-            inventario.setEstado(InventarioEstado.CONCLUIDO);
-            inventario.setFechaFin(LocalDateTime.now());
-            inventario = save(inventario);
-            List<InventarioProducto> inventarioProductoList = inventarioProductoService.findByInventarioId(id);
-            List<MovimientoStock> movimientoStockList = new ArrayList<>();
-            for (InventarioProducto ip : inventarioProductoList) {
-                List<InventarioProductoItem> inventarioProductoItemList = inventarioProductoItemService.findByInventarioProductoId(ip.getId());
-                for (InventarioProductoItem ipi : inventarioProductoItemList) {
-                    MovimientoStock movimientoStockEncontrado = null;
-                    for (MovimientoStock ms : movimientoStockList) {
-                        if (ipi.getPresentacion().getProducto().getId() == ms.getProducto().getId()) {
-                            ms.setCantidad(ms.getCantidad() + (ipi.getPresentacion().getCantidad() * ipi.getCantidad()));
-                            movimientoStockEncontrado = ms;
+        try {
+            if (inventario.getId() != null) {
+                inventario.setEstado(InventarioEstado.CONCLUIDO);
+                inventario.setFechaFin(LocalDateTime.now());
+                inventario = save(inventario);
+                List<InventarioProducto> inventarioProductoList = inventarioProductoService.findByInventarioId(id);
+                List<MovimientoStock> movimientoStockList = new ArrayList<>();
+                for (InventarioProducto ip : inventarioProductoList) {
+                    List<InventarioProductoItem> inventarioProductoItemList = inventarioProductoItemService.findByInventarioProductoId(ip.getId());
+                    for (InventarioProductoItem ipi : inventarioProductoItemList) {
+                        MovimientoStock movimientoStockEncontrado = null;
+                        for (MovimientoStock ms : movimientoStockList) {
+                            if (ipi.getPresentacion().getProducto().getId() == ms.getProducto().getId()) {
+                                ms.setCantidad(ms.getCantidad() + (ipi.getPresentacion().getCantidad() * ipi.getCantidad()));
+                                movimientoStockEncontrado = ms;
+                            }
+                        }
+                        if (movimientoStockEncontrado == null) {
+                            movimientoStockEncontrado = new MovimientoStock();
+                            movimientoStockEncontrado.setCantidad(ipi.getCantidad() * ipi.getPresentacion().getCantidad());
+                            movimientoStockEncontrado.setTipoMovimiento(TipoMovimiento.AJUSTE);
+                            movimientoStockEncontrado.setReferencia(id);
+                            movimientoStockEncontrado.setProducto(ipi.getPresentacion().getProducto());
+                            movimientoStockEncontrado.setEstado(true);
+                            movimientoStockList.add(movimientoStockEncontrado);
                         }
                     }
-                    if (movimientoStockEncontrado == null) {
-                        movimientoStockEncontrado = new MovimientoStock();
-                        movimientoStockEncontrado.setCantidad(ipi.getCantidad() * ipi.getPresentacion().getCantidad());
-                        movimientoStockEncontrado.setTipoMovimiento(TipoMovimiento.AJUSTE);
-                        movimientoStockEncontrado.setReferencia(id);
-                        movimientoStockEncontrado.setProducto(ipi.getPresentacion().getProducto());
-                        movimientoStockEncontrado.setEstado(true);
-                        movimientoStockList.add(movimientoStockEncontrado);
-                    }
+                }
+                for (MovimientoStock ms : movimientoStockList) {
+                    Double stockSistema = Double.valueOf(movimientoStockService.stockByProductoId(ms.getProducto().getId()));
+                    Double stockFisico = ms.getCantidad();
+                    Double diferencia = stockFisico - stockSistema; //9 - 10 = -1, 11 - 10 = 1
+                    ms.setCantidad(diferencia);
+                    movimientoStockService.saveAndSend(ms, false);
                 }
             }
-            for (MovimientoStock ms : movimientoStockList) {
-                Double stockSistema = Double.valueOf(movimientoStockService.stockByProductoId(ms.getProducto().getId()));
-                Double stockFisico = ms.getCantidad();
-                Double diferencia = stockFisico - stockSistema; //9 - 10 = -1, 11 - 10 = 1
-                ms.setCantidad(diferencia);
-                movimientoStockService.save(ms);
-            }
+            return inventario;
+        } catch (Exception e){
+            e.printStackTrace();
+            throw e;
         }
-        return inventario;
+
     }
 
     @Transactional()

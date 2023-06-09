@@ -42,6 +42,7 @@ import javax.print.attribute.standard.OrientationRequested;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -73,6 +74,8 @@ public class FacturaService {
     private UsuarioService usuarioService;
     @Autowired
     private CambioService cambioService;
+
+    public DecimalFormat df = new DecimalFormat("#,###.##");
 
     public Long printTicket58mmFacturaConVenta(Venta venta, Cobro cobro, List<VentaItem> ventaItemList, List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local, FacturaLegalInput facturaLegal, Long pdvId, Long numeroFactura, Delivery delivery) throws Exception {
         PrintService selectedPrintService = printingService.getPrintService(printerName);
@@ -171,8 +174,8 @@ public class FacturaService {
                 String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad().intValue() + ") " + iva + "%";
                 escpos.writeLF(vi.getProducto().getDescripcion());
                 escpos.write(new Style().setBold(true), cantidad);
-                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue());
-                String valorTotal = NumberFormat.getNumberInstance(Locale.GERMAN).format(total.intValue());
+                String valorUnitario = df.format(vi.getPrecioVenta().getPrecio().intValue());
+                String valorTotal = df.format(total.intValue());
                 for (int i = 14; i > cantidad.length(); i--) {
                     escpos.write(" ");
                 }
@@ -184,7 +187,7 @@ public class FacturaService {
             }
             escpos.writeLF("--------------------------------");
             escpos.write("Total Gs: ");
-            String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(venta.getTotalGs().intValue());
+            String valorGs = df.format(venta.getTotalGs().intValue());
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
@@ -204,13 +207,13 @@ public class FacturaService {
             escpos.writeLF(valorDs);
             escpos.writeLF("--------Liquidación IVA---------");
             escpos.write("Gravadas 10%:");
-            String totalIva10S = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIva10.intValue());
+            String totalIva10S = df.format(totalIva10.intValue());
             for (int i = 19; i > totalIva10S.length(); i--) {
                 escpos.write(" ");
             }
             escpos.writeLF(totalIva10S);
             escpos.write("Gravadas 5%: ");
-            String totalIva5S = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIva5.intValue());
+            String totalIva5S = df.format(totalIva5.intValue());
             for (int i = 19; i > totalIva5S.length(); i--) {
                 escpos.write(" ");
             }
@@ -221,7 +224,7 @@ public class FacturaService {
             }
             escpos.writeLF("0");
             Double totalFinalIva = totalIva10 + totalIva5;
-            String totalFinalIvaS = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalFinalIva.intValue());
+            String totalFinalIvaS = df.format(totalFinalIva.intValue());
             escpos.write("Total IVA:   ");
             for (int i = 19; i > totalFinalIvaS.length(); i--) {
                 escpos.write(" ");
@@ -230,7 +233,7 @@ public class FacturaService {
 //            escpos.writeLF("--------Liquidación IVA---------");
 //            escpos.write("Gravadas 10%:");
 //            Double totalIvaFinal = totalIva10 + totalIva5;
-//            String totalIvaFinalS = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIvaFinal.intValue());
+//            String totalIvaFinalS = df.format(totalIvaFinal.intValue());
 //            for (int i = 19; i > totalIvaFinalS.length(); i--) {
 //                escpos.write(" ");
 //            }
@@ -407,36 +410,36 @@ public class FacturaService {
 
                 }
                 totalFinal += total;
-                String cantidad = vi.getCantidad().intValue() + " (" + vi.getCantidad() + ") " + iva + "%";
+                String cantidad = df.format(vi.getCantidad().doubleValue()) + " " + iva + "%";
                 escpos.writeLF(vi.getDescripcion());
                 escpos.write(new Style().setBold(true), cantidad);
-                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioUnitario().intValue());
-                String valorTotal = NumberFormat.getNumberInstance(Locale.GERMAN).format(total.intValue());
+                String valorUnitario = df.format(vi.getPrecioUnitario().intValue());
+                String valorTotal = df.format(total.intValue());
                 for (int i = 14; i > cantidad.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.write(valorUnitario);
-                for (int i = 16 - valorUnitario.length(); i > valorTotal.length(); i--) {
+                for (int i = 18 - valorUnitario.length(); i > valorTotal.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorTotal);
             }
             escpos.writeLF("--------------------------------");
             escpos.write("Total Gs: ");
-            String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalFinal);
+            String valorGs = df.format(totalFinal);
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
             escpos.writeLF(new Style().setBold(true), valorGs);
             escpos.writeLF("--------Liquidación IVA---------");
             escpos.write("Gravadas 10%:");
-            String totalIva10S = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIva10.intValue());
+            String totalIva10S = df.format(totalIva10.intValue());
             for (int i = 19; i > totalIva10S.length(); i--) {
                 escpos.write(" ");
             }
             escpos.writeLF(totalIva10S);
             escpos.write("Gravadas 5%: ");
-            String totalIva5S = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIva5.intValue());
+            String totalIva5S = df.format(totalIva5.intValue());
             for (int i = 19; i > totalIva5S.length(); i--) {
                 escpos.write(" ");
             }
@@ -447,7 +450,7 @@ public class FacturaService {
             }
             escpos.writeLF("0");
             Double totalFinalIva = totalIva10 + totalIva5;
-            String totalFinalIvaS = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalFinalIva.intValue());
+            String totalFinalIvaS = df.format(totalFinalIva.intValue());
             escpos.write("Total IVA:   ");
             for (int i = 19; i > totalFinalIvaS.length(); i--) {
                 escpos.write(" ");
@@ -456,7 +459,7 @@ public class FacturaService {
 //            escpos.writeLF("--------Liquidación IVA---------");
 //            escpos.write("Gravadas 10%:");
 //            Double totalIvaFinal = totalIva10 + totalIva5;
-//            String totalIvaFinalS = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIvaFinal.intValue());
+//            String totalIvaFinalS = df.format(totalIvaFinal.intValue());
 //            for (int i = 19; i > totalIvaFinalS.length(); i--) {
 //                escpos.write(" ");
 //            }
@@ -469,7 +472,7 @@ public class FacturaService {
 
             escpos.writeLF("--------------------------------");
             if (sucursal != null && sucursal.getNroDelivery() != null) {
-                escpos.write(center, "Delivery? Escaneá el código qr o escribinos al ");
+                escpos.write(center, "Delivery? Escanea el codigo qr o escribinos al ");
                 escpos.writeLF(center, sucursal.getNroDelivery());
             }
             if (sucursal.getNroDelivery() != null) {

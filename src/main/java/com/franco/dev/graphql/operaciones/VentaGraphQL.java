@@ -63,16 +63,20 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import com.franco.dev.utilitarios.NumberUtils.*;
 
 import static com.franco.dev.service.utils.PrintingService.resize;
 import static com.franco.dev.utilitarios.CalcularVerificadorRuc.getDigitoVerificadorString;
 import static com.franco.dev.utilitarios.DateUtils.toDate;
+import static com.franco.dev.utilitarios.StringUtils.removeAccents;
 
 @Component
 public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
@@ -141,6 +145,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     @Autowired
     private DeliveryService deliveryService;
+
+    public static final DecimalFormat df = new DecimalFormat("#,###.##");
 
     private Sucursal sucursal;
 
@@ -361,6 +367,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         }
 
         Double descuento = 0.0;
+        Double descuentoRs = 0.0;
+        Double descuentoDs = 0.0;
         Double aumento = 0.0;
         Double vueltoGs = 0.0;
         Double vueltoRs = 0.0;
@@ -402,6 +410,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
         }
 
+        if(descuento > 0) {
+            descuentoRs = descuento / cambioRs;
+            descuentoDs = descuento / cambioDs;
+        }
 
         if (selectedPrintService != null) {
             printerOutputStream = new PrinterOutputStream(selectedPrintService);
@@ -447,10 +459,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
 
             if (venta.getUsuario().getPersona().getNombre().length() > 23) {
-                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre());
-
+                escpos.writeLF("Cajero: " + removeAccents(venta.getUsuario().getPersona().getNombre()));
             } else {
-                escpos.writeLF("Cajero: " + venta.getUsuario().getPersona().getNombre());
+                escpos.writeLF("Cajero: " + removeAccents(venta.getUsuario().getPersona().getNombre()));
             }
 
             escpos.writeLF("Fecha: " + venta.getCreadoEn().format(formatter));
@@ -462,51 +473,66 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 ventaItemList = ventaItemService.findByVentaId(venta.getId());
             }
             for (VentaItem vi : ventaItemList) {
-                String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad().intValue() + ") " + "10%";
+                String cantidad = df.format(vi.getCantidad().doubleValue()) + " (" + vi.getPresentacion().getCantidad().intValue() + ") " + "10%";
                 escpos.writeLF(vi.getProducto().getDescripcion());
                 escpos.write(new Style().setBold(true), cantidad);
-                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue());
-                String valorTotal = String.valueOf((vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue()) * vi.getCantidad().intValue());
+                String valorUnitario = df.format(vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue());
+                String valorTotal = String.valueOf(df.format((vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue()) * vi.getCantidad().doubleValue()));
                 for (int i = 14; i > cantidad.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.write(valorUnitario);
-                for (int i = 16 - valorUnitario.length(); i > valorTotal.length(); i--) {
+                for (int i = 18 - valorUnitario.length(); i > valorTotal.length(); i--) {
                     escpos.write(" ");
                 }
-                escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
+                escpos.writeLF(valorTotal);
             }
             if (delivery != null) {
                 escpos.writeLF("--------------------------------");
                 escpos.write("Delivery: ");
-                String deliveryGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(precioDeliveryGs.intValue());
+                String deliveryGs = df.format(precioDeliveryGs.intValue());
                 for (int i = 22; i > deliveryGs.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(deliveryGs);
             }
             escpos.writeLF("--------------------------------");
-//            escpos.write("Descuento Gs: ");
-//            String valorDescuentoGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(descuento.intValue());
-//            for (int i = 22; i > valorDescuentoGs.length(); i--) {
-//                escpos.write(" ");
-//            }
-//            escpos.writeLF("--------------------------------");
+            if(descuento > 0){
+                escpos.write("Descuento Gs: ");
+                String valorDescuentoGs = df.format(descuento.intValue());
+                for (int i = 18; i > valorDescuentoGs.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(valorDescuentoGs);
+                escpos.write("Descuento Rs: ");
+                String valorDescuentoRs = String.format("%.2f", descuentoRs);
+                for (int i = 18; i > valorDescuentoRs.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(valorDescuentoRs);
+                escpos.write("Descuento Ds: ");
+                String valorDescuentoDs = String.format("%.2f", descuentoDs);
+                for (int i = 18; i > valorDescuentoDs.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(valorDescuentoDs);
+                escpos.writeLF("--------------------------------");
+            }
             escpos.write("Total Gs: ");
-            String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(venta.getTotalGs().intValue() + precioDeliveryGs.intValue());
+            String valorGs = df.format(venta.getTotalGs().intValue() + precioDeliveryGs.intValue() - descuento.intValue());
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
             escpos.writeLF(valorGs);
             escpos.write("Total Rs: ");
-            String valorRs = String.format("%.2f", venta.getTotalRs() + precioDeliveryRs);
+            String valorRs = String.format("%.2f", venta.getTotalRs() + precioDeliveryRs - descuentoRs);
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
             escpos.writeLF(valorRs);
             escpos.write("Total Ds: ");
 //      String valorDs = NumberFormat.getNumberInstance(new Locale("sk", "SK")).format(venta.getTotalDs());
-            String valorDs = String.format("%.2f", venta.getTotalDs() + precioDeliveryDs);
+            String valorDs = String.format("%.2f", venta.getTotalDs() + precioDeliveryDs - descuentoDs);
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
@@ -517,7 +543,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     escpos.writeLF(center, "PAGARE A LA ORDEN " + x + 1 + "/" + itens.size());
                     escpos.feed(1);
                     escpos.write("Total Gs: ");
-                    String valorPagare = NumberFormat.getNumberInstance(Locale.GERMAN).format(itens.get(x).getValor().intValue());
+                    String valorPagare = df.format(itens.get(x).getValor().intValue());
                     for (int i = 22; i > valorPagare.length(); i--) {
                         escpos.write(" ");
                     }
@@ -560,6 +586,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             escpos.feed(1);
             escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
             escpos.feed(5);
+            escpos.cut(EscPos.CutMode.FULL);
             try {
                 escpos.close();
                 printerOutputStream.close();

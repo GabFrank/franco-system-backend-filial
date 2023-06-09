@@ -79,6 +79,7 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
     }
 
     @Override
+    @Transactional
     public Venta saveAndSend(Venta entity, Boolean recibir) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());

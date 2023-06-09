@@ -1,7 +1,10 @@
 package com.franco.dev.service.operaciones;
 
+import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.Transferencia;
+import com.franco.dev.domain.operaciones.TransferenciaItem;
 import com.franco.dev.domain.operaciones.enums.EtapaTransferencia;
+import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.repository.operaciones.TransferenciaRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
@@ -10,6 +13,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -18,6 +22,9 @@ public class TransferenciaService extends CrudService<Transferencia, Transferenc
     private final TransferenciaRepository repository;
     @Autowired
     private MovimientoStockService movimientoStockService;
+
+    @Autowired
+    private TransferenciaItemService transferenciaItemService;
 
     @Autowired
     private Environment env;
@@ -43,8 +50,19 @@ public class TransferenciaService extends CrudService<Transferencia, Transferenc
     public Boolean deleteById(Long id) {
         Boolean ok = false;
         Transferencia transferencia = findById(id).orElse(null);
+        List<TransferenciaItem> transferenciaItemList = transferenciaItemService.findByTransferenciaIdAndSucursalId(id);
+        List<MovimientoStock> movimientoStockList = new ArrayList<>();
+        for(TransferenciaItem ti: transferenciaItemList){
+            MovimientoStock ms = movimientoStockService.findByTipoMovimientoAndReferencia(TipoMovimiento.TRANSFERENCIA, ti.getId());
+            if(ms!=null){
+                movimientoStockList.add(ms);
+            }
+        }
         if (transferencia != null) {
             ok = super.deleteById(id);
+            for(MovimientoStock m: movimientoStockList){
+                movimientoStockService.delete(m);
+            }
         }
         return ok;
     }
@@ -57,7 +75,7 @@ public class TransferenciaService extends CrudService<Transferencia, Transferenc
         } else {
             Transferencia aux = findById(entity.getId()).orElse(null);
             if (aux != null) {
-                if ((aux.getSucursalOrigen().getId() == idActual) && (aux.getEtapa() == EtapaTransferencia.TRANSPORTE_VERIFICACION) && (entity.getEtapa() == EtapaTransferencia.TRANSPORTE_EN_CAMINO)) {
+                if ((aux.getSucursalOrigen().getId() == idActual) && (aux.getEtapa() == EtapaTransferencia.PRE_TRANSFERENCIA_CREACION) && (entity.getEtapa() == EtapaTransferencia.PRE_TRANSFERENCIA_ORIGEN)) {
                     movimientoStockService.bajaStockPorTransferencia(entity.getId());
                 } else if ((aux.getSucursalDestino().getId() == idActual) && aux.getEtapa() == EtapaTransferencia.RECEPCION_EN_VERIFICACION && entity.getEtapa() == EtapaTransferencia.RECEPCION_CONCLUIDA) {
                     movimientoStockService.altaStockPorTransferencia(entity.getId());

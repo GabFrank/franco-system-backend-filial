@@ -17,6 +17,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.env.Environment;
 import org.springframework.orm.jpa.support.OpenEntityManagerInViewFilter;
 import org.springframework.retry.annotation.EnableRetry;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -25,11 +26,15 @@ import org.springframework.web.filter.CorsFilter;
 import javax.annotation.PostConstruct;
 import javax.servlet.Filter;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.util.Collections;
+import java.util.List;
 
 @EnableRabbit
 @EnableRetry
 @SpringBootApplication
+@EnableScheduling
 public class FrancoSystemsApplication {
 
     public final static String SFG_MESSAGE_QUEUE = "test-queue";

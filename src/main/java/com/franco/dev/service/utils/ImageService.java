@@ -63,6 +63,14 @@ public class ImageService {
         return imageBufferedImage;
     }
 
+    public String getImagePresentaciones(){
+        return imagePresentaciones;
+    }
+
+    public String getImagePresentacionesThumbPath(){
+        return imagePresentacionesThumbPath;
+    }
+
     public static MultipartFile converter(String source) {
         String[] charArray = source.split(",");
         Base64.Decoder decoder = Base64.getDecoder();

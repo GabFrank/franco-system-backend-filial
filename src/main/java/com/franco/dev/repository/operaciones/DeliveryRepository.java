@@ -30,7 +30,9 @@ public interface DeliveryRepository extends HelperRepository<Delivery, Long> {
 
     public List<Delivery> findByVentaCajaIdAndEstadoIn(Long id, List<DeliveryEstado> estado);
 
-    Iterable<Delivery> findByEstadoIn(List<DeliveryEstado> estadoList);
+    Iterable<Delivery> findByEstadoInOrderByIdDesc(List<DeliveryEstado> estadoList);
+
+    Iterable<Delivery> findByEstadoInAndVentaCajaIdOrderByIdDesc(List<DeliveryEstado> estadoList, Long cajaId);
 
 
 //    @Query("select p from Delivery p left outer join p.proveedor as pro left outer join pro.persona as per where LOWER(per.nombre) like %?1%")

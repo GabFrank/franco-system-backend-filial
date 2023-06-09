@@ -232,6 +232,7 @@ public class ImpresionService {
                     escpos.writeLF(center, balanceDto.getUsuario().getPersona().getNombre());
                 }
                 escpos.feed(5);
+                escpos.cut(EscPos.CutMode.FULL);
                 escpos.close();
                 printerOutputStream.close();
                 return true;
@@ -325,6 +326,7 @@ public class ImpresionService {
                     }
                 }
                 escpos.feed(5);
+                escpos.cut(EscPos.CutMode.FULL);
                 escpos.close();
                 printerOutputStream.close();
             }
@@ -484,6 +486,7 @@ public class ImpresionService {
                     escpos.writeLF(center, retiroDto.getResponsable().getPersona().getNombre());
                 }
                 escpos.feed(5);
+                escpos.cut(EscPos.CutMode.FULL);
                 escpos.close();
                 printerOutputStream.close();
             }

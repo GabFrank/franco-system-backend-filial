@@ -40,6 +40,14 @@ enum TipoConfirmacion {
     APP
 }
 
+extend type Query {
+    imprimirVentaCredito(id:ID!, sucId:ID!, printerName:String):Boolean
+}
+
+extend type Mutation {
+    cobrarVentaCredito(ventaCreditoInputList: [VentaCreditoInput], cobroList: [CobroDetalleInput]): Boolean
+}
+
 enum EstadoVentaCredito {
     ABIERTO,
     FINALIZADO,

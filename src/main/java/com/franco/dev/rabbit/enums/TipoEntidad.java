@@ -34,6 +34,7 @@ public enum TipoEntidad {
     BARRIO,
     CONTACTO,
     CLIENTE,
+    CLIENTE_ADICIONAL,
     FUNCIONARIO,
     PROVEEDOR,
     VENDEDOR,
