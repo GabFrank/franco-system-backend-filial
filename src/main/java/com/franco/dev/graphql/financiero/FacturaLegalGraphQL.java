@@ -144,7 +144,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (input.getTimbradoDetalleId() != null)
             e.setTimbradoDetalle(timbradoDetalleService.findById(input.getTimbradoDetalleId()).orElse(null));
         if (input.getClienteId() != null) e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
-        if(input.getRuc()!=null && input.getRuc()!= "X"){
+        if(input.getRuc()!=null && input.getRuc()!= "X" && !input.getRuc().contains("-")){
             e.setRuc(input.getRuc()+getDigitoVerificadorString(input.getRuc()));
         }
         e = service.saveAndSend(e, false);

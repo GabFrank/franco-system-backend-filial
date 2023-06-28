@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.franco.dev</groupId>
     <artifactId>franco-dev-systems</artifactId>
-    <version>2.2.3</version>
+    <version>2.3.0</version>
     <name>Franco Systems</name>
     <description>Sistema de gestion empresarial</description>
 

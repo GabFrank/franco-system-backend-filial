@@ -15,6 +15,7 @@ import com.franco.dev.rabbit.dto.SaveFacturaDto;
 import com.franco.dev.service.empresarial.PuntoDeVentaService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.impresion.ImpresionService;
+import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
@@ -74,6 +75,8 @@ public class FacturaService {
     private UsuarioService usuarioService;
     @Autowired
     private CambioService cambioService;
+    @Autowired
+    private VentaItemService ventaItemService;
 
     public DecimalFormat df = new DecimalFormat("#,###.##");
 
@@ -390,6 +393,7 @@ public class FacturaService {
             escpos.writeLF("Cant  IVA   P.U              P.T");
             escpos.writeLF("--------------------------------");
             for (FacturaLegalItemInput vi : facturaLegalItemList) {
+                VentaItem ventaItem = ventaItemService.findById(vi.getVentaItemId()).orElse(null);
                 Integer iva = vi.getIva();
                 Double total = vi.getTotal();
                 if (iva == null) {
@@ -410,7 +414,11 @@ public class FacturaService {
 
                 }
                 totalFinal += total;
+
                 String cantidad = df.format(vi.getCantidad().doubleValue()) + " " + iva + "%";
+                if(ventaItem!=null){
+                    cantidad = df.format(vi.getCantidad().doubleValue()) + " (" + ventaItem.getPresentacion().getCantidad().intValue() + ") " + "10%";
+                }
                 escpos.writeLF(vi.getDescripcion());
                 escpos.write(new Style().setBold(true), cantidad);
                 String valorUnitario = df.format(vi.getPrecioUnitario().intValue());
