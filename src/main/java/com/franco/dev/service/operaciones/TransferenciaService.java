@@ -69,17 +69,30 @@ public class TransferenciaService extends CrudService<Transferencia, Transferenc
 
     @Override
     public Transferencia save(Transferencia entity) {
+        log.info("Guardando transferenncia");
         Long idActual = env.getProperty("sucursalId", Long.class);
+
         if (entity.getId() == null) {
+            log.info("entity get id es null");
             entity.setCreadoEn(LocalDateTime.now());
         } else {
+            log.info("entity no es null");
             Transferencia aux = findById(entity.getId()).orElse(null);
             if (aux != null) {
-                if ((aux.getSucursalOrigen().getId() == idActual) && (aux.getEtapa() == EtapaTransferencia.PRE_TRANSFERENCIA_CREACION) && (entity.getEtapa() == EtapaTransferencia.PRE_TRANSFERENCIA_ORIGEN)) {
+                log.info("id sucursal: " + idActual);
+                log.info("id destino: " + aux.getSucursalDestino().getId());
+                log.info("etapa actual: " + aux.getEtapa());
+                log.info("edtapa nueva: " + entity.getEtapa());
+                log.info("aux no es null");
+                if (aux.getSucursalOrigen().getId().equals(idActual) && (aux.getEtapa() == EtapaTransferencia.PRE_TRANSFERENCIA_CREACION) && (entity.getEtapa() == EtapaTransferencia.PRE_TRANSFERENCIA_ORIGEN)) {
                     movimientoStockService.bajaStockPorTransferencia(entity.getId());
-                } else if ((aux.getSucursalDestino().getId() == idActual) && aux.getEtapa() == EtapaTransferencia.RECEPCION_EN_VERIFICACION && entity.getEtapa() == EtapaTransferencia.RECEPCION_CONCLUIDA) {
+                    log.info("baja stock");
+                } else if (aux.getSucursalDestino().getId().equals(idActual) && aux.getEtapa() == EtapaTransferencia.RECEPCION_EN_VERIFICACION && entity.getEtapa() == EtapaTransferencia.RECEPCION_CONCLUIDA) {
                     movimientoStockService.altaStockPorTransferencia(entity.getId());
+                    log.info("alta stock");
                 }
+            }else {
+                log.info("Aux es null");
             }
 //        personaPublisher.publish(p);
         }

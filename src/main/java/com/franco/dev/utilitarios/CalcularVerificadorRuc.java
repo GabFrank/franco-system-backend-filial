@@ -15,7 +15,7 @@ public class CalcularVerificadorRuc {
     }
 
     public static Integer getDigitoVerificador(String ruc, int base) {
-        if(ruc.length() < 6) return null;
+        if(ruc.length() < 5) return null;
         int k = 2;
         int total = 0;
 

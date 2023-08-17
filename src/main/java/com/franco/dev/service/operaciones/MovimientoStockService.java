@@ -98,16 +98,20 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
     }
 
     public Boolean altaStockPorTransferencia(Long id) {
+        log.info("Entrando en alta de stock");
         Boolean ok = false;
         List<TransferenciaItem> transferenciaItemList = transferenciaItemService.findByTransferenciaItemId(id);
         for (TransferenciaItem ti : transferenciaItemList) {
+            log.info("Item: " + ti.getPresentacionRecepcion().getProducto().getDescripcion());
             if (ti.getCantidadRecepcion() != null && ti.getMotivoRechazoRecepcion() == null) {
                 MovimientoStock movimientoStock = new MovimientoStock();
                 movimientoStock.setEstado(true);
                 movimientoStock.setCantidad(ti.getCantidadRecepcion() * ti.getPresentacionRecepcion().getCantidad());
                 movimientoStock.setProducto(ti.getPresentacionPreTransferencia().getProducto());
-                movimientoStock.setReferencia(id);
+                movimientoStock.setReferencia(ti.getId());
                 movimientoStock.setTipoMovimiento(TipoMovimiento.TRANSFERENCIA);
+                log.info("movimiento creado");
+                log.info(movimientoStock.toString());
                 saveAndSend(movimientoStock, false);
             }
             ok = true;

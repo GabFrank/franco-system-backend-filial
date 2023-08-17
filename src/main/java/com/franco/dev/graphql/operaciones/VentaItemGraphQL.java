@@ -81,7 +81,7 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         Cambio cambioDs = cambioService.findLastByMonedaId((long) 3);
         Double totalGs = 0.0;
         for (VentaItem vi : ventaItemList) {
-            totalGs += vi.getPrecio();
+            totalGs += vi.getPrecio() * vi.getCantidad();
         }
         Double totalRs = totalGs / cambioRs.getValorEnGs();
         Double totalDs = totalGs / cambioDs.getValorEnGs();

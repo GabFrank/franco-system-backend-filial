@@ -393,44 +393,46 @@ public class FacturaService {
             escpos.writeLF("Cant  IVA   P.U              P.T");
             escpos.writeLF("--------------------------------");
             for (FacturaLegalItemInput vi : facturaLegalItemList) {
-                VentaItem ventaItem = ventaItemService.findById(vi.getVentaItemId()).orElse(null);
-                Integer iva = vi.getIva();
-                Double total = vi.getTotal();
-                if (iva == null) {
-                    iva = 10;
-                }
-                switch (iva) {
-                    case 10:
-                        ventaIva10 += total;
-                        totalIva10 += total / 11;
-                        break;
-                    case 5:
-                        totalIva5 += total / 21;
-                        ventaIva5 += total;
-                        break;
-                    case 0:
-                        ventaIva0 += total;
-                        break;
+                VentaItem ventaItem = vi.getVentaItemId() != null ? ventaItemService.findById(vi.getVentaItemId()).orElse(null) : null;
+                if(ventaItem != null || vi.getDescripcion().contains("Delivery")){
+                    Integer iva = vi.getIva();
+                    Double total = vi.getTotal();
+                    if (iva == null) {
+                        iva = 10;
+                    }
+                    switch (iva) {
+                        case 10:
+                            ventaIva10 += total;
+                            totalIva10 += total / 11;
+                            break;
+                        case 5:
+                            totalIva5 += total / 21;
+                            ventaIva5 += total;
+                            break;
+                        case 0:
+                            ventaIva0 += total;
+                            break;
 
-                }
-                totalFinal += total;
+                    }
+                    totalFinal += total;
 
-                String cantidad = df.format(vi.getCantidad().doubleValue()) + " " + iva + "%";
-                if(ventaItem!=null){
-                    cantidad = df.format(vi.getCantidad().doubleValue()) + " (" + ventaItem.getPresentacion().getCantidad().intValue() + ") " + "10%";
+                    String cantidad = df.format(vi.getCantidad().doubleValue()) + " " + iva + "%";
+                    if(ventaItem!=null){
+                        cantidad = df.format(vi.getCantidad().doubleValue()) + " (" + ventaItem.getPresentacion().getCantidad().intValue() + ") " + "10%";
+                    }
+                    escpos.writeLF(vi.getDescripcion());
+                    escpos.write(new Style().setBold(true), cantidad);
+                    String valorUnitario = df.format(vi.getPrecioUnitario().intValue());
+                    String valorTotal = df.format(total.intValue());
+                    for (int i = 14; i > cantidad.length(); i--) {
+                        escpos.write(" ");
+                    }
+                    escpos.write(valorUnitario);
+                    for (int i = 18 - valorUnitario.length(); i > valorTotal.length(); i--) {
+                        escpos.write(" ");
+                    }
+                    escpos.writeLF(valorTotal);
                 }
-                escpos.writeLF(vi.getDescripcion());
-                escpos.write(new Style().setBold(true), cantidad);
-                String valorUnitario = df.format(vi.getPrecioUnitario().intValue());
-                String valorTotal = df.format(total.intValue());
-                for (int i = 14; i > cantidad.length(); i--) {
-                    escpos.write(" ");
-                }
-                escpos.write(valorUnitario);
-                for (int i = 18 - valorUnitario.length(); i > valorTotal.length(); i--) {
-                    escpos.write(" ");
-                }
-                escpos.writeLF(valorTotal);
             }
             escpos.writeLF("--------------------------------");
             escpos.write("Total Gs: ");

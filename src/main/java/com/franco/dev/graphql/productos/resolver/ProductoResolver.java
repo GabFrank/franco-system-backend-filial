@@ -204,7 +204,12 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
     public String precioPrincipal(Producto p){
         Presentacion presentacion = presentacionService.findByPrincipalAndProductoId(true, p.getId());
         if(presentacion!=null){
-            return presentacionResolver.precioPrincipal(presentacion).getPrecio().toString();
+            PrecioPorSucursal precio = presentacionResolver.precioPrincipal(presentacion);
+            if(precio!=null){
+                return precio.getPrecio().toString();
+            } else {
+                return null;
+            }
         } else {
             return null;
         }
