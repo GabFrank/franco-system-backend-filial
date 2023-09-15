@@ -1167,3 +1167,21 @@
 }
 ```
 
+### Spring boot main server rabbit properties:
+```property
+#rabbit
+spring.rabbitmq.host=localhost
+spring.rabbitmq.port=5672
+spring.rabbitmq.username=franco
+spring.rabbitmq.password=franco
+spring.rabbitmq.publisher-confirm-type=correlated
+spring.rabbitmq.publisher-returns=true
+spring.rabbitmq.replyTimeout=20000
+spring.rabbitmq.connection-timeout=1000
+spring.rabbitmq.requested-heartbeat=1000
+spring.rabbitmq.listener.simple.max-attempts=10
+spring.rabbitmq.listener.simple.retry-enabled=true
+spring.rabbitmq.listener.simple.retry-initial-interval=10000
+spring.rabbitmq.listener.simple.retry-multiplier=2.0
+```
+
