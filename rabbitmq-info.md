@@ -1167,9 +1167,8 @@
 }
 ```
 
-### Spring boot main server rabbit properties:
-```property
-#rabbit
+### Spring boot main server rabbit application.properties:
+
 spring.rabbitmq.host=localhost
 spring.rabbitmq.port=5672
 spring.rabbitmq.username=franco
@@ -1183,5 +1182,37 @@ spring.rabbitmq.listener.simple.max-attempts=10
 spring.rabbitmq.listener.simple.retry-enabled=true
 spring.rabbitmq.listener.simple.retry-initial-interval=10000
 spring.rabbitmq.listener.simple.retry-multiplier=2.0
-```
+
+
+
+### Spring boot client servers rabbit application.properties:
+#rabbit
+spring.rabbitmq.password=franco
+spring.rabbitmq.username=franco
+spring.rabbitmq.publisher-confirm-type=correlated
+spring.rabbitmq.publisher-returns=true
+spring.rabbitmq.defaultReplyTimeout=10000
+spring.rabbitmq.replyTimeout=10000
+spring.rabbitmq.connection-timeout=1000
+spring.rabbitmq.requested-heartbeat=5000
+
+### application.yml
+queue: filial.20
+queue-reply-to: filial.20.reply.to
+sucursal-id: 20
+server-url: http://localhost:8082
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: franco
+    password: franco
+  multirabbitmq:
+    enabled: true
+    connections:
+      servidor:
+        host: 172.25.0.200
+        port: 5672
+        username: franco
+        password: franco
 
