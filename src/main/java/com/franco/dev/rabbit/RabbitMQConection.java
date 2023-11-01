@@ -69,7 +69,7 @@ public class RabbitMQConection {
         TopicExchange exchange = this.topicExchange();
         DirectExchange exchangeDirect = this.directExchange();
         Binding binding = this.binding(filaProducto, exchange, FILIAL_KEY);
-        Binding binding2 = this.binding(filaProducto, exchange, filaProducto.getName());
+        Binding binding2 = this.bindingDirect(filaProducto, exchangeDirect, filaProducto.getName());
         Binding binding3 = this.bindingDirect(filaProductoReplyTo, exchangeDirect, filaProductoReplyTo.getName());
         Binding binding4 = this.binding(servidorQueue, exchange, servidorQueue.getName());
         Binding binding6 = this.binding(servidorReplyToQueue, exchange, servidorReplyToQueue.getName());

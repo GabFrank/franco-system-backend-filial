@@ -8,11 +8,13 @@ spring:
     port: 5672
     username: franco
     password: franco
+    virtual-host: bodega
   multirabbitmq:
     enabled: true
     connections:
       servidor:
-        host: 172.25.0.1
+        host: localhost
         port: 5672
         username: franco
         password: franco
+        virtual-host: bodega

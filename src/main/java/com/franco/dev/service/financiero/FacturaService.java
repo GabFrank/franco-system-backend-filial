@@ -8,6 +8,7 @@ import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.personas.Usuario;
+import com.franco.dev.domain.productos.Presentacion;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
 import com.franco.dev.graphql.financiero.input.FacturaLegalItemInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
@@ -17,6 +18,7 @@ import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
@@ -77,6 +79,8 @@ public class FacturaService {
     private CambioService cambioService;
     @Autowired
     private VentaItemService ventaItemService;
+    @Autowired
+    private PresentacionService presentacionService;
 
     public DecimalFormat df = new DecimalFormat("#,###.##");
 
@@ -278,7 +282,7 @@ public class FacturaService {
         return null;
     }
 
-    public SaveFacturaDto printTicket58mmFactura(Venta venta, FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar, Delivery delivery) throws Exception {
+    public SaveFacturaDto printTicket58mmFactura(Venta venta, FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar, Delivery delivery, Boolean print) throws Exception {
         SaveFacturaDto saveFacturaDto = new SaveFacturaDto();
         PrintService selectedPrintService = printingService.getPrintService(printerName);
         Sucursal sucursal = sucursalService.sucursalActual();
@@ -306,11 +310,12 @@ public class FacturaService {
         Double cambioRs = cambioService.findLastByMonedaId(Long.valueOf(2)).getValorEnGs();
         Double cambioDs = cambioService.findLastByMonedaId(Long.valueOf(3)).getValorEnGs();
 
-        if(delivery!=null){
-            precioDeliveryGs = delivery.getPrecio().getValor();
-            precioDeliveryRs = precioDeliveryGs / cambioRs;
-            precioDeliveryDs = precioDeliveryGs / cambioDs;
-        }
+        //No le encontre ninguna utilidad por eso comente
+//        if(delivery!=null){
+//            precioDeliveryGs = delivery.getPrecio().getValor();
+//            precioDeliveryRs = precioDeliveryGs / cambioRs;
+//            precioDeliveryDs = precioDeliveryGs / cambioDs;
+//        }
 
         if (selectedPrintService != null) {
             printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream : new PrinterOutputStream(selectedPrintService);
@@ -393,9 +398,10 @@ public class FacturaService {
             escpos.writeLF("Cant  IVA   P.U              P.T");
             escpos.writeLF("--------------------------------");
             for (FacturaLegalItemInput vi : facturaLegalItemList) {
-                VentaItem ventaItem = vi.getVentaItemId() != null ? ventaItemService.findById(vi.getVentaItemId()).orElse(null) : null;
-                if(ventaItem != null || vi.getDescripcion().contains("Delivery")){
-                    Integer iva = vi.getIva();
+//                VentaItem ventaItem = vi.getVentaItemId() != null ? ventaItemService.findById(vi.getVentaItemId()).orElse(null) : null;
+                Presentacion presentacion = vi.getPresentacionId() == null ? null : presentacionService.findById(vi.getPresentacionId()).orElse(null);
+                if(presentacion != null || vi.getDescripcion().contains("Delivery")){
+                    Integer iva = presentacion != null ? presentacion.getProducto().getIva() : null;
                     Double total = vi.getTotal();
                     if (iva == null) {
                         iva = 10;
@@ -417,8 +423,8 @@ public class FacturaService {
                     totalFinal += total;
 
                     String cantidad = df.format(vi.getCantidad().doubleValue()) + " " + iva + "%";
-                    if(ventaItem!=null){
-                        cantidad = df.format(vi.getCantidad().doubleValue()) + " (" + ventaItem.getPresentacion().getCantidad().intValue() + ") " + "10%";
+                    if(presentacion!=null){
+                        cantidad = df.format(vi.getCantidad().doubleValue()) + " (" + presentacion.getCantidad().intValue() + ") " + "10%";
                     }
                     escpos.writeLF(vi.getDescripcion());
                     escpos.write(new Style().setBold(true), cantidad);
@@ -495,7 +501,10 @@ public class FacturaService {
             escpos.feed(5);
 
             try {
-                if (continuar != true) {
+                if(print == false){
+                    this.escPos = null;
+                    this.printerOutputStream = null;
+                } else if (continuar != true) {
                     escpos.close();
                     printerOutputStream.close();
                     this.escPos = null;

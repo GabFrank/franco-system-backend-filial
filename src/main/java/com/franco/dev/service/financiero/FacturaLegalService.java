@@ -25,6 +25,10 @@ public class FacturaLegalService extends CrudService<FacturaLegal, FacturaLegalR
         return repository.findByCajaId(id);
     }
 
+    public FacturaLegal findByVentaId(Long id) {
+        return repository.findByVentaId(id);
+    }
+
     @Override
     public FacturaLegal save(FacturaLegal entity) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());

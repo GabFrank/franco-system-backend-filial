@@ -3,6 +3,7 @@ package com.franco.dev.repository.operaciones;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.repository.HelperRepository;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 
@@ -22,9 +23,9 @@ public interface VentaRepository extends HelperRepository<Venta, Long> {
     //@Query("select p from Producto p where CAST(id as text) like %?1% or LOWER(p.descripcion) like %?1% or LOWER(p.descripcionFactura) like %?1%")
     //public List<Producto> findbyAll(String texto);
 
-    public List<Venta> findByCajaIdOrderByIdAsc(Long id, Pageable pageable);
+    public Page<Venta> findByCajaIdOrderByIdAsc(Long id, Pageable pageable);
 
-    public List<Venta> findByCajaIdOrderByIdDesc(Long id, Pageable pageable);
+    public Page<Venta> findByCajaIdOrderByIdDesc(Long id, Pageable pageable);
 
     public List<Venta> findByCajaId(Long id);
 
@@ -38,7 +39,7 @@ public interface VentaRepository extends HelperRepository<Venta, Long> {
             "where ca.id = :id and c = c2 and " +
             "(:formaPagoId is null or fp.id = :formaPagoId) and " +
             "(v.estado = :estado or cast(:estado as com.franco.dev.domain.operaciones.enums.VentaEstado) is null) group by (v.id, v.sucursalId)")
-    public List<Venta> findWithFilters(Long id, Long formaPagoId, VentaEstado estado, Pageable pageable);
+    public Page<Venta> findWithFilters(Long id, Long formaPagoId, VentaEstado estado, Pageable pageable);
 
     @Query(value = "select v from Venta v, CobroDetalle cd, Delivery d " +
             "join v.caja ca " +
@@ -50,7 +51,7 @@ public interface VentaRepository extends HelperRepository<Venta, Long> {
             "(:isDelivery = true and v2.id = v.id) and " +
             "(:formaPagoId is null or fp.id = :formaPagoId) and " +
             "(v.estado = :estado or cast(:estado as com.franco.dev.domain.operaciones.enums.VentaEstado) is null) group by (v.id, v.sucursalId)")
-    public List<Venta> findWithFilters(Long id, Long formaPagoId, VentaEstado estado, Pageable pageable, Boolean isDelivery);
+    public Page<Venta> findWithFilters(Long id, Long formaPagoId, VentaEstado estado, Pageable pageable, Boolean isDelivery);
 
 
 }

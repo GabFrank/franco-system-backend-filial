@@ -22,6 +22,7 @@ import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -113,7 +114,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public PdvCaja saveAndSend(PdvCaja entity, Boolean recibir) throws GraphQLException {
         Maletin m = null;
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
@@ -130,7 +131,6 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                 }
             }
         }
-
         List<PdvCaja> aux = repository.findByUsuarioIdAndActivo(entity.getUsuario().getId(), true);
 
         if (aux.size() > 0 && !aux.get(0).getId().equals(entity.getId()))
@@ -274,7 +274,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         if (pdvCaja != null && pdvCaja.getConteoApertura() != null) {
             balance.setIdCaja(pdvCaja.getId());
             List<ConteoMoneda> conteoMonedaAperList = conteoMonedaService.findByConteoId(pdvCaja.getConteoApertura().getId());
-            List<ConteoMoneda> conteoMonedaCierreList = pdvCaja.getConteoCierre()!= null ? conteoMonedaService.findByConteoId(pdvCaja.getConteoCierre().getId()): new ArrayList<>();
+            List<ConteoMoneda> conteoMonedaCierreList = pdvCaja.getConteoCierre() != null ? conteoMonedaService.findByConteoId(pdvCaja.getConteoCierre().getId()) : new ArrayList<>();
             List<RetiroDetalle> retiroDetalleList = retiroDetalleService.findByCajId(pdvCaja.getId());
             List<Gasto> gastoList = gastoService.findByCajaId(pdvCaja.getId());
             List<Venta> ventaList = ventaService.findAllByCajaId(pdvCaja.getId());
@@ -335,9 +335,9 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             Double vueltoDs = 0.0;
             Double totalDelivery = 0.0;
 
-            for(Delivery delivery: deliveryList){
-                if(delivery.getEstado().equals(DeliveryEstado.CONCLUIDO)){
-                    totalDelivery =+ delivery.getPrecio().getValor();
+            for (Delivery delivery : deliveryList) {
+                if (delivery.getEstado().equals(DeliveryEstado.CONCLUIDO)) {
+                    totalDelivery = +delivery.getPrecio().getValor();
                 }
             }
 
@@ -377,7 +377,8 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                                         totalVentaGs += cobroDetalle.getValor();
                                     }
                                 } else if (cobroDetalle.getFormaPago().getDescripcion().contains("TARJETA")) {
-                                    if(cobroDetalle.getAumento() != null && !cobroDetalle.getAumento()) totalTarjeta += cobroDetalle.getValor();
+                                    if (cobroDetalle.getAumento() != null && !cobroDetalle.getAumento())
+                                        totalTarjeta += cobroDetalle.getValor();
                                 } else if (cobroDetalle.getFormaPago().getDescripcion().contains("CONVENIO")) {
                                     totalConvenio += cobroDetalle.getValor();
                                 }

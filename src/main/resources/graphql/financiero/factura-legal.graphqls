@@ -53,7 +53,7 @@ extend type Query {
 }
 
 extend type Mutation {
-    saveFacturaLegal(entity:FacturaLegalInput!, detalleList: [FacturaLegalItemInput], printerName: String, pdvId: Int!):Boolean!
+    saveFacturaLegal(entity:FacturaLegalInput!, detalleList: [FacturaLegalItemInput], printerName: String, pdvId: Int!, print: Boolean):Boolean!
     deleteFacturaLegal(id:ID!, sucId: ID):Boolean!
 }
 

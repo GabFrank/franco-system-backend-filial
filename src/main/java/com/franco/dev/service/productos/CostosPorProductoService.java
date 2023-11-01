@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 @AllArgsConstructor
 public class CostosPorProductoService extends CrudService<CostoPorProducto, CostosPorProductoRepository> {
@@ -32,6 +34,7 @@ public class CostosPorProductoService extends CrudService<CostoPorProducto, Cost
 
     @Override
     public CostoPorProducto save(CostoPorProducto entity) {
+        if(entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         CostoPorProducto p = super.save(entity);
         return p;
     }

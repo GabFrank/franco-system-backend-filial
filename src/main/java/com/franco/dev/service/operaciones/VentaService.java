@@ -14,6 +14,7 @@ import com.franco.dev.service.financiero.MovimientoCajaService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -51,7 +52,7 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
 //        return  repository.findByProveedor(texto.toLowerCase());
 //    }
 
-    public List<Venta> findByCajaId(Long id, Long sucId, Integer page, Integer size, Boolean asc, Long formaPago, VentaEstado estado, Boolean isDelivery) {
+    public Page<Venta> findByCajaId(Long id, Long sucId, Integer page, Integer size, Boolean asc, Long formaPago, VentaEstado estado, Boolean isDelivery) {
         Pageable pagina = PageRequest.of(page, size);
         if (formaPago != null || estado != null || isDelivery != null)
             if (isDelivery == null) {

@@ -8,11 +8,13 @@ import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.VentaItemRepository;
 import com.franco.dev.service.CrudService;
+import com.franco.dev.service.personas.UsuarioService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -24,6 +26,9 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
 
     @Autowired
     private Environment env;
+
+    @Autowired
+    private UsuarioService usuarioService;
 
     @Override
     public VentaItemRepository getRepository() {
@@ -71,6 +76,8 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
     public VentaItem saveAndSend(VentaItem entity, Boolean recibir) {
         if (entity.getPrecio() == null) entity.setPrecio(entity.getPrecioVenta().getPrecio());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getUsuario() == null) entity.setUsuario(usuarioService.findById(entity.getVenta().getUsuario().getId()).orElse(null));
         VentaItem e = super.save(entity);
         propagacionService.propagarEntidad(e, TipoEntidad.VENTA_ITEM, recibir);
         if (entity.getActivo() == false && entity.getId() != null) {

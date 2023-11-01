@@ -212,7 +212,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                         fiInput.setTotal(delivery.getPrecio().getValor());
                         facturaLegalItemInputList.add(fiInput);
 //                        SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta, facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
-                        Boolean facturado = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, facturaLegalItemInputList, printerName, pdvId);
+                        Boolean facturado = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, true);
                         if (facturado == false) throw new GraphQLException("Problema al generar factura");
                     } else {
                         ventaGraphQL.printTicket58mm(delivery.getVenta(), null, ventaItemList, null, false, printerName, local, false, null, delivery);

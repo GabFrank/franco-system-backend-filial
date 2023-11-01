@@ -7,6 +7,7 @@ type Usuario {
     usuario: Usuario
     roles: [String]
     activo: Boolean
+    inicioSesion: InicioSesion
 }
 
 input UsuarioInput {

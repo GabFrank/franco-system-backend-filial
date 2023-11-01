@@ -1,15 +1,18 @@
 package com.franco.dev.security;
 
 import com.franco.dev.domain.configuracion.Local;
+import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.security.jwt.JwtGenerator;
 import com.franco.dev.service.configuracion.LocalService;
+import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
@@ -31,6 +34,12 @@ public class TokenController {
 
     @Autowired
     private RestTemplate restTemplate;
+
+    @Autowired
+    private Environment env;
+
+    @Autowired
+    private SucursalService sucursalService;
 
 
     public TokenController(UsuarioService service, JwtGenerator jwtGenerator) {
@@ -82,7 +91,7 @@ public class TokenController {
         } else {
             throw new GraphQLException("Ups!! El usuario no existe");
         }
-        LoginResponse response = new LoginResponse(usuario.getId(), jwtGenerator.generate(jwtUser));
+        LoginResponse response = new LoginResponse(usuario.getId(), jwtGenerator.generate(jwtUser), sucursalService.sucursalActual());
         return ResponseEntity.ok(response);
     }
 
@@ -95,5 +104,6 @@ public class TokenController {
 class LoginResponse {
     Long usuarioId;
     String token;
+    Sucursal sucursal;
 }
 

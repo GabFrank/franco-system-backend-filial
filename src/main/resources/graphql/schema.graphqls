@@ -17,3 +17,8 @@ type Mutation {
 type Subscription {
 
 }
+
+type Pageable {
+    getPageNumber: Int
+    getPageSize: Int
+}
