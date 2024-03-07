@@ -3,6 +3,49 @@
 Anotaciones de cambios discriminado por fechas
 
 -------------------------------------------------------------------------------------------------------
+07-03-2024
+-- Solo para servidores
+CREATE TABLE operaciones.pedido_sucursal_influencia (
+	id bigserial NOT NULL,
+	pedido_id int8 NOT NULL,
+	sucursal_id int8 NOT NULL,
+	creado_en timestamp NULL,
+	usuario_id int8 NULL,
+	CONSTRAINT pedido_sucursal_influencia_pkey PRIMARY KEY (id),
+	CONSTRAINT pedido_sucursal_influencia_un UNIQUE (pedido_id, sucursal_id),
+	CONSTRAINT pedido_sucursal_influencia_entrega_fk FOREIGN KEY (usuario_id) REFERENCES personas.usuario(id) ON DELETE SET NULL ON UPDATE SET NULL,
+	CONSTRAINT pedido_sucursal_influencia_fk FOREIGN KEY (sucursal_id) REFERENCES empresarial.sucursal(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT pedido_sucursal_influencia_pedido_fk FOREIGN KEY (pedido_id) REFERENCES operaciones.pedido(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE operaciones.pedido_sucursal_entrega (
+	id bigserial NOT NULL,
+	pedido_id int8 NOT NULL,
+	sucursal_id int8 NOT NULL,
+	creado_en timestamp NULL,
+	usuario_id int8 NULL,
+	CONSTRAINT pedido_sucursal_entrega_pkey PRIMARY KEY (id),
+	CONSTRAINT pedido_sucursal_entrega_un UNIQUE (pedido_id, sucursal_id),
+	CONSTRAINT pedido_sucursal_entrega_fk FOREIGN KEY (sucursal_id) REFERENCES empresarial.sucursal(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT pedido_sucursal_entrega_pedido_fk FOREIGN KEY (pedido_id) REFERENCES operaciones.pedido(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT pedido_sucursal_entrega_usuario_fk FOREIGN KEY (usuario_id) REFERENCES personas.usuario(id) ON DELETE SET NULL ON UPDATE SET NULL
+);
+
+
+CREATE TABLE operaciones.pedido_fecha_entrega (
+	id bigserial NOT NULL,
+	pedido_id int8 NOT NULL,
+	fecha_entrega timestamp NOT NULL,
+	creado_en timestamp NULL,
+	usuario_id int8 NULL,
+	CONSTRAINT pedido_fecha_entrega_pkey PRIMARY KEY (id),
+	CONSTRAINT pedido_fecha_entrega_un UNIQUE (pedido_id, fecha_entrega),
+	CONSTRAINT pedido_fecha_entrega_fk FOREIGN KEY (pedido_id) REFERENCES operaciones.pedido(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT pedido_fecha_entrega_usuario_fk FOREIGN KEY (usuario_id) REFERENCES personas.usuario(id) ON DELETE SET NULL ON UPDATE SET NULL
+);
+
+
+-------------------------------------------------------------------------------------------------------
 17-05-23
 ALTER TABLE operaciones.venta_item DROP CONSTRAINT venta_item_fk;
 ALTER TABLE operaciones.venta_item ADD CONSTRAINT venta_item_fk FOREIGN KEY (presentacion_id) REFERENCES productos.presentacion(id) ON DELETE SET NULL ON UPDATE CASCADE;
