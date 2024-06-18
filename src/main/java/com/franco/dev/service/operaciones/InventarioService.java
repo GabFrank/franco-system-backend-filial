@@ -86,7 +86,7 @@ public class InventarioService extends CrudService<Inventario, InventarioReposit
                             movimientoStockEncontrado = new MovimientoStock();
                             movimientoStockEncontrado.setCantidad(ipi.getCantidad() * ipi.getPresentacion().getCantidad());
                             movimientoStockEncontrado.setTipoMovimiento(TipoMovimiento.AJUSTE);
-                            movimientoStockEncontrado.setReferencia(id);
+                            movimientoStockEncontrado.setReferencia(ipi.getId());
                             movimientoStockEncontrado.setProducto(ipi.getPresentacion().getProducto());
                             movimientoStockEncontrado.setEstado(true);
                             movimientoStockList.add(movimientoStockEncontrado);

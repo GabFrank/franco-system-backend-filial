@@ -5,21 +5,21 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.util.FileCopyUtils;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
+import java.net.URL;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 
 @Service
 public class UpdateService {
@@ -31,6 +31,9 @@ public class UpdateService {
 
     @Value("${app.version}")
     private String appVersion;
+
+    @Autowired
+    private Environment env;
 
     @Autowired
     private ApplicationContext context;
@@ -45,39 +48,144 @@ public class UpdateService {
         Files.write(filePath, fileBytes);
     }
 
+    public static boolean downloadNewVersion(String urlString, Path homePath) {
+        Boolean verifyOk = verifyIfFileExists(urlString, homePath);
+        if (!verifyOk) {
+            try (InputStream in = new URL(urlString).openStream();
+                 ReadableByteChannel rbc = Channels.newChannel(in);
+                 FileOutputStream fos = new FileOutputStream(homePath.resolve("frc-server-update.jar").toFile())) {
+
+                long fileSize = new URL(urlString).openConnection().getContentLengthLong();
+                ByteBuffer buffer = ByteBuffer.allocateDirect(1024);
+                long totalBytesRead = 0;
+                int bytesRead;
+                while ((bytesRead = rbc.read(buffer)) != -1) {
+                    totalBytesRead += bytesRead;
+                    ((Buffer) buffer).flip();
+                    fos.getChannel().write(buffer);
+                    ((Buffer) buffer).clear();
+                    int progress = (int) ((totalBytesRead * 100) / fileSize);
+                    System.out.print("\rDownload progress: " + progress + "%");
+                }
+
+                System.out.println("\nDownload completed successfully.");
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.out.println("Download failed.");
+                return false;
+            }
+        } else {
+            return true;
+        }
+    }
+
+    private static Boolean verifyIfFileExists(String urlString, Path homePath) {
+        Path filePath = homePath.resolve("frc-server-update.jar");
+
+        try {
+            long remoteFileSize = new URL(urlString).openConnection().getContentLengthLong();
+            if (Files.exists(filePath)) {
+                long localFileSize = Files.size(filePath);
+                if (localFileSize == remoteFileSize) {
+                    System.out.println("The file already exists and has the correct size.");
+                    return true;
+                } else {
+                    System.out.println("The existing file is incomplete. Downloading a new copy...");
+                }
+            } else {
+                System.out.println("The file does not exist. Downloading...");
+            }
+        } catch (IOException e) {
+            System.out.println("Verifiyng failed.");
+            return false;
+        }
+        return false;
+    }
+
     @Scheduled(fixedRate = 300000) // Run every 5 minutes (300,000 milliseconds)
     public void checkForNewRelease() {
         try {
             System.out.println("Verificando nueva version");
             String latestRelease = restTemplate.getForObject(LATEST_RELEASE_URL, String.class);
-
+            System.out.println("latestRelease: " + latestRelease);
             if (latestRelease != null) {
                 JSONObject jsonObject = new JSONObject(latestRelease);
                 String latestVersion = jsonObject.optString("tag_name", "");
                 JSONArray assets = jsonObject.optJSONArray("assets");
+                System.out.println("Version instalada: " + appVersion);
+                System.out.println("Version encontrada: " + latestVersion);
                 if (appVersion.equals(latestVersion)) {
                     System.out.println("Ya posee la ultima version instalada");
                 } else if (!latestVersion.isEmpty() && assets != null) {
                     System.out.println("Existe una nueva version. Descargando...");
                     System.out.println(latestVersion);
 
-                    String updateJsonUrl = getUpdateJsonUrl(assets);
+                    String updateJsonUrl = "https://github.com/GabFrank/franco-system-backend-filial/releases/download/" + latestVersion + "/frc-server.jar";
+                    System.out.println("updateJsonUrl: " + updateJsonUrl);
                     if (updateJsonUrl != null) {
-                        String updateJson = restTemplate.getForObject(updateJsonUrl, String.class);
-                        JSONObject updateJsonObj = new JSONObject(updateJson);
-                        JSONArray updateArrayFiles = updateJsonObj.optJSONArray("files");
-                        if (updateArrayFiles != null) {
-                            for (int x = 0; x < updateArrayFiles.length(); x++) {
-                                JSONObject fileObject = updateArrayFiles.getJSONObject(x);
-                                String location = fileObject.optString("location", "");
-                                String name = fileObject.optString("name", "");
-                                Boolean replace = fileObject.optBoolean("replace", true);
+                        System.out.println("Iniciando proceso de descarga");
+                        String homePath = env.getProperty("jarPath");
+                        if (homePath != null) {
+                            Path path = Paths.get(homePath);
+                            Boolean ok = downloadNewVersion(updateJsonUrl, path);
+                            if (ok) {
+                                System.out.println("Descargado con exito y se puede actualizar");
+                                String osName = System.getProperty("os.name");
+                                Boolean isWindows = osName.toUpperCase().contains("Windows".toUpperCase());
+                                Boolean isMac = osName.toUpperCase().contains("Mac".toUpperCase());
+                                Boolean isLinux = osName.toUpperCase().contains("nux".toUpperCase());
 
-                                String fileUrl = getFileUrl(assets, name);
-                                if (fileUrl != null) {
-                                    Path targetPath = Paths.get(System.getProperty("user.home"), location, name);
-                                    downloadFileWithProgress(fileUrl, targetPath, replace);
+                                if (isWindows) {
+                                    System.out.println("Is windows");
+                                    try {
+                                        Process process = Runtime.getRuntime().exec(homePath + "/selfUpdate.bat");
+                                        int exitCode = process.waitFor();
+                                        if (exitCode != 0) {
+                                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                                                String line;
+                                                while ((line = reader.readLine()) != null) {
+                                                    System.out.println(line);
+                                                }
+                                            }
+                                        }
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                    }
+                                } else if (isMac) {
+                                    System.out.println("Is mac");
+
+                                } else if (isLinux) {
+                                    System.out.println("Is linux");
+                                    try {
+                                        // Assuming homePath is a String with the directory path where the script is located
+                                        ProcessBuilder processBuilder = new ProcessBuilder("nohup", homePath + "/selfUpdate.sh");
+                                        processBuilder.redirectErrorStream(true); // Redirects error stream to the input stream
+                                        Process process = processBuilder.start();
+
+                                        // Read output from the executed script
+                                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                                            String line;
+                                            while ((line = reader.readLine()) != null) {
+                                                System.out.println(line);
+                                            }
+                                        }
+
+                                        // Wait for the process to complete and check for errors
+                                        int exitCode = process.waitFor();
+                                        if (exitCode != 0) {
+                                            System.out.println("Script exited with error code: " + exitCode);
+                                        }
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                    }
                                 }
+                            } else {
+                                System.out.println("Ocurrio un error y no se puede actualizar");
                             }
                         }
                     }
@@ -87,55 +195,5 @@ public class UpdateService {
             e.printStackTrace();
             System.out.println("Error al verificar y descargar la nueva versión: " + e.getMessage());
         }
-    }
-
-    private String getUpdateJsonUrl(JSONArray assets) {
-        for (int i = 0; i < assets.length(); i++) {
-            JSONObject asset = assets.getJSONObject(i);
-            String assetName = asset.optString("name", "");
-            if ("update.json".equals(assetName)) {
-                return asset.optString("browser_download_url", null);
-            }
-        }
-        return null;
-    }
-
-    private String getFileUrl(JSONArray assets, String name) {
-        for (int j = 0; j < assets.length(); j++) {
-            JSONObject asset2 = assets.getJSONObject(j);
-            String assetName2 = asset2.optString("name", "");
-            if (name.equals(assetName2)) {
-                return asset2.optString("browser_download_url", null);
-            }
-        }
-        return null;
-    }
-
-    private void mergeFiles(Path targetPath, InputStream inputStream) throws IOException {
-        String oldContent = readFileAsString(targetPath);
-        String newContent = FileCopyUtils.copyToString(new InputStreamReader(inputStream));
-        String mergedContent = oldContent + "\n" + newContent;
-        writeStringToFile(targetPath, mergedContent);
-    }
-
-    private Boolean downloadFileWithProgress(String fileUrl, Path targetPath, boolean replace) {
-        return restTemplate.execute(fileUrl, HttpMethod.GET, null, (ClientHttpResponse response) -> {
-            long contentLength = response.getHeaders().getContentLength();
-            InputStream inputStream = response.getBody();
-
-            try {
-                if (replace) {
-                    Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
-                } else {
-                    mergeFiles(targetPath, inputStream);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            // This is just a simple example. You can implement a more sophisticated progress display.
-            System.out.println("Downloaded: " + targetPath.getFileName() + " (" + contentLength + " bytes)");
-            return true;
-        });
     }
 }

@@ -114,42 +114,9 @@ public class ProductoService extends CrudService<Producto, ProductoRepository> {
         if (e.getImagenes() == null) e.setImagenes("/productos");
         if (entity.getEnvaseId() != null) e.setEnvase(findById(entity.getEnvaseId()).orElse(null));
         e.setDescripcion(e.getDescripcion().toUpperCase());
-
-//        if(entity.getIdCentral()!=null){
-//            p = repository.findByIdCentral(entity.getIdCentral());
-//            log.info("id central no es null");
-//            if(p!=null) log.info("Producto encontrado por id central");
-//        }
-//        if(p==null) {
-//            p = repository.findByDescripcion(entity.getDescripcion());
-//            if(p!=null) log.info("Producto encontrado por descripcion");
-//        }
-//        if(p!=null) {
-//            e.setId(p.getId());
-//        }
         p = repository.save(e);
-//        if(!entity.getPropagado() && p!=null){
-//            entity.setIdSucursalOrigen(Long.valueOf(env.getProperty("sucursalId")));
-//            propagar(entity);
-//        }
         return p;
     }
-
-//    public Boolean deleteByInput(ProductoInput input, Long sucId) {
-//        if(sucId == null || sucId != Long.valueOf(env.getProperty("sucursalId"))){
-//            Long idProd = findByIdCentral(input.getIdCentral()).getId();
-//            if(idProd!=null){
-//                if(super.deleteById(idProd)){
-//                    propagarDelete(input.getIdCentral());
-//                    return true;
-//                } else {
-//                    throw new GraphQLException("No se pudo eliminar este producto");
-//                }
-//            }
-//        }
-//
-//        return false;
-//    }
 
     public List<Producto> findByProveedorId(Long id, String text) {
         return repository.findByProveedorId(id, text);
@@ -162,41 +129,6 @@ public class ProductoService extends CrudService<Producto, ProductoRepository> {
     public Producto findByCodigo(String texto) {
         return repository.findByCodigo(texto);
     }
-
-    ;
-
-//    public String propagar(ProductoInput input){
-//        log.info("enviando producto a central");
-//        log.info(input.toString());
-//        RabbitDto<ProductoInput> dto = new RabbitDto();
-//        dto.setAccion(GUARDAR);
-//        dto.setTipo(Receiver.PRODUCTO);
-//        dto.setEntidad(input);
-//        sender.send(dto, "central");
-//        return "Success";
-//    }
-//
-//    public String propagarDelete(Long idCentral){
-//        log.info("propagando delete a central");
-//        RabbitDto<ProductoInput> dto = new RabbitDto();
-//        dto.setAccion(ELIMINAR);
-//        dto.setTipo(Receiver.PRODUCTO);
-//        dto.setIdSucursalOrigen(Long.valueOf(env.getProperty("sucursalId")));
-//        ProductoInput input = new ProductoInput();
-//        input.setIdCentral(idCentral);
-//        dto.setEntidad(input);
-//        sender.send(dto, "central");
-//        return "Success";
-//    }
-
-//    public void receive(RabbitDto dto) {
-//        log.info("recibiendo producto");
-//        log.info("accion: " + dto.getAccion());
-//        ProductoInput input = new ProductoInput();
-//        input = input.converHashMapToInput(dto.getEntidad());
-//        if(dto.getAccion().equals(GUARDAR)) this.save(input);
-//        else if(dto.getAccion().equals(ELIMINAR)) deleteByInput(input, dto.getIdSucursalOrigen());
-//    }
 
 
     public List<Producto> findAllForPdv() {

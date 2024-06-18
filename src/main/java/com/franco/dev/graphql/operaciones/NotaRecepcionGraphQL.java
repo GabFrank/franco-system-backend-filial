@@ -55,6 +55,7 @@ public class NotaRecepcionGraphQL implements GraphQLQueryResolver, GraphQLMutati
         if(input.getDocumentoId()!=null) e.setDocumento(documentoService.findById(input.getDocumentoId()).orElse(null));
         if(input.getPedidoId()!=null) e.setPedido(pedidoService.findById(input.getPedidoId()).orElse(null));
         if(input.getUsuarioId()!=null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
+//        if(input.getFecha()!=null) e.setfe
         return service.save(e);
     }
 

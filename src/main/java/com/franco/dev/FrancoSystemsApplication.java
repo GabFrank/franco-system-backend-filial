@@ -1,10 +1,12 @@
 package com.franco.dev;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
 import com.franco.dev.service.configuracion.UpdateService;
+import com.franco.dev.service.utils.biometric.BiometricService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
@@ -26,10 +28,7 @@ import org.springframework.web.filter.CorsFilter;
 import javax.annotation.PostConstruct;
 import javax.servlet.Filter;
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.lang.management.RuntimeMXBean;
 import java.util.Collections;
-import java.util.List;
 
 @EnableRabbit
 @EnableRetry
@@ -90,6 +89,11 @@ public class FrancoSystemsApplication {
         FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(source));
         bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return bean;
+    }
+
+    @Bean
+    public Hibernate5Module hibernate5Module() {
+        return new Hibernate5Module();
     }
 
     @PostConstruct

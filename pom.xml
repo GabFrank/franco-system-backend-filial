@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.franco.dev</groupId>
     <artifactId>franco-dev-systems</artifactId>
-    <version>2.3.7</version>
+    <version>2.4.0</version>
     <name>Franco Systems</name>
     <description>Sistema de gestion empresarial</description>
 
@@ -272,6 +272,47 @@
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
             <version>20210307</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.update4j</groupId>
+            <artifactId>update4j</artifactId>
+            <version>1.5.9</version>
+        </dependency>
+
+        <!-- Jackson datatype for Hibernate 5 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-hibernate5</artifactId>
+            <version>2.13.0</version> <!-- Use the version compatible with your Jackson setup -->
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.zkteco/bmp-sdk-api -->
+        <dependency>
+            <groupId>com.zkteco</groupId>
+            <artifactId>bmp-sdk-api</artifactId>
+            <version>1.0.0-RELEASE</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.zkteco/zkcloud-sdk-base -->
+        <dependency>
+            <groupId>com.zkteco</groupId>
+            <artifactId>zkcloud-sdk-base</artifactId>
+            <version>1.3.1</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.zkteco/zkcloud-sdk-java -->
+        <dependency>
+            <groupId>com.zkteco</groupId>
+            <artifactId>zkcloud-sdk-java</artifactId>
+            <version>1.3.1</version>
+            <type>pom</type>
+        </dependency>
+
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <version>5.2.3</version>
         </dependency>
 
     </dependencies>

@@ -514,7 +514,9 @@ public class FacturaService {
                     this.printerOutputStream = printerOutputStream;
                 }
                 if (facturaLegal.getId() == null) {
+                    System.out.println("Nummero de factura actual: " + timbradoDetalle.getNumeroActual());
                     Long numero = timbradoDetalleService.aumentarNumeroFactura(timbradoDetalle);
+                    System.out.println("Nummero de factura siguiente: " + numero);
                     facturaLegal.setTimbradoDetalleId(timbradoDetalle.getId());
                     if(venta!=null){
                         facturaLegal.setVentaId(venta.getId());
