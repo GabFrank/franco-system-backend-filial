@@ -147,7 +147,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                 ventaInput.setCobroId(cobro.getId());
             }
 
-            Venta venta = ventaGraphQL.saveVenta(ventaInput);
+            Venta venta = ventaGraphQL.saveVenta2(ventaInput);
             if (venta != null) {
                 List<VentaItem> ventaItemList = ventaItemInputList.size() > 0 ? ventaItemGraphQL.saveVentaItemList(ventaItemInputList, venta.getId()) : null;
                 deliveryInput.setVentaId(venta.getId());
@@ -246,7 +246,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         }
     }
 
-    public List<Delivery> deliveryPorCajaIdAndEstados(Long id, List<DeliveryEstado> estadoList){
+    public List<Delivery> deliveryPorCajaIdAndEstados(Long id, List<DeliveryEstado> estadoList, Long sucId){
         return service.findByVentaCajaIdAndEstadoIn(id, estadoList);
     }
 

@@ -86,7 +86,8 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public Cliente clientePorPersonaIdFromServer(Long id){
-        return propagacionService.solicitarCliente(id);
+//        return propagacionService.solicitarCliente(id);
+        return null;
     }
 
 }

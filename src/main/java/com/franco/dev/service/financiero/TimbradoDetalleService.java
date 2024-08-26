@@ -27,7 +27,7 @@ public class TimbradoDetalleService extends CrudService<TimbradoDetalle, Timbrad
     public Long aumentarNumeroFactura(TimbradoDetalle timbradoDetalle){
         timbradoDetalle.setNumeroActual(timbradoDetalle.getNumeroActual() + 1);
         timbradoDetalle = save(timbradoDetalle);
-        propagacionService.propagarEntidad(timbradoDetalle, TipoEntidad.TIMBRADO_DETALLE, false);
+//        propagacionService.propagarEntidad(timbradoDetalle, TipoEntidad.TIMBRADO_DETALLE, false);
         return timbradoDetalle.getNumeroActual();
     }
 

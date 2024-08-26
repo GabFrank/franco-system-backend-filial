@@ -138,8 +138,8 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         PdvCaja e = super.save(entity);
         maletinService.save(m);
-        propagacionService.propagarEntidad(e, TipoEntidad.PDV_CAJA, recibir);
-        propagacionService.propagarEntidad(m, TipoEntidad.MALETIN, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.PDV_CAJA, recibir);
+//        propagacionService.propagarEntidad(m, TipoEntidad.MALETIN, recibir);
         return e;
     }
 

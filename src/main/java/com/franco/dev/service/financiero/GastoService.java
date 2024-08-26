@@ -49,6 +49,7 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
     @Override
     public Gasto save(Gasto entity) {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if(entity.getObservacion() != null) entity.setObservacion(entity.getObservacion().toUpperCase());
         Gasto e = super.save(entity);
         List<Moneda> monedaList = monedaService.findAll2();
         MovimientoCaja movimientoCaja = new MovimientoCaja();
@@ -154,7 +155,7 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
 
         }
         Gasto e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.GASTO, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.GASTO, recibir);
         List<Moneda> monedaList = monedaService.findAll2();
         MovimientoCaja movimientoCaja = new MovimientoCaja();
         movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.GASTO);

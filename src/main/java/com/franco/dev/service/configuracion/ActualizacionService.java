@@ -43,7 +43,7 @@ public class ActualizacionService extends CrudService<Actualizacion, Actualizaci
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         Actualizacion e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.ACTUALIZACION, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.ACTUALIZACION, recibir);
         return e;
     }
 }

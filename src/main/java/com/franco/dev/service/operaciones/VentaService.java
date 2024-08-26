@@ -86,7 +86,7 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Venta e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.VENTA, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.VENTA, recibir);
         return e;
     }
 
@@ -143,13 +143,13 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
 
     @Transactional
     public Boolean cancelarVenta(Venta venta) {
-        venta.setEstado(VentaEstado.CANCELADA);
-        saveAndSend(venta, false);
-        List<MovimientoCaja> movimientoCajaList = movimientoCajaService.findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.VENTA, venta.getCobro().getId());
-        for (MovimientoCaja mov : movimientoCajaList) {
-            mov.setActivo(false);
-            movimientoCajaService.saveAndSend(mov, false);
-        }
+//        venta.setEstado(VentaEstado.CANCELADA);
+//        saveAndSend(venta, false);
+//        List<MovimientoCaja> movimientoCajaList = movimientoCajaService.findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.VENTA, venta.getCobro().getId());
+//        for (MovimientoCaja mov : movimientoCajaList) {
+//            mov.setActivo(false);
+//            movimientoCajaService.saveAndSend(mov, false);
+//        }
         return true;
     }
 }

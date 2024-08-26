@@ -57,7 +57,7 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         MovimientoStock e = super.save(entity);
 //        personaPublisher.publish(p);
-        propagacionService.propagarEntidad(e, TipoEntidad.MOVIMIENTO_STOCK, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.MOVIMIENTO_STOCK, recibir);
         return e;
     }
 

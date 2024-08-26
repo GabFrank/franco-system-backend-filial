@@ -39,8 +39,8 @@ public class CobroService extends CrudService<Cobro, CobroRepository> {
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Cobro e = super.save(entity);
-        log.info("Cobro guardado, ahora a propagar. ID = " + e.getId());
-        propagacionService.propagarEntidad(e, TipoEntidad.COBRO, recibir);
+//        log.info("Cobro guardado, ahora a propagar. ID = " + e.getId());
+//        propagacionService.propagarEntidad(e, TipoEntidad.COBRO, recibir);
         return e;
     }
 }

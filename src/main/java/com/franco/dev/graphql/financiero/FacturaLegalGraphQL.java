@@ -576,7 +576,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             SaveFacturaDto dto = generarFacturaAutoImpreso(fl.getVenta() != null ? fl.getVenta() : null, input, facturaLegalItemInputList, printerName, fl.getTimbradoDetalle().getPuntoDeVenta().getId(), continuar, true);
             if (dto != null) {
                 fl.setViaTributaria(true);
-                propagacionService.propagarEntidad(fl, TipoEntidad.FACTURA);
+//                propagacionService.propagarEntidad(fl, TipoEntidad.FACTURA);
                 ok = true;
             }
         }

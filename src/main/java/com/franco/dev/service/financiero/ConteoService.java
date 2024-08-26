@@ -44,7 +44,7 @@ public class ConteoService extends CrudService<Conteo, ConteoRepository> {
     public Conteo saveAndSend(Conteo entity, Boolean recibir) {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Conteo e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.CONTEO, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.CONTEO, recibir);
         return e;
     }
 }

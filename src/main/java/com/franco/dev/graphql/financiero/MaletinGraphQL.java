@@ -2,6 +2,7 @@ package com.franco.dev.graphql.financiero;
 
 import com.franco.dev.domain.financiero.Maletin;
 import com.franco.dev.graphql.financiero.input.MaletinInput;
+import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.MaletinService;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -28,7 +29,10 @@ public class MaletinGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     @Autowired
     private PaisService paisService;
 
-    public Optional<Maletin> maletin(Long id) {return service.findById(id);}
+    @Autowired
+    private SucursalService sucursalService;
+
+    public Optional<Maletin> maletin(Long id, Long sucursalId) {return service.findById(id);}
 
     public List<Maletin> searchMaletin(String texto){ return service.searchByAll(texto);}
 
@@ -44,6 +48,7 @@ public class MaletinGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         if(input.getUsuarioId()!=null){
             e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         }
+        if(input.getSucursalId()!=null) e.setSucursal(sucursalService.findById(input.getSucursalId()).orElse(null));
         return service.save(e);
     }
 

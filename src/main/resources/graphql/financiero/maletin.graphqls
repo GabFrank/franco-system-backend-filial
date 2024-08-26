@@ -6,7 +6,7 @@ type Maletin {
     creadoEn: Date
     usuario: Usuario
     cajaActual: PdvCaja
-
+    sucursal: Sucursal
 }
 
 input MaletinInput {
@@ -16,10 +16,11 @@ input MaletinInput {
     abierto: Boolean
     creadoEn: Date
     usuarioId: Int
+    sucursalId: Int
 }
 
 extend type Query {
-    maletin(id:ID!):Maletin
+    maletin(id:ID!, sucursalId:ID!):Maletin
     maletines(page:Int = 0, size:Int = 10):[Maletin]!
     countMaletin: Int
     maletinPorDescripcion(texto: String):Maletin

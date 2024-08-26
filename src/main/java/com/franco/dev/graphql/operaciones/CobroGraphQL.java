@@ -91,6 +91,7 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     public Boolean deleteCobro(Long id, Long sucId){
         List<CobroDetalle> cobroDetalleList = cobroDetalleGraphQL.cobroDetallePorCobroId(id, null);
+        service.deleteById(id);
         for(CobroDetalle c : cobroDetalleList){
             movimientoCajaGraphQL.desactivarByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.VENTA, c.getId(), null);
             return true;

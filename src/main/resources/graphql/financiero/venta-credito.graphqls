@@ -13,6 +13,7 @@ type VentaCredito {
     estado: EstadoVentaCredito
     creadoEn: Date
     usuario: Usuario
+    fechaCobro: Date
 }
 
 input VentaCreditoInput {
@@ -29,6 +30,7 @@ input VentaCreditoInput {
     interesMoraDia: Float
     estado: EstadoVentaCredito
     usuarioId: Int
+    fechaCobro: String
 }
 
 enum TipoConfirmacion {

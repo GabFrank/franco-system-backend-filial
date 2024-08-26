@@ -537,6 +537,8 @@ public class FacturaService {
             } catch (IOException ioe) {
                 ioe.printStackTrace();
             }
+        } else {
+            throw new GraphQLException("No se pudo generar la factura");
         }
         saveFacturaDto.setFacturaLegalInput(facturaLegal);
         saveFacturaDto.setFacturaLegalItemInputList(facturaLegalItemList);

@@ -51,7 +51,7 @@ public class InicioSesionService extends CrudService<InicioSesion, InicioSesionR
             entity.setCreadoEn(LocalDateTime.now());
         }
         InicioSesion e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.INICIO_SESION, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.INICIO_SESION, recibir);
 //        personaPublisher.publish(p);
         return e;
     }

@@ -47,7 +47,7 @@ public class FacturaLegalService extends CrudService<FacturaLegal, FacturaLegalR
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         entity.setSucursalId(Long.valueOf(super.env.getProperty("sucursalId")));
         FacturaLegal e = super.save(entity);
-        super.propagacionService.propagarEntidad(e, TipoEntidad.FACTURA, false);
+//        super.propagacionService.propagarEntidad(e, TipoEntidad.FACTURA, false);
         return e;
     }
 }

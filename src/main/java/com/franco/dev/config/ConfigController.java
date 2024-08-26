@@ -56,7 +56,8 @@ public class ConfigController {
 //                verificado = false;
 //            }
 //        }
-        return propagacionService.initDb();
+//        return propagacionService.initDb();
+        return true;
     }
 
     @PostMapping
@@ -82,7 +83,7 @@ public class ConfigController {
     public Boolean solicitarDb() {
         String url = "http://" + env.getProperty("ipServidorCentral") + "/config/solicitardb";
         log.info("solicitando base de datos a " + url);
-        propagacionService.solicitarDB();
+//        propagacionService.solicitarDB();
         return true;
     }
 

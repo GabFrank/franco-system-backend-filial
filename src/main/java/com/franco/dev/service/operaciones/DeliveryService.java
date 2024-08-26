@@ -70,7 +70,7 @@ public class DeliveryService extends CrudService<Delivery, DeliveryRepository> {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         Delivery e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.DELIVERY, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.DELIVERY, recibir);
         return e;
     }
 }

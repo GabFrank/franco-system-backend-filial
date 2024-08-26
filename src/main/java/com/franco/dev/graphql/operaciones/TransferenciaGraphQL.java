@@ -107,7 +107,7 @@ public class TransferenciaGraphQL implements GraphQLQueryResolver, GraphQLMutati
                     break;
             }
             transferencia.setEtapa(etapa);
-            propagacionService.propagarEntidad(transferencia, TipoEntidad.TRANSFERENCIA);
+//            propagacionService.propagarEntidad(transferencia, TipoEntidad.TRANSFERENCIA);
             ok = true;
         }
         return ok;

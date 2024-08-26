@@ -146,7 +146,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 //    }
 
     @Transactional
-    public Venta saveVenta(VentaInput ventaInput) {
+    public Venta saveVenta2(VentaInput ventaInput) {
         ModelMapper m = new ModelMapper();
         Venta e = m.map(ventaInput, Venta.class);
         if (ventaInput.getUsuarioId() != null)
@@ -165,10 +165,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     @Transactional
-    public Venta saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleList, Boolean ticket, String printerName, String local, Long pdvId, VentaCreditoInput ventaCreditoInput, List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) throws Exception, GraphQLException {
+    public Venta saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleList, Boolean ticket, Boolean facturar, String printerName, String local, Long pdvId, VentaCreditoInput ventaCreditoInput, List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) throws Exception, GraphQLException {
         if (facturaCountDown == null) facturaCountDown = Integer.valueOf(env.getProperty("facturaCountDown"));
         if (ventaItemList == null && cobroDetalleList == null && cobroDetalleList == null) {
-            return this.saveVenta(ventaInput);
+            return this.saveVenta2(ventaInput);
         }
         Venta venta = null;
         log.info("Guardando y enviando al cobro al servidor");
@@ -200,7 +200,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         } else {
             try {
                 if (ticket != null && ticket == true) {
-                    if (pdvId != null) {
+                    if (pdvId != null && facturar) {
                         FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
                         if (venta.getCliente() == null) {
                             facturaLegalInput.setNombre("SIN NOMBRE");
@@ -312,7 +312,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     public void deshacerVenta(Venta venta, Cobro cobro, Long sucId) {
-
         if (cobro != null) {
             cobroGraphQL.deleteCobro(cobro.getId(), null);
         }
