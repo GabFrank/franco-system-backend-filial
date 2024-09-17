@@ -159,8 +159,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         if (ventaInput.getFormaPagoId() != null)
             e.setFormaPago(formaPagoService.findById(ventaInput.getFormaPagoId()).orElse(null));
         if (ventaInput.getCajaId() != null) e.setCaja(pdvCajaService.findById(ventaInput.getCajaId()).orElse(null));
-        if (ventaInput.getCobroId() != null) e.setCobro(cobroService.findById(ventaInput.getCobroId()).orElse(null));
-        e.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+         e.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         return service.saveAndSend(e, false);
     }
 
@@ -616,7 +615,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return ok;
     }
 
-    public Page<Venta> ventasPorCajaId(Long id, Integer page, Integer size, Boolean asc, Long sucId, Long formaPago, VentaEstado estado, Boolean isDelivery) {
+    public Page<Venta> ventasPorCajaId(Long id, Integer page, Integer size, Boolean asc, Long sucId, Long formaPago, VentaEstado estado, Boolean isDelivery, Long monedaId) {
         return service.findByCajaId(id, sucId, page, size, asc, formaPago, estado, isDelivery);
     }
 

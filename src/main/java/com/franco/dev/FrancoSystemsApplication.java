@@ -103,4 +103,9 @@ public class FrancoSystemsApplication {
                 .registerModule(new ParameterNamesModule());
     }
 
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
+    }
+
 }

@@ -25,7 +25,11 @@ public class FuncionarioService extends CrudService<Funcionario, FuncionarioRepo
         return repository.findByPersonaId(id);
     }
 
-    public List<Funcionario> findByPersonaNombre(String texto) { return repository.findByIdOrPersonaNombre(texto.toUpperCase());}
+    public List<Funcionario> findByPersonaNombre(String texto) {
+        texto = texto != null ? texto.replace(" ", "%").toUpperCase() : "";
+        List<Funcionario> aux = repository.findByIdOrPersonaNombre(texto);
+        return aux;
+    }
 
     @Override
     public Funcionario save(Funcionario entity) {

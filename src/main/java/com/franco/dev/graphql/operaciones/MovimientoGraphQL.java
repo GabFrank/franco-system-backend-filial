@@ -77,8 +77,8 @@ public class MovimientoGraphQL implements GraphQLQueryResolver, GraphQLMutationR
         }
     }
 
-    public Float stockPorProducto(Long id, Long sucId) {
-        return service.stockByProductoId(id);
+    public Double stockPorProducto(Long id, Long sucId) {
+        return service.stockByProductoIdAndSucursalId(id);
     }
 
 }

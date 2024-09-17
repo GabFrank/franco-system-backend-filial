@@ -7,6 +7,7 @@ import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
+import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.Presentacion;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
@@ -17,6 +18,7 @@ import com.franco.dev.service.empresarial.PuntoDeVentaService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.operaciones.VentaItemService;
+import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.utils.ImageService;
@@ -79,6 +81,8 @@ public class FacturaService {
     private CambioService cambioService;
     @Autowired
     private VentaItemService ventaItemService;
+    @Autowired
+    private ClienteService clienteService;
     @Autowired
     private PresentacionService presentacionService;
 
@@ -286,10 +290,10 @@ public class FacturaService {
         SaveFacturaDto saveFacturaDto = new SaveFacturaDto();
         PrintService selectedPrintService = printingService.getPrintService(printerName);
         Sucursal sucursal = sucursalService.sucursalActual();
+        Cliente cliente = facturaLegal.getClienteId() != null ? clienteService.findById(facturaLegal.getClienteId()).orElse(null) : null;
         PuntoDeVenta puntoDeVenta = puntoDeVentaService.getPuntoDeVentaActual(pdvId);
         TimbradoDetalle timbradoDetalle = timbradoDetalleService.getTimbradoDetalleActual(puntoDeVenta.getId());
         Usuario cajero = venta != null ? venta.getUsuario() : usuarioService.findById(facturaLegal.getUsuarioId()).orElse(null);
-        Double descuento = 0.0;
         Double aumento = 0.0;
         Double vueltoGs = 0.0;
         Double vueltoRs = 0.0;
@@ -382,7 +386,7 @@ public class FacturaService {
                     .replace("Ú", "U");
             escpos.writeLF("Cliente: " + nombreCliente);
 
-            if(facturaLegal.getRuc()!=null){
+            if(facturaLegal.getRuc()!=null && (cliente == null || cliente.getTributa())){
                 if(!facturaLegal.getRuc().contains("-")){
                     facturaLegal.setRuc(facturaLegal.getRuc()+getDigitoVerificadorString(facturaLegal.getRuc()));
                 };
@@ -427,7 +431,7 @@ public class FacturaService {
                         cantidad = df.format(vi.getCantidad().doubleValue()) + " (" + presentacion.getCantidad().intValue() + ") " + "10%";
                     }
                     escpos.writeLF(vi.getDescripcion());
-                    escpos.write(new Style().setBold(true), cantidad);
+                    escpos.write(cantidad);
                     String valorUnitario = df.format(vi.getPrecioUnitario().intValue());
                     String valorTotal = df.format(total.intValue());
                     for (int i = 14; i > cantidad.length(); i--) {
@@ -441,21 +445,45 @@ public class FacturaService {
                 }
             }
             escpos.writeLF("--------------------------------");
-            escpos.write("Total Gs: ");
             String valorGs = df.format(totalFinal);
-            for (int i = 22; i > valorGs.length(); i--) {
-                escpos.write(" ");
+            if(facturaLegal.getDescuento()!=null && facturaLegal.getDescuento().compareTo(0.0) > 0){
+                String descuento = df.format(facturaLegal.getDescuento());
+                escpos.write("Total parcial: ");
+                for (int i = 17; i > valorGs.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(valorGs);
+                escpos.write("Total descuento: ");
+                for (int i = 15; i > descuento.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(descuento);
+                String totalFinalConDesc = df.format(totalFinal - facturaLegal.getDescuento());
+                escpos.write("Total final: ");
+                for (int i = 19; i > totalFinalConDesc.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(new Style().setBold(true), totalFinalConDesc);
+            } else {
+                escpos.write("Total Gs: ");
+                for (int i = 22; i > valorGs.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(new Style().setBold(true), valorGs);
             }
-            escpos.writeLF(new Style().setBold(true), valorGs);
+
             escpos.writeLF("--------Liquidación IVA---------");
+            Double porcentajeDescuento = (facturaLegal.getDescuento() != null && facturaLegal.getDescuento().compareTo(0.0) != 0) ? (facturaLegal.getDescuento() / totalFinal) : null;
             escpos.write("Gravadas 10%:");
-            String totalIva10S = df.format(totalIva10.intValue());
+            Double desc10 = porcentajeDescuento != null ? (totalIva10 - (totalIva10 * porcentajeDescuento)) : null;
+            String totalIva10S = df.format(desc10 == null ? totalIva10.intValue() : desc10.intValue());
             for (int i = 19; i > totalIva10S.length(); i--) {
                 escpos.write(" ");
             }
             escpos.writeLF(totalIva10S);
             escpos.write("Gravadas 5%: ");
-            String totalIva5S = df.format(totalIva5.intValue());
+            Double desc5 = porcentajeDescuento != null ? (totalIva5 - (totalIva5 * porcentajeDescuento)) : null;
+            String totalIva5S = df.format(desc5 == null ? totalIva5.intValue() : desc5.intValue());
             for (int i = 19; i > totalIva5S.length(); i--) {
                 escpos.write(" ");
             }
@@ -466,7 +494,8 @@ public class FacturaService {
             }
             escpos.writeLF("0");
             Double totalFinalIva = totalIva10 + totalIva5;
-            String totalFinalIvaS = df.format(totalFinalIva.intValue());
+            Double descFinal = porcentajeDescuento != null ? (totalFinalIva - (totalFinalIva * porcentajeDescuento)) : null;
+            String totalFinalIvaS = df.format(descFinal == null ? totalFinalIva.intValue() : descFinal.intValue());
             escpos.write("Total IVA:   ");
             for (int i = 19; i > totalFinalIvaS.length(); i--) {
                 escpos.write(" ");

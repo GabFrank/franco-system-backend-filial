@@ -48,7 +48,7 @@ public class Producto implements Serializable {
     private String observacion;
     private String imagenes;
     private Boolean isEnvase;
-
+    private Boolean activo;
 
 
     @Enumerated(EnumType.STRING)

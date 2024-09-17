@@ -21,6 +21,7 @@ type FacturaLegal {
     usuario: Usuario
     creadoEn: Date
     sucursalId: Int
+    descuento:Float
 }
 
 input FacturaLegalInput {
@@ -43,6 +44,7 @@ input FacturaLegalInput {
     totalFinal:Float
     usuarioId: Int
     sucursalId: Int
+    descuento:Float
 }
 
 extend type Query {
