@@ -36,10 +36,6 @@ public class Delivery implements Serializable {
 
     private Long sucursalId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "venta_id", nullable = true)
-    private Venta venta;
-
     @Column(name = "valor_en_gs")
     private Double valor;
 

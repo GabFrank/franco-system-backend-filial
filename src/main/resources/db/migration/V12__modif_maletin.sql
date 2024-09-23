@@ -1,6 +1,5 @@
 ALTER TABLE financiero.pdv_caja DROP CONSTRAINT pdv_caja_maletin_id_fkey;
 ALTER TABLE financiero.pdv_caja ADD CONSTRAINT pdv_caja_maletin_id_fkey FOREIGN KEY (maletin_id) REFERENCES financiero.maletin(id) ON DELETE SET NULL ON UPDATE CASCADE;
-DELETE FROM financiero.maletin;
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -10,9 +9,9 @@ BEGIN
         AND table_name = 'maletin'
         AND column_name = 'sucursal_id'
     ) THEN
-        ALTER TABLE financiero.maletin ADD COLUMN sucursal_id int8 NOT NULL;
+        ALTER TABLE financiero.maletin ADD COLUMN sucursal_id int8 DEFAULT 0 NOT NULL;
     END IF;
-END $$;
+END $$
 DO $$
 BEGIN
     IF NOT EXISTS (

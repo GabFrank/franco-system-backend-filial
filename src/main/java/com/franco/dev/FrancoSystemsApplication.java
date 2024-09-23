@@ -13,6 +13,7 @@ import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
@@ -106,6 +107,14 @@ public class FrancoSystemsApplication {
     @Bean
     public ObjectMapper objectMapper() {
         return new ObjectMapper();
+    }
+
+    @Bean
+    public FlywayMigrationStrategy cleanMigrateStrategy() {
+        return flyway -> {
+            flyway.repair();
+            flyway.migrate();
+        };
     }
 
 }

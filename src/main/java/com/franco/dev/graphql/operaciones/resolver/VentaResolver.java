@@ -41,23 +41,21 @@ public class VentaResolver implements GraphQLResolver<Venta> {
 
     public Double valorTotal(Venta v){
         Double precio = 0.0;
-        Integer cantidad = 1;
-        List<VentaItem> ventaItemList = ventaItemService.findByVentaId(v.getId());
-        for (VentaItem vi : ventaItemList){
-            if(vi.getUnidadMedida() == UnidadMedida.CAJA){
-                cantidad = vi.getProducto().getUnidadPorCaja();
-            }
-            try {
-                precio += vi.getPrecioVenta().getPrecio() * (vi.getCantidad() * cantidad);
-            } catch (Exception e){
-
-            }
-            cantidad = 1;
+//        Integer cantidad = 1;
+//        List<VentaItem> ventaItemList = ventaItemService.findByVentaId(v.getId(), v.getSucursalId());
+//        for (VentaItem vi : ventaItemList){
+//            if(vi.getUnidadMedida() == UnidadMedida.CAJA){
+//                cantidad = vi.getProducto().getUnidadPorCaja();
+//            }
+//            precio += vi.getPrecioVenta().getPrecio() * (vi.getCantidad() * cantidad);
+//            cantidad = 1;
+//        }
+//        return precio;
+        precio = ventaItemService.getRepository().totalByVentaIdAndSucId(v.getId(), v.getSucursalId());
+        if(precio != null) {
+            return precio;
+        } else {
+            return 0.0;
         }
-        return precio;
-    }
-
-    public Delivery delivery(Venta v){
-        return deliveryService.findByVentaId(v.getId(), v.getSucursalId());
     }
 }

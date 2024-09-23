@@ -1,16 +1,18 @@
 package com.franco.dev.repository.operaciones;
 
 import com.franco.dev.domain.operaciones.Venta;
+import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface VentaRepository extends HelperRepository<Venta, Long> {
+public interface VentaRepository extends HelperRepository<Venta, Long>, JpaSpecificationExecutor {
     default Class<Venta> getEntityClass() {
         return Venta.class;
     }
@@ -41,17 +43,23 @@ public interface VentaRepository extends HelperRepository<Venta, Long> {
             "(v.estado = :estado or cast(:estado as com.franco.dev.domain.operaciones.enums.VentaEstado) is null) group by (v.id, v.sucursalId)")
     public Page<Venta> findWithFilters(Long id, Long formaPagoId, VentaEstado estado, Pageable pageable);
 
-    @Query(value = "select v from Venta v, CobroDetalle cd, Delivery d " +
-            "join v.caja ca " +
-            "join v.cobro c " +
-            "join cd.cobro c2 " +
-            "join cd.formaPago fp " +
-            "join d.venta v2 " +
-            "where ca.id = :id  and c = c2 and " +
-            "(:isDelivery = true and v2.id = v.id) and " +
-            "(:formaPagoId is null or fp.id = :formaPagoId) and " +
-            "(v.estado = :estado or cast(:estado as com.franco.dev.domain.operaciones.enums.VentaEstado) is null) group by (v.id, v.sucursalId)")
-    public Page<Venta> findWithFilters(Long id, Long formaPagoId, VentaEstado estado, Pageable pageable, Boolean isDelivery);
+    public List<Venta> findAllByCajaIdAndSucursalIdAndDeliveryEstadoIn(Long id, Long sucId,  List<DeliveryEstado> estadoList);
 
+
+    public List<Venta> findAllBySucursalIdAndDeliveryEstadoIn(Long sucId,  List<DeliveryEstado> estadoList);
+
+//    @Query(value = "select v from Venta v, CobroDetalle cd, Delivery d " +
+//            "join v.caja ca " +
+//            "join v.cobro c " +
+//            "join cd.cobro c2 " +
+//            "join cd.formaPago fp " +
+//            "join d.venta v2 " +
+//            "where ca.id = :id  and c = c2 and " +
+//            "(:isDelivery = true and v2.id = v.id) and " +
+//            "(:formaPagoId is null or fp.id = :formaPagoId) and " +
+//            "(v.estado = :estado or cast(:estado as com.franco.dev.domain.operaciones.enums.VentaEstado) is null) group by (v.id, v.sucursalId)")
+//    public Page<Venta> findWithFilters(Long id, Long formaPagoId, VentaEstado estado, Pageable pageable, Boolean isDelivery);
+
+    public Venta findByDeliveryIdAndSucursalId(Long deliveryId, Long sucursalId);
 
 }

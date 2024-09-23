@@ -32,30 +32,12 @@ public class DeliveryService extends CrudService<Delivery, DeliveryRepository> {
         return repository.findByEstado(estado);
     }
 
-    public List<Delivery> findByEstadoList(List<DeliveryEstado> estadoList, Long cajaId) {
-        Iterable<Delivery> deliveryIterable = repository.findByEstadoInAndVentaCajaIdOrderByIdDesc(estadoList, cajaId);
-        return StreamSupport.stream(deliveryIterable.spliterator(), false)
-                .collect(Collectors.toList());
-    }
-
     public List<Delivery> findByEstadoNotIn(DeliveryEstado estado) {
         return repository.findActivos();
     }
 
     public List<Delivery> findTop10() {
         return repository.findUltimos10();
-    }
-
-    public Delivery findByVentaId(Long id, Long sucId) {
-        return repository.findByVentaIdAndSucursalId(id, sucId);
-    }
-
-    public List<Delivery> findByVentaCajaId(Long id) {
-        return repository.findByVentaCajaId(id);
-    }
-
-    public List<Delivery> findByVentaCajaIdAndEstadoIn(Long id, List<DeliveryEstado> estado){
-        return repository.findByVentaCajaIdAndEstadoIn(id,estado);
     }
 
     @Override

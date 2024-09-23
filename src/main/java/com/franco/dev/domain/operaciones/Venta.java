@@ -56,6 +56,10 @@ public class Venta implements Serializable {
     private Cobro cobro;
 
     @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "delivery_id", nullable = true)
+    private Delivery delivery;
+
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "caja_id", nullable = true)
     private PdvCaja caja;
 

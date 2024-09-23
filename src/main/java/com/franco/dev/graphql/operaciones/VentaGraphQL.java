@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.VentaCredito;
@@ -50,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -63,6 +65,7 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -615,8 +618,12 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return ok;
     }
 
-    public Page<Venta> ventasPorCajaId(Long id, Integer page, Integer size, Boolean asc, Long sucId, Long formaPago, VentaEstado estado, Boolean isDelivery, Long monedaId) {
-        return service.findByCajaId(id, sucId, page, size, asc, formaPago, estado, isDelivery);
+    public Page<Venta> ventasPorCajaId(Long idVenta, Long idCaja, Integer page, Integer size, Boolean asc, Long sucId, Long formaPago, VentaEstado estado, Boolean isDelivery, Long monedaId) {
+        if(idVenta!=null){
+            Venta venta = service.findById(idVenta).orElse(null);
+            return new PageImpl<>(Arrays.asList(venta), PageRequest.of(0, 1), 1);
+        }
+        return service.findByCajaId(new EmbebedPrimaryKey(idCaja, sucId), page, size, asc, formaPago, estado, isDelivery, monedaId);
     }
 
     public Boolean cancelarVenta(Long id, Long sucId) {
@@ -638,7 +645,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
                 if (cobro != null) {
                     List<CobroDetalleInput> cobroDetalleList = new ArrayList<>();
-                    Delivery delivery = deliveryService.findByVentaId(venta.getId(), venta.getSucursalId());
+                    Delivery delivery = venta.getDelivery();
                     printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, true, printerName, local, null, null, delivery);
                     return true;
                 }
