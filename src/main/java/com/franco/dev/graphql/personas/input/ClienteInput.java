@@ -15,4 +15,6 @@ public class ClienteInput {
     private String nombre;
     private String documento;
     private String direccion;
+    private Boolean tributa;
+    private Boolean verificadoSet;
 }

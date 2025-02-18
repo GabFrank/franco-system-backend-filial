@@ -1,13 +1,17 @@
 package com.franco.dev.service.operaciones;
 
 import com.franco.dev.domain.operaciones.MovimientoStock;
+import com.franco.dev.domain.operaciones.StockPorProductoSucursal;
 import com.franco.dev.domain.operaciones.TransferenciaItem;
+import com.franco.dev.domain.operaciones.dto.MovimientoStockCantidadAndIdDto;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.MovimientoStockRepository;
 import com.franco.dev.service.CrudService;
+import com.franco.dev.service.empresarial.SucursalService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -20,13 +24,48 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
     @Autowired
     private TransferenciaItemService transferenciaItemService;
 
+    @Autowired
+    private StockPorProductoSucursalService stockPorProductoSucursalService;
+
+    @Autowired
+    private SucursalService sucursalService;
+
+    @Autowired
+    private Environment env;
+
     @Override
     public MovimientoStockRepository getRepository() {
         return repository;
     }
 
-    public Float stockByProductoIdAndSucursalId(Long proId) {
-        return repository.stockByProductoId(proId) != null ? repository.stockByProductoId(proId) : 0;
+    public Double stockByProductoIdAndSucursalId(Long proId) {
+        StockPorProductoSucursal sps = stockPorProductoSucursalService.getRepository().findByIdAndSucursalId(proId, sucursalService.sucursalActual().getId());
+        if (sps != null) {
+            MovimientoStockCantidadAndIdDto dto = repository.stockByProductoIdAndSucursalIdAndLastId(proId, sucursalService.sucursalActual().getId(), sps.getLastMovimientoStockId());
+            if (dto != null && dto.getCantidad().compareTo(0.0) < 0) {
+                Double cantidadParcial = dto.getCantidad();
+                sps.sumarCantidad(Double.valueOf(cantidadParcial));
+                sps.setLastMovimientoStockId(dto.getLastId());
+                if(dto.getCantItens() > env.getProperty("calculoStockLimite", Long.class)){
+                    stockPorProductoSucursalService.save(sps);
+                }
+            }
+            return sps.getCantidad();
+        } else {
+            MovimientoStockCantidadAndIdDto dto = repository.stockByProductoIdAndSucursalIdAndLastId(proId, sucursalService.sucursalActual().getId(), Long.valueOf(0));
+            if (dto != null && dto.getLastId() != null) {
+                Double cantidadParcial = dto.getCantidad() != null ? dto.getCantidad() : 0.0;
+                sps = new StockPorProductoSucursal();
+                sps.setId(proId);
+                sps.setSucursalId(sucursalService.sucursalActual().getId());
+                sps.setCantidad(cantidadParcial);
+                sps.setLastMovimientoStockId(dto.getLastId());
+                stockPorProductoSucursalService.save(sps);
+                return sps.getCantidad();
+            } else {
+                return 0.0;
+            }
+        }
     }
 
     public Float stockByProductoId(Long proId) {
@@ -57,7 +96,7 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         MovimientoStock e = super.save(entity);
 //        personaPublisher.publish(p);
-        propagacionService.propagarEntidad(e, TipoEntidad.MOVIMIENTO_STOCK, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.MOVIMIENTO_STOCK, recibir);
         return e;
     }
 

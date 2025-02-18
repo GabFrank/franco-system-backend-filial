@@ -154,7 +154,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (input.getTimbradoDetalleId() != null)
             e.setTimbradoDetalle(timbradoDetalleService.findById(input.getTimbradoDetalleId()).orElse(null));
         if (input.getClienteId() != null) e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
-        if (input.getRuc() != null && input.getRuc() != "X" && !input.getRuc().contains("-")) {
+        if (input.getRuc() != null && input.getRuc() != "X" && !input.getRuc().contains("-") && (e.getCliente() == null || (e.getCliente().getTributa() != null && e.getCliente().getTributa()))) {
             e.setRuc(input.getRuc() + getDigitoVerificadorString(input.getRuc()));
         }
         e = service.saveAndSend(e, false);
@@ -576,7 +576,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             SaveFacturaDto dto = generarFacturaAutoImpreso(fl.getVenta() != null ? fl.getVenta() : null, input, facturaLegalItemInputList, printerName, fl.getTimbradoDetalle().getPuntoDeVenta().getId(), continuar, true);
             if (dto != null) {
                 fl.setViaTributaria(true);
-                propagacionService.propagarEntidad(fl, TipoEntidad.FACTURA);
+//                propagacionService.propagarEntidad(fl, TipoEntidad.FACTURA);
                 ok = true;
             }
         }
@@ -600,7 +600,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         printService = PrinterOutputStream.getPrintServiceByName(printerName);
         Sucursal sucursal = sucursalService.findById(facturaLegal.getSucursalId()).orElse(null);
         Delivery delivery = null;
-        if(venta != null ) delivery = deliveryService.findByVentaId(venta.getId(), venta.getSucursalId());
+        if(venta != null ) delivery = venta.getDelivery();
         Double descuento = 0.0;
         Double aumento = 0.0;
         Double vueltoGs = 0.0;

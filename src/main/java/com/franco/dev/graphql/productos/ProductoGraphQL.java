@@ -79,7 +79,7 @@ public class ProductoGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         return service.save(p);
     }
 
-    public Float productoPorSucursalStock(Long proId, Long sucId) {
+    public Double productoPorSucursalStock(Long proId, Long sucId) {
         return movimientoStockService.stockByProductoIdAndSucursalId(proId);
     }
 

@@ -47,7 +47,7 @@ public class ActualizacionGraphQL implements GraphQLQueryResolver, GraphQLMutati
         Actualizacion e = m.map(input, Actualizacion.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         e = service.save(e);
-        propagacionService.propagarEntidad(e, TipoEntidad.CARGO);
+//        propagacionService.propagarEntidad(e, TipoEntidad.CARGO);
         return e;
     }
 

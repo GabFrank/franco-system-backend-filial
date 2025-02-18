@@ -47,7 +47,7 @@ public class RetiroService extends CrudService<Retiro, RetiroRepository> {
         entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Retiro e = super.save(entity);
 //        personaPublisher.publish(p);
-        propagacionService.propagarEntidad(e, RETIRO, recibir);
+//        propagacionService.propagarEntidad(e, RETIRO, recibir);
         return e;
     }
 }

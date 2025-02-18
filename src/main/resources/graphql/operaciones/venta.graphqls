@@ -48,12 +48,12 @@ extend type Query {
     venta(id:ID!, sucId: ID):Venta
     ventas(page:Int = 0, size:Int = 10, sucId: ID):[Venta]!
     countVenta: Int
-    ventasPorCajaId(id:ID!, page: Int, size: Int, asc: Boolean, sucId: ID, formaPago: ID, estado: VentaEstado, isDelivery: Boolean):VentaPage
+    ventasPorCajaId(idVenta:ID!, idCaja:ID!, page: Int, size: Int, asc: Boolean, sucId: ID, formaPago: ID, estado: VentaEstado, isDelivery: Boolean, monedaId: Int):VentaPage
     ventaPorPeriodo(inicio:String, fin:String, sucId: ID): [VentaPorPeriodo]
 }
 
 extend type Mutation {
-    saveVenta(ventaInput:VentaInput!, ventaItemList: [VentaItemInput], cobro: CobroInput, cobroDetalleList: [CobroDetalleInput], ticket: Boolean, printerName: String, local: String, pdvId: Int, ventaCreditoInput: VentaCreditoInput, ventaCreditoCuotaInputList: [VentaCreditoCuotaInput]):Venta
+    saveVenta(ventaInput:VentaInput!, ventaItemList: [VentaItemInput], cobro: CobroInput, cobroDetalleList: [CobroDetalleInput], ticket: Boolean, facturar: Boolean, printerName: String, local: String, pdvId: Int, ventaCreditoInput: VentaCreditoInput, ventaCreditoCuotaInputList: [VentaCreditoCuotaInput]):Venta
     deleteVenta(id:ID!, sucId: ID):Boolean!
     cancelarVenta(id:ID!, sucId: ID):Boolean!
     reimprimirVenta(id:ID!, printerName: String, local: String, sucId: ID):Boolean!

@@ -56,6 +56,7 @@ import java.util.Optional;
 
 import static com.franco.dev.service.utils.PrintingService.resize;
 import static com.franco.dev.utilitarios.CalcularVerificadorRuc.getDigitoVerificadorString;
+import static com.franco.dev.utilitarios.DateUtils.toDate;
 
 @Component
 public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
@@ -132,6 +133,7 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (input.getUsuarioId() != null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         if (input.getClienteId() != null) e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
         if (input.getSucursalId() != null) e.setSucursalId(input.getSucursalId());
+        if (input.getFechaCobro() != null) e.setFechaCobro(toDate(input.getFechaCobro()));
         e = service.saveAndSend(e, false);
         return e;
     }
@@ -157,7 +159,7 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     movimientoPersonas.setReferenciaId(ventaCreditoCuota.getId());
                     movimientoPersonas.setTipo(TipoMovimientoPersonas.VENTA_CREDITO);
                     movimientoPersonas.setValorTotal(vc.getValor() * -1);
-                    propagacionService.propagarEntidad(movimientoPersonas, TipoEntidad.MOVIMIENTO_PERSONA, false);
+//                    propagacionService.propagarEntidad(movimientoPersonas, TipoEntidad.MOVIMIENTO_PERSONA, false);
                 }
             }
         }
@@ -167,7 +169,7 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     public Boolean imprimirVentaCredito(Long id, Long sucId, String printerName) throws GraphQLException {
         VentaCredito ventaCredito = service.findById(id).orElse(null);
         List<VentaCreditoCuota> ventaCreditoCuotaList = ventaCreditoCuotaService.findByVentaCreditoId(ventaCredito.getId());
-        Delivery delivery = deliveryService.findByVentaId(ventaCredito.getVenta().getId(), ventaCredito.getVenta().getSucursalId());
+        Delivery delivery = ventaCredito.getVenta().getDelivery();
         if (ventaCredito == null) throw new GraphQLException("Venta credito no encontrada");
         try {
             printTicket58mm(ventaCredito, ventaCredito.getVenta(), null, printerName, ventaCreditoCuotaList, delivery);

@@ -79,7 +79,7 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getUsuario() == null) entity.setUsuario(usuarioService.findById(entity.getVenta().getUsuario().getId()).orElse(null));
         VentaItem e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.VENTA_ITEM, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.VENTA_ITEM, recibir);
         if (entity.getActivo() == false && entity.getId() != null) {
             MovimientoStock movimientoStock = movimientoStockService.findByTipoMovimientoAndReferencia(TipoMovimiento.VENTA, entity.getId());
             if (movimientoStock != null) {
@@ -109,9 +109,6 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
     public Boolean deleteById(Long id) {
         VentaItem ventaItem = findById(id).orElse(null);
         Boolean ok = ventaItem!=null ? super.deleteById(id) : false;
-        if(ok){
-            propagacionService.deleteEntidad(ventaItem.getId(), TipoEntidad.VENTA_ITEM);
-        }
         return ok;
     }
 }

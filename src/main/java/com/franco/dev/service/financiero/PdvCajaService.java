@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.franco.dev.utilitarios.DateUtils.toDate;
 
@@ -138,8 +139,8 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         PdvCaja e = super.save(entity);
         maletinService.save(m);
-        propagacionService.propagarEntidad(e, TipoEntidad.PDV_CAJA, recibir);
-        propagacionService.propagarEntidad(m, TipoEntidad.MALETIN, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.PDV_CAJA, recibir);
+//        propagacionService.propagarEntidad(m, TipoEntidad.MALETIN, recibir);
         return e;
     }
 
@@ -278,7 +279,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             List<RetiroDetalle> retiroDetalleList = retiroDetalleService.findByCajId(pdvCaja.getId());
             List<Gasto> gastoList = gastoService.findByCajaId(pdvCaja.getId());
             List<Venta> ventaList = ventaService.findAllByCajaId(pdvCaja.getId());
-            List<Delivery> deliveryList = deliveryService.findByVentaCajaId(pdvCaja.getId());
+            List<Delivery> deliveryList = ventaList.stream().map(v -> v.getDelivery()).collect(Collectors.toList());
             if (!conteoMonedaAperList.isEmpty()) {
                 Double totalGsAper = 0.0;
                 Double totalRsAper = 0.0;

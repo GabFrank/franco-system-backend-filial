@@ -26,4 +26,6 @@ public class RetiroInput {
     private Double retiroRs;
 
     private Double retiroDs;
+
+    private String observacion;
 }

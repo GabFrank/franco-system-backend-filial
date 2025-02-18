@@ -1,6 +1,7 @@
 package com.franco.dev.domain.personas;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.personas.enums.TipoCliente;
 import com.franco.dev.utilitarios.JsonIdView;
 import com.franco.dev.utilitarios.PostgreSQLEnumType;
@@ -39,6 +40,14 @@ public class Cliente implements Serializable {
     private Float credito;
 
     private String codigo;
+
+    private Boolean tributa;
+
+    private Boolean verificadoSet;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sucursal_id", nullable = true)
+    private Sucursal sucursal;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "persona_id", nullable = true)

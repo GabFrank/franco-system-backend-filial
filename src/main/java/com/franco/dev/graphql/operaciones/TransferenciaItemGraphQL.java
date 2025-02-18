@@ -67,7 +67,7 @@ public class TransferenciaItemGraphQL implements GraphQLQueryResolver, GraphQLMu
         if(input.getPresentacionTransporteId()!=null)e.setPresentacionTransporte(presentacionService.findById(input.getPresentacionTransporteId()).orElse(null));
         if(input.getPresentacionRecepcionId()!=null)e.setPresentacionRecepcion(presentacionService.findById(input.getPresentacionRecepcionId()).orElse(null));
         e = service.save(e);
-        propagacionService.propagarEntidad(e, TipoEntidad.TRANSFERENCIA_ITEM);
+//        propagacionService.propagarEntidad(e, TipoEntidad.TRANSFERENCIA_ITEM);
         return e;
     }
 

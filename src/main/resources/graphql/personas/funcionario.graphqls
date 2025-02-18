@@ -34,6 +34,7 @@ input FuncionarioInput {
 extend type Query {
     funcionario(id:ID!):Funcionario
     funcionariosSearch(texto:String):[Funcionario]
+    funcionarioPorPersona(id:ID!):Funcionario
     funcionarios(page:Int = 0, size:Int = 10):[Funcionario]!
     countFuncionario:Int
 }

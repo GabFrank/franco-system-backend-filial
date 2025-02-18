@@ -39,7 +39,7 @@ public class ConteoMonedaService extends CrudService<ConteoMoneda, ConteoMonedaR
     public ConteoMoneda saveAndSend(ConteoMoneda entity, Boolean recibir) {
         entity.setSucursalId(entity.getConteo().getSucursalId());
         ConteoMoneda e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.CONTEO_ITEM, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.CONTEO_ITEM, recibir);
         return e;
     }
 }

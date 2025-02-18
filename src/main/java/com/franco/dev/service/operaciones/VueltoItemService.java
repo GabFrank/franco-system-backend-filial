@@ -27,7 +27,7 @@ public class VueltoItemService extends CrudService<VueltoItem, VueltoItemReposit
     public VueltoItem saveAndSend(VueltoItem entity, Boolean recibir) {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         VueltoItem e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.VUELTO_ITEM, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.VUELTO_ITEM, recibir);
         return e;
     }
 

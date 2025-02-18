@@ -105,95 +105,95 @@ public class UpdateService {
 
     @Scheduled(fixedRate = 300000) // Run every 5 minutes (300,000 milliseconds)
     public void checkForNewRelease() {
-        try {
-            System.out.println("Verificando nueva version");
-            String latestRelease = restTemplate.getForObject(LATEST_RELEASE_URL, String.class);
-            System.out.println("latestRelease: " + latestRelease);
-            if (latestRelease != null) {
-                JSONObject jsonObject = new JSONObject(latestRelease);
-                String latestVersion = jsonObject.optString("tag_name", "");
-                JSONArray assets = jsonObject.optJSONArray("assets");
-                System.out.println("Version instalada: " + appVersion);
-                System.out.println("Version encontrada: " + latestVersion);
-                if (appVersion.equals(latestVersion)) {
-                    System.out.println("Ya posee la ultima version instalada");
-                } else if (!latestVersion.isEmpty() && assets != null) {
-                    System.out.println("Existe una nueva version. Descargando...");
-                    System.out.println(latestVersion);
-
-                    String updateJsonUrl = "https://github.com/GabFrank/franco-system-backend-filial/releases/download/" + latestVersion + "/frc-server.jar";
-                    System.out.println("updateJsonUrl: " + updateJsonUrl);
-                    if (updateJsonUrl != null) {
-                        System.out.println("Iniciando proceso de descarga");
-                        String homePath = env.getProperty("jarPath");
-                        if (homePath != null) {
-                            Path path = Paths.get(homePath);
-                            Boolean ok = downloadNewVersion(updateJsonUrl, path);
-                            if (ok) {
-                                System.out.println("Descargado con exito y se puede actualizar");
-                                String osName = System.getProperty("os.name");
-                                Boolean isWindows = osName.toUpperCase().contains("Windows".toUpperCase());
-                                Boolean isMac = osName.toUpperCase().contains("Mac".toUpperCase());
-                                Boolean isLinux = osName.toUpperCase().contains("nux".toUpperCase());
-
-                                if (isWindows) {
-                                    System.out.println("Is windows");
-                                    try {
-                                        Process process = Runtime.getRuntime().exec(homePath + "/selfUpdate.bat");
-                                        int exitCode = process.waitFor();
-                                        if (exitCode != 0) {
-                                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-                                                String line;
-                                                while ((line = reader.readLine()) != null) {
-                                                    System.out.println(line);
-                                                }
-                                            }
-                                        }
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    } catch (InterruptedException e) {
-                                        Thread.currentThread().interrupt();
-                                    }
-                                } else if (isMac) {
-                                    System.out.println("Is mac");
-
-                                } else if (isLinux) {
-                                    System.out.println("Is linux");
-                                    try {
-                                        // Assuming homePath is a String with the directory path where the script is located
-                                        ProcessBuilder processBuilder = new ProcessBuilder("nohup", homePath + "/selfUpdate.sh");
-                                        processBuilder.redirectErrorStream(true); // Redirects error stream to the input stream
-                                        Process process = processBuilder.start();
-
-                                        // Read output from the executed script
-                                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                                            String line;
-                                            while ((line = reader.readLine()) != null) {
-                                                System.out.println(line);
-                                            }
-                                        }
-
-                                        // Wait for the process to complete and check for errors
-                                        int exitCode = process.waitFor();
-                                        if (exitCode != 0) {
-                                            System.out.println("Script exited with error code: " + exitCode);
-                                        }
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    } catch (InterruptedException e) {
-                                        Thread.currentThread().interrupt();
-                                    }
-                                }
-                            } else {
-                                System.out.println("Ocurrio un error y no se puede actualizar");
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("Error al verificar y descargar la nueva versión: " + e.getMessage());
-        }
+//        try {
+//            System.out.println("Verificando nueva version");
+//            String latestRelease = restTemplate.getForObject(LATEST_RELEASE_URL, String.class);
+//            System.out.println("latestRelease: " + latestRelease);
+//            if (latestRelease != null) {
+//                JSONObject jsonObject = new JSONObject(latestRelease);
+//                String latestVersion = jsonObject.optString("tag_name", "");
+//                JSONArray assets = jsonObject.optJSONArray("assets");
+//                System.out.println("Version instalada: " + appVersion);
+//                System.out.println("Version encontrada: " + latestVersion);
+//                if (appVersion.equals(latestVersion)) {
+//                    System.out.println("Ya posee la ultima version instalada");
+//                } else if (!latestVersion.isEmpty() && assets != null) {
+//                    System.out.println("Existe una nueva version. Descargando...");
+//                    System.out.println(latestVersion);
+//
+//                    String updateJsonUrl = "https://github.com/GabFrank/franco-system-backend-filial/releases/download/" + latestVersion + "/frc-server.jar";
+//                    System.out.println("updateJsonUrl: " + updateJsonUrl);
+//                    if (updateJsonUrl != null) {
+//                        System.out.println("Iniciando proceso de descarga");
+//                        String homePath = env.getProperty("jarPath");
+//                        if (homePath != null) {
+//                            Path path = Paths.get(homePath);
+//                            Boolean ok = downloadNewVersion(updateJsonUrl, path);
+//                            if (ok) {
+//                                System.out.println("Descargado con exito y se puede actualizar");
+//                                String osName = System.getProperty("os.name");
+//                                Boolean isWindows = osName.toUpperCase().contains("Windows".toUpperCase());
+//                                Boolean isMac = osName.toUpperCase().contains("Mac".toUpperCase());
+//                                Boolean isLinux = osName.toUpperCase().contains("nux".toUpperCase());
+//
+//                                if (isWindows) {
+//                                    System.out.println("Is windows");
+//                                    try {
+//                                        Process process = Runtime.getRuntime().exec(homePath + "/selfUpdate.bat");
+//                                        int exitCode = process.waitFor();
+//                                        if (exitCode != 0) {
+//                                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+//                                                String line;
+//                                                while ((line = reader.readLine()) != null) {
+//                                                    System.out.println(line);
+//                                                }
+//                                            }
+//                                        }
+//                                    } catch (IOException e) {
+//                                        e.printStackTrace();
+//                                    } catch (InterruptedException e) {
+//                                        Thread.currentThread().interrupt();
+//                                    }
+//                                } else if (isMac) {
+//                                    System.out.println("Is mac");
+//
+//                                } else if (isLinux) {
+//                                    System.out.println("Is linux");
+//                                    try {
+//                                        // Assuming homePath is a String with the directory path where the script is located
+//                                        ProcessBuilder processBuilder = new ProcessBuilder("nohup", homePath + "/selfUpdate.sh");
+//                                        processBuilder.redirectErrorStream(true); // Redirects error stream to the input stream
+//                                        Process process = processBuilder.start();
+//
+//                                        // Read output from the executed script
+//                                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+//                                            String line;
+//                                            while ((line = reader.readLine()) != null) {
+//                                                System.out.println(line);
+//                                            }
+//                                        }
+//
+//                                        // Wait for the process to complete and check for errors
+//                                        int exitCode = process.waitFor();
+//                                        if (exitCode != 0) {
+//                                            System.out.println("Script exited with error code: " + exitCode);
+//                                        }
+//                                    } catch (IOException e) {
+//                                        e.printStackTrace();
+//                                    } catch (InterruptedException e) {
+//                                        Thread.currentThread().interrupt();
+//                                    }
+//                                }
+//                            } else {
+//                                System.out.println("Ocurrio un error y no se puede actualizar");
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            System.out.println("Error al verificar y descargar la nueva versión: " + e.getMessage());
+//        }
     }
 }

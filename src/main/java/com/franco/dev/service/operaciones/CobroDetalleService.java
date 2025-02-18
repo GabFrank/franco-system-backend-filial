@@ -55,7 +55,7 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         CobroDetalle e = super.save(entity);
 //        personaPublisher.publish(p);
-        propagacionService.propagarEntidad(e, TipoEntidad.COBRO_DETALLE, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.COBRO_DETALLE, recibir);
         return e;
     }
 
@@ -64,7 +64,7 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
         CobroDetalle cobro = findById(id).orElse(null);
         Boolean ok = cobro!=null ? super.deleteById(id) : false;
         if(ok){
-            propagacionService.deleteEntidad(cobro.getId(), TipoEntidad.COBRO_DETALLE);
+//            propagacionService.deleteEntidad(cobro.getId(), TipoEntidad.COBRO_DETALLE);
         }
         return ok;
     }

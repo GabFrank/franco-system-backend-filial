@@ -80,7 +80,7 @@ public class RetiroDetalleService extends CrudService<RetiroDetalle, RetiroDetal
     public RetiroDetalle saveAndSend(RetiroDetalle entity, Boolean recibir) throws GraphQLException {
         entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         RetiroDetalle e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.RETIRO_DETALLE, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.RETIRO_DETALLE, recibir);
         MovimientoCaja movimientoCaja = new MovimientoCaja();
         movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.RETIRO);
         movimientoCaja.setReferencia(e.getId());

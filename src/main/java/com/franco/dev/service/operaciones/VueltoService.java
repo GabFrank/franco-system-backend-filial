@@ -33,7 +33,7 @@ public class VueltoService extends CrudService<Vuelto, VueltoRepository> {
     public Vuelto saveAndSend(Vuelto entity, Boolean recibir) {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Vuelto e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.VUELTO, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.VUELTO, recibir);
         return e;
     }
 }

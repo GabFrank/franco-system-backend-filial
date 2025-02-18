@@ -1,6 +1,7 @@
 package com.franco.dev.repository.operaciones;
 
 import com.franco.dev.domain.operaciones.MovimientoStock;
+import com.franco.dev.domain.operaciones.dto.MovimientoStockCantidadAndIdDto;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -39,5 +40,12 @@ public interface MovimientoStockRepository extends HelperRepository<MovimientoSt
     public MovimientoStock findByProductoIdAndTipoMovimientoAndReferencia(Long proId, TipoMovimiento tipoMovimiento, Long refId);
 
     public List<MovimientoStock> findByReferencia(Long id);
+
+    @Query("select new com.franco.dev.domain.operaciones.dto.MovimientoStockCantidadAndIdDto(COALESCE(SUM(p.cantidad), 0), MAX(p.id), count(p.id)) " +
+            "from MovimientoStock p " +
+            "left join p.producto pro " +
+            "where p.estado = true and pro.id = ?1 and p.sucursalId = ?2 and p.id > ?3")
+    public MovimientoStockCantidadAndIdDto stockByProductoIdAndSucursalIdAndLastId(Long proId, Long sucId, Long lastId);
+
 
 }

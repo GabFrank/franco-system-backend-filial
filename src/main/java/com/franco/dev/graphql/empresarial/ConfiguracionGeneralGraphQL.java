@@ -31,7 +31,7 @@ public class ConfiguracionGeneralGraphQL implements GraphQLQueryResolver, GraphQ
     }
 
     public Boolean solicitarResources(){
-        propagacionService.solicitarResources();
+//        propagacionService.solicitarResources();
         return true;
     }
 

@@ -46,7 +46,7 @@ public class ClienteAdicionalGraphQL implements GraphQLQueryResolver, GraphQLMut
         e.setPersona(personaService.findById(input.getPersonaId()).orElse(null));
         e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
         e = service.save(e);
-        propagacionService.propagarEntidad(e, TipoEntidad.CLIENTE_ADICIONAL);
+//        propagacionService.propagarEntidad(e, TipoEntidad.CLIENTE_ADICIONAL);
         return e;
     }
 

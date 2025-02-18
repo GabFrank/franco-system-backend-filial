@@ -32,7 +32,7 @@ public class MonedaResolver implements GraphQLResolver<Moneda> {
         List<MonedaBilletes> monedaBilletesList = monedaBilleteService.findByMonedaId(e.getId());
         if(!monedaBilletesList.isEmpty()){
             monedaBilletesList.sort((a, b)-> {
-                if(a.getValor() > b.getValor()){
+                if(a.getValor().compareTo(b.getValor()) < 0){
                     return 1;
                 } else {
                     return -1;

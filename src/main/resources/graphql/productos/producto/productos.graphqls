@@ -30,6 +30,8 @@ type Producto {
     costo: CostoPorProducto
     isEnvase: Boolean
     envase: Producto
+    activo: Boolean
+    creadoEn: Date
 }
 
 input ProductoInput {
@@ -56,6 +58,8 @@ input ProductoInput {
     tipoConservacion: TipoConservacion
     isEnvase: Boolean
     envaseId: Int
+    activo: Boolean
+    creadoEn: String
 }
 
 extend type Query {
