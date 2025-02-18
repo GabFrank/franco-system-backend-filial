@@ -1,10 +1,8 @@
 package com.franco.dev.repository.operaciones;
 
 import com.franco.dev.domain.operaciones.Delivery;
-import com.franco.dev.domain.operaciones.Pedido;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.repository.HelperRepository;
-import com.franco.dev.service.operaciones.DeliveryService;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -41,7 +39,16 @@ public interface DeliveryRepository extends HelperRepository<Delivery, Long> {
             "AND v.sucursalId = :sucId " +
             "AND d.estado IN (:estadoList)")
     List<Delivery> findDeliveryByCajaEstadoAndSucId(@Param("id") Long id,
-                               @Param("estadoList") List<DeliveryEstado> estadoList,
-                               @Param("sucId") Long sucId);
+                                                    @Param("estadoList") List<DeliveryEstado> estadoList,
+                                                    @Param("sucId") Long sucId);
+
+    @Query("SELECT d FROM Venta v " +
+            "JOIN v.delivery d " +
+            "WHERE " +
+            "v.sucursalId = :sucId " +
+            "AND d.estado IN (:estadoList)")
+    List<Delivery> findDeliveryByEstadoAndSucId(
+            @Param("estadoList") List<DeliveryEstado> estadoList,
+            @Param("sucId") Long sucId);
 
 }

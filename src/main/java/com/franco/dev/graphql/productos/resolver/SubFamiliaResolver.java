@@ -29,15 +29,18 @@ public class SubFamiliaResolver implements GraphQLResolver<Subfamilia> {
     @Autowired
     private SubFamiliaService subFamiliaService;
 
-    public Optional<Usuario> usuario(Subfamilia e){
+    public Optional<Usuario> usuario(Subfamilia e) {
+        if(e.getUsuarioId() == null) return null;
         return usuarioService.findById(e.getUsuarioId().getId());
     }
 
-    public List<Subfamilia> subfamiliaList(Subfamilia e){
+    public List<Subfamilia> subfamiliaList(Subfamilia e) {
         return subFamiliaService.findBySubFamilia(e.getId());
     }
 
-    public List<Producto> productos(Subfamilia e) { return productoService.findBySubFamiliaId(e.getId());}
+    public List<Producto> productos(Subfamilia e) {
+        return productoService.findBySubFamiliaId(e.getId());
+    }
 
 
 }

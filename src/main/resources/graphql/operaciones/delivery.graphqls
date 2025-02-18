@@ -14,6 +14,7 @@ type Delivery {
     vuelto: Vuelto
     formaPago: FormaPago
     sucursalId: Int
+    fechaConcluido: Date
 }
 
 type DeliveryUpdate {

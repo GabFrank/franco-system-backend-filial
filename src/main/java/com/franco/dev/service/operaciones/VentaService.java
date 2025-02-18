@@ -1,15 +1,12 @@
 package com.franco.dev.service.operaciones;
 
 import com.franco.dev.domain.EmbebedPrimaryKey;
-import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.PdvCaja;
-import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.dto.VentaPorPeriodoV1Dto;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.VentaRepository;
 import com.franco.dev.service.CrudService;
 import com.franco.dev.service.financiero.MovimientoCajaService;
@@ -21,6 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.criteria.*;
@@ -65,20 +63,23 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
         return repository.findByCajaId(id);
     }
 
-    @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Venta save(Venta entity) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if(entity.getTotalGs() == 0 && entity.getEstado() == VentaEstado.CONCLUIDA) return null;
         Venta e = super.save(entity);
         return e;
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Venta saveAndSend(Venta entity, Boolean recibir) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if(entity.getTotalGs() == 0 && entity.getEstado() == VentaEstado.CONCLUIDA) return null;
         Venta e = super.save(entity);
 //        propagacionService.propagarEntidad(e, TipoEntidad.VENTA, recibir);
         return e;
@@ -156,9 +157,13 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
             Join<Venta, PdvCaja> cajaJoin = root.join("caja", JoinType.INNER);
 
             // Add the predicates
-            predicates.add(cb.equal(cajaJoin.get("id"), id));
-            predicates.add(cb.equal(root.get("sucursalId"), sucId));
+            if (id != null) {
+                predicates.add(cb.equal(cajaJoin.get("id"), id));
+            }
 
+            if (sucId != null) {
+                predicates.add(cb.equal(root.get("sucursalId"), sucId));
+            }
             // Join with CobroDetalle manually based on cobro_id and sucursal_id
             if (formaPagoId != null) {
                 Subquery<Long> cobroDetalleSubquery = query.subquery(Long.class);
@@ -175,11 +180,11 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
                 predicates.add(cb.exists(cobroDetalleSubquery));
             }
 
-            if(estado!=null){
+            if (estado != null) {
                 predicates.add(cb.equal(root.get("estado"), estado));
             }
 
-            if(isDelivery!= null && isDelivery == true){
+            if (isDelivery != null && isDelivery == true) {
                 Join<Venta, Delivery> deliveryJoin = root.join("delivery", JoinType.INNER);
                 predicates.add(cb.isNotNull(deliveryJoin.get("delivery")));
             }

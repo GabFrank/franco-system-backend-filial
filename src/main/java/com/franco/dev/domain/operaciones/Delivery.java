@@ -69,6 +69,9 @@ public class Delivery implements Serializable {
     @Column(name = "creado_en")
     private LocalDateTime creadoEn;
 
+    @Column(name = "fecha_concluido")
+    private LocalDateTime fechaConcluido;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;

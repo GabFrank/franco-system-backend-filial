@@ -21,11 +21,14 @@ public class FamiliaResolver implements GraphQLResolver<Familia> {
     @Autowired
     private SubFamiliaService subFamiliaService;
 
-    public Optional<Usuario> usuario(Familia e){
+    public Optional<Usuario> usuario(Familia e) {
+        if(e.getUsuarioId() == null) return null;
         return usuarioService.findById(e.getUsuarioId().getId());
     }
 
-    public List<Subfamilia> subfamilias(Familia e) { return subFamiliaService.findByFamiliaId(e.getId() ); }
+    public List<Subfamilia> subfamilias(Familia e) {
+        return subFamiliaService.findByFamiliaId(e.getId());
+    }
 
 
 }
