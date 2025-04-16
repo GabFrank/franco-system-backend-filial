@@ -13,8 +13,6 @@ import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,7 +42,7 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
         StockPorProductoSucursal sps = stockPorProductoSucursalService.getRepository().findByIdAndSucursalId(proId, sucursalService.sucursalActual().getId());
         if (sps != null) {
             MovimientoStockCantidadAndIdDto dto = repository.stockByProductoIdAndSucursalIdAndLastId(proId, sucursalService.sucursalActual().getId(), sps.getLastMovimientoStockId());
-            if (dto != null && dto.getCantidad() != null && dto.getCantidad() != 0) {
+            if (dto != null && dto.getCantidad().compareTo(0.0) < 0) {
                 Double cantidadParcial = dto.getCantidad();
                 sps.sumarCantidad(Double.valueOf(cantidadParcial));
                 sps.setLastMovimientoStockId(dto.getLastId());
@@ -84,7 +82,6 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
     }
 
     @Override
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     public MovimientoStock save(MovimientoStock entity) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
@@ -94,7 +91,6 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
     }
 
     @Override
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     public MovimientoStock saveAndSend(MovimientoStock entity, Boolean recibir) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));

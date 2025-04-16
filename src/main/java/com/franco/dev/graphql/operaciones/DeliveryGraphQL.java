@@ -5,6 +5,7 @@ import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
+import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.graphql.financiero.FacturaLegalGraphQL;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
 import com.franco.dev.graphql.financiero.input.FacturaLegalItemInput;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component
 public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
@@ -94,7 +96,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     }
 
     public List<Delivery> deliverysByEstadoList(List<DeliveryEstado> estadoList, Long sucId) {
-        return service.getRepository().findDeliveryByEstadoAndSucId(estadoList, sucId);
+        return ventaService.getRepository().findAllBySucursalIdAndDeliveryEstadoIn(sucId, estadoList).stream().map(v -> v.getDelivery()).collect(Collectors.toList());
     }
 
     public List<Delivery> deliverysByEstadoNotIn(DeliveryEstado estado, Long sucId) {
@@ -144,20 +146,10 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
             }
 
             delivery = saveDelivery(deliveryInput);
-            if (delivery != null) {
+            if(delivery!=null){
                 ventaInput.setDeliveryId(delivery.getId());
             }
-            Venta venta = null;
-            if (ventaInput.getId() != null) {
-                venta = ventaService.findById(ventaInput.getId()).orElse(null);
-                ventaInput.setEstado(venta.getEstado());
-                ventaInput.setCajaId(venta.getCaja().getId());
-                ventaInput.setTotalGs(venta.getTotalGs());
-                ventaInput.setTotalRs(venta.getTotalRs());
-                ventaInput.setTotalDs(venta.getTotalDs());
-                ventaInput.setDeliveryId(venta.getDelivery().getId());
-            }
-            venta = ventaGraphQL.saveVenta2(ventaInput);
+            Venta venta = ventaGraphQL.saveVenta2(ventaInput);
             if (venta != null) {
                 List<VentaItem> ventaItemList = ventaItemInputList.size() > 0 ? ventaItemGraphQL.saveVentaItemList(ventaItemInputList, venta.getId()) : null;
             }
@@ -230,6 +222,8 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                     break;
                 case CONCLUIDO:
                     delivery.setEstado(DeliveryEstado.CONCLUIDO);
+                    venta.setEstado(VentaEstado.CONCLUIDA);
+                    ventaService.saveAndSend(venta, false);
                     service.saveAndSend(delivery, false);
                     break;
             }
@@ -253,8 +247,8 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         }
     }
 
-    public List<Delivery> deliveryPorCajaIdAndEstados(Long id, List<DeliveryEstado> estadoList, Long sucId) {
-        if (sucId == null) sucId = service.env.getProperty("sucursalId", Long.class);
+    public List<Delivery> deliveryPorCajaIdAndEstados(Long id, List<DeliveryEstado> estadoList, Long sucId){
+        if(sucId==null) sucId = service.env.getProperty("sucursalId", Long.class);
         List<Delivery> deliveryList = service.getRepository().findDeliveryByCajaEstadoAndSucId(id, estadoList, sucId);
         return deliveryList;
     }

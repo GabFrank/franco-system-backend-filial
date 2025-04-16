@@ -24,7 +24,6 @@ import com.franco.dev.service.personas.PersonaService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.utils.ImageService;
-import com.franco.dev.utilitarios.InfoTool;
 import com.franco.dev.utilitarios.NumeroALetrasService;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
@@ -41,8 +40,6 @@ import net.sf.jasperreports.engine.export.JRPrintServiceExporter;
 import net.sf.jasperreports.export.SimpleExporterInput;
 import net.sf.jasperreports.export.SimplePrintServiceExporterConfiguration;
 import org.modelmapper.ModelMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -72,8 +69,6 @@ import static com.franco.dev.utilitarios.DateUtils.dateToStringShort;
 
 @Component
 public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
-
-    public static final Logger logger = LoggerFactory.getLogger(FacturaLegalGraphQL.class.getName());
 
     @Autowired
     private FacturaLegalService service;
@@ -144,10 +139,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     public Boolean saveFacturaLegal(FacturaLegalInput input, List<FacturaLegalItemInput> facturaLegalItemInputList, String printerName, Long pdvId, Boolean print) {
         if (print == null) print = true;
-
         Venta venta = input.getVentaId() != null ? ventaService.findById(input.getVentaId()).orElse(null) : null;
         SaveFacturaDto saveFacturaDto = generarFacturaAutoImpreso(venta, input, facturaLegalItemInputList, printerName, pdvId, false, print);
-        if (saveFacturaDto != null && saveFacturaDto.getFacturaLegalInput() != null && saveFacturaDto.getFacturaLegalInput().getTimbradoDetalleId() == null) {
+        if (saveFacturaDto.getFacturaLegalInput().getTimbradoDetalleId() == null) {
             return false;
         }
         input = saveFacturaDto.getFacturaLegalInput();
@@ -183,39 +177,28 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.count();
     }
 
-    public SaveFacturaDto generarFacturaAutoImpreso(Venta venta, FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar, Boolean print) throws GraphQLException{
+    public SaveFacturaDto generarFacturaAutoImpreso(Venta venta, FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar, Boolean print) {
         PuntoDeVenta puntoDeVenta = puntoDeVentaService.getPuntoDeVentaActual(pdvId);
-        if(puntoDeVenta==null){
-            logger.warn("punto de venta es null");
-            throw new GraphQLException("Punto de venta no configurado");
-        }
         TimbradoDetalle timbradoDetalle = puntoDeVenta != null ? timbradoDetalleService.getTimbradoDetalleActual(puntoDeVenta.getId()) : null;
-        if(timbradoDetalle==null){
-            logger.warn("timbrado es null");
-            throw new GraphQLException("Timbrado detalle no configurado");
-        } else {
-            logger.warn("timbrado no es null");
-
-            if (timbradoDetalle.getNumeroActual() >= timbradoDetalle.getRangoHasta()) {
-                if (print) {
-                    throw new GraphQLException("Timbrado detalle fuera de rango. Contactar con RRHH");
-                }
+        if (timbradoDetalle.getNumeroActual() >= timbradoDetalle.getRangoHasta()) {
+            if (print) {
+                throw new GraphQLException("Timbrado detalle fuera de rango. Contactar con RRHH");
             }
-            Boolean isBefore = LocalDateTime.now().isAfter(timbradoDetalle.getTimbrado().getFechaFin());
-            if (isBefore) {
-                if (print) {
-                    throw new GraphQLException("Timbrado ha vencido. Contactar con RRHH");
-                }
+        }
+        Boolean isBefore = LocalDateTime.now().isAfter(timbradoDetalle.getTimbrado().getFechaFin());
+        if (isBefore) {
+            if (print) {
+                throw new GraphQLException("Timbrado ha vencido. Contactar con RRHH");
             }
-
+        }
+        if (timbradoDetalle != null) {
             try {
-                logger.warn("Entrando a print ticket 58mm factura");
                 return facturaService.printTicket58mmFactura(venta, facturaLegal, facturaLegalItemList, printerName, pdvId, continuar, null, print);
             } catch (Exception e) {
-                logger.error("Catch del print ticket 58", e);
-                throw new GraphQLException("Ocurrio un problema al imprimir la factura");
+                e.printStackTrace();
             }
         }
+        return null;
     }
 
     public FacturaDto crearFacturaDto(FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList) {

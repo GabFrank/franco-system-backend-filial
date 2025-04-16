@@ -6,8 +6,6 @@ import com.franco.dev.repository.financiero.FacturaLegalRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -40,7 +38,6 @@ public class FacturaLegalService extends CrudService<FacturaLegal, FacturaLegalR
     }
 
     @Override
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     public FacturaLegal saveAndSend(FacturaLegal entity, Boolean recibir) {
         if (entity.getId() == null) {
             entity.setCreadoEn(LocalDateTime.now());
@@ -49,7 +46,6 @@ public class FacturaLegalService extends CrudService<FacturaLegal, FacturaLegalR
         }
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         entity.setSucursalId(Long.valueOf(super.env.getProperty("sucursalId")));
-        if(entity.getTotalFinal() == 0) return null;
         FacturaLegal e = super.save(entity);
 //        super.propagacionService.propagarEntidad(e, TipoEntidad.FACTURA, false);
         return e;

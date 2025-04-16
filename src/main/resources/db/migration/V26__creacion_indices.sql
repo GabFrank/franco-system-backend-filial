@@ -1,8 +1,8 @@
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1
-        FROM pg_class c
+        SELECT 1 
+        FROM pg_class c 
         JOIN pg_namespace n ON n.oid = c.relnamespace
         WHERE c.relname = 'venta_caja_id_idx' -- Replace with your index name
         AND n.nspname = 'operaciones'  -- Replace with the schema name, like 'public'
@@ -20,7 +20,7 @@ BEGIN
         WHERE c.relname = 'cobro_detalle_cobro_id_idx' -- Replace with your index name
         AND n.nspname = 'operaciones'  -- Replace with the schema name, like 'public'
     ) THEN
-        CREATE INDEX cobro_detalle_cobro_id_idx ON operaciones.cobro_detalle USING btree (cobro_id, sucursal_id);
+        CREATE INDEX venta_caja_id_idx ON operaciones.venta USING btree (caja_id, sucursal_id);
     END IF;
 END $$;
 

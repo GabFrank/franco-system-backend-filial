@@ -386,10 +386,10 @@ public class FacturaService {
                     .replace("Ú", "U");
             escpos.writeLF("Cliente: " + nombreCliente);
 
-            if (facturaLegal != null && facturaLegal.getRuc() != null && (cliente == null || Boolean.TRUE.equals(cliente.getTributa()))) {
-                if (!facturaLegal.getRuc().contains("-")) {
-                    facturaLegal.setRuc(facturaLegal.getRuc() + getDigitoVerificadorString(facturaLegal.getRuc()));
-                }
+            if(facturaLegal.getRuc()!=null && (cliente == null || cliente.getTributa())){
+                if(!facturaLegal.getRuc().contains("-")){
+                    facturaLegal.setRuc(facturaLegal.getRuc()+getDigitoVerificadorString(facturaLegal.getRuc()));
+                };
             }
 
             escpos.writeLF("CI/RUC: " + facturaLegal.getRuc());
@@ -529,7 +529,7 @@ public class FacturaService {
 //            escpos.write( "Conservar este papel ");
             escpos.feed(5);
 
-
+            try {
                 if(print == false){
                     this.escPos = null;
                     this.printerOutputStream = null;
@@ -543,7 +543,9 @@ public class FacturaService {
                     this.printerOutputStream = printerOutputStream;
                 }
                 if (facturaLegal.getId() == null) {
+                    System.out.println("Nummero de factura actual: " + timbradoDetalle.getNumeroActual());
                     Long numero = timbradoDetalleService.aumentarNumeroFactura(timbradoDetalle);
+                    System.out.println("Nummero de factura siguiente: " + numero);
                     facturaLegal.setTimbradoDetalleId(timbradoDetalle.getId());
                     if(venta!=null){
                         facturaLegal.setVentaId(venta.getId());
@@ -560,17 +562,16 @@ public class FacturaService {
                     facturaLegal.setTotalParcial5(ventaIva5);
                     facturaLegal.setTotalParcial10(ventaIva10);
                     facturaLegal.setTotalParcial0(ventaIva0);
-                    saveFacturaDto.setFacturaLegalInput(facturaLegal);
-                    saveFacturaDto.setFacturaLegalItemInputList(facturaLegalItemList);
-                    return saveFacturaDto;
                 }
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+            }
         } else {
-//            throw new GraphQLException("No se pudo generar la factura");
+            throw new GraphQLException("No se pudo generar la factura");
         }
-        return null;
+        saveFacturaDto.setFacturaLegalInput(facturaLegal);
+        saveFacturaDto.setFacturaLegalItemInputList(facturaLegalItemList);
+        return saveFacturaDto;
     }
 
 //    public void generarFactura() {

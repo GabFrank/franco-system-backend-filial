@@ -8,8 +8,6 @@ import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -41,7 +39,6 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
     }
 
     @Override
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     public CobroDetalle save(CobroDetalle entity) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
@@ -52,7 +49,6 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
     }
 
     @Override
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     public CobroDetalle saveAndSend(CobroDetalle entity, Boolean recibir) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());

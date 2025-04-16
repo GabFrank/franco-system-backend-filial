@@ -27,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -87,7 +86,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     }
 
     @Override
-    @Transactional(isolation = Isolation.SERIALIZABLE)
+    @Transactional
     public PdvCaja save(PdvCaja entity) throws GraphQLException {
         Maletin m = null;
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
@@ -280,13 +279,14 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             List<RetiroDetalle> retiroDetalleList = retiroDetalleService.findByCajId(pdvCaja.getId());
             List<Gasto> gastoList = gastoService.findByCajaId(pdvCaja.getId());
             List<Venta> ventaList = ventaService.findAllByCajaId(pdvCaja.getId());
-            List<Delivery> deliveryList = deliveryService.getRepository().findDeliveryByCajaEstadoAndSucId(pdvCaja.getId(), Arrays.asList(DeliveryEstado.CONCLUIDO, DeliveryEstado.PARA_ENTREGA, DeliveryEstado.ENTREGADO) ,pdvCaja.getSucursalId());
+            List<Delivery> deliveryList = ventaList.stream().map(v -> v.getDelivery()).collect(Collectors.toList());
             if (!conteoMonedaAperList.isEmpty()) {
                 Double totalGsAper = 0.0;
                 Double totalRsAper = 0.0;
                 Double totalDsAper = 0.0;
-
-
+                Double totalGsCierre = 0.0;
+                Double totalRsCierre = 0.0;
+                Double totalDsCierre = 0.0;
                 for (ConteoMoneda c : conteoMonedaAperList) {
                     if (c.getMonedaBilletes().getMoneda().getDenominacion().contains("GUARANI")) {
                         totalGsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
@@ -296,16 +296,6 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                         totalDsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
                     }
                 }
-                balance.setTotalGsAper(totalGsAper);
-                balance.setTotalRsAper(totalRsAper);
-                balance.setTotalDsAper(totalDsAper);
-
-            }
-
-            if (!conteoMonedaCierreList.isEmpty()) {
-                Double totalGsCierre = 0.0;
-                Double totalRsCierre = 0.0;
-                Double totalDsCierre = 0.0;
                 for (ConteoMoneda c : conteoMonedaCierreList) {
                     if (c.getMonedaBilletes().getMoneda().getDenominacion().contains("GUARANI")) {
                         totalGsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
@@ -315,6 +305,9 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                         totalDsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
                     }
                 }
+                balance.setTotalGsAper(totalGsAper);
+                balance.setTotalRsAper(totalRsAper);
+                balance.setTotalDsAper(totalDsAper);
                 balance.setTotalGsCierre(totalGsCierre);
                 balance.setTotalRsCierre(totalRsCierre);
                 balance.setTotalDsCierre(totalDsCierre);

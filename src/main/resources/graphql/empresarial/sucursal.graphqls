@@ -12,6 +12,8 @@ type Sucursal {
     isConfigured: Boolean
     sectorList: [Sector]
     codigoEstablecimientoFactura: String
+    ip: String
+    puerto: Int
 }
 
 extend type Query {

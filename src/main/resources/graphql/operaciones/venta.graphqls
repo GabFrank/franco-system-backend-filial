@@ -30,7 +30,6 @@ input VentaInput {
     totalRs: Float
     totalDs: Float
     sucursalId: Int
-    deliveryId: Int
 }
 
 type VentaPage {
@@ -49,7 +48,7 @@ extend type Query {
     venta(id:ID!, sucId: ID):Venta
     ventas(page:Int = 0, size:Int = 10, sucId: ID):[Venta]!
     countVenta: Int
-    ventasPorCajaId(idVenta:ID, idCaja:ID!, page: Int, size: Int, asc: Boolean, sucId: ID, formaPago: ID, estado: VentaEstado, isDelivery: Boolean, monedaId: Int):VentaPage
+    ventasPorCajaId(idVenta:ID!, idCaja:ID!, page: Int, size: Int, asc: Boolean, sucId: ID, formaPago: ID, estado: VentaEstado, isDelivery: Boolean, monedaId: Int):VentaPage
     ventaPorPeriodo(inicio:String, fin:String, sucId: ID): [VentaPorPeriodo]
 }
 
@@ -59,7 +58,6 @@ extend type Mutation {
     cancelarVenta(id:ID!, sucId: ID):Boolean!
     reimprimirVenta(id:ID!, printerName: String, local: String, sucId: ID):Boolean!
     imprimirPagare(id:ID!, itens:[VentaCreditoCuotaInput]!, printerName: String, local: String, sucId: ID):Boolean!
-    saveVentaDelivery(ventaInput: VentaInput!, deliveryInput: DeliveryInput!, cobroDetalleList: [CobroDetalleInput], ventaCreditoInput: VentaCreditoInput, ventaCreditoCuotaInputList: [VentaCreditoCuotaInput]):Venta
 }
 
 enum VentaEstado {
