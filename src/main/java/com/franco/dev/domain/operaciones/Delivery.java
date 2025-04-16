@@ -81,6 +81,9 @@ public class Delivery implements Serializable {
     @Column(name = "estado")
     @Type( type = "delivery_estado")
     private DeliveryEstado estado;
+
+    @Column(name = "fecha_concluido")
+     private LocalDateTime fechaConcluido;
 }
 
 

@@ -137,24 +137,33 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.findAll(pageable);
     }
 
-    public Boolean saveFacturaLegal(FacturaLegalInput input, List<FacturaLegalItemInput> facturaLegalItemInputList, String printerName, Long pdvId, Boolean print) {
-        if (print == null) print = true;
+    public Boolean saveFacturaLegal(FacturaLegalInput input, List<FacturaLegalItemInput> facturaLegalItemInputList,
+            String printerName, Long pdvId, Boolean print) {
+        if (print == null)
+            print = true;
         Venta venta = input.getVentaId() != null ? ventaService.findById(input.getVentaId()).orElse(null) : null;
-        SaveFacturaDto saveFacturaDto = generarFacturaAutoImpreso(venta, input, facturaLegalItemInputList, printerName, pdvId, false, print);
-        if (saveFacturaDto.getFacturaLegalInput().getTimbradoDetalleId() == null) {
+        SaveFacturaDto saveFacturaDto = generarFacturaAutoImpreso(venta, input, facturaLegalItemInputList, printerName,
+                pdvId, false, print);
+        if (saveFacturaDto != null && saveFacturaDto.getFacturaLegalInput() != null
+                && saveFacturaDto.getFacturaLegalInput().getTimbradoDetalleId() == null) {
             return false;
         }
         input = saveFacturaDto.getFacturaLegalInput();
         facturaLegalItemInputList = saveFacturaDto.getFacturaLegalItemInputList();
         ModelMapper m = new ModelMapper();
         FacturaLegal e = m.map(input, FacturaLegal.class);
-        if (input.getUsuarioId() != null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
-        if (input.getVentaId() != null) e.setVenta(ventaService.findById(input.getVentaId()).orElse(null));
-        if (input.getCajaId() != null) e.setCaja(pdvCajaService.findById(input.getCajaId()).orElse(null));
+        if (input.getUsuarioId() != null)
+            e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
+        if (input.getVentaId() != null)
+            e.setVenta(ventaService.findById(input.getVentaId()).orElse(null));
+        if (input.getCajaId() != null)
+            e.setCaja(pdvCajaService.findById(input.getCajaId()).orElse(null));
         if (input.getTimbradoDetalleId() != null)
             e.setTimbradoDetalle(timbradoDetalleService.findById(input.getTimbradoDetalleId()).orElse(null));
-        if (input.getClienteId() != null) e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
-        if (input.getRuc() != null && input.getRuc() != "X" && !input.getRuc().contains("-") && (e.getCliente() == null || (e.getCliente().getTributa() != null && e.getCliente().getTributa()))) {
+        if (input.getClienteId() != null)
+            e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
+        if (input.getRuc() != null && input.getRuc() != "X" && !input.getRuc().contains("-")
+                && (e.getCliente() == null || (e.getCliente().getTributa() != null && e.getCliente().getTributa()))) {
             e.setRuc(input.getRuc() + getDigitoVerificadorString(input.getRuc()));
         }
         e = service.saveAndSend(e, false);
@@ -177,23 +186,38 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.count();
     }
 
-    public SaveFacturaDto generarFacturaAutoImpreso(Venta venta, FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar, Boolean print) {
+    public SaveFacturaDto generarFacturaAutoImpreso(Venta venta, FacturaLegalInput facturaLegal,
+            List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar,
+            Boolean print) throws GraphQLException {
         PuntoDeVenta puntoDeVenta = puntoDeVentaService.getPuntoDeVentaActual(pdvId);
-        TimbradoDetalle timbradoDetalle = puntoDeVenta != null ? timbradoDetalleService.getTimbradoDetalleActual(puntoDeVenta.getId()) : null;
+        if (puntoDeVenta == null) {
+            throw new GraphQLException("Punto de venta no configurado");
+        }
+        TimbradoDetalle timbradoDetalle = puntoDeVenta != null
+                ? timbradoDetalleService.getTimbradoDetalleActual(puntoDeVenta.getId())
+                : null;
         if (timbradoDetalle.getNumeroActual() >= timbradoDetalle.getRangoHasta()) {
             if (print) {
                 throw new GraphQLException("Timbrado detalle fuera de rango. Contactar con RRHH");
             }
+        } else if (timbradoDetalle.getNumeroActual() - timbradoDetalle.getRangoHasta() < timbradoDetalle.getRangoHasta()
+                * 0.1) { // not 100, 10% from get rango hasta
+            throw new GraphQLException("Nûmero de factura esta por acabarse. Contactar con RRHH");
         }
+
         Boolean isBefore = LocalDateTime.now().isAfter(timbradoDetalle.getTimbrado().getFechaFin());
         if (isBefore) {
             if (print) {
                 throw new GraphQLException("Timbrado ha vencido. Contactar con RRHH");
             }
+        } else if (timbradoDetalle.getRangoHasta() - timbradoDetalle.getNumeroActual() <= 10) {
+            throw new GraphQLException("Nûmero de factura esta por acabarse. Contactar con RRHH");
         }
+
         if (timbradoDetalle != null) {
             try {
-                return facturaService.printTicket58mmFactura(venta, facturaLegal, facturaLegalItemList, printerName, pdvId, continuar, null, print);
+                return facturaService.printTicket58mmFactura(venta, facturaLegal, facturaLegalItemList, printerName,
+                        pdvId, continuar, null, print);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -201,7 +225,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return null;
     }
 
-    public FacturaDto crearFacturaDto(FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList) {
+    public FacturaDto crearFacturaDto(FacturaLegalInput facturaLegal,
+            List<FacturaLegalItemInput> facturaLegalItemList) {
         FacturaDto facturaDto = new FacturaDto();
         if (facturaLegal.getCredito()) {
             facturaDto.setCredito("X");
@@ -213,8 +238,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
         }
         if (facturaLegal.getNombre() != null) {
-            if (facturaLegal.getNombre() != null) facturaDto.setNombre(facturaLegal.getNombre());
-            if (facturaLegal.getRuc() != null) facturaDto.setRuc(facturaLegal.getRuc());
+            if (facturaLegal.getNombre() != null)
+                facturaDto.setNombre(facturaLegal.getNombre());
+            if (facturaLegal.getRuc() != null)
+                facturaDto.setRuc(facturaLegal.getRuc());
             if (facturaLegal.getDireccion() != null) {
                 facturaDto.setDireccion(facturaLegal.getDireccion());
             } else {
@@ -242,7 +269,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 totalIva5 += fi.getTotal() / 21;
             }
             totalFinal += fi.getTotal();
-            ventaItemDtoList.add(new VentaItemDto(NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getCantidad().intValue()), fi.getDescripcion(), NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getPrecioUnitario().intValue()), NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getTotal().intValue())));
+            ventaItemDtoList.add(
+                    new VentaItemDto(NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getCantidad().intValue()),
+                            fi.getDescripcion(),
+                            NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getPrecioUnitario().intValue()),
+                            NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getTotal().intValue())));
         }
 
         totalIva = totalIva10 + totalIva5;
@@ -256,12 +287,12 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         facturaDto.setTotalEnLetras(totalEnLetras);
         facturaDto.setFacturaLegalItemInputList(facturaLegalItemList);
         facturaDto.setFacturaLegalInput(facturaLegal);
-//        facturaDto.setVenta(ventaService.findById(facturaLegal.getVentaId()));
+        // facturaDto.setVenta(ventaService.findById(facturaLegal.getVentaId()));
         return facturaDto;
     }
 
-
-    public void generarFactura(FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName) {
+    public void generarFactura(FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList,
+            String printerName) {
         try {
             FacturaDto facturaDto = new FacturaDto();
             if (facturaLegal.getCredito()) {
@@ -274,8 +305,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
             }
             if (facturaLegal.getNombre() != null) {
-                if (facturaLegal.getNombre() != null) facturaDto.setNombre(facturaLegal.getNombre());
-                if (facturaLegal.getRuc() != null) facturaDto.setRuc(facturaLegal.getRuc());
+                if (facturaLegal.getNombre() != null)
+                    facturaDto.setNombre(facturaLegal.getNombre());
+                if (facturaLegal.getRuc() != null)
+                    facturaDto.setRuc(facturaLegal.getRuc());
                 if (facturaLegal.getDireccion() != null) {
                     facturaDto.setDireccion(facturaLegal.getDireccion());
                 } else {
@@ -303,7 +336,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     totalIva5 += fi.getTotal() / 21;
                 }
                 totalFinal += fi.getTotal();
-                ventaItemDtoList.add(new VentaItemDto(NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getCantidad().intValue()), fi.getDescripcion(), NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getPrecioUnitario().intValue()), NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getTotal().intValue())));
+                ventaItemDtoList.add(new VentaItemDto(
+                        NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getCantidad().intValue()),
+                        fi.getDescripcion(),
+                        NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getPrecioUnitario().intValue()),
+                        NumberFormat.getNumberInstance(Locale.GERMAN).format(fi.getTotal().intValue())));
             }
 
             totalIva = totalIva10 + totalIva5;
@@ -313,7 +350,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             facturaDto.setTotal(NumberFormat.getNumberInstance(Locale.GERMAN).format(totalFinal.intValue()));
             facturaDto.setIvaParcial0(NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIva10.intValue()));
             facturaDto.setIvaParcial5(NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIva5.intValue()));
-            facturaDto.setIvaFinal(NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIva10.intValue() + totalIva5.intValue()));
+            facturaDto.setIvaFinal(
+                    NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIva10.intValue() + totalIva5.intValue()));
             facturaDto.setTotalEnLetras(totalEnLetras);
 
             File file = ResourceUtils.getFile("classpath:factura.jrxml");
@@ -359,9 +397,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 jasperPrint1.getPages().get(0).addElement(e);
             }
 
-//            OutputStream output;
-//            output = new FileOutputStream(new File("/Users/gabfranck/Desktop/prueba.pdf"));
-//            JasperExportManager.exportReportToPdfStream(jasperPrint1, output);
+            // OutputStream output;
+            // output = new FileOutputStream(new
+            // File("/Users/gabfranck/Desktop/prueba.pdf"));
+            // JasperExportManager.exportReportToPdfStream(jasperPrint1, output);
 
             printFactura(jasperPrint1, printerName);
             if (auxList.size() > 0)
@@ -391,7 +430,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
         printService = PrinterOutputStream.getPrintServiceByName(printerName);
 
-
         if (printService != null) {
             try {
                 exporter.exportReport();
@@ -403,7 +441,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
     }
 
-    public void generarFacturaAutoImpreso(Venta venta, Cobro cobro, List<VentaItem> ventaItemList, List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local, FacturaLegalInput facturaLegal) throws Exception {
+    public void generarFacturaAutoImpreso(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
+            List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local,
+            FacturaLegalInput facturaLegal) throws Exception {
         Sucursal sucursal = null;
         PrintService selectedPrintService = null;
         PrintService[] printServices = PrintServiceLookup.lookupPrintServices(null, null);
@@ -445,11 +485,12 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
         }
 
-        if (selectedPrintService != null) printerOutputStream = new PrinterOutputStream(selectedPrintService);
+        if (selectedPrintService != null)
+            printerOutputStream = new PrinterOutputStream(selectedPrintService);
 
         // creating the EscPosImage, need buffered image and algorithm.
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
-        //Styles
+        // Styles
         Style center = new Style().setJustification(EscPosConst.Justification.Center);
 
         QRCode qrCode = new QRCode();
@@ -495,11 +536,13 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         escpos.writeLF("--------------------------------");
         for (VentaItem vi : ventaItemList) {
             String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad() + ")";
-//            log.info(vi.getProducto().getDescripcion());
+            // log.info(vi.getProducto().getDescripcion());
             escpos.writeLF(vi.getProducto().getDescripcion());
             escpos.write(new Style().setBold(true), cantidad);
-            String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue());
-            String valorTotal = String.valueOf(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue());
+            String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN)
+                    .format(vi.getPrecioVenta().getPrecio().intValue());
+            String valorTotal = String
+                    .valueOf(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue());
             for (int i = 10; i > cantidad.length(); i--) {
                 escpos.write(" ");
             }
@@ -507,7 +550,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             for (int i = 20 - valorUnitario.length(); i > valorTotal.length(); i--) {
                 escpos.write(" ");
             }
-            escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
+            escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN)
+                    .format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
         }
         escpos.writeLF("--------------------------------");
         String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(venta.getTotalGs().intValue());
@@ -515,7 +559,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.write(" ");
         }
         escpos.writeLF(valorGs);
-//        log.info(valorGs);
+        // log.info(valorGs);
         escpos.write("Total Rs: ");
         String valorRs = String.format("%.2f", venta.getTotalRs());
         for (int i = 22; i > valorGs.length(); i--) {
@@ -523,7 +567,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
         escpos.writeLF(valorRs);
         escpos.write("Total Ds: ");
-//      String valorDs = NumberFormat.getNumberInstance(new Locale("sk", "SK")).format(venta.getTotalDs());
+        // String valorDs = NumberFormat.getNumberInstance(new Locale("sk",
+        // "SK")).format(venta.getTotalDs());
         String valorDs = String.format("%.2f", venta.getTotalDs());
         for (int i = 22; i > valorGs.length(); i--) {
             escpos.write(" ");
@@ -533,7 +578,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.write(center, "Delivery? Escaneá el código qr o escribinos al ");
             escpos.writeLF(center, sucursal.getNroDelivery());
         }
-//        escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center), "wa.me/595986128000");
+        // escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center),
+        // "wa.me/595986128000");
         escpos.feed(1);
         escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
         escpos.feed(5);
@@ -557,50 +603,59 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             ModelMapper m = new ModelMapper();
             FacturaLegalInput input = m.map(fl, FacturaLegalInput.class);
             input.setClienteId(fl.getCliente().getId());
-            if (fl.getCaja() != null) input.setCajaId(fl.getCaja().getId());
-            if (fl.getVenta() != null) input.setVentaId(fl.getVenta().getId());
+            if (fl.getCaja() != null)
+                input.setCajaId(fl.getCaja().getId());
+            if (fl.getVenta() != null)
+                input.setVentaId(fl.getVenta().getId());
             input.setUsuarioId(fl.getUsuario().getId());
             input.setTimbradoDetalleId(fl.getTimbradoDetalle().getId());
             for (FacturaLegalItem flItem : facturaLegalItemList) {
                 ModelMapper i = new ModelMapper();
                 FacturaLegalItemInput itemInput = i.map(flItem, FacturaLegalItemInput.class);
-                if (flItem.getUsuario() != null) itemInput.setUsuarioId(flItem.getUsuario().getId());
-                if (flItem.getVentaItem() != null) itemInput.setVentaItemId(flItem.getVentaItem().getId());
-                if (flItem.getFacturaLegal() != null) itemInput.setFacturaLegalId(flItem.getFacturaLegal().getId());
+                if (flItem.getUsuario() != null)
+                    itemInput.setUsuarioId(flItem.getUsuario().getId());
+                if (flItem.getVentaItem() != null)
+                    itemInput.setVentaItemId(flItem.getVentaItem().getId());
+                if (flItem.getFacturaLegal() != null)
+                    itemInput.setFacturaLegalId(flItem.getFacturaLegal().getId());
                 facturaLegalItemInputList.add(itemInput);
             }
             Boolean continuar = true;
             if (facturaLegalList.size() == count) {
                 continuar = false;
             }
-            SaveFacturaDto dto = generarFacturaAutoImpreso(fl.getVenta() != null ? fl.getVenta() : null, input, facturaLegalItemInputList, printerName, fl.getTimbradoDetalle().getPuntoDeVenta().getId(), continuar, true);
+            SaveFacturaDto dto = generarFacturaAutoImpreso(fl.getVenta() != null ? fl.getVenta() : null, input,
+                    facturaLegalItemInputList, printerName, fl.getTimbradoDetalle().getPuntoDeVenta().getId(),
+                    continuar, true);
             if (dto != null) {
                 fl.setViaTributaria(true);
-//                propagacionService.propagarEntidad(fl, TipoEntidad.FACTURA);
+                // propagacionService.propagarEntidad(fl, TipoEntidad.FACTURA);
                 ok = true;
             }
         }
         return ok;
     }
 
-    public Boolean reimprimirFacturaLegal(Long id, Long sucId, String printerName){
+    public Boolean reimprimirFacturaLegal(Long id, Long sucId, String printerName) {
         FacturaLegal facturaLegal = service.findById(id).orElse(null);
         List<FacturaLegalItem> facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(id);
         try {
             printTicket58mmFactura(facturaLegal.getVenta(), facturaLegal, facturaLegalItemList, printerName);
             return true;
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return false;
     }
 
-    public void printTicket58mmFactura(Venta venta, FacturaLegal facturaLegal, List<FacturaLegalItem> facturaLegalItemList, String printerName) throws Exception {
+    public void printTicket58mmFactura(Venta venta, FacturaLegal facturaLegal,
+            List<FacturaLegalItem> facturaLegalItemList, String printerName) throws Exception {
         SaveFacturaDto saveFacturaDto = new SaveFacturaDto();
         printService = PrinterOutputStream.getPrintServiceByName(printerName);
         Sucursal sucursal = sucursalService.findById(facturaLegal.getSucursalId()).orElse(null);
         Delivery delivery = null;
-        if(venta != null ) delivery = venta.getDelivery();
+        if (venta != null)
+            delivery = venta.getDelivery();
         Double descuento = 0.0;
         Double aumento = 0.0;
         Double vueltoGs = 0.0;
@@ -622,18 +677,20 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         Double cambioRs = cambioService.findLastByMonedaId(Long.valueOf(2)).getValorEnGs();
         Double cambioDs = cambioService.findLastByMonedaId(Long.valueOf(3)).getValorEnGs();
 
-        if(delivery!=null){
+        if (delivery != null) {
             precioDeliveryGs = delivery.getPrecio().getValor();
             precioDeliveryRs = precioDeliveryGs / cambioRs;
             precioDeliveryDs = precioDeliveryGs / cambioDs;
         }
 
         if (printService != null) {
-            printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream : new PrinterOutputStream(printService);
+            printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream
+                    : new PrinterOutputStream(printService);
             // creating the EscPosImage, need buffered image and algorithm.
-            //Styles
+            // Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
-            Style factura = new Style().setJustification(EscPosConst.Justification.Center).setFontSize(Style.FontSize._1, Style.FontSize._1);
+            Style factura = new Style().setJustification(EscPosConst.Justification.Center)
+                    .setFontSize(Style.FontSize._1, Style.FontSize._1);
             QRCode qrCode = new QRCode();
 
             BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
@@ -648,7 +705,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF(factura, facturaLegal.getTimbradoDetalle().getTimbrado().getRazonSocial().toUpperCase());
             escpos.writeLF(factura, "RUC: " + facturaLegal.getTimbradoDetalle().getTimbrado().getRuc());
             escpos.writeLF(factura, "Timbrado: " + facturaLegal.getTimbradoDetalle().getTimbrado().getNumero());
-            escpos.writeLF(factura, "De " + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaInicio().format(impresionService.shortDate) + " a " + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaFin().format(impresionService.shortDate));
+            escpos.writeLF(factura, "De "
+                    + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaInicio()
+                            .format(impresionService.shortDate)
+                    + " a "
+                    + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaFin().format(impresionService.shortDate));
             Long numeroFacturaAux = Long.valueOf(facturaLegal.getNumeroFactura());
             StringBuilder numeroFacturaString = new StringBuilder();
             for (int i = 7; i > numeroFacturaAux.toString().length(); i--) {
@@ -659,7 +720,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             } else {
                 numeroFacturaString.append(numeroFacturaAux.toString());
             }
-            escpos.writeLF(factura, "Nro: " + sucursal.getCodigoEstablecimientoFactura() + "-" + facturaLegal.getTimbradoDetalle().getPuntoExpedicion() + "-" + numeroFacturaString.toString());
+            escpos.writeLF(factura, "Nro: " + sucursal.getCodigoEstablecimientoFactura() + "-"
+                    + facturaLegal.getTimbradoDetalle().getPuntoExpedicion() + "-" + numeroFacturaString.toString());
             escpos.writeLF(center, "Condición: " + (facturaLegal.getCredito() == false ? "Contado" : "Crédito"));
 
             if (sucursal != null) {
@@ -671,8 +733,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     }
                 }
             }
-            if (venta != null) escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
-            if(delivery!=null){
+            if (venta != null)
+                escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
+            if (delivery != null) {
                 escpos.writeLF(center, "Modo: Delivery");
             }
             if (venta != null && venta.getUsuario() != null) {
@@ -691,10 +754,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     .replace("Ú", "U");
             escpos.writeLF("Cliente: " + nombreCliente);
 
-            if(facturaLegal.getRuc()!=null){
-                if(!facturaLegal.getRuc().contains("-")){
-                    facturaLegal.setRuc(facturaLegal.getRuc()+getDigitoVerificadorString(facturaLegal.getRuc()));
-                };
+            if (facturaLegal.getRuc() != null) {
+                if (!facturaLegal.getRuc().contains("-")) {
+                    facturaLegal.setRuc(facturaLegal.getRuc() + getDigitoVerificadorString(facturaLegal.getRuc()));
+                }
+                ;
             }
 
             escpos.writeLF("CI/RUC: " + facturaLegal.getRuc());
@@ -708,7 +772,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF("--------------------------------");
             for (FacturaLegalItem vi : facturaLegalItemList) {
                 Integer iva = null;
-                if(vi.getPresentacion() != null){
+                if (vi.getPresentacion() != null) {
                     iva = vi.getPresentacion().getProducto().getIva();
                 }
                 Double total = vi.getTotal();
@@ -733,7 +797,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 String cantidad = vi.getCantidad().intValue() + " (" + vi.getCantidad() + ") " + iva + "%";
                 escpos.writeLF(vi.getDescripcion());
                 escpos.write(new Style().setBold(true), cantidad);
-                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioUnitario().intValue());
+                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN)
+                        .format(vi.getPrecioUnitario().intValue());
                 String valorTotal = NumberFormat.getNumberInstance(Locale.GERMAN).format(total.intValue());
                 for (int i = 14; i > cantidad.length(); i--) {
                     escpos.write(" ");
@@ -776,19 +841,20 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 escpos.write(" ");
             }
             escpos.writeLF(totalFinalIvaS);
-//            escpos.writeLF("--------Liquidación IVA---------");
-//            escpos.write("Gravadas 10%:");
-//            Double totalIvaFinal = totalIva10 + totalIva5;
-//            String totalIvaFinalS = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIvaFinal.intValue());
-//            for (int i = 19; i > totalIvaFinalS.length(); i--) {
-//                escpos.write(" ");
-//            }
-//            escpos.writeLF(iva10s);
-//            escpos.write("Gravadas 5%: ");
-//            for (int i = 19; i > 1; i--) {
-//                escpos.write(" ");
-//            }
-//            escpos.writeLF("0");
+            // escpos.writeLF("--------Liquidación IVA---------");
+            // escpos.write("Gravadas 10%:");
+            // Double totalIvaFinal = totalIva10 + totalIva5;
+            // String totalIvaFinalS =
+            // NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIvaFinal.intValue());
+            // for (int i = 19; i > totalIvaFinalS.length(); i--) {
+            // escpos.write(" ");
+            // }
+            // escpos.writeLF(iva10s);
+            // escpos.write("Gravadas 5%: ");
+            // for (int i = 19; i > 1; i--) {
+            // escpos.write(" ");
+            // }
+            // escpos.writeLF("0");
 
             escpos.writeLF("--------------------------------");
             if (sucursal != null && sucursal.getNroDelivery() != null) {
@@ -796,12 +862,13 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 escpos.writeLF(center, sucursal.getNroDelivery());
             }
             if (sucursal.getNroDelivery() != null) {
-                escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center), "wa.me/" + sucursal.getNroDelivery());
+                escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center),
+                        "wa.me/" + sucursal.getNroDelivery());
             }
             escpos.feed(1);
             escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
-//            escpos.writeLF("--------------------------------");
-//            escpos.write( "Conservar este papel ");
+            // escpos.writeLF("--------------------------------");
+            // escpos.write( "Conservar este papel ");
             escpos.feed(5);
 
             try {
@@ -812,30 +879,29 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 } else {
                     this.printerOutputStream = printerOutputStream;
                 }
-//                if (facturaLegal.getId() == null) {
-//                    Long numero = timbradoDetalleService.aumentarNumeroFactura(timbradoDetalle);
-//                    facturaLegal.setTimbradoDetalleId(timbradoDetalle.getId());
-//                    if(venta!=null){
-//                        facturaLegal.setVentaId(venta.getId());
-//                        facturaLegal.setFecha(venta.getCreadoEn());
-//                        facturaLegal.setClienteId(venta.getCliente().getId());
-//                        facturaLegal.setCajaId(venta.getCaja().getId());
-//                    }
-//                    facturaLegal.setTotalFinal(totalFinal);
-//                    facturaLegal.setIvaParcial5(totalIva5);
-//                    facturaLegal.setIvaParcial10(totalIva10);
-//                    facturaLegal.setViaTributaria(false);
-//                    facturaLegal.setAutoimpreso(true);
-//                    facturaLegal.setNumeroFactura(numero.intValue());
-//                    facturaLegal.setTotalParcial5(ventaIva5);
-//                    facturaLegal.setTotalParcial10(ventaIva10);
-//                    facturaLegal.setTotalParcial0(ventaIva0);
-//                }
+                // if (facturaLegal.getId() == null) {
+                // Long numero = timbradoDetalleService.aumentarNumeroFactura(timbradoDetalle);
+                // facturaLegal.setTimbradoDetalleId(timbradoDetalle.getId());
+                // if(venta!=null){
+                // facturaLegal.setVentaId(venta.getId());
+                // facturaLegal.setFecha(venta.getCreadoEn());
+                // facturaLegal.setClienteId(venta.getCliente().getId());
+                // facturaLegal.setCajaId(venta.getCaja().getId());
+                // }
+                // facturaLegal.setTotalFinal(totalFinal);
+                // facturaLegal.setIvaParcial5(totalIva5);
+                // facturaLegal.setIvaParcial10(totalIva10);
+                // facturaLegal.setViaTributaria(false);
+                // facturaLegal.setAutoimpreso(true);
+                // facturaLegal.setNumeroFactura(numero.intValue());
+                // facturaLegal.setTotalParcial5(ventaIva5);
+                // facturaLegal.setTotalParcial10(ventaIva10);
+                // facturaLegal.setTotalParcial0(ventaIva0);
+                // }
             } catch (IOException ioe) {
                 ioe.printStackTrace();
             }
         }
     }
-
 
 }

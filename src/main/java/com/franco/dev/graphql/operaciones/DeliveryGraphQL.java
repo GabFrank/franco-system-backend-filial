@@ -29,6 +29,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import static com.franco.dev.utilitarios.DateUtils.stringToDate;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -96,7 +98,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     }
 
     public List<Delivery> deliverysByEstadoList(List<DeliveryEstado> estadoList, Long sucId) {
-        return ventaService.getRepository().findAllBySucursalIdAndDeliveryEstadoIn(sucId, estadoList).stream().map(v -> v.getDelivery()).collect(Collectors.toList());
+        return service.getRepository().findDeliveryByEstadoAndSucId(estadoList, sucId);
     }
 
     public List<Delivery> deliverysByEstadoNotIn(DeliveryEstado estado, Long sucId) {
@@ -106,7 +108,6 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     public List<Delivery> deliverysUltimos10(Long sucId) {
         return service.findTop10();
     }
-
 
     public Delivery saveDelivery(DeliveryInput input) {
         ModelMapper m = new ModelMapper();
@@ -127,11 +128,16 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         if (input.getVueltoId() != null) {
             e.setVuelto(vueltoService.findById(input.getVueltoId()).orElse(null));
         }
+        if(input.getFechaConcluido() != null) {
+            e.setFechaConcluido(stringToDate(input.getFechaConcluido()));
+        }
         return service.saveAndSend(e, false);
     }
 
     @Transactional
-    public Delivery saveDeliveryAndVenta(DeliveryInput deliveryInput, VentaInput ventaInput, List<VentaItemInput> ventaItemInputList, VueltoInput vueltoInput, List<VueltoItemInput> vueltoItemInputList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleInputList) throws GraphqlErrorException {
+    public Delivery saveDeliveryAndVenta(DeliveryInput deliveryInput, VentaInput ventaInput,
+            List<VentaItemInput> ventaItemInputList, VueltoInput vueltoInput, List<VueltoItemInput> vueltoItemInputList,
+            CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleInputList) throws GraphqlErrorException {
         Delivery delivery = null;
         try {
             if (cobroInput == null && cobroDetalleInputList != null) {
@@ -139,19 +145,33 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                 cobroInput.setUsuarioId(deliveryInput.getUsuarioId());
             }
 
-            Cobro cobro = cobroInput != null ? cobroGraphQL.saveCobro(cobroInput, cobroDetalleInputList, ventaInput.getCajaId()) : null;
+            Cobro cobro = cobroInput != null
+                    ? cobroGraphQL.saveCobro(cobroInput, cobroDetalleInputList, ventaInput.getCajaId())
+                    : null;
 
             if (cobro != null) {
                 ventaInput.setCobroId(cobro.getId());
             }
 
             delivery = saveDelivery(deliveryInput);
-            if(delivery!=null){
+            if (delivery != null) {
                 ventaInput.setDeliveryId(delivery.getId());
             }
-            Venta venta = ventaGraphQL.saveVenta2(ventaInput);
+            Venta venta = null;
+            if (ventaInput.getId() != null) {
+                venta = ventaService.findById(ventaInput.getId()).orElse(null);
+                ventaInput.setEstado(venta.getEstado());
+                ventaInput.setCajaId(venta.getCaja().getId());
+                ventaInput.setTotalGs(venta.getTotalGs());
+                ventaInput.setTotalRs(venta.getTotalRs());
+                ventaInput.setTotalDs(venta.getTotalDs());
+                ventaInput.setDeliveryId(venta.getDelivery().getId());
+            }
+            venta = ventaGraphQL.saveVenta2(ventaInput);
             if (venta != null) {
-                List<VentaItem> ventaItemList = ventaItemInputList.size() > 0 ? ventaItemGraphQL.saveVentaItemList(ventaItemInputList, venta.getId()) : null;
+                List<VentaItem> ventaItemList = ventaItemInputList.size() > 0
+                        ? ventaItemGraphQL.saveVentaItemList(ventaItemInputList, venta.getId())
+                        : null;
             }
 
             if (delivery != null) {
@@ -170,9 +190,11 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         return service.deleteById(id);
     }
 
-    public Delivery saveDeliveryEstado(Long deliveryId, DeliveryEstado deliveryEstado, String printerName, String local, Long pdvId) throws GraphQLException {
+    public Delivery saveDeliveryEstado(Long deliveryId, DeliveryEstado deliveryEstado, String printerName, String local,
+            Long pdvId) throws GraphQLException {
         Delivery delivery = service.findById(deliveryId).orElse(null);
-        Venta venta = ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(), delivery.getSucursalId());
+        Venta venta = ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(),
+                delivery.getSucursalId());
         try {
             delivery.setEstado(deliveryEstado);
             delivery = service.saveAndSend(delivery, false);
@@ -212,13 +234,18 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                         fiInput.setPrecioUnitario(delivery.getPrecio().getValor());
                         fiInput.setTotal(delivery.getPrecio().getValor());
                         facturaLegalItemInputList.add(fiInput);
-//                        SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta, facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
-                        Boolean facturado = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, true);
-                        if (facturado == false) throw new GraphQLException("Problema al generar factura");
+                        // SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta,
+                        // facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
+                        Boolean facturado = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
+                                facturaLegalItemInputList, printerName, pdvId, true);
+                        if (facturado == false)
+                            throw new GraphQLException("Problema al generar factura");
                     } else {
-                        ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, false, printerName, local, false, null, delivery);
+                        ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, false, printerName, local, false,
+                                null, delivery);
                     }
-                    ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true, printerName, local, false, null, delivery);
+                    ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true, printerName, local, false,
+                            null, delivery);
                     break;
                 case CONCLUIDO:
                     delivery.setEstado(DeliveryEstado.CONCLUIDO);
@@ -236,10 +263,12 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
     public Boolean reimprimirDelivery(Long id, String printerName, String local) {
         Delivery delivery = service.findById(id).orElse(null);
-        Venta venta = ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(), delivery.getSucursalId());
+        Venta venta = ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(),
+                delivery.getSucursalId());
         try {
             List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
-            ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true, printerName, local, false, null, delivery);
+            ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true, printerName, local, false, null,
+                    delivery);
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -247,8 +276,9 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         }
     }
 
-    public List<Delivery> deliveryPorCajaIdAndEstados(Long id, List<DeliveryEstado> estadoList, Long sucId){
-        if(sucId==null) sucId = service.env.getProperty("sucursalId", Long.class);
+    public List<Delivery> deliveryPorCajaIdAndEstados(Long id, List<DeliveryEstado> estadoList, Long sucId) {
+        if (sucId == null)
+            sucId = service.env.getProperty("sucursalId", Long.class);
         List<Delivery> deliveryList = service.getRepository().findDeliveryByCajaEstadoAndSucId(id, estadoList, sucId);
         return deliveryList;
     }

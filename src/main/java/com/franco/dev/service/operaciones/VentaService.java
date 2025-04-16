@@ -21,6 +21,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.criteria.*;
@@ -51,14 +52,16 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
         return repository;
     }
 
-//    public List<Venta> findByAll(String texto){
-//        texto = texto.replace(' ', '%');
-//        return  repository.findByProveedor(texto.toLowerCase());
-//    }
+    // public List<Venta> findByAll(String texto){
+    // texto = texto.replace(' ', '%');
+    // return repository.findByProveedor(texto.toLowerCase());
+    // }
 
-    public Page<Venta> findByCajaId(EmbebedPrimaryKey id, Integer page, Integer size, Boolean asc, Long formaPago, VentaEstado estado, Boolean isDelivery, Long monedaId) {
+    public Page<Venta> findByCajaId(EmbebedPrimaryKey id, Integer page, Integer size, Boolean asc, Long formaPago,
+            VentaEstado estado, Boolean isDelivery, Long monedaId) {
         Pageable pagina = PageRequest.of(page, size);
-        return findWithFiltersCriteria(id.getId(), id.getSucursalId(), formaPago, estado, pagina, isDelivery, monedaId, asc);
+        return findWithFiltersCriteria(id.getId(), id.getSucursalId(), formaPago, estado, pagina, isDelivery, monedaId,
+                asc);
     }
 
     public List<Venta> findAllByCajaId(Long id) {
@@ -66,21 +69,31 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
     }
 
     @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Venta save(Venta entity) {
-        if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
-        if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getId() == null)
+            entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getCreadoEn() == null)
+            entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getSucursalId() == null)
+            entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getTotalGs() == 0 && entity.getEstado() == VentaEstado.CONCLUIDA)
+            return null;
         Venta e = super.save(entity);
         return e;
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Venta saveAndSend(Venta entity, Boolean recibir) {
-        if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
-        if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
-        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getId() == null)
+            entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getCreadoEn() == null)
+            entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getSucursalId() == null)
+            entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+            if(entity.getTotalGs() == 0 && entity.getEstado() == VentaEstado.CONCLUIDA) return null;
         Venta e = super.save(entity);
-//        propagacionService.propagarEntidad(e, TipoEntidad.VENTA, recibir);
         return e;
     }
 
@@ -95,7 +108,8 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
             ventaPorPeriodoList.add(ventaPorPeriodoV1Dto);
         }
         for (VentaPorPeriodoV1Dto ventaPorPeriodo : ventaPorPeriodoList) {
-            List<Venta> ventaList = repository.findByCreadoEnBetween(ventaPorPeriodo.getCreadoEn(), ventaPorPeriodo.getCreadoEn().plusDays(1));
+            List<Venta> ventaList = repository.findByCreadoEnBetween(ventaPorPeriodo.getCreadoEn(),
+                    ventaPorPeriodo.getCreadoEn().plusDays(1));
             ventaPorPeriodo.setCantVenta(ventaList.size());
             for (Venta venta : ventaList) {
                 if (venta.getEstado() != VentaEstado.CANCELADA || venta.getEstado() != VentaEstado.ABIERTA) {
@@ -137,17 +151,20 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
 
     @Transactional
     public Boolean cancelarVenta(Venta venta) {
-//        venta.setEstado(VentaEstado.CANCELADA);
-//        saveAndSend(venta, false);
-//        List<MovimientoCaja> movimientoCajaList = movimientoCajaService.findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.VENTA, venta.getCobro().getId());
-//        for (MovimientoCaja mov : movimientoCajaList) {
-//            mov.setActivo(false);
-//            movimientoCajaService.saveAndSend(mov, false);
-//        }
+        // venta.setEstado(VentaEstado.CANCELADA);
+        // saveAndSend(venta, false);
+        // List<MovimientoCaja> movimientoCajaList =
+        // movimientoCajaService.findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.VENTA,
+        // venta.getCobro().getId());
+        // for (MovimientoCaja mov : movimientoCajaList) {
+        // mov.setActivo(false);
+        // movimientoCajaService.saveAndSend(mov, false);
+        // }
         return true;
     }
 
-    public Page<Venta> findWithFiltersCriteria(Long id, Long sucId, Long formaPagoId, VentaEstado estado, Pageable pageable, Boolean isDelivery, Long monedaId, Boolean isAsc) {
+    public Page<Venta> findWithFiltersCriteria(Long id, Long sucId, Long formaPagoId, VentaEstado estado,
+            Pageable pageable, Boolean isDelivery, Long monedaId, Boolean isAsc) {
         Sort sort = isAsc == false ? Sort.by("id").descending() : Sort.by("id").ascending();
         Pageable newPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
 
@@ -156,8 +173,13 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
             Join<Venta, PdvCaja> cajaJoin = root.join("caja", JoinType.INNER);
 
             // Add the predicates
-            predicates.add(cb.equal(cajaJoin.get("id"), id));
-            predicates.add(cb.equal(root.get("sucursalId"), sucId));
+            if (id != null) {
+                predicates.add(cb.equal(cajaJoin.get("id"), id));
+            }
+
+            if (sucId != null) {
+                predicates.add(cb.equal(root.get("sucursalId"), sucId));
+            }
 
             // Join with CobroDetalle manually based on cobro_id and sucursal_id
             if (formaPagoId != null) {
@@ -167,19 +189,20 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
                 // Reference cobro_id and sucursal_id directly, instead of cobro.id
                 cobroDetalleSubquery.select(cobroDetalleRoot.get("id"))
                         .where(
-                                cb.equal(cobroDetalleRoot.get("cobro"), root.get("cobro")),  // Literal cobro_id
+                                cb.equal(cobroDetalleRoot.get("cobro"), root.get("cobro")), // Literal cobro_id
                                 cb.equal(cobroDetalleRoot.get("sucursalId"), root.get("sucursalId")),
-                                cb.equal(cobroDetalleRoot.get("formaPago").get("id"), formaPagoId) // formaPagoId condition
-                        );
+                                cb.equal(cobroDetalleRoot.get("formaPago").get("id"), formaPagoId) // formaPagoId
+                                                                                                   // condition
+                );
 
                 predicates.add(cb.exists(cobroDetalleSubquery));
             }
 
-            if(estado!=null){
+            if (estado != null) {
                 predicates.add(cb.equal(root.get("estado"), estado));
             }
 
-            if(isDelivery!= null && isDelivery == true){
+            if (isDelivery != null && isDelivery == true) {
                 Join<Venta, Delivery> deliveryJoin = root.join("delivery", JoinType.INNER);
                 predicates.add(cb.isNotNull(deliveryJoin.get("delivery")));
             }

@@ -88,7 +88,9 @@ public class FacturaService {
 
     public DecimalFormat df = new DecimalFormat("#,###.##");
 
-    public Long printTicket58mmFacturaConVenta(Venta venta, Cobro cobro, List<VentaItem> ventaItemList, List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local, FacturaLegalInput facturaLegal, Long pdvId, Long numeroFactura, Delivery delivery) throws Exception {
+    public Long printTicket58mmFacturaConVenta(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
+            List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local,
+            FacturaLegalInput facturaLegal, Long pdvId, Long numeroFactura, Delivery delivery) throws Exception {
         PrintService selectedPrintService = printingService.getPrintService(printerName);
         Sucursal sucursal = sucursalService.sucursalActual();
         PuntoDeVenta puntoDeVenta = puntoDeVentaService.getPuntoDeVentaActual(pdvId);
@@ -102,9 +104,10 @@ public class FacturaService {
         if (selectedPrintService != null) {
             printerOutputStream = new PrinterOutputStream(selectedPrintService);
             // creating the EscPosImage, need buffered image and algorithm.
-            //Styles
+            // Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
-            Style factura = new Style().setJustification(EscPosConst.Justification.Center).setFontSize(Style.FontSize._1, Style.FontSize._1);
+            Style factura = new Style().setJustification(EscPosConst.Justification.Center)
+                    .setFontSize(Style.FontSize._1, Style.FontSize._1);
             QRCode qrCode = new QRCode();
 
             BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
@@ -120,7 +123,9 @@ public class FacturaService {
             escpos.writeLF(factura, timbradoDetalle.getTimbrado().getRazonSocial());
             escpos.writeLF(factura, "RUC: " + timbradoDetalle.getTimbrado().getRuc());
             escpos.writeLF(factura, "Timbrado: " + timbradoDetalle.getTimbrado().getNumero());
-            escpos.writeLF(factura, "De " + timbradoDetalle.getTimbrado().getFechaInicio().format(impresionService.shortDate) + " a " + timbradoDetalle.getTimbrado().getFechaFin().format(impresionService.shortDate));
+            escpos.writeLF(factura,
+                    "De " + timbradoDetalle.getTimbrado().getFechaInicio().format(impresionService.shortDate) + " a "
+                            + timbradoDetalle.getTimbrado().getFechaFin().format(impresionService.shortDate));
             Long numeroFacturaAux = timbradoDetalle.getNumeroActual() + 1;
             if (numeroFactura != null) {
                 numeroFacturaAux = numeroFactura;
@@ -130,7 +135,8 @@ public class FacturaService {
                 numeroFacturaString.append("0");
             }
             numeroFacturaString.append(numeroFacturaAux.toString());
-            escpos.writeLF(factura, "Nro: " + sucursalService.sucursalActual().getCodigoEstablecimientoFactura() + "-" + timbradoDetalle.getPuntoExpedicion() + "-" + numeroFacturaString.toString());
+            escpos.writeLF(factura, "Nro: " + sucursalService.sucursalActual().getCodigoEstablecimientoFactura() + "-"
+                    + timbradoDetalle.getPuntoExpedicion() + "-" + numeroFacturaString.toString());
             escpos.writeLF(center, "Condición: " + (facturaLegal.getCredito() == false ? "Contado" : "Crédito"));
 
             if (sucursal != null) {
@@ -182,7 +188,8 @@ public class FacturaService {
                         break;
 
                 }
-                String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad().intValue() + ") " + iva + "%";
+                String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad().intValue()
+                        + ") " + iva + "%";
                 escpos.writeLF(vi.getProducto().getDescripcion());
                 escpos.write(new Style().setBold(true), cantidad);
                 String valorUnitario = df.format(vi.getPrecioVenta().getPrecio().intValue());
@@ -210,7 +217,8 @@ public class FacturaService {
             }
             escpos.writeLF(valorRs);
             escpos.write("Total Ds: ");
-//      String valorDs = NumberFormat.getNumberInstance(new Locale("sk", "SK")).format(venta.getTotalDs());
+            // String valorDs = NumberFormat.getNumberInstance(new Locale("sk",
+            // "SK")).format(venta.getTotalDs());
             String valorDs = String.format("%.2f", venta.getTotalDs());
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
@@ -241,19 +249,19 @@ public class FacturaService {
                 escpos.write(" ");
             }
             escpos.writeLF(totalFinalIvaS);
-//            escpos.writeLF("--------Liquidación IVA---------");
-//            escpos.write("Gravadas 10%:");
-//            Double totalIvaFinal = totalIva10 + totalIva5;
-//            String totalIvaFinalS = df.format(totalIvaFinal.intValue());
-//            for (int i = 19; i > totalIvaFinalS.length(); i--) {
-//                escpos.write(" ");
-//            }
-//            escpos.writeLF(iva10s);
-//            escpos.write("Gravadas 5%: ");
-//            for (int i = 19; i > 1; i--) {
-//                escpos.write(" ");
-//            }
-//            escpos.writeLF("0");
+            // escpos.writeLF("--------Liquidación IVA---------");
+            // escpos.write("Gravadas 10%:");
+            // Double totalIvaFinal = totalIva10 + totalIva5;
+            // String totalIvaFinalS = df.format(totalIvaFinal.intValue());
+            // for (int i = 19; i > totalIvaFinalS.length(); i--) {
+            // escpos.write(" ");
+            // }
+            // escpos.writeLF(iva10s);
+            // escpos.write("Gravadas 5%: ");
+            // for (int i = 19; i > 1; i--) {
+            // escpos.write(" ");
+            // }
+            // escpos.writeLF("0");
 
             escpos.writeLF("--------------------------------");
             if (sucursal != null && sucursal.getNroDelivery() != null) {
@@ -261,12 +269,13 @@ public class FacturaService {
                 escpos.writeLF(center, sucursal.getNroDelivery());
             }
             if (sucursal.getNroDelivery() != null) {
-                escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center), "wa.me/" + sucursal.getNroDelivery());
+                escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center),
+                        "wa.me/" + sucursal.getNroDelivery());
             }
             escpos.feed(1);
             escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
-//            escpos.writeLF("--------------------------------");
-//            escpos.write( "Conservar este papel ");
+            // escpos.writeLF("--------------------------------");
+            // escpos.write( "Conservar este papel ");
             escpos.feed(5);
 
             try {
@@ -286,14 +295,19 @@ public class FacturaService {
         return null;
     }
 
-    public SaveFacturaDto printTicket58mmFactura(Venta venta, FacturaLegalInput facturaLegal, List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar, Delivery delivery, Boolean print) throws Exception {
+    public SaveFacturaDto printTicket58mmFactura(Venta venta, FacturaLegalInput facturaLegal,
+            List<FacturaLegalItemInput> facturaLegalItemList, String printerName, Long pdvId, Boolean continuar,
+            Delivery delivery, Boolean print) throws Exception {
         SaveFacturaDto saveFacturaDto = new SaveFacturaDto();
         PrintService selectedPrintService = printingService.getPrintService(printerName);
         Sucursal sucursal = sucursalService.sucursalActual();
-        Cliente cliente = facturaLegal.getClienteId() != null ? clienteService.findById(facturaLegal.getClienteId()).orElse(null) : null;
+        Cliente cliente = facturaLegal.getClienteId() != null
+                ? clienteService.findById(facturaLegal.getClienteId()).orElse(null)
+                : null;
         PuntoDeVenta puntoDeVenta = puntoDeVentaService.getPuntoDeVentaActual(pdvId);
         TimbradoDetalle timbradoDetalle = timbradoDetalleService.getTimbradoDetalleActual(puntoDeVenta.getId());
-        Usuario cajero = venta != null ? venta.getUsuario() : usuarioService.findById(facturaLegal.getUsuarioId()).orElse(null);
+        Usuario cajero = venta != null ? venta.getUsuario()
+                : usuarioService.findById(facturaLegal.getUsuarioId()).orElse(null);
         Double aumento = 0.0;
         Double vueltoGs = 0.0;
         Double vueltoRs = 0.0;
@@ -314,19 +328,21 @@ public class FacturaService {
         Double cambioRs = cambioService.findLastByMonedaId(Long.valueOf(2)).getValorEnGs();
         Double cambioDs = cambioService.findLastByMonedaId(Long.valueOf(3)).getValorEnGs();
 
-        //No le encontre ninguna utilidad por eso comente
-//        if(delivery!=null){
-//            precioDeliveryGs = delivery.getPrecio().getValor();
-//            precioDeliveryRs = precioDeliveryGs / cambioRs;
-//            precioDeliveryDs = precioDeliveryGs / cambioDs;
-//        }
+        // No le encontre ninguna utilidad por eso comente
+        // if(delivery!=null){
+        // precioDeliveryGs = delivery.getPrecio().getValor();
+        // precioDeliveryRs = precioDeliveryGs / cambioRs;
+        // precioDeliveryDs = precioDeliveryGs / cambioDs;
+        // }
 
         if (selectedPrintService != null) {
-            printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream : new PrinterOutputStream(selectedPrintService);
+            printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream
+                    : new PrinterOutputStream(selectedPrintService);
             // creating the EscPosImage, need buffered image and algorithm.
-            //Styles
+            // Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
-            Style factura = new Style().setJustification(EscPosConst.Justification.Center).setFontSize(Style.FontSize._1, Style.FontSize._1);
+            Style factura = new Style().setJustification(EscPosConst.Justification.Center)
+                    .setFontSize(Style.FontSize._1, Style.FontSize._1);
             QRCode qrCode = new QRCode();
 
             BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
@@ -342,7 +358,9 @@ public class FacturaService {
             escpos.writeLF(factura, timbradoDetalle.getTimbrado().getRazonSocial().toUpperCase());
             escpos.writeLF(factura, "RUC: " + timbradoDetalle.getTimbrado().getRuc());
             escpos.writeLF(factura, "Timbrado: " + timbradoDetalle.getTimbrado().getNumero());
-            escpos.writeLF(factura, "De " + timbradoDetalle.getTimbrado().getFechaInicio().format(impresionService.shortDate) + " a " + timbradoDetalle.getTimbrado().getFechaFin().format(impresionService.shortDate));
+            escpos.writeLF(factura,
+                    "De " + timbradoDetalle.getTimbrado().getFechaInicio().format(impresionService.shortDate) + " a "
+                            + timbradoDetalle.getTimbrado().getFechaFin().format(impresionService.shortDate));
             Long numeroFacturaAux = timbradoDetalle.getNumeroActual() + 1;
             StringBuilder numeroFacturaString = new StringBuilder();
             for (int i = 7; i > numeroFacturaAux.toString().length(); i--) {
@@ -353,7 +371,8 @@ public class FacturaService {
             } else {
                 numeroFacturaString.append(numeroFacturaAux.toString());
             }
-            escpos.writeLF(factura, "Nro: " + sucursalService.sucursalActual().getCodigoEstablecimientoFactura() + "-" + timbradoDetalle.getPuntoExpedicion() + "-" + numeroFacturaString.toString());
+            escpos.writeLF(factura, "Nro: " + sucursalService.sucursalActual().getCodigoEstablecimientoFactura() + "-"
+                    + timbradoDetalle.getPuntoExpedicion() + "-" + numeroFacturaString.toString());
             escpos.writeLF(center, "Condición: " + (facturaLegal.getCredito() == false ? "Contado" : "Crédito"));
 
             if (sucursal != null) {
@@ -366,8 +385,9 @@ public class FacturaService {
                 }
             }
             escpos.writeLF(center, "Local: " + puntoDeVenta.getNombre());
-            if (venta != null) escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
-            if(delivery!=null){
+            if (venta != null)
+                escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
+            if (delivery != null) {
                 escpos.writeLF(center, "Modo: Delivery");
             }
             if (cajero != null) {
@@ -386,10 +406,11 @@ public class FacturaService {
                     .replace("Ú", "U");
             escpos.writeLF("Cliente: " + nombreCliente);
 
-            if(facturaLegal.getRuc()!=null && (cliente == null || cliente.getTributa())){
-                if(!facturaLegal.getRuc().contains("-")){
-                    facturaLegal.setRuc(facturaLegal.getRuc()+getDigitoVerificadorString(facturaLegal.getRuc()));
-                };
+            if (facturaLegal != null && facturaLegal.getRuc() != null
+                    && (cliente == null || Boolean.TRUE.equals(cliente.getTributa()))) {
+                if (!facturaLegal.getRuc().contains("-")) {
+                    facturaLegal.setRuc(facturaLegal.getRuc() + getDigitoVerificadorString(facturaLegal.getRuc()));
+                }
             }
 
             escpos.writeLF("CI/RUC: " + facturaLegal.getRuc());
@@ -402,9 +423,11 @@ public class FacturaService {
             escpos.writeLF("Cant  IVA   P.U              P.T");
             escpos.writeLF("--------------------------------");
             for (FacturaLegalItemInput vi : facturaLegalItemList) {
-//                VentaItem ventaItem = vi.getVentaItemId() != null ? ventaItemService.findById(vi.getVentaItemId()).orElse(null) : null;
-                Presentacion presentacion = vi.getPresentacionId() == null ? null : presentacionService.findById(vi.getPresentacionId()).orElse(null);
-                if(presentacion != null || vi.getDescripcion().contains("Delivery")){
+                // VentaItem ventaItem = vi.getVentaItemId() != null ?
+                // ventaItemService.findById(vi.getVentaItemId()).orElse(null) : null;
+                Presentacion presentacion = vi.getPresentacionId() == null ? null
+                        : presentacionService.findById(vi.getPresentacionId()).orElse(null);
+                if (presentacion != null || vi.getDescripcion().contains("Delivery")) {
                     Integer iva = presentacion != null ? presentacion.getProducto().getIva() : null;
                     Double total = vi.getTotal();
                     if (iva == null) {
@@ -427,8 +450,9 @@ public class FacturaService {
                     totalFinal += total;
 
                     String cantidad = df.format(vi.getCantidad().doubleValue()) + " " + iva + "%";
-                    if(presentacion!=null){
-                        cantidad = df.format(vi.getCantidad().doubleValue()) + " (" + presentacion.getCantidad().intValue() + ") " + iva +"%";
+                    if (presentacion != null) {
+                        cantidad = df.format(vi.getCantidad().doubleValue()) + " ("
+                                + presentacion.getCantidad().intValue() + ") " + iva + "%";
                     }
                     escpos.writeLF(vi.getDescripcion());
                     escpos.write(cantidad);
@@ -446,7 +470,7 @@ public class FacturaService {
             }
             escpos.writeLF("--------------------------------");
             String valorGs = df.format(totalFinal);
-            if(facturaLegal.getDescuento()!=null && facturaLegal.getDescuento().compareTo(0.0) > 0){
+            if (facturaLegal.getDescuento() != null && facturaLegal.getDescuento().compareTo(0.0) > 0) {
                 String descuento = df.format(facturaLegal.getDescuento());
                 escpos.write("Total parcial: ");
                 for (int i = 17; i > valorGs.length(); i--) {
@@ -473,7 +497,9 @@ public class FacturaService {
             }
 
             escpos.writeLF("--------Liquidación IVA---------");
-            Double porcentajeDescuento = (facturaLegal.getDescuento() != null && facturaLegal.getDescuento().compareTo(0.0) != 0) ? (facturaLegal.getDescuento() / totalFinal) : null;
+            Double porcentajeDescuento = (facturaLegal.getDescuento() != null
+                    && facturaLegal.getDescuento().compareTo(0.0) != 0) ? (facturaLegal.getDescuento() / totalFinal)
+                            : null;
             escpos.write("Gravadas 10%:");
             Double desc10 = porcentajeDescuento != null ? (totalIva10 - (totalIva10 * porcentajeDescuento)) : null;
             String totalIva10S = df.format(desc10 == null ? totalIva10.intValue() : desc10.intValue());
@@ -494,26 +520,27 @@ public class FacturaService {
             }
             escpos.writeLF("0");
             Double totalFinalIva = totalIva10 + totalIva5;
-            Double descFinal = porcentajeDescuento != null ? (totalFinalIva - (totalFinalIva * porcentajeDescuento)) : null;
+            Double descFinal = porcentajeDescuento != null ? (totalFinalIva - (totalFinalIva * porcentajeDescuento))
+                    : null;
             String totalFinalIvaS = df.format(descFinal == null ? totalFinalIva.intValue() : descFinal.intValue());
             escpos.write("Total IVA:   ");
             for (int i = 19; i > totalFinalIvaS.length(); i--) {
                 escpos.write(" ");
             }
             escpos.writeLF(totalFinalIvaS);
-//            escpos.writeLF("--------Liquidación IVA---------");
-//            escpos.write("Gravadas 10%:");
-//            Double totalIvaFinal = totalIva10 + totalIva5;
-//            String totalIvaFinalS = df.format(totalIvaFinal.intValue());
-//            for (int i = 19; i > totalIvaFinalS.length(); i--) {
-//                escpos.write(" ");
-//            }
-//            escpos.writeLF(iva10s);
-//            escpos.write("Gravadas 5%: ");
-//            for (int i = 19; i > 1; i--) {
-//                escpos.write(" ");
-//            }
-//            escpos.writeLF("0");
+            // escpos.writeLF("--------Liquidación IVA---------");
+            // escpos.write("Gravadas 10%:");
+            // Double totalIvaFinal = totalIva10 + totalIva5;
+            // String totalIvaFinalS = df.format(totalIvaFinal.intValue());
+            // for (int i = 19; i > totalIvaFinalS.length(); i--) {
+            // escpos.write(" ");
+            // }
+            // escpos.writeLF(iva10s);
+            // escpos.write("Gravadas 5%: ");
+            // for (int i = 19; i > 1; i--) {
+            // escpos.write(" ");
+            // }
+            // escpos.writeLF("0");
 
             escpos.writeLF("--------------------------------");
             if (sucursal != null && sucursal.getNroDelivery() != null) {
@@ -521,16 +548,17 @@ public class FacturaService {
                 escpos.writeLF(center, sucursal.getNroDelivery());
             }
             if (sucursal.getNroDelivery() != null) {
-                escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center), "wa.me/" + sucursal.getNroDelivery());
+                escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center),
+                        "wa.me/" + sucursal.getNroDelivery());
             }
             escpos.feed(1);
             escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
-//            escpos.writeLF("--------------------------------");
-//            escpos.write( "Conservar este papel ");
+            // escpos.writeLF("--------------------------------");
+            // escpos.write( "Conservar este papel ");
             escpos.feed(5);
 
             try {
-                if(print == false){
+                if (print == false) {
                     this.escPos = null;
                     this.printerOutputStream = null;
                 } else if (continuar != true) {
@@ -547,7 +575,7 @@ public class FacturaService {
                     Long numero = timbradoDetalleService.aumentarNumeroFactura(timbradoDetalle);
                     System.out.println("Nummero de factura siguiente: " + numero);
                     facturaLegal.setTimbradoDetalleId(timbradoDetalle.getId());
-                    if(venta!=null){
+                    if (venta != null) {
                         facturaLegal.setVentaId(venta.getId());
                         facturaLegal.setFecha(venta.getCreadoEn());
                         facturaLegal.setClienteId(venta.getCliente().getId());
@@ -562,87 +590,101 @@ public class FacturaService {
                     facturaLegal.setTotalParcial5(ventaIva5);
                     facturaLegal.setTotalParcial10(ventaIva10);
                     facturaLegal.setTotalParcial0(ventaIva0);
+                    saveFacturaDto.setFacturaLegalInput(facturaLegal);
+                    saveFacturaDto.setFacturaLegalItemInputList(facturaLegalItemList);
+                    return saveFacturaDto;
                 }
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         } else {
-            throw new GraphQLException("No se pudo generar la factura");
+            // throw new GraphQLException("No se pudo generar la factura");
         }
         saveFacturaDto.setFacturaLegalInput(facturaLegal);
         saveFacturaDto.setFacturaLegalItemInputList(facturaLegalItemList);
         return saveFacturaDto;
     }
 
-//    public void generarFactura() {
-//        try {
-//            FacturaDto facturaDto = new FacturaDto();
-//            facturaDto.setContado("X");
-//            facturaDto.setFecha("10/12/2022");
-//            facturaDto.setIvaParcial("33.500");
-//            facturaDto.setNombre("Gabriel Francisco Franco Arevalos");
-//            facturaDto.setRuc("4043581-4");
-//            facturaDto.setTotal("350.000");
-//            facturaDto.setTotalEnLetras("Trescientos cincuenta mil");
-//            facturaDto.setDireccion("Av. Paraguay c/ 30 de julio");
-//            List<VentaItemDto> ventaItemList = new ArrayList<>();
-//            ventaItemList.add(new VentaItemDto("5", "Brahma lata 269", "3.500", "120.000"));
-//            ventaItemList.add(new VentaItemDto("2", "Skol lata", "3.500", "7.000"));
-//            ventaItemList.add(new VentaItemDto("7", "Producto cualquiera", "8.500", "50.000"));
-//
-//            File file = ResourceUtils.getFile("classpath:factura.jrxml");
-//            JasperReport jasperReport = JasperCompileManager.compileReport(file.getAbsolutePath());
-//            JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(ventaItemList);
-//            Map<String, Object> parameters = new HashMap<>();
-//            parameters.put("contado", facturaDto.getContado());
-//            parameters.put("credito", facturaDto.getCredito());
-//            parameters.put("fecha", facturaDto.getFecha());
-//            parameters.put("ivaTotal", facturaDto.getIvaParcial());
-//            parameters.put("nombre", facturaDto.getNombre());
-//            parameters.put("ruc", facturaDto.getRuc());
-//            parameters.put("totalFinal", facturaDto.getTotal());
-//            parameters.put("totalEnLetras", facturaDto.getTotalEnLetras());
-//            parameters.put("direccion", facturaDto.getDireccion());
-//
-//            JasperPrint jasperPrint1 = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
-//            jasperPrint1.setPageHeight(842);
-//
-//            List<VentaItemDto> ventaItemList2 = new ArrayList<>();
-//            ventaItemList.add(new VentaItemDto("5", "Brahma lata 269", "3.500", "120.000"));
-//            ventaItemList.add(new VentaItemDto("2", "Skol lata", "3.500", "7.000"));
-//            ventaItemList.add(new VentaItemDto("7", "Producto cualquiera", "8.500", "50.000"));
-//
-//            File file2 = ResourceUtils.getFile("classpath:factura2.jrxml");
-//            JasperReport jasperReport2 = JasperCompileManager.compileReport(file.getAbsolutePath());
-//            JRBeanCollectionDataSource dataSource2 = new JRBeanCollectionDataSource(ventaItemList);
-//            Map<String, Object> parameters2 = new HashMap<>();
-//            parameters2.put("contado", facturaDto.getContado());
-//            parameters2.put("credito", facturaDto.getCredito());
-//            parameters2.put("fecha", facturaDto.getFecha());
-//            parameters2.put("ivaTotal", facturaDto.getIvaParcial());
-//            parameters2.put("nombre", facturaDto.getNombre());
-//            parameters2.put("ruc", facturaDto.getRuc());
-//            parameters2.put("totalFinal", facturaDto.getTotal());
-//            parameters2.put("totalEnLetras", facturaDto.getTotalEnLetras());
-//            parameters2.put("direccion", facturaDto.getDireccion());
-//
-//            JasperPrint jasperPrint2 = JasperFillManager.fillReport(jasperReport2, parameters2, dataSource2);
-//
-//            JRPrintPage page2 = jasperPrint2.getPages().get(0);
-//            List<JRPrintElement> elements = page2.getElements();
-//
-//            for(JRPrintElement e: elements){
-//                e.setY(e.getY() + 421);
-//                jasperPrint1.getPages().get(0).addElement(e);
-//            }
-//
-//            OutputStream output;
-//            output = new FileOutputStream(new File("/Users/gabfranck/Desktop/prueba.pdf"));
-//            JasperExportManager.exportReportToPdfStream(jasperPrint1, output);
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
+    // public void generarFactura() {
+    // try {
+    // FacturaDto facturaDto = new FacturaDto();
+    // facturaDto.setContado("X");
+    // facturaDto.setFecha("10/12/2022");
+    // facturaDto.setIvaParcial("33.500");
+    // facturaDto.setNombre("Gabriel Francisco Franco Arevalos");
+    // facturaDto.setRuc("4043581-4");
+    // facturaDto.setTotal("350.000");
+    // facturaDto.setTotalEnLetras("Trescientos cincuenta mil");
+    // facturaDto.setDireccion("Av. Paraguay c/ 30 de julio");
+    // List<VentaItemDto> ventaItemList = new ArrayList<>();
+    // ventaItemList.add(new VentaItemDto("5", "Brahma lata 269", "3.500",
+    // "120.000"));
+    // ventaItemList.add(new VentaItemDto("2", "Skol lata", "3.500", "7.000"));
+    // ventaItemList.add(new VentaItemDto("7", "Producto cualquiera", "8.500",
+    // "50.000"));
+    //
+    // File file = ResourceUtils.getFile("classpath:factura.jrxml");
+    // JasperReport jasperReport =
+    // JasperCompileManager.compileReport(file.getAbsolutePath());
+    // JRBeanCollectionDataSource dataSource = new
+    // JRBeanCollectionDataSource(ventaItemList);
+    // Map<String, Object> parameters = new HashMap<>();
+    // parameters.put("contado", facturaDto.getContado());
+    // parameters.put("credito", facturaDto.getCredito());
+    // parameters.put("fecha", facturaDto.getFecha());
+    // parameters.put("ivaTotal", facturaDto.getIvaParcial());
+    // parameters.put("nombre", facturaDto.getNombre());
+    // parameters.put("ruc", facturaDto.getRuc());
+    // parameters.put("totalFinal", facturaDto.getTotal());
+    // parameters.put("totalEnLetras", facturaDto.getTotalEnLetras());
+    // parameters.put("direccion", facturaDto.getDireccion());
+    //
+    // JasperPrint jasperPrint1 = JasperFillManager.fillReport(jasperReport,
+    // parameters, dataSource);
+    // jasperPrint1.setPageHeight(842);
+    //
+    // List<VentaItemDto> ventaItemList2 = new ArrayList<>();
+    // ventaItemList.add(new VentaItemDto("5", "Brahma lata 269", "3.500",
+    // "120.000"));
+    // ventaItemList.add(new VentaItemDto("2", "Skol lata", "3.500", "7.000"));
+    // ventaItemList.add(new VentaItemDto("7", "Producto cualquiera", "8.500",
+    // "50.000"));
+    //
+    // File file2 = ResourceUtils.getFile("classpath:factura2.jrxml");
+    // JasperReport jasperReport2 =
+    // JasperCompileManager.compileReport(file.getAbsolutePath());
+    // JRBeanCollectionDataSource dataSource2 = new
+    // JRBeanCollectionDataSource(ventaItemList);
+    // Map<String, Object> parameters2 = new HashMap<>();
+    // parameters2.put("contado", facturaDto.getContado());
+    // parameters2.put("credito", facturaDto.getCredito());
+    // parameters2.put("fecha", facturaDto.getFecha());
+    // parameters2.put("ivaTotal", facturaDto.getIvaParcial());
+    // parameters2.put("nombre", facturaDto.getNombre());
+    // parameters2.put("ruc", facturaDto.getRuc());
+    // parameters2.put("totalFinal", facturaDto.getTotal());
+    // parameters2.put("totalEnLetras", facturaDto.getTotalEnLetras());
+    // parameters2.put("direccion", facturaDto.getDireccion());
+    //
+    // JasperPrint jasperPrint2 = JasperFillManager.fillReport(jasperReport2,
+    // parameters2, dataSource2);
+    //
+    // JRPrintPage page2 = jasperPrint2.getPages().get(0);
+    // List<JRPrintElement> elements = page2.getElements();
+    //
+    // for(JRPrintElement e: elements){
+    // e.setY(e.getY() + 421);
+    // jasperPrint1.getPages().get(0).addElement(e);
+    // }
+    //
+    // OutputStream output;
+    // output = new FileOutputStream(new
+    // File("/Users/gabfranck/Desktop/prueba.pdf"));
+    // JasperExportManager.exportReportToPdfStream(jasperPrint1, output);
+    // } catch (Exception e) {
+    // e.printStackTrace();
+    // }
+    // }
 
     public void printFactura(JasperPrint jasperPrint) throws GraphQLException {
         PrintRequestAttributeSet printRequestAttributeSet = new HashPrintRequestAttributeSet();
@@ -663,7 +705,6 @@ public class FacturaService {
         exporter.setConfiguration(configuration);
 
         printService = PrinterOutputStream.getPrintServiceByName("FACTURA");
-
 
         if (printService != null) {
             try {
