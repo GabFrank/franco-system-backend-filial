@@ -279,7 +279,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             List<RetiroDetalle> retiroDetalleList = retiroDetalleService.findByCajId(pdvCaja.getId());
             List<Gasto> gastoList = gastoService.findByCajaId(pdvCaja.getId());
             List<Venta> ventaList = ventaService.findAllByCajaId(pdvCaja.getId());
-            List<Delivery> deliveryList = ventaList.stream().map(v -> v.getDelivery()).collect(Collectors.toList());
+            List<Delivery> deliveryList = ventaList.stream().filter(v -> v.getDelivery() != null).map(v -> v.getDelivery()).collect(Collectors.toList());
             if (!conteoMonedaAperList.isEmpty()) {
                 Double totalGsAper = 0.0;
                 Double totalRsAper = 0.0;

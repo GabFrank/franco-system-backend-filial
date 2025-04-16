@@ -50,5 +50,8 @@ public class Sucursal implements Serializable {
 
     private String codigoEstablecimientoFactura;
 
+    private String ip;
+    
+    private Integer puerto;
 
 }

@@ -428,7 +428,7 @@ public class FacturaService {
 
                     String cantidad = df.format(vi.getCantidad().doubleValue()) + " " + iva + "%";
                     if(presentacion!=null){
-                        cantidad = df.format(vi.getCantidad().doubleValue()) + " (" + presentacion.getCantidad().intValue() + ") " + "10%";
+                        cantidad = df.format(vi.getCantidad().doubleValue()) + " (" + presentacion.getCantidad().intValue() + ") " + iva +"%";
                     }
                     escpos.writeLF(vi.getDescripcion());
                     escpos.write(cantidad);
