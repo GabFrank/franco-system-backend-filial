@@ -2,6 +2,7 @@ package com.franco.dev.graphql.financiero;
 
 import com.franco.dev.domain.financiero.CajaBalance;
 import com.franco.dev.domain.financiero.PdvCaja;
+import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
 import com.franco.dev.graphql.financiero.input.PdvCajaInput;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.ConteoService;
@@ -12,6 +13,7 @@ import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -122,4 +124,11 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         return service.imprimirBalance(id, printerName, local);
     }
 
+
+    public Page<PdvCaja> cajasWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId, String fechaInicio, String fechaFin, Long sucId, Boolean verificado, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        //store result in variable and then return it
+        Page<PdvCaja> pdvCajaPage = service.findAllWithFilters(cajaId, estado, maletinId, cajeroId, fechaInicio, fechaFin, sucId, verificado, pageable);
+        return pdvCajaPage;
+    }
 }

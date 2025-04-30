@@ -3,6 +3,7 @@ package com.franco.dev.graphql.operaciones;
 import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.FacturaLegal;
+import com.franco.dev.domain.financiero.TimbradoDetalle;
 import com.franco.dev.domain.financiero.VentaCredito;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.Delivery;
@@ -246,11 +247,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         }
                         // SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta,
                         // facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
-                        Boolean facturado = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
+                        TimbradoDetalle timbradoDetalle = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
                                 facturaLegalItemInputList, printerName, pdvId,
                                 ventaCreditoInput != null ? false : true);
                         facturaCountDown = Integer.valueOf(env.getProperty("facturaCountDown"));
-                        if (facturado == false)
+                        if (timbradoDetalle == null)
                             throw new GraphQLException("Problema al generar factura");
                     } else if (ventaCreditoInput != null && ventaCreditoCuotaInputList != null) {
                         ventaCreditoInput.setVentaId(venta.getId());
@@ -294,9 +295,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         // SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta,
                         // facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
 
-                        Boolean facturado = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
+                        TimbradoDetalle timbradoDetalle = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
                                 facturaLegalItemInputList, printerName, pdvId, false);
                         facturaCountDown = Integer.valueOf(env.getProperty("facturaCountDown"));
+                        if (timbradoDetalle == null)
+                            throw new GraphQLException("Problema al generar factura");
                     }
                 } else {
                     facturaCountDown = facturaCountDown - 1;

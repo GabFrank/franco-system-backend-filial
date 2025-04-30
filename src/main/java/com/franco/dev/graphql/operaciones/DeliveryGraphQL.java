@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.domain.financiero.TimbradoDetalle;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
@@ -236,9 +237,9 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                         facturaLegalItemInputList.add(fiInput);
                         // SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta,
                         // facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
-                        Boolean facturado = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
+                        TimbradoDetalle timbradoDetalle = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
                                 facturaLegalItemInputList, printerName, pdvId, true);
-                        if (facturado == false)
+                        if (timbradoDetalle == null)
                             throw new GraphQLException("Problema al generar factura");
                     } else {
                         ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, false, printerName, local, false,

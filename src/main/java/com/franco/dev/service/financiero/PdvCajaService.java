@@ -2,6 +2,7 @@ package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.*;
+import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.domain.operaciones.Delivery;
@@ -21,6 +22,8 @@ import com.franco.dev.service.operaciones.VentaService;
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.franco.dev.utilitarios.DateUtils.stringToDate;
 import static com.franco.dev.utilitarios.DateUtils.toDate;
 
 @Service
@@ -513,6 +517,10 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             impresionService.printBalance(balanceDto, printerName, local);
         }
         return pdvCaja;
+    }
+
+    public Page<PdvCaja> findAllWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId, String fechaInicio, String fechaFin, Long sucId, Boolean verificado, Pageable pageable) {
+        return repository.findAllWithFilters(cajaId, estado, maletinId, cajeroId, fechaInicio != null ? stringToDate(fechaInicio) : null, fechaFin != null ? stringToDate(fechaFin) : null, sucId, verificado, pageable);
     }
 
     public CajaBalance getBalance(Long id) {

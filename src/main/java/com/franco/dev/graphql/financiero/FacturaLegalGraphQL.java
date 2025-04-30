@@ -137,7 +137,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.findAll(pageable);
     }
 
-    public Boolean saveFacturaLegal(FacturaLegalInput input, List<FacturaLegalItemInput> facturaLegalItemInputList,
+    public TimbradoDetalle saveFacturaLegal(FacturaLegalInput input, List<FacturaLegalItemInput> facturaLegalItemInputList,
             String printerName, Long pdvId, Boolean print) {
         if (print == null)
             print = true;
@@ -146,7 +146,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 pdvId, false, print);
         if (saveFacturaDto != null && saveFacturaDto.getFacturaLegalInput() != null
                 && saveFacturaDto.getFacturaLegalInput().getTimbradoDetalleId() == null) {
-            return false;
+            return null;
         }
         input = saveFacturaDto.getFacturaLegalInput();
         facturaLegalItemInputList = saveFacturaDto.getFacturaLegalItemInputList();
@@ -172,9 +172,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 c.setFacturaLegalId(e.getId());
                 facturaLegalItemGraphQL.saveFacturaLegalItem(c);
             }
-            return true;
+            return e.getTimbradoDetalle();
         } else {
-            return false;
+            return null;
         }
     }
 
@@ -200,9 +200,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             if (print) {
                 throw new GraphQLException("Timbrado detalle fuera de rango. Contactar con RRHH");
             }
-        } else if (timbradoDetalle.getNumeroActual() - timbradoDetalle.getRangoHasta() < timbradoDetalle.getRangoHasta()
-                * 0.1) { // not 100, 10% from get rango hasta
-            throw new GraphQLException("Nûmero de factura esta por acabarse. Contactar con RRHH");
         }
 
         Boolean isBefore = LocalDateTime.now().isAfter(timbradoDetalle.getTimbrado().getFechaFin());
@@ -210,9 +207,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             if (print) {
                 throw new GraphQLException("Timbrado ha vencido. Contactar con RRHH");
             }
-        } else if (timbradoDetalle.getRangoHasta() - timbradoDetalle.getNumeroActual() <= 10) {
-            throw new GraphQLException("Nûmero de factura esta por acabarse. Contactar con RRHH");
-        }
+        } 
 
         if (timbradoDetalle != null) {
             try {

@@ -40,3 +40,7 @@ build/
 /target/frc-server.jar
 ../frc-central-server/target/frc-server.jar.DS_Store
 src/.DS_Store
+
+#tokens
+tokens/
+

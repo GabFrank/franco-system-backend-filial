@@ -1,63 +1,91 @@
 type PdvCaja {
-    id:ID!
-    descripcion: String,
-    activo: Boolean,
-    estado: PdvCajaEstado,
-    tuvoProblema: Boolean,
-    fechaApertura: Date,
-    fechaCierre: Date,
-    observacion: String,
-    maletin: Maletin,
-    creadoEn: Date
-    usuario: Usuario
-    conteoApertura: Conteo
-    conteoCierre: Conteo
-    balance: CajaBalance
-    verificado: Boolean
-    verificadoPor: Usuario
-    sucursalId: Int
-    sucursal: Sucursal
+  id: ID!
+  descripcion: String
+  activo: Boolean
+  estado: PdvCajaEstado
+  tuvoProblema: Boolean
+  fechaApertura: Date
+  fechaCierre: Date
+  observacion: String
+  maletin: Maletin
+  creadoEn: Date
+  usuario: Usuario
+  conteoApertura: Conteo
+  conteoCierre: Conteo
+  balance: CajaBalance
+  verificado: Boolean
+  verificadoPor: Usuario
+  sucursalId: Int
+  sucursal: Sucursal
 }
 
 input PdvCajaInput {
-    id:ID
-    descripcion: String,
-    activo: Boolean,
-    estado: PdvCajaEstado,
-    tuvoProblema: Boolean,
-    fechaApertura: Date,
-    fechaCierre: Date,
-    observacion: String,
-    maletinId: Int,
-    creadoEn: Date
-    usuarioId: Int
-    conteoAperturaId: Int
-    conteoCierreId: Int
-    sucursalId: Int
-    verificado: Boolean
-    verificadoPorId: Int
+  id: ID
+  descripcion: String
+  activo: Boolean
+  estado: PdvCajaEstado
+  tuvoProblema: Boolean
+  fechaApertura: Date
+  fechaCierre: Date
+  observacion: String
+  maletinId: Int
+  creadoEn: Date
+  usuarioId: Int
+  conteoAperturaId: Int
+  conteoCierreId: Int
+  sucursalId: Int
+  verificado: Boolean
+  verificadoPorId: Int
+}
+
+type PdvCajaPage {
+    getTotalPages: Int
+    getTotalElements: Int
+    getNumberOfElements: Int
+    isFirst: Boolean
+    isLast: Boolean
+    hasNext: Boolean
+    hasPrevious: Boolean
+    getContent: [PdvCaja]
+    getPageable: Pageable
 }
 
 extend type Query {
-    pdvCaja(id:ID!, sucId: ID):PdvCaja
-    pdvCajas(page:Int = 0, size:Int = 10, , sucId: ID):[PdvCaja]!
-    countPdvCaja: Int
-    cajasPorFecha(inicio:String, fin:String, sucId:ID):[PdvCaja]
-    cajaAbiertoPorUsuarioId(id:ID!, sucId: ID):PdvCaja
-    imprimirBalance(id:ID!, printerName: String, local: String, sucId: ID):PdvCaja
-    balancePorCajaId(id:ID!):CajaBalance
+  pdvCaja(id: ID!, sucId: ID): PdvCaja
+  pdvCajas(page: Int = 0, size: Int = 10, sucId: ID): [PdvCaja]!
+  countPdvCaja: Int
+  cajasPorFecha(inicio: String, fin: String, sucId: ID): [PdvCaja]
+  cajaAbiertoPorUsuarioId(id: ID!, sucId: ID): PdvCaja
+  imprimirBalance(
+    id: ID!
+    printerName: String
+    local: String
+    sucId: ID
+  ): PdvCaja
+  balancePorCajaId(id: ID!): CajaBalance
+  cajasWithFilters(
+    cajaId: ID
+    estado: PdvCajaEstado
+    maletinId: ID
+    cajeroId: ID
+    fechaInicio: String
+    fechaFin: String
+    sucId: ID
+    verificado: Boolean
+    page: Int
+    size: Int
+  ): PdvCajaPage
 }
 
 extend type Mutation {
-    savePdvCaja(pdvCaja:PdvCajaInput!):PdvCaja!
+  savePdvCaja(pdvCaja: PdvCajaInput!): PdvCaja!
 }
 
 enum PdvCajaEstado {
-    EN_PROCESO  ,
-    CONCLUIDO,
-    NECESITA_VERIFICACION,
-    EN_VERIFICACION,
-    VERIFICADO_CONCLUIDO_SIN_PROBLEMA,
-    VERIFICADO_CONCLUIDO_CON_PROBLEMA
+  EN_PROCESO
+  CONCLUIDO
+  NECESITA_VERIFICACION
+  EN_VERIFICACION
+  VERIFICADO_CONCLUIDO_SIN_PROBLEMA
+  VERIFICADO_CONCLUIDO_CON_PROBLEMA
 }
-
