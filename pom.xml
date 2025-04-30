@@ -247,21 +247,26 @@
             <version>2.12.3</version>
         </dependency>
 
-        <!-- Google Drive API -->
+        <!-- Google Drive API - Using consistent versions -->
         <dependency>
-            <groupId>com.google.apis</groupId>
-            <artifactId>google-api-services-drive</artifactId>
-            <version>v3-rev20220815-2.0.0</version>
+            <groupId>com.google.api-client</groupId>
+            <artifactId>google-api-client</artifactId>
+            <version>1.33.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.oauth-client</groupId>
             <artifactId>google-oauth-client-jetty</artifactId>
-            <version>1.34.1</version>
+            <version>1.33.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-drive</artifactId>
+            <version>v3-rev20211107-1.32.1</version>
         </dependency>
         <dependency>
             <groupId>com.google.api-client</groupId>
-            <artifactId>google-api-client</artifactId>
-            <version>2.0.0</version>
+            <artifactId>google-api-client-gson</artifactId>
+            <version>1.33.0</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.update4j/update4j -->
@@ -292,12 +297,6 @@
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
             <version>20210307</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.update4j</groupId>
-            <artifactId>update4j</artifactId>
-            <version>1.5.9</version>
         </dependency>
 
         <!-- Jackson datatype for Hibernate 5 -->
@@ -334,34 +333,6 @@
             <artifactId>flyway-core</artifactId>
             <version>5.2.3</version>
         </dependency>
-
-        <!-- Google Drive API -->
-        <!-- https://mvnrepository.com/artifact/com.google.api-client/google-api-client -->
-        <dependency>
-            <groupId>com.google.api-client</groupId>
-            <artifactId>google-api-client</artifactId>
-            <version>2.7.2</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/com.google.apis/google-api-services-drive -->
-        <dependency>
-            <groupId>com.google.apis</groupId>
-            <artifactId>google-api-services-drive</artifactId>
-            <version>v3-rev197-1.25.0</version>
-        </dependency>
-        <!-- Google Auth library -->
-        <dependency>
-            <groupId>com.google.auth</groupId>
-            <artifactId>google-auth-library-oauth2-http</artifactId>
-            <version>1.33.1</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.api-client</groupId>
-            <artifactId>google-api-client-gson</artifactId>
-            <version>2.7.2</version>
-        </dependency>
-
 
     </dependencies>
 

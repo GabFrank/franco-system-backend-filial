@@ -10,6 +10,7 @@ public class BackupConfig {
     private boolean enabled;
     private String localPath;
     private int maxFiles;
+    private int backupHour = 9; // Default to 9 AM if not specified
     private GoogleDriveConfig googleDrive = new GoogleDriveConfig();
     
     public static class GoogleDriveConfig {
@@ -72,5 +73,15 @@ public class BackupConfig {
     
     public void setMaxFiles(int maxFiles) {
         this.maxFiles = maxFiles;
+    }
+    
+    public int getBackupHour() {
+        return backupHour;
+    }
+    
+    public void setBackupHour(int backupHour) {
+        if (backupHour >= 0 && backupHour <= 23) {
+            this.backupHour = backupHour;
+        }
     }
 } 

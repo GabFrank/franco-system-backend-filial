@@ -43,18 +43,48 @@ public class GoogleDriveService {
     @Autowired
     public GoogleDriveService(BackupConfig backupConfig) {
         this.backupConfig = backupConfig;
-        try {
-            initDriveService();
-        } catch (Exception e) {
-            log.error("Failed to initialize Google Drive service", e);
-        }
     }
     
-    private void initDriveService() throws GeneralSecurityException, IOException {
+    public synchronized void initDriveService() throws GeneralSecurityException, IOException {
+        initDriveService(false);
+    }
+    
+    public synchronized void initDriveService(boolean forceAuth) throws GeneralSecurityException, IOException {
+        if (driveService != null && !forceAuth) {
+            return; // Already initialized and no force auth requested
+        }
+        
+        // If force auth is requested, clear the tokens directory
+        if (forceAuth) {
+            clearTokens();
+            driveService = null; // Reset the service
+        }
+        
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
         driveService = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
                 .setApplicationName("Database Backup")
                 .build();
+    }
+    
+    /**
+     * Clear stored tokens to force re-authentication
+     */
+    public void clearTokens() {
+        log.info("Clearing stored tokens to force re-authentication");
+        java.io.File tokensDir = new java.io.File(TOKENS_DIRECTORY_PATH);
+        if (tokensDir.exists() && tokensDir.isDirectory()) {
+            java.io.File[] files = tokensDir.listFiles();
+            if (files != null) {
+                for (java.io.File file : files) {
+                    boolean deleted = file.delete();
+                    log.info("Deleted token file {}: {}", file.getName(), deleted);
+                }
+            }
+            boolean deletedDir = tokensDir.delete();
+            log.info("Deleted tokens directory: {}", deletedDir);
+        } else {
+            log.info("No tokens directory found at {}", tokensDir.getAbsolutePath());
+        }
     }
     
     private Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
@@ -79,13 +109,11 @@ public class GoogleDriveService {
     }
     
     public File uploadFile(java.io.File fileToUpload, String mimeType) throws IOException {
-        if (driveService == null) {
-            try {
-                initDriveService();
-            } catch (Exception e) {
-                log.error("Failed to initialize Google Drive service", e);
-                throw new IOException("Drive service not available", e);
-            }
+        try {
+            initDriveService();
+        } catch (Exception e) {
+            log.error("Failed to initialize Google Drive service", e);
+            throw new IOException("Drive service not available", e);
         }
         
         File fileMetadata = new File();
@@ -108,13 +136,11 @@ public class GoogleDriveService {
     }
     
     public List<File> listFiles() throws IOException {
-        if (driveService == null) {
-            try {
-                initDriveService();
-            } catch (Exception e) {
-                log.error("Failed to initialize Google Drive service", e);
-                throw new IOException("Drive service not available", e);
-            }
+        try {
+            initDriveService();
+        } catch (Exception e) {
+            log.error("Failed to initialize Google Drive service", e);
+            throw new IOException("Drive service not available", e);
         }
         
         String folderId = backupConfig.getGoogleDrive().getFolderId();
@@ -131,13 +157,11 @@ public class GoogleDriveService {
     }
     
     public void deleteFile(String fileId) throws IOException {
-        if (driveService == null) {
-            try {
-                initDriveService();
-            } catch (Exception e) {
-                log.error("Failed to initialize Google Drive service", e);
-                throw new IOException("Drive service not available", e);
-            }
+        try {
+            initDriveService();
+        } catch (Exception e) {
+            log.error("Failed to initialize Google Drive service", e);
+            throw new IOException("Drive service not available", e);
         }
         
         try {
