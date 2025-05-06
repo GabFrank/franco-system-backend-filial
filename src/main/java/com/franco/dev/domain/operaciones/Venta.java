@@ -1,11 +1,13 @@
 package com.franco.dev.domain.operaciones;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.FormaPago;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.personas.Usuario;
+import com.franco.dev.utilitarios.JsonIdView;
 import com.franco.dev.utilitarios.PostgreSQLEnumType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -36,6 +38,7 @@ public class Venta implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JsonView(JsonIdView.Id.class)
     private Long id;
 
     private Long sucursalId;
@@ -51,6 +54,10 @@ public class Venta implements Serializable {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cobro_id", nullable = true)
     private Cobro cobro;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "delivery_id", nullable = true)
+    private Delivery delivery;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "caja_id", nullable = true)

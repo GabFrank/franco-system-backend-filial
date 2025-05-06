@@ -128,13 +128,15 @@ public class PrintingService {
             // creating the EscPosImage, need buffered image and algorithm.
 
             BufferedImage imageBufferedImage = base64StringToImage(image);
-            imageBufferedImage = resize(imageBufferedImage, 400, 900);
-            RasterBitImageWrapper imageWrapper = new RasterBitImageWrapper();
+            imageBufferedImage = resize(imageBufferedImage, 200, 100);
+            ImageHelper helper = new ImageHelper();
+            BitImageWrapper imageWrapper = new BitImageWrapper();
             EscPos escpos = new EscPos(printerOutputStream);
             Bitonal algorithm = new BitonalThreshold();
-            EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
+//            EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
             imageWrapper.setJustification(EscPosConst.Justification.Center);
-            escpos.write(imageWrapper, escposImage);
+//            escpos.write(imageWrapper, escposImage);
+            helper.write(escpos, new CoffeeImageImpl(imageBufferedImage),imageWrapper,algorithm);
             escpos.feed(2);
             escpos.cut(EscPos.CutMode.FULL);
             escpos.close();

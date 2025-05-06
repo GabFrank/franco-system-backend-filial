@@ -21,6 +21,7 @@ public class NotaRecepcionInput {
     private Integer numero;
     private Integer timbrado;
     private Boolean pagado;
-    private LocalDateTime creadoEn;
+    private String creadoEn;
+    private String fecha;
     private Long usuarioId;
 }

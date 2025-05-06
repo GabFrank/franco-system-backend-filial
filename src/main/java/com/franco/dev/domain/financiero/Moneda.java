@@ -1,7 +1,9 @@
 package com.franco.dev.domain.financiero;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.franco.dev.domain.general.Pais;
 import com.franco.dev.domain.personas.Usuario;
+import com.franco.dev.utilitarios.JsonIdView;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,6 +24,7 @@ public class Moneda implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
+    @JsonView(JsonIdView.Id.class)
     private Long id;
 
     @Column(name = "denominacion")

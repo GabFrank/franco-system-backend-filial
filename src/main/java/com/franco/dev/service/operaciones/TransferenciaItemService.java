@@ -21,6 +21,10 @@ public class TransferenciaItemService extends CrudService<TransferenciaItem, Tra
         return repository;
     }
 
+    public List<TransferenciaItem> findByTransferenciaIdAndSucursalId(Long id){
+        return repository.findByTransferenciaId(id);
+    }
+
     public List<TransferenciaItem> findByTransferenciaItemId(Long id, Integer page, Integer size){
         if(page==null && size == null){
             return  repository.findByTransferenciaIdOrderByIdDesc(id);

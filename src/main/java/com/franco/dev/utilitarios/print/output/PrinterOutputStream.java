@@ -157,9 +157,6 @@ public class PrinterOutputStream extends PipedOutputStream {
                 break;
             }
         }
-        if (foundService == null) {
-            throw new IllegalArgumentException("printServiceName is not found");
-        }
         return foundService;
     }
 

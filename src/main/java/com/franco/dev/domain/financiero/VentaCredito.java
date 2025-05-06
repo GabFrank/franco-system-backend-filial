@@ -3,6 +3,7 @@ package com.franco.dev.domain.financiero;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.enums.EstadoVentaCredito;
 import com.franco.dev.domain.financiero.enums.TipoConfirmacion;
+import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.personas.Usuario;
@@ -77,6 +78,9 @@ public class VentaCredito implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
+
+    private LocalDateTime fechaCobro;
+
 }
 
 

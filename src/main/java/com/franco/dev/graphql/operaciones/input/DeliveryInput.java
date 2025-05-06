@@ -17,4 +17,5 @@ public class DeliveryInput {
     private Double valor;
     private Long barrioId;
     private Long vueltoId;
-}
+    private String fechaConcluido;
+}   

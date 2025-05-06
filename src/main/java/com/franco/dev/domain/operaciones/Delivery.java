@@ -36,10 +36,6 @@ public class Delivery implements Serializable {
 
     private Long sucursalId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "venta_id", nullable = true)
-    private Venta venta;
-
     @Column(name = "valor_en_gs")
     private Double valor;
 
@@ -85,6 +81,9 @@ public class Delivery implements Serializable {
     @Column(name = "estado")
     @Type( type = "delivery_estado")
     private DeliveryEstado estado;
+
+    @Column(name = "fecha_concluido")
+     private LocalDateTime fechaConcluido;
 }
 
 

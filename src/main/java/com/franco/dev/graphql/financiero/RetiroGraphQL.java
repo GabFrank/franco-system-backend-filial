@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -67,7 +68,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         return service.findByCajaSalidaId(id);
     }
 
-
+    @Transactional
     public Retiro saveRetiro(RetiroInput input, List<RetiroDetalleInput> retiroDetalleInputList, String printerName, String local) throws GraphQLException {
         ModelMapper m = new ModelMapper();
         Retiro e = m.map(input, Retiro.class);
@@ -79,17 +80,14 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             e.setCajaEntrada(pdvCajaService.findById(input.getCajaEntradaId()).orElse(null));
         if (input.getResponsableId() != null)
             e.setResponsable(funcionarioService.findById(input.getResponsableId()).orElse(null));
-
         Retiro retiro = service.saveAndSend(e, false);
-
         if (retiro != null) {
             for (RetiroDetalleInput r : retiroDetalleInputList) {
                 r.setRetiroId(retiro.getId());
                 r.setUsuarioId(retiro.getUsuario().getId());
                 r.setCreadoEn(retiro.getCreadoEn());
-                if(r.getCantidad()!=null && r.getCantidad()>0) retiroDetalleGraphQL.saveRetiroDetalle(r);
+                if (r.getCantidad() != null && r.getCantidad() > 0) retiroDetalleGraphQL.saveRetiroDetalle(r);
             }
-
             RetiroDto retiroDto = new RetiroDto();
             retiroDto.setId(retiro.getId());
             retiroDto.setCajaId(retiro.getCajaSalida().getId());
@@ -102,6 +100,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             impresionService.printRetiro(retiroDto, printerName, local, false);
         }
         return retiro;
+
     }
 
 //    public List<Retiro> retirosSearch(String texto){

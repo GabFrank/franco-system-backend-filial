@@ -1,23 +1,26 @@
 package com.franco.dev.service.productos;
 
 import com.franco.dev.domain.productos.CostoPorProducto;
-import com.franco.dev.repository.productos.CostosPorSucursalRepository;
+import com.franco.dev.domain.productos.PrecioPorSucursal;
+import com.franco.dev.repository.productos.CostosPorProductoRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 @AllArgsConstructor
-public class CostosPorSucursalService extends CrudService<CostoPorProducto, CostosPorSucursalRepository> {
+public class CostosPorProductoService extends CrudService<CostoPorProducto, CostosPorProductoRepository> {
 
     @Autowired
-    private final CostosPorSucursalRepository repository;
+    private final CostosPorProductoRepository repository;
 //    private final PersonaPublisher personaPublisher;
 
 
     @Override
-    public CostosPorSucursalRepository getRepository() {
+    public CostosPorProductoRepository getRepository() {
         return repository;
     }
 
@@ -29,5 +32,10 @@ public class CostosPorSucursalService extends CrudService<CostoPorProducto, Cost
         return repository.findByMovimientoStockId(id);
     }
 
-
+    @Override
+    public CostoPorProducto save(CostoPorProducto entity) {
+        if(entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
+        CostoPorProducto p = super.save(entity);
+        return p;
+    }
 }

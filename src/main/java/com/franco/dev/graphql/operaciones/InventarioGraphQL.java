@@ -91,7 +91,7 @@ public class InventarioGraphQL implements GraphQLQueryResolver, GraphQLMutationR
         Inventario i = service.findById(id).orElse(null);
         if(i!=null) {
             ok = service.deleteById(id);
-            propagacionService.deleteEntidad(i, TipoEntidad.INVENTARIO);
+//            propagacionService.deleteEntidad(i, TipoEntidad.INVENTARIO);
         }
         return ok;
     }

@@ -1,22 +1,26 @@
 package com.franco.dev;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
 import com.franco.dev.service.configuracion.UpdateService;
+import com.franco.dev.service.utils.biometric.BiometricService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.Environment;
 import org.springframework.orm.jpa.support.OpenEntityManagerInViewFilter;
 import org.springframework.retry.annotation.EnableRetry;
-import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -27,8 +31,10 @@ import javax.servlet.Filter;
 import java.io.IOException;
 import java.util.Collections;
 
+@EnableRabbit
 @EnableRetry
 @SpringBootApplication
+@EnableScheduling
 public class FrancoSystemsApplication {
 
     public final static String SFG_MESSAGE_QUEUE = "test-queue";
@@ -60,6 +66,7 @@ public class FrancoSystemsApplication {
         return new SincronizacionStatusPublisher();
     }
 
+
     /**
      * Register the {@link OpenEntityManagerInViewFilter} so that the
      * GraphQL-Servlet can handle lazy loads during execution.
@@ -85,14 +92,29 @@ public class FrancoSystemsApplication {
         return bean;
     }
 
+    @Bean
+    public Hibernate5Module hibernate5Module() {
+        return new Hibernate5Module();
+    }
+
     @PostConstruct
     public void setUp() {
         objectMapper
                 .registerModule(new JavaTimeModule())
                 .registerModule(new ParameterNamesModule());
-
-//        updateService.checkForUpdates();
     }
 
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
+    }
+
+    @Bean
+    public FlywayMigrationStrategy cleanMigrateStrategy() {
+        return flyway -> {
+            flyway.repair();
+            flyway.migrate();
+        };
+    }
 
 }

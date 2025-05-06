@@ -18,6 +18,7 @@ public interface TransferenciaItemRepository extends HelperRepository<Transferen
 //    @Query("select p from SolicitudCompra p left outer join p.proveedor as pro left outer join pro.persona as per where LOWER(per.nombre) like %?1%")
 //    public List<SolicitudCompra> findByProveedor(String texto);
 
+    public List<TransferenciaItem> findByTransferenciaId(Long id);
     public List<TransferenciaItem> findByTransferenciaIdOrderByIdDesc(Long id, Pageable pageable);
     public List<TransferenciaItem> findByTransferenciaIdOrderByIdDesc(Long id);
     //    public List<Transferencia> findBySucursalDestinoId(Long id);

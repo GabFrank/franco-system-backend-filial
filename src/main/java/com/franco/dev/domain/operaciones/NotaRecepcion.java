@@ -59,6 +59,8 @@ public class NotaRecepcion implements Serializable {
     @Column(name = "creado_en")
     private LocalDateTime creadoEn;
 
+    private LocalDateTime fecha;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;

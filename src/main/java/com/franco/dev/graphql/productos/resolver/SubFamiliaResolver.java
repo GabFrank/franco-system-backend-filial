@@ -30,6 +30,9 @@ public class SubFamiliaResolver implements GraphQLResolver<Subfamilia> {
     private SubFamiliaService subFamiliaService;
 
     public Optional<Usuario> usuario(Subfamilia e){
+        if(e.getUsuarioId() == null){
+            return Optional.empty();
+        }
         return usuarioService.findById(e.getUsuarioId().getId());
     }
 

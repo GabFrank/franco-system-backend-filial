@@ -8,20 +8,43 @@ type Cliente {
     creadoEn: Date
     contactos: [Contacto]
     usuario: Usuario
+    sucursal: Sucursal
     codigo: String
     saldo: Float
+    tributa: Boolean
+    verificadoSet: Boolean
 }
 
 input ClienteInput {
     id:ID
     tipo: TipoCliente
-    nombre: String
-    documento: String
-    direccion: String
     personaId: Int
+    nombre: String
     credito: Float
-    codigo: String
+    direccion: String
+    creadoEn: Date
+    documento: String
     usuarioId: Int
+    saldo: Float
+    codigo: String
+    sucursalId: Int
+    tributa: Boolean
+    verificadoSet: Boolean
+}
+
+type ConsultaRucResponse {
+    procesamientoCorrecto: Boolean
+    mensajeProcesamiento: String
+    ruc: String
+    dv: String
+    estado: String
+    nombre: String
+    nombreFantasia: String
+    telefono: String
+    direccion: String
+    codigoEstablecimiento: Int
+    validacionCorrecta: Boolean
+    mensajeValidacion: String
 }
 
 extend type Query {
@@ -32,6 +55,7 @@ extend type Query {
     clientePorTelefono(texto:String): [Cliente]
     clientes(page:Int = 0, size:Int = 10):[Cliente]!
     countCliente: Int
+    consultaRuc(ruc: String): ConsultaRucResponse
 }
 
 extend type Mutation {

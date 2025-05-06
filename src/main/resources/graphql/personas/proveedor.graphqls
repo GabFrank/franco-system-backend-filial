@@ -13,7 +13,6 @@ type Proveedor {
 }
 
 input ProveedorInput {
-
     id:ID
     personaId: Int
     credito: Boolean

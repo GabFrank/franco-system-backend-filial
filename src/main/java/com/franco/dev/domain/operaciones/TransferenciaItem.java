@@ -39,7 +39,7 @@ public class TransferenciaItem implements Serializable {
     @Id
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "transferencia_id", nullable = true)
     private Transferencia transferencia;
 

@@ -2,9 +2,12 @@ package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.*;
+import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.CobroDetalle;
+import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
+import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto;
 import com.franco.dev.rabbit.enums.TipoEntidad;
@@ -14,17 +17,25 @@ import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.operaciones.CobroDetalleService;
 import com.franco.dev.service.operaciones.CobroService;
+import com.franco.dev.service.operaciones.DeliveryService;
 import com.franco.dev.service.operaciones.VentaService;
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
+import static com.franco.dev.utilitarios.DateUtils.stringToDate;
 import static com.franco.dev.utilitarios.DateUtils.toDate;
 
 @Service
@@ -63,6 +74,9 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     @Autowired
     private SucursalService sucursalService;
 
+    @Autowired
+    private DeliveryService deliveryService;
+
     @Override
     public PdvCajaRepository getRepository() {
         return repository;
@@ -77,11 +91,13 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public PdvCaja save(PdvCaja entity) throws GraphQLException {
         Maletin m = null;
-        if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
-        if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getId() == null)
+            entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getCreadoEn() == null)
+            entity.setCreadoEn(LocalDateTime.now());
         if (entity.getMaletin() != null) {
             m = maletinService.findById(entity.getMaletin().getId()).orElse(null);
             if (entity.getActivo() == true) {
@@ -106,11 +122,13 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public PdvCaja saveAndSend(PdvCaja entity, Boolean recibir) throws GraphQLException {
         Maletin m = null;
-        if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
-        if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getId() == null)
+            entity.setCreadoEn(LocalDateTime.now());
+        if (entity.getCreadoEn() == null)
+            entity.setCreadoEn(LocalDateTime.now());
         if (entity.getMaletin() != null) {
             m = maletinService.findById(entity.getMaletin().getId()).orElse(null);
             if (entity.getActivo() == true) {
@@ -123,19 +141,18 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                 }
             }
         }
-
         List<PdvCaja> aux = repository.findByUsuarioIdAndActivo(entity.getUsuario().getId(), true);
 
         if (aux.size() > 0 && !aux.get(0).getId().equals(entity.getId()))
             throw new GraphQLException("Ya existe una caja abierta");
-        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null)
+            entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         PdvCaja e = super.save(entity);
         maletinService.save(m);
-        propagacionService.propagarEntidad(e, TipoEntidad.PDV_CAJA, recibir);
-        propagacionService.propagarEntidad(m, TipoEntidad.MALETIN, recibir);
+        // propagacionService.propagarEntidad(e, TipoEntidad.PDV_CAJA, recibir);
+        // propagacionService.propagarEntidad(m, TipoEntidad.MALETIN, recibir);
         return e;
     }
-
 
     public PdvCaja findByUsuarioIdAndAbierto(Long id) {
         List<PdvCaja> pdvCajaList = repository.findByUsuarioIdAndActivo(id, true);
@@ -153,131 +170,154 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         return super.deleteById(pdvCaja.getId());
     }
 
-//    public PdvCajaBalanceDto generarBalance(PdvCaja pdvCaja){
-//        PdvCajaBalanceDto balance = new PdvCajaBalanceDto();
-//        if(pdvCaja!=null){
-//            balance.setIdCaja(pdvCaja.getId());
-//            List<ConteoMoneda> conteoMonedaAperList = conteoMonedaService.findByConteoId(pdvCaja.getConteoApertura().getId());
-//            List<ConteoMoneda> conteoMonedaCierreList = conteoMonedaService.findByConteoId(pdvCaja.getConteoCierre().getId());
-//            List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCajaId(pdvCaja.getId());
-//            List<RetiroDetalle> retiroDetalleList = retiroDetalleService.findByCajId(pdvCaja.getId());
-//            List<Gasto> gastoList = gastoService.findByCajaId(pdvCaja.getId());
-//            if(!conteoMonedaAperList.isEmpty() && !conteoMonedaCierreList.isEmpty()){
-//                Double totalGsAper = 0.0;
-//                Double totalRsAper = 0.0;
-//                Double totalDsAper = 0.0;
-//                Double totalGsCierre = 0.0;
-//                Double totalRsCierre = 0.0;
-//                Double totalDsCierre = 0.0;
-//                for(ConteoMoneda c: conteoMonedaAperList){
-//                    if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("GUARANI")){
-//                        totalGsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
-//                    } else if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("REAL")){
-//                        totalRsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
-//                    } else if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("DOLAR")){
-//                        totalDsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
-//                    }
-//                }
-//                for(ConteoMoneda c: conteoMonedaCierreList){
-//                    if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("GUARANI")){
-//                        totalGsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
-//                    } else if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("REAL")){
-//                        totalRsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
-//                    } else if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("DOLAR")){
-//                        totalDsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
-//                    }
-//                }
-//                balance.setTotalGsAper(totalGsAper);
-//                balance.setTotalRsAper(totalRsAper);
-//                balance.setTotalDsAper(totalDsAper);
-//                balance.setTotalGsCierre(totalGsCierre);
-//                balance.setTotalRsCierre(totalRsCierre);
-//                balance.setTotalDsCierre(totalDsCierre);
-//
-//            }
-////            List<MovimientoCaja> movimientoCajaList = movimientoCajaService.findByPdvCajaId(pdvCaja.getId());
-//            Double totalVentaGs = 0.0;
-//            Double totalVentaRs = 0.0;
-//            Double totalVentaDs = 0.0;
-//            Double totalRetiroGs = 0.0;
-//            Double totalRetiroRs = 0.0;
-//            Double totalRetiroDs = 0.0;
-//            Double totalTarjeta = 0.0;
-//            Double totalGastoGs = 0.0;
-//            Double totalGastoRs = 0.0;
-//            Double totalGastoDs = 0.0;
-//            for(RetiroDetalle retiroDetalle: retiroDetalleList){
-//                if(retiroDetalle.getMoneda().getDenominacion().contains("GUARANI")){
-//                    totalRetiroGs += retiroDetalle.getCantidad();
-//                }
-//                else if(retiroDetalle.getMoneda().getDenominacion().contains("REAL")){
-//                    totalRetiroRs += retiroDetalle.getCantidad();
-//
-//                }
-//                else if(retiroDetalle.getMoneda().getDenominacion().contains("DOLAR")){
-//                    totalRetiroDs += retiroDetalle.getCantidad();
-//                }
-//            }
-//            for(Gasto gasto: gastoList){
-//                totalGastoGs += gasto.getRetiroGs();
-//                totalGastoRs += gasto.getRetiroRs();
-//                totalGastoDs += gasto.getRetiroDs();
-//            }
-//            for(CobroDetalle cobroDetalle: cobroDetalleList){
-//                if(cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")){
-//                    if(cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")){
-//                        totalVentaGs += cobroDetalle.getValor();
-//                    } else if(cobroDetalle.getFormaPago().getDescripcion().contains("TARJETA")){
-//                        totalTarjeta += cobroDetalle.getValor();
-//                    }
-//                }
-//                else if(cobroDetalle.getMoneda().getDenominacion().contains("REAL")){
-//                    if(cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")){
-//                        totalVentaRs += cobroDetalle.getValor();
-//                    }
-//                }
-//                else if(cobroDetalle.getMoneda().getDenominacion().contains("DOLAR")){
-//                    if(cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")){
-//                        totalVentaDs += cobroDetalle.getValor();
-//                    }
-//                }
-//            }
-//            balance.setTotalRetiroGs(totalRetiroGs);
-//            balance.setTotalRetiroRs(totalRetiroRs);
-//            balance.setTotalRetiroDs(totalRetiroDs);
-//            balance.setTotalGastoGs(totalGastoGs);
-//            balance.setTotalGastoRs(totalGastoRs);
-//            balance.setTotalGastoDs(totalGastoDs);
-//            balance.setTotalTarjeta(totalTarjeta);
-//            balance.setTotalVentaGs(totalVentaGs);
-//            balance.setTotalVentaRs(totalVentaRs);
-//            balance.setTotalVentaDs(totalVentaDs);
-//            balance.setUsuario(pdvCaja.getUsuario());
-//            balance.setFechaApertura(pdvCaja.getFechaApertura());
-//            balance.setFechaCierre(pdvCaja.getFechaCierre());
-//            balance.setDiferenciaGs(balance.getTotalGsCierre() - balance.getTotalGsAper() + balance.getTotalRetiroGs() + balance.getTotalGastoGs() - balance.getTotalVentaGs());
-//            balance.setDiferenciaRs(balance.getTotalRsCierre() - balance.getTotalRsAper() + balance.getTotalRetiroRs() + balance.getTotalGastoRs() - balance.getTotalVentaRs());
-//            balance.setDiferenciaDs(balance.getTotalDsCierre() - balance.getTotalDsAper() + balance.getTotalRetiroDs() + balance.getTotalGastoDs() - balance.getTotalVentaDs());
-//        }
-//        return balance;
-//    }
+    // public PdvCajaBalanceDto generarBalance(PdvCaja pdvCaja){
+    // PdvCajaBalanceDto balance = new PdvCajaBalanceDto();
+    // if(pdvCaja!=null){
+    // balance.setIdCaja(pdvCaja.getId());
+    // List<ConteoMoneda> conteoMonedaAperList =
+    // conteoMonedaService.findByConteoId(pdvCaja.getConteoApertura().getId());
+    // List<ConteoMoneda> conteoMonedaCierreList =
+    // conteoMonedaService.findByConteoId(pdvCaja.getConteoCierre().getId());
+    // List<CobroDetalle> cobroDetalleList =
+    // cobroDetalleService.findByCajaId(pdvCaja.getId());
+    // List<RetiroDetalle> retiroDetalleList =
+    // retiroDetalleService.findByCajId(pdvCaja.getId());
+    // List<Gasto> gastoList = gastoService.findByCajaId(pdvCaja.getId());
+    // if(!conteoMonedaAperList.isEmpty() && !conteoMonedaCierreList.isEmpty()){
+    // Double totalGsAper = 0.0;
+    // Double totalRsAper = 0.0;
+    // Double totalDsAper = 0.0;
+    // Double totalGsCierre = 0.0;
+    // Double totalRsCierre = 0.0;
+    // Double totalDsCierre = 0.0;
+    // for(ConteoMoneda c: conteoMonedaAperList){
+    // if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("GUARANI")){
+    // totalGsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
+    // } else
+    // if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("REAL")){
+    // totalRsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
+    // } else
+    // if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("DOLAR")){
+    // totalDsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
+    // }
+    // }
+    // for(ConteoMoneda c: conteoMonedaCierreList){
+    // if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("GUARANI")){
+    // totalGsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
+    // } else
+    // if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("REAL")){
+    // totalRsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
+    // } else
+    // if(c.getMonedaBilletes().getMoneda().getDenominacion().contains("DOLAR")){
+    // totalDsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
+    // }
+    // }
+    // balance.setTotalGsAper(totalGsAper);
+    // balance.setTotalRsAper(totalRsAper);
+    // balance.setTotalDsAper(totalDsAper);
+    // balance.setTotalGsCierre(totalGsCierre);
+    // balance.setTotalRsCierre(totalRsCierre);
+    // balance.setTotalDsCierre(totalDsCierre);
+    //
+    // }
+    //// List<MovimientoCaja> movimientoCajaList =
+    // movimientoCajaService.findByPdvCajaId(pdvCaja.getId());
+    // Double totalVentaGs = 0.0;
+    // Double totalVentaRs = 0.0;
+    // Double totalVentaDs = 0.0;
+    // Double totalRetiroGs = 0.0;
+    // Double totalRetiroRs = 0.0;
+    // Double totalRetiroDs = 0.0;
+    // Double totalTarjeta = 0.0;
+    // Double totalGastoGs = 0.0;
+    // Double totalGastoRs = 0.0;
+    // Double totalGastoDs = 0.0;
+    // for(RetiroDetalle retiroDetalle: retiroDetalleList){
+    // if(retiroDetalle.getMoneda().getDenominacion().contains("GUARANI")){
+    // totalRetiroGs += retiroDetalle.getCantidad();
+    // }
+    // else if(retiroDetalle.getMoneda().getDenominacion().contains("REAL")){
+    // totalRetiroRs += retiroDetalle.getCantidad();
+    //
+    // }
+    // else if(retiroDetalle.getMoneda().getDenominacion().contains("DOLAR")){
+    // totalRetiroDs += retiroDetalle.getCantidad();
+    // }
+    // }
+    // for(Gasto gasto: gastoList){
+    // totalGastoGs += gasto.getRetiroGs();
+    // totalGastoRs += gasto.getRetiroRs();
+    // totalGastoDs += gasto.getRetiroDs();
+    // }
+    // for(CobroDetalle cobroDetalle: cobroDetalleList){
+    // if(cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")){
+    // if(cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")){
+    // totalVentaGs += cobroDetalle.getValor();
+    // } else if(cobroDetalle.getFormaPago().getDescripcion().contains("TARJETA")){
+    // totalTarjeta += cobroDetalle.getValor();
+    // }
+    // }
+    // else if(cobroDetalle.getMoneda().getDenominacion().contains("REAL")){
+    // if(cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")){
+    // totalVentaRs += cobroDetalle.getValor();
+    // }
+    // }
+    // else if(cobroDetalle.getMoneda().getDenominacion().contains("DOLAR")){
+    // if(cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")){
+    // totalVentaDs += cobroDetalle.getValor();
+    // }
+    // }
+    // }
+    // balance.setTotalRetiroGs(totalRetiroGs);
+    // balance.setTotalRetiroRs(totalRetiroRs);
+    // balance.setTotalRetiroDs(totalRetiroDs);
+    // balance.setTotalGastoGs(totalGastoGs);
+    // balance.setTotalGastoRs(totalGastoRs);
+    // balance.setTotalGastoDs(totalGastoDs);
+    // balance.setTotalTarjeta(totalTarjeta);
+    // balance.setTotalVentaGs(totalVentaGs);
+    // balance.setTotalVentaRs(totalVentaRs);
+    // balance.setTotalVentaDs(totalVentaDs);
+    // balance.setUsuario(pdvCaja.getUsuario());
+    // balance.setFechaApertura(pdvCaja.getFechaApertura());
+    // balance.setFechaCierre(pdvCaja.getFechaCierre());
+    // balance.setDiferenciaGs(balance.getTotalGsCierre() - balance.getTotalGsAper()
+    // + balance.getTotalRetiroGs() + balance.getTotalGastoGs() -
+    // balance.getTotalVentaGs());
+    // balance.setDiferenciaRs(balance.getTotalRsCierre() - balance.getTotalRsAper()
+    // + balance.getTotalRetiroRs() + balance.getTotalGastoRs() -
+    // balance.getTotalVentaRs());
+    // balance.setDiferenciaDs(balance.getTotalDsCierre() - balance.getTotalDsAper()
+    // + balance.getTotalRetiroDs() + balance.getTotalGastoDs() -
+    // balance.getTotalVentaDs());
+    // }
+    // return balance;
+    // }
 
     public PdvCajaBalanceDto generarBalance(PdvCaja pdvCaja) {
         PdvCajaBalanceDto balance = new PdvCajaBalanceDto();
-        if (pdvCaja != null && pdvCaja.getConteoApertura() != null && pdvCaja.getConteoCierre() != null) {
+        if (pdvCaja != null && pdvCaja.getConteoApertura() != null) {
             balance.setIdCaja(pdvCaja.getId());
-            List<ConteoMoneda> conteoMonedaAperList = conteoMonedaService.findByConteoId(pdvCaja.getConteoApertura().getId());
-            List<ConteoMoneda> conteoMonedaCierreList = conteoMonedaService.findByConteoId(pdvCaja.getConteoCierre().getId());
+            List<ConteoMoneda> conteoMonedaAperList = conteoMonedaService
+                    .findByConteoId(pdvCaja.getConteoApertura().getId());
+            List<ConteoMoneda> conteoMonedaCierreList = pdvCaja.getConteoCierre() != null
+                    ? conteoMonedaService.findByConteoId(pdvCaja.getConteoCierre().getId())
+                    : new ArrayList<>();
             List<RetiroDetalle> retiroDetalleList = retiroDetalleService.findByCajId(pdvCaja.getId());
             List<Gasto> gastoList = gastoService.findByCajaId(pdvCaja.getId());
             List<Venta> ventaList = ventaService.findAllByCajaId(pdvCaja.getId());
-            if (!conteoMonedaAperList.isEmpty() && !conteoMonedaCierreList.isEmpty()) {
+            List<Delivery> deliveryList = deliveryService.getRepository().findDeliveryByCajaEstadoAndSucId(
+                    pdvCaja.getId(),
+                    Arrays.asList(DeliveryEstado.CONCLUIDO, DeliveryEstado.PARA_ENTREGA, DeliveryEstado.ENTREGADO),
+                    pdvCaja.getSucursalId());
+            if (!conteoMonedaAperList.isEmpty()) {
                 Double totalGsAper = 0.0;
                 Double totalRsAper = 0.0;
                 Double totalDsAper = 0.0;
                 Double totalGsCierre = 0.0;
                 Double totalRsCierre = 0.0;
                 Double totalDsCierre = 0.0;
+
                 for (ConteoMoneda c : conteoMonedaAperList) {
                     if (c.getMonedaBilletes().getMoneda().getDenominacion().contains("GUARANI")) {
                         totalGsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
@@ -287,6 +327,16 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                         totalDsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
                     }
                 }
+                balance.setTotalGsAper(totalGsAper);
+                balance.setTotalRsAper(totalRsAper);
+                balance.setTotalDsAper(totalDsAper);
+
+            }
+
+            if (!conteoMonedaCierreList.isEmpty()) {
+                Double totalGsCierre = 0.0;
+                Double totalRsCierre = 0.0;
+                Double totalDsCierre = 0.0;
                 for (ConteoMoneda c : conteoMonedaCierreList) {
                     if (c.getMonedaBilletes().getMoneda().getDenominacion().contains("GUARANI")) {
                         totalGsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
@@ -296,15 +346,13 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                         totalDsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
                     }
                 }
-                balance.setTotalGsAper(totalGsAper);
-                balance.setTotalRsAper(totalRsAper);
-                balance.setTotalDsAper(totalDsAper);
                 balance.setTotalGsCierre(totalGsCierre);
                 balance.setTotalRsCierre(totalRsCierre);
                 balance.setTotalDsCierre(totalDsCierre);
 
             }
-//            List<MovimientoCaja> movimientoCajaList = movimientoCajaService.findByPdvCajaId(pdvCaja.getId());
+            // List<MovimientoCaja> movimientoCajaList =
+            // movimientoCajaService.findByPdvCajaId(pdvCaja.getId());
             Double totalGeneral = 0.0;
             Double totalVentaGs = 0.0;
             Double totalVentaRs = 0.0;
@@ -325,6 +373,13 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             Double vueltoGs = 0.0;
             Double vueltoRs = 0.0;
             Double vueltoDs = 0.0;
+            Double totalDelivery = 0.0;
+
+            for (Delivery delivery : deliveryList) {
+                if (delivery.getEstado().equals(DeliveryEstado.CONCLUIDO)) {
+                    totalDelivery = +delivery.getPrecio().getValor();
+                }
+            }
 
             for (RetiroDetalle retiroDetalle : retiroDetalleList) {
                 if (retiroDetalle.getMoneda().getDenominacion().contains("GUARANI")) {
@@ -348,43 +403,45 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                 Cobro cobro = cobroService.findById(venta.getCobro().getId()).orElse(null);
                 if (cobro != null) {
                     List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(cobro.getId());
-                    if (venta.getEstado() == VentaEstado.CONCLUIDA || venta.getEstado() == VentaEstado.EN_VERIFICACION) {
+                    if (venta.getEstado() == VentaEstado.CONCLUIDA
+                            || venta.getEstado() == VentaEstado.EN_VERIFICACION) {
                         for (CobroDetalle cobroDetalle : cobroDetalleList) {
                             if (cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")) {
                                 if (cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")) {
-                                    if (cobroDetalle.getDescuento()) {
+                                    if (cobroDetalle.getDescuento() != null && cobroDetalle.getDescuento()) {
                                         totalDescuento += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getAumento()) {
+                                    } else if (cobroDetalle.getAumento() != null && cobroDetalle.getAumento()) {
                                         totalAumento += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getVuelto()) {
+                                    } else if (cobroDetalle.getVuelto() != null && cobroDetalle.getVuelto()) {
                                         vueltoGs += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getPago()) {
+                                    } else if (cobroDetalle.getPago() != null && cobroDetalle.getPago()) {
                                         totalVentaGs += cobroDetalle.getValor();
                                     }
                                 } else if (cobroDetalle.getFormaPago().getDescripcion().contains("TARJETA")) {
-                                    totalTarjeta += cobroDetalle.getValor();
+                                    if (cobroDetalle.getAumento() != null && !cobroDetalle.getAumento())
+                                        totalTarjeta += cobroDetalle.getValor();
                                 } else if (cobroDetalle.getFormaPago().getDescripcion().contains("CONVENIO")) {
                                     totalConvenio += cobroDetalle.getValor();
                                 }
                             } else if (cobroDetalle.getMoneda().getDenominacion().contains("REAL")) {
                                 if (cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")) {
-                                    if (cobroDetalle.getAumento()) {
+                                    if (cobroDetalle.getAumento() != null && cobroDetalle.getAumento()) {
                                         totalAumento += cobroDetalle.getValor() * cobroDetalle.getCambio();
-                                    } else if (cobroDetalle.getVuelto()) {
+                                    } else if (cobroDetalle.getVuelto() != null && cobroDetalle.getVuelto()) {
                                         vueltoRs += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getPago()) {
+                                    } else if (cobroDetalle.getPago() != null && cobroDetalle.getPago()) {
                                         totalVentaRs += cobroDetalle.getValor();
                                     }
                                 }
                             } else if (cobroDetalle.getMoneda().getDenominacion().contains("DOLAR")) {
                                 if (cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")) {
-                                    if (cobroDetalle.getAumento()) {
+                                    if (cobroDetalle.getAumento() != null && cobroDetalle.getAumento()) {
                                         totalAumento += cobroDetalle.getValor() * cobroDetalle.getCambio();
-                                    } else if (cobroDetalle.getVuelto()) {
+                                    } else if (cobroDetalle.getVuelto() != null && cobroDetalle.getVuelto()) {
                                         vueltoDs += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getPago()) {
+                                    } else if (cobroDetalle.getPago() != null && cobroDetalle.getPago()) {
                                         totalVentaDs += cobroDetalle.getValor();
-                                    } else if (cobroDetalle.getPago()) {
+                                    } else if (cobroDetalle.getPago() != null && cobroDetalle.getPago()) {
                                         totalVentaDs += cobroDetalle.getValor();
                                     }
                                 }
@@ -442,9 +499,12 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             balance.setUsuario(pdvCaja.getUsuario());
             balance.setFechaApertura(pdvCaja.getFechaApertura());
             balance.setFechaCierre(pdvCaja.getFechaCierre());
-            balance.setDiferenciaGs(balance.getTotalGsCierre() - balance.getTotalGsAper() - totalVentaGs - vueltoGs + totalRetiroGs + totalGastoGs + totalDescuento);
-            balance.setDiferenciaRs(balance.getTotalRsCierre() - balance.getTotalRsAper() - totalVentaRs - vueltoRs + totalRetiroRs + totalGastoRs);
-            balance.setDiferenciaDs(balance.getTotalDsCierre() - balance.getTotalDsAper() - totalVentaDs - vueltoDs + totalRetiroDs + totalGastoDs);
+            balance.setDiferenciaGs(balance.getTotalGsCierre() - balance.getTotalGsAper() - totalVentaGs - vueltoGs
+                    + totalRetiroGs + totalGastoGs);
+            balance.setDiferenciaRs(balance.getTotalRsCierre() - balance.getTotalRsAper() - totalVentaRs - vueltoRs
+                    + totalRetiroRs + totalGastoRs);
+            balance.setDiferenciaDs(balance.getTotalDsCierre() - balance.getTotalDsAper() - totalVentaDs - vueltoDs
+                    + totalRetiroDs + totalGastoDs);
             balance.setSucursal((Sucursal) sucursalService.findById(pdvCaja.getSucursalId()).orElse(null));
         }
         return balance;
@@ -457,6 +517,10 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             impresionService.printBalance(balanceDto, printerName, local);
         }
         return pdvCaja;
+    }
+
+    public Page<PdvCaja> findAllWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId, String fechaInicio, String fechaFin, Long sucId, Boolean verificado, Pageable pageable) {
+        return repository.findAllWithFilters(cajaId, estado, maletinId, cajeroId, fechaInicio != null ? stringToDate(fechaInicio) : null, fechaFin != null ? stringToDate(fechaFin) : null, sucId, verificado, pageable);
     }
 
     public CajaBalance getBalance(Long id) {
@@ -502,5 +566,5 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         PdvCaja caja = repository.findFirstByMaletinIdOrderByCreadoEnDesc(id).orElse(null);
         return caja;
     }
-}
 
+}

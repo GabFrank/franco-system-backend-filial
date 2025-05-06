@@ -26,11 +26,11 @@ public interface MovimientoCajaRepository extends HelperRepository<MovimientoCaj
     public List<MovimientoCaja> findByPdvCajaIdAndActivo(Long id, Boolean activo);
 
     @Query(value = "select sum(mc.cantidad) as total from financiero.movimiento_caja mc " +
-            "where mc.caja_id = ?1 and mc.tipo_movimiento = 'VENTA' and mc.moneda_id = ?2", nativeQuery = true)
+            "where mc.caja_id = ?1 and mc.tipo_movimiento = 'VENTA' and mc.moneda_id = ?2 and mc.activo = true", nativeQuery = true)
     public Double findTotalVentaByCajaIdAndMonedaId(Long id, Long monedaId);
 
     @Query(value="select sum(mc.cantidad) from financiero.movimiento_caja mc " +
-            "where mc.caja_id = ?1 and mc.moneda_id = ?2", nativeQuery = true)
+            "where mc.caja_id = ?1 and mc.moneda_id = ?2 and mc.activo = true", nativeQuery = true)
     public Double totalEnCajaByCajaIdandMonedaId(Long id, Long monedaId);
 
 }

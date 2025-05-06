@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.domain.financiero.TimbradoDetalle;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
@@ -29,9 +30,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import static com.franco.dev.utilitarios.DateUtils.stringToDate;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component
 public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
@@ -95,7 +99,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     }
 
     public List<Delivery> deliverysByEstadoList(List<DeliveryEstado> estadoList, Long sucId) {
-        return service.findByEstadoList(estadoList, sucId);
+        return service.getRepository().findDeliveryByEstadoAndSucId(estadoList, sucId);
     }
 
     public List<Delivery> deliverysByEstadoNotIn(DeliveryEstado estado, Long sucId) {
@@ -106,7 +110,6 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         return service.findTop10();
     }
 
-
     public Delivery saveDelivery(DeliveryInput input) {
         ModelMapper m = new ModelMapper();
         Delivery e = m.map(input, Delivery.class);
@@ -115,9 +118,6 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         }
         if (input.getFuncionarioId() != null) {
             e.setEntregador(funcionarioService.findById(input.getFuncionarioId()).orElse(null));
-        }
-        if (input.getVentaId() != null) {
-            e.setVenta(ventaService.findById(input.getVentaId()).orElse(null));
         }
         if (input.getPrecioId() != null) {
             e.setPrecio(deliveryPrecioService.findById(input.getPrecioId()).orElse(null));
@@ -129,11 +129,16 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         if (input.getVueltoId() != null) {
             e.setVuelto(vueltoService.findById(input.getVueltoId()).orElse(null));
         }
+        if(input.getFechaConcluido() != null) {
+            e.setFechaConcluido(stringToDate(input.getFechaConcluido()));
+        }
         return service.saveAndSend(e, false);
     }
 
     @Transactional
-    public Delivery saveDeliveryAndVenta(DeliveryInput deliveryInput, VentaInput ventaInput, List<VentaItemInput> ventaItemInputList, VueltoInput vueltoInput, List<VueltoItemInput> vueltoItemInputList, CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleInputList) throws GraphqlErrorException {
+    public Delivery saveDeliveryAndVenta(DeliveryInput deliveryInput, VentaInput ventaInput,
+            List<VentaItemInput> ventaItemInputList, VueltoInput vueltoInput, List<VueltoItemInput> vueltoItemInputList,
+            CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleInputList) throws GraphqlErrorException {
         Delivery delivery = null;
         try {
             if (cobroInput == null && cobroDetalleInputList != null) {
@@ -141,19 +146,35 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                 cobroInput.setUsuarioId(deliveryInput.getUsuarioId());
             }
 
-            Cobro cobro = cobroInput != null ? cobroGraphQL.saveCobro(cobroInput, cobroDetalleInputList, ventaInput.getCajaId()) : null;
+            Cobro cobro = cobroInput != null
+                    ? cobroGraphQL.saveCobro(cobroInput, cobroDetalleInputList, ventaInput.getCajaId())
+                    : null;
 
             if (cobro != null) {
                 ventaInput.setCobroId(cobro.getId());
             }
 
-            Venta venta = ventaGraphQL.saveVenta(ventaInput);
+            delivery = saveDelivery(deliveryInput);
+            if (delivery != null) {
+                ventaInput.setDeliveryId(delivery.getId());
+            }
+            Venta venta = null;
+            if (ventaInput.getId() != null) {
+                venta = ventaService.findById(ventaInput.getId()).orElse(null);
+                ventaInput.setEstado(venta.getEstado());
+                ventaInput.setCajaId(venta.getCaja().getId());
+                ventaInput.setTotalGs(venta.getTotalGs());
+                ventaInput.setTotalRs(venta.getTotalRs());
+                ventaInput.setTotalDs(venta.getTotalDs());
+                ventaInput.setDeliveryId(venta.getDelivery().getId());
+            }
+            venta = ventaGraphQL.saveVenta2(ventaInput);
             if (venta != null) {
-                List<VentaItem> ventaItemList = ventaItemInputList.size() > 0 ? ventaItemGraphQL.saveVentaItemList(ventaItemInputList, venta.getId()) : null;
-                deliveryInput.setVentaId(venta.getId());
+                List<VentaItem> ventaItemList = ventaItemInputList.size() > 0
+                        ? ventaItemGraphQL.saveVentaItemList(ventaItemInputList, venta.getId())
+                        : null;
             }
 
-            delivery = saveDelivery(deliveryInput);
             if (delivery != null) {
                 return delivery;
             } else {
@@ -170,26 +191,29 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         return service.deleteById(id);
     }
 
-    public Delivery saveDeliveryEstado(Long deliveryId, DeliveryEstado deliveryEstado, String printerName, String local, Long pdvId) throws GraphQLException {
+    public Delivery saveDeliveryEstado(Long deliveryId, DeliveryEstado deliveryEstado, String printerName, String local,
+            Long pdvId) throws GraphQLException {
         Delivery delivery = service.findById(deliveryId).orElse(null);
+        Venta venta = ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(),
+                delivery.getSucursalId());
         try {
             delivery.setEstado(deliveryEstado);
             delivery = service.saveAndSend(delivery, false);
             switch (deliveryEstado) {
                 case PARA_ENTREGA:
-                    List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(delivery.getVenta().getId(), null);
+                    List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
                     if (pdvId != null) {
                         FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
-                        if (delivery.getVenta().getCliente() == null) {
+                        if (venta.getCliente() == null) {
                             facturaLegalInput.setNombre("SIN NOMBRE");
                             facturaLegalInput.setRuc("X");
                         } else {
-                            facturaLegalInput.setNombre(delivery.getVenta().getCliente().getPersona().getNombre());
-                            facturaLegalInput.setRuc(delivery.getVenta().getCliente().getPersona().getDocumento());
+                            facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
+                            facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
                         }
-                        facturaLegalInput.setVentaId(delivery.getVenta().getId());
+                        facturaLegalInput.setVentaId(venta.getId());
                         facturaLegalInput.setCredito(false);
-                        facturaLegalInput.setUsuarioId(delivery.getVenta().getUsuario().getId());
+                        facturaLegalInput.setUsuarioId(venta.getUsuario().getId());
                         List<FacturaLegalItemInput> facturaLegalItemInputList = new ArrayList<>();
                         for (VentaItem vi : ventaItemList) {
                             FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
@@ -211,17 +235,21 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                         fiInput.setPrecioUnitario(delivery.getPrecio().getValor());
                         fiInput.setTotal(delivery.getPrecio().getValor());
                         facturaLegalItemInputList.add(fiInput);
-//                        SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta, facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
-                        Boolean facturado = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, facturaLegalItemInputList, printerName, pdvId);
-                        if (facturado == false) throw new GraphQLException("Problema al generar factura");
+                        // SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta,
+                        // facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
+                        TimbradoDetalle timbradoDetalle = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
+                                facturaLegalItemInputList, printerName, pdvId, true);
+                        if (timbradoDetalle == null)
+                            throw new GraphQLException("Problema al generar factura");
                     } else {
-                        ventaGraphQL.printTicket58mm(delivery.getVenta(), null, ventaItemList, null, false, printerName, local, false, null, delivery);
+                        ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, false, printerName, local, false,
+                                null, delivery);
                     }
-                    ventaGraphQL.printTicket58mm(delivery.getVenta(), null, ventaItemList, null, true, printerName, local, false, null, delivery);
+                    ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true, printerName, local, false,
+                            null, delivery);
                     break;
                 case CONCLUIDO:
                     delivery.setEstado(DeliveryEstado.CONCLUIDO);
-                    Venta venta = delivery.getVenta();
                     venta.setEstado(VentaEstado.CONCLUIDA);
                     ventaService.saveAndSend(venta, false);
                     service.saveAndSend(delivery, false);
@@ -236,14 +264,24 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
     public Boolean reimprimirDelivery(Long id, String printerName, String local) {
         Delivery delivery = service.findById(id).orElse(null);
+        Venta venta = ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(),
+                delivery.getSucursalId());
         try {
-            List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(delivery.getVenta().getId(), null);
-            ventaGraphQL.printTicket58mm(delivery.getVenta(), null, ventaItemList, null, true, printerName, local, false, null, delivery);
+            List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
+            ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true, printerName, local, false, null,
+                    delivery);
             return true;
         } catch (Exception e) {
             e.printStackTrace();
             throw new GraphQLException("Delivery no encontrado");
         }
+    }
+
+    public List<Delivery> deliveryPorCajaIdAndEstados(Long id, List<DeliveryEstado> estadoList, Long sucId) {
+        if (sucId == null)
+            sucId = service.env.getProperty("sucursalId", Long.class);
+        List<Delivery> deliveryList = service.getRepository().findDeliveryByCajaEstadoAndSucId(id, estadoList, sucId);
+        return deliveryList;
     }
 
     public Long countDelivery() {

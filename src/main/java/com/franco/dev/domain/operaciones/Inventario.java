@@ -37,7 +37,7 @@ public class Inventario implements Serializable {
 
     private Long idOrigen;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "sucursal_id", nullable = true)
     private Sucursal sucursal;
 
@@ -57,6 +57,10 @@ public class Inventario implements Serializable {
     private Boolean abierto;
 
     private String observacion;
+//
+//    @ManyToOne(fetch = FetchType.EAGER)
+//    @JoinColumn(name = "sesion_inventario", nullable = true)
+//    private SesionInventario sesionInventario;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)

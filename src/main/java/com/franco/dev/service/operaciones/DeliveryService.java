@@ -1,5 +1,6 @@
 package com.franco.dev.service.operaciones;
 
+import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.graphql.operaciones.publisher.DeliveryPublisher;
@@ -27,26 +28,16 @@ public class DeliveryService extends CrudService<Delivery, DeliveryRepository> {
         return repository;
     }
 
-    public List<Delivery> findByEstado(DeliveryEstado estado){
-        return  repository.findByEstado(estado);
+    public List<Delivery> findByEstado(DeliveryEstado estado) {
+        return repository.findByEstado(estado);
     }
 
-    public List<Delivery> findByEstadoList(List<DeliveryEstado> estadoList, Long sucId){
-        Iterable<Delivery> deliveryIterable = repository.findByEstadoIn(estadoList);
-        return StreamSupport.stream(deliveryIterable.spliterator(), false)
-                .collect(Collectors.toList());
+    public List<Delivery> findByEstadoNotIn(DeliveryEstado estado) {
+        return repository.findActivos();
     }
 
-    public List<Delivery> findByEstadoNotIn(DeliveryEstado estado){
-        return  repository.findActivos();
-    }
-
-    public List<Delivery> findTop10(){
+    public List<Delivery> findTop10() {
         return repository.findUltimos10();
-    }
-
-    public Delivery findByVentaId(Long id, Long sucId){
-        return repository.findByVentaIdAndSucursalId(id, sucId);
     }
 
     @Override
@@ -61,7 +52,7 @@ public class DeliveryService extends CrudService<Delivery, DeliveryRepository> {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         Delivery e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.DELIVERY, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.DELIVERY, recibir);
         return e;
     }
 }

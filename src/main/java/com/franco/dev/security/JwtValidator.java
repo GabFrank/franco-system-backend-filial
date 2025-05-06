@@ -1,6 +1,5 @@
 package com.franco.dev.security;
 
-import com.franco.dev.domain.personas.Usuario;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import org.springframework.stereotype.Component;
@@ -24,8 +23,7 @@ public class JwtValidator {
 
             jwtUser.setNickname((String) body.get("nickname"));
             jwtUser.setPassword((String) body.get("password"));
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             System.out.println(e);
         }
 

@@ -71,7 +71,7 @@ public class InventarioProductoItemGraphQL implements GraphQLQueryResolver, Grap
         InventarioProductoItem i = service.findById(id).orElse(null);
         if(i!=null) {
             ok = service.deleteById(id);
-            propagacionService.deleteEntidad(i, TipoEntidad.INVENTARIO_PRODUCTO_ITEM);
+//            propagacionService.deleteEntidad(i, TipoEntidad.INVENTARIO_PRODUCTO_ITEM);
         }
         return ok;
     }

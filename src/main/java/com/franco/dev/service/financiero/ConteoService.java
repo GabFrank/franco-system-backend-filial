@@ -6,8 +6,11 @@ import com.franco.dev.repository.financiero.ConteoRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+
 
 @Service
 @AllArgsConstructor
@@ -35,16 +38,18 @@ public class ConteoService extends CrudService<Conteo, ConteoRepository> {
     }
 
     @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Conteo save(Conteo entity) {
         Conteo e = super.save(entity);
         return e;
     }
 
     @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Conteo saveAndSend(Conteo entity, Boolean recibir) {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Conteo e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.CONTEO, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.CONTEO, recibir);
         return e;
     }
 }

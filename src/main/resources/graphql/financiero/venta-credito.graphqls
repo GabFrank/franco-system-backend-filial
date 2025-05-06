@@ -13,6 +13,7 @@ type VentaCredito {
     estado: EstadoVentaCredito
     creadoEn: Date
     usuario: Usuario
+    fechaCobro: Date
 }
 
 input VentaCreditoInput {
@@ -29,6 +30,7 @@ input VentaCreditoInput {
     interesMoraDia: Float
     estado: EstadoVentaCredito
     usuarioId: Int
+    fechaCobro: String
 }
 
 enum TipoConfirmacion {
@@ -38,6 +40,14 @@ enum TipoConfirmacion {
     LECTOR_HUELLAS,
     FIRMA,
     APP
+}
+
+extend type Query {
+    imprimirVentaCredito(id:ID!, sucId:ID!, printerName:String):Boolean
+}
+
+extend type Mutation {
+    cobrarVentaCredito(ventaCreditoInputList: [VentaCreditoInput], cobroList: [CobroDetalleInput]): Boolean
 }
 
 enum EstadoVentaCredito {

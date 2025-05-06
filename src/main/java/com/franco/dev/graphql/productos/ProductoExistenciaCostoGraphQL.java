@@ -2,7 +2,7 @@ package com.franco.dev.graphql.productos;
 
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
-import com.franco.dev.service.productos.CostosPorSucursalService;
+import com.franco.dev.service.productos.CostosPorProductoService;
 import com.franco.dev.service.productos.ProductoService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -22,7 +22,7 @@ public class ProductoExistenciaCostoGraphQL implements GraphQLQueryResolver, Gra
     private SucursalService sucursalService;
 
     @Autowired
-    private CostosPorSucursalService costosPorSucursalService;
+    private CostosPorProductoService costosPorProductoService;
 
 //    public List<ProductoExistenciaCosto> productoExistenciaCostosPorProveedor(Long proId, String text) {
 //        List<ProductoExistenciaCosto> productoExistenciaCostoList = new ArrayList<>();

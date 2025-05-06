@@ -26,7 +26,9 @@ public class VentaCreditoCuota implements Serializable {
 
     private Long sucursalId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    private Long sucursalCobroId;
+
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "venta_credito_id", nullable = true)
     private VentaCredito ventaCredito;
 

@@ -43,7 +43,7 @@ public class VentaCreditoService extends CrudService<VentaCredito, VentaCreditoR
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         VentaCredito e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.VENTA_CREDITO, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.VENTA_CREDITO, recibir);
         return e;
     }
 }

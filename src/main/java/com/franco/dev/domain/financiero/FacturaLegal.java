@@ -70,6 +70,7 @@ public class FacturaLegal implements Serializable {
     private Double totalParcial10;
 
     private Double totalFinal;
+    private Double descuento;
 
     private Boolean activo;
 

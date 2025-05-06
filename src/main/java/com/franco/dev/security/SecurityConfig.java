@@ -39,19 +39,15 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http.cors().and().csrf().disable()
-                .authorizeRequests().antMatchers("**/graphql/**").permitAll()
-                .and()
-                .authorizeRequests().antMatchers("**/subscriptions/**").permitAll()
+                .authorizeRequests()
+                .antMatchers("/public/**").permitAll()  // Public endpoints
+                .antMatchers("**/graphql/**", "**/subscriptions/**", "graphiql").authenticated()  // Protected endpoints
                 .and()
                 .exceptionHandling().authenticationEntryPoint(entryPoint)
                 .and()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
-                .authorizeRequests().antMatchers("graphiql").permitAll();
-
-
-        http.addFilterBefore(authenticationTokenFilter(), UsernamePasswordAuthenticationFilter.class);
-        http.headers().cacheControl();
-
+                .addFilterBefore(authenticationTokenFilter(), UsernamePasswordAuthenticationFilter.class)
+                .headers().cacheControl();
     }
 }

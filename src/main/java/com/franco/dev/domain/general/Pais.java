@@ -1,6 +1,8 @@
 package com.franco.dev.domain.general;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.franco.dev.domain.personas.Usuario;
+import com.franco.dev.utilitarios.JsonIdView;
 import com.franco.dev.utilitarios.PostgreSQLEnumType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -23,6 +25,7 @@ public class Pais implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
+    @JsonView(JsonIdView.Id.class)
     private Long id;
 
     private String descripcion;

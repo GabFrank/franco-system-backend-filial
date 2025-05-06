@@ -23,6 +23,8 @@ import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +35,8 @@ import java.util.Optional;
 
 @Component
 public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    private static final Logger log = LoggerFactory.getLogger(CobroGraphQL.class);
 
     @Autowired
     private CobroService service;
@@ -60,6 +64,7 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         ModelMapper m = new ModelMapper();
         Cobro e = m.map(input, Cobro.class);
         if(e.getUsuario()!=null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
+        log.info("Entrando en el save and send");
         Cobro cobro = service.saveAndSend(e, false);
         if(cobro!=null){
             for(CobroDetalleInput c : cobroDetalleList){
@@ -86,6 +91,7 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     public Boolean deleteCobro(Long id, Long sucId){
         List<CobroDetalle> cobroDetalleList = cobroDetalleGraphQL.cobroDetallePorCobroId(id, null);
+        service.deleteById(id);
         for(CobroDetalle c : cobroDetalleList){
             movimientoCajaGraphQL.desactivarByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.VENTA, c.getId(), null);
             return true;

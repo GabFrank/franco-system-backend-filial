@@ -51,13 +51,13 @@ public abstract class CrudService<T, Repository extends HelperRepository<T, Long
     }
 
     @Transactional
-    public T save(T entity) {
+    public synchronized T save(T entity) {
         return getRepository().save(entity);
     }
 
 
     @Transactional
-    public T saveAndSend(T entity, Boolean recibir) {
+    public synchronized T saveAndSend(T entity, Boolean recibir) {
         return (T) getRepository().save(entity);
     }
 

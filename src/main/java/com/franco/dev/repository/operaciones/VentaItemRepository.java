@@ -2,6 +2,7 @@ package com.franco.dev.repository.operaciones;
 
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.repository.HelperRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 
@@ -21,5 +22,7 @@ public interface VentaItemRepository extends HelperRepository<VentaItem, Long> {
 
     public List<VentaItem> findByVentaId(Long id);
 
-
+    @Query(value = "select sum(vi.cantidad * vi.precio) from operaciones.venta_item vi " +
+            "where vi.venta_id = ?1 and vi.sucursal_id = ?2", nativeQuery = true)
+    Double totalByVentaIdAndSucId(Long id, Long sucId);
 }

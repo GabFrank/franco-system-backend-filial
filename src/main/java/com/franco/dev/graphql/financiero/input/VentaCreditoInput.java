@@ -4,6 +4,8 @@ import com.franco.dev.domain.financiero.enums.EstadoVentaCredito;
 import com.franco.dev.domain.financiero.enums.TipoConfirmacion;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class VentaCreditoInput {
     private Long id;
@@ -19,4 +21,6 @@ public class VentaCreditoInput {
     private Integer interesMoraPorDia;
     private EstadoVentaCredito estado;
     private Long usuarioId;
+    private String fechaCobro;
+
 }

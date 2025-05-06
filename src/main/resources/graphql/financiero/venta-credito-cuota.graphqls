@@ -8,6 +8,7 @@ type VentaCreditoCuota {
     vencimiento: Date
     creadoEn: Date
     usuario: Usuario
+    sucursalCobroId: Int
 }
 
 input VentaCreditoCuotaInput {
@@ -19,4 +20,5 @@ input VentaCreditoCuotaInput {
     activo: Boolean
     vencimiento: String
     usuarioId: Int
+    sucursalCobroId: Int
 }

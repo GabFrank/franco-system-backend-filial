@@ -1,169 +1,199 @@
 package com.franco.dev.service.configuracion;
 
-import com.franco.dev.domain.configuracion.Actualizacion;
-import com.franco.dev.service.rabbitmq.PropagacionService;
-import com.franco.dev.service.utils.ImageService;
-import com.franco.dev.utilitarios.InfoTool;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.update4j.Configuration;
-import org.update4j.FileMetadata;
+import org.springframework.web.client.RestTemplate;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.net.URL;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 @Service
 public class UpdateService {
 
-    @Autowired
-    private DownloadService downloadService;
+    private static final String GITHUB_REPO = "GabFrank/franco-system-backend-filial";
+    private static final String JAR_NAME = "frc-server.jar";
+    private static final String LATEST_RELEASE_URL = "https://api.github.com/repos/" + GITHUB_REPO + "/releases/latest";
+    private final RestTemplate restTemplate = new RestTemplate();
 
-    @Autowired
-    private ImageService imageService;
+    @Value("${app.version}")
+    private String appVersion;
 
     @Autowired
     private Environment env;
 
     @Autowired
-    private ActualizacionService actualizacionService;
+    private ApplicationContext context;
 
-    private Logger log = LoggerFactory.getLogger(UpdateService.class);
-
-    public Boolean runUpdate(String tag, String fileName) {
-        log.info("Consultando permisos");
-        if (checkPermissions()) {
-            log.info("Permiso concedido");
-            return downloadUpdate(env.getProperty("updateRepository") + "/" + tag + "/" + fileName);
-
-        } else {
-            log.info("No hay permisos necesarios para realizar la actualizacion");
-            return false;
-        }
+    public static String readFileAsString(Path filePath) throws IOException {
+        byte[] fileBytes = Files.readAllBytes(filePath);
+        return new String(fileBytes, StandardCharsets.UTF_8);
     }
 
-    public Boolean checkForUpdates(){
-        log.info("Verificando actualizacion");
-        String currentVersion = env.getProperty("app.java.version");
-        Actualizacion actualizacion = actualizacionService.findLast();
-        if(actualizacion!=null){
-            if(!currentVersion.equals(actualizacion.getCurrentVersion())){
-                log.info("Actual: "+ currentVersion);
-                log.info("Encontrada: "+ actualizacion.getCurrentVersion());
-                log.info("Iniciando actualizacion");
-                return runUpdate(actualizacion.getCurrentVersion(), actualizacion.getTitle());
-            } else {
-                log.info("Actualizacion al dia");
-            }
-        }
-        return false;
+    public static void writeStringToFile(Path filePath, String content) throws IOException {
+        byte[] fileBytes = content.getBytes(StandardCharsets.UTF_8);
+        Files.write(filePath, fileBytes);
     }
 
-    private boolean checkPermissions() {
-        File updateFolder = new File(imageService.appPath);
+    public static boolean downloadNewVersion(String urlString, Path homePath) {
+        Boolean verifyOk = verifyIfFileExists(urlString, homePath);
+        if (!verifyOk) {
+            try (InputStream in = new URL(urlString).openStream();
+                 ReadableByteChannel rbc = Channels.newChannel(in);
+                 FileOutputStream fos = new FileOutputStream(homePath.resolve("frc-server-update.jar").toFile())) {
 
-        //Check for permission to Create
-        try {
-            File sample = new File(updateFolder.getAbsolutePath() + File.separator + "empty123123124122354345436.txt");
-            /*
-             * Create and delete a dummy file in order to check file
-             * permissions. Maybe there is a safer way for this check.
-             */
-            sample.createNewFile();
-            sample.delete();
-        } catch (IOException e) {
-            //Error message shown to user. Operation is aborted
-            return false;
-        }
-
-        //Also check for Read and Write Permissions
-        return updateFolder.canRead() && updateFolder.canWrite();
-    }
-
-    private Boolean downloadUpdate(String downloadURL) {
-        Process process = null;
-        if (InfoTool.isReachableByPing("www.google.com")) {
-            log.info("Descargando archivo....");
-            Boolean downloadOk = downloadService.startDownload(downloadURL, imageService.appPath + "update" + File.separator + "frc-server.jar");
-            if (downloadOk) {
-                boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
-                if (isWindows) {
-                    try {
-                        log.info("borrando jar antiguo");
-                        deleteFile(imageService.appPath + File.separator + "frc-server" + File.separator + "frc-server.jar");
-                        String source = imageService.appPath + File.separator + "update" + File.separator + "frc-server.jar";
-                        String dest = imageService.appPath + File.separator + "frc-server" + File.separator + "frc-server.jar";
-                        final ArrayList<String> command = new ArrayList<String>();
-                        log.info("Ejecutando comandos");
-                        command.add("C:\\Windows\\System32\\cmd.exe /c copy " + source + " " + dest);
-                        command.add("&&");
-                        command.add("net stop frc-server");
-                        command.add("&&");
-                        command.add("net startt frc-server");
-                        final ProcessBuilder builder = new ProcessBuilder(command);
-                        builder.start();
-                        System.exit(0);
-
-                        return true;
-                    } catch (IOException e) {
-                        log.info("Ocurrio un problema el ejecutar el archivo");
-                        log.info(e.toString());
-                    }
+                long fileSize = new URL(urlString).openConnection().getContentLengthLong();
+                ByteBuffer buffer = ByteBuffer.allocateDirect(1024);
+                long totalBytesRead = 0;
+                int bytesRead;
+                while ((bytesRead = rbc.read(buffer)) != -1) {
+                    totalBytesRead += bytesRead;
+                    ((Buffer) buffer).flip();
+                    fos.getChannel().write(buffer);
+                    ((Buffer) buffer).clear();
+                    int progress = (int) ((totalBytesRead * 100) / fileSize);
+                    System.out.print("\rDownload progress: " + progress + "%");
                 }
+
+                System.out.println("\nDownload completed successfully.");
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.out.println("Download failed.");
+                return false;
             }
+        } else {
+            return true;
+        }
+    }
+
+    private static Boolean verifyIfFileExists(String urlString, Path homePath) {
+        Path filePath = homePath.resolve("frc-server-update.jar");
+
+        try {
+            long remoteFileSize = new URL(urlString).openConnection().getContentLengthLong();
+            if (Files.exists(filePath)) {
+                long localFileSize = Files.size(filePath);
+                if (localFileSize == remoteFileSize) {
+                    System.out.println("The file already exists and has the correct size.");
+                    return true;
+                } else {
+                    System.out.println("The existing file is incomplete. Downloading a new copy...");
+                }
+            } else {
+                System.out.println("The file does not exist. Downloading...");
+            }
+        } catch (IOException e) {
+            System.out.println("Verifiyng failed.");
+            return false;
         }
         return false;
     }
 
-    private void executeTask(Process p) throws InterruptedException, ExecutionException {
-        StreamGobbler streamGobbler =
-                new StreamGobbler(p.getInputStream(), System.out::println);
-        Future<?> future = Executors.newSingleThreadExecutor().submit(streamGobbler);
-
-        int exitCode = 0;
-        exitCode = p.waitFor();
-        assert exitCode == 0;
-        future.get();
+    @Scheduled(fixedRate = 300000) // Run every 5 minutes (300,000 milliseconds)
+    public void checkForNewRelease() {
+//        try {
+//            System.out.println("Verificando nueva version");
+//            String latestRelease = restTemplate.getForObject(LATEST_RELEASE_URL, String.class);
+//            System.out.println("latestRelease: " + latestRelease);
+//            if (latestRelease != null) {
+//                JSONObject jsonObject = new JSONObject(latestRelease);
+//                String latestVersion = jsonObject.optString("tag_name", "");
+//                JSONArray assets = jsonObject.optJSONArray("assets");
+//                System.out.println("Version instalada: " + appVersion);
+//                System.out.println("Version encontrada: " + latestVersion);
+//                if (appVersion.equals(latestVersion)) {
+//                    System.out.println("Ya posee la ultima version instalada");
+//                } else if (!latestVersion.isEmpty() && assets != null) {
+//                    System.out.println("Existe una nueva version. Descargando...");
+//                    System.out.println(latestVersion);
+//
+//                    String updateJsonUrl = "https://github.com/GabFrank/franco-system-backend-filial/releases/download/" + latestVersion + "/frc-server.jar";
+//                    System.out.println("updateJsonUrl: " + updateJsonUrl);
+//                    if (updateJsonUrl != null) {
+//                        System.out.println("Iniciando proceso de descarga");
+//                        String homePath = env.getProperty("jarPath");
+//                        if (homePath != null) {
+//                            Path path = Paths.get(homePath);
+//                            Boolean ok = downloadNewVersion(updateJsonUrl, path);
+//                            if (ok) {
+//                                System.out.println("Descargado con exito y se puede actualizar");
+//                                String osName = System.getProperty("os.name");
+//                                Boolean isWindows = osName.toUpperCase().contains("Windows".toUpperCase());
+//                                Boolean isMac = osName.toUpperCase().contains("Mac".toUpperCase());
+//                                Boolean isLinux = osName.toUpperCase().contains("nux".toUpperCase());
+//
+//                                if (isWindows) {
+//                                    System.out.println("Is windows");
+//                                    try {
+//                                        Process process = Runtime.getRuntime().exec(homePath + "/selfUpdate.bat");
+//                                        int exitCode = process.waitFor();
+//                                        if (exitCode != 0) {
+//                                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+//                                                String line;
+//                                                while ((line = reader.readLine()) != null) {
+//                                                    System.out.println(line);
+//                                                }
+//                                            }
+//                                        }
+//                                    } catch (IOException e) {
+//                                        e.printStackTrace();
+//                                    } catch (InterruptedException e) {
+//                                        Thread.currentThread().interrupt();
+//                                    }
+//                                } else if (isMac) {
+//                                    System.out.println("Is mac");
+//
+//                                } else if (isLinux) {
+//                                    System.out.println("Is linux");
+//                                    try {
+//                                        // Assuming homePath is a String with the directory path where the script is located
+//                                        ProcessBuilder processBuilder = new ProcessBuilder("nohup", homePath + "/selfUpdate.sh");
+//                                        processBuilder.redirectErrorStream(true); // Redirects error stream to the input stream
+//                                        Process process = processBuilder.start();
+//
+//                                        // Read output from the executed script
+//                                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+//                                            String line;
+//                                            while ((line = reader.readLine()) != null) {
+//                                                System.out.println(line);
+//                                            }
+//                                        }
+//
+//                                        // Wait for the process to complete and check for errors
+//                                        int exitCode = process.waitFor();
+//                                        if (exitCode != 0) {
+//                                            System.out.println("Script exited with error code: " + exitCode);
+//                                        }
+//                                    } catch (IOException e) {
+//                                        e.printStackTrace();
+//                                    } catch (InterruptedException e) {
+//                                        Thread.currentThread().interrupt();
+//                                    }
+//                                }
+//                            } else {
+//                                System.out.println("Ocurrio un error y no se puede actualizar");
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            System.out.println("Error al verificar y descargar la nueva versión: " + e.getMessage());
+//        }
     }
-
-    public boolean deleteFile(String path) {
-        return new File(path).delete();
-    }
-
-    public void doUpdate(String url){
-        Configuration.Builder cb = Configuration.builder()
-
-                // base URI from where to download, overridable in
-                // each individual file setting
-                .baseUri(url)
-
-                // base path where to save on client machine, overridable in
-                // each individual file setting
-                .basePath(imageService.appPath+File.separator+"update")
-
-                // List this property
-                .property("app.name", "FrancoSystemsApplication")
-
-                // Automatically resolves system property
-                .property("user.location", imageService.appPath+File.separator+"frc-server")
-
-        // List this file, uri and path are same as filename
-        // Read metadata from real file on dev machine
-        // Will be dynamically loaded on the modulepath
-             .file(FileMetadata.readFrom("frc-server.jar")
-                .modulepath());
-
-
-// Once all settings are set, let's build it
-        Configuration config = cb.build();
-    }
-
 }

@@ -14,17 +14,17 @@ public interface ProductoRepository extends HelperRepository<Producto, Long> {
 
     public Producto findByDescripcion(String texto);
 
-    @Query(value = "select distinct on (p.id, p.descripcion) p.id, p.descripcion, p.balanza , p.cambiable , p.combo , p.creado_en , p.descripcion_factura , p.dias_vencimiento, p.es_alcoholico , p.garantia, p.imagenes , p.ingrediente , p.iva, p.observacion , p.promocion , p.propagado , p.stock , p.sub_familia_id , p.tiempo_garantia , p.tipo_conservacion , p.unidad_por_caja , p.unidad_por_caja_secundaria , p.usuario_id , p.vencimiento, p.is_envase, p.envase_id  \n" +
+    @Query(value = "select distinct on (p.id, p.descripcion) p.*  \n" +
             "from productos.producto p \n" +
             "left outer join productos.presentacion p2 on p2.producto_id = p.id \n" +
             "left outer join productos.codigo c on c.presentacion_id = p2.id \n" +
-            "where CAST(p.id as text) like %?1% or UPPER(p.descripcion) like %?1% or UPPER(p.descripcion_factura) like %?1% or c.codigo like %?1% " +
+            "where (CAST(p.id as text) like %?1% or UPPER(p.descripcion) like %?1% or UPPER(p.descripcion_factura) like %?1% or c.codigo like %?1%) and p.activo = true " +
             "ORDER BY p.descripcion asc \n" +
             "limit 10 " +
             "offset ?2", nativeQuery = true)
     public List<Producto> findbyAll(String texto, int offset);
 
-    @Query(value = "select distinct on (p.id, p.descripcion) p.id, p.descripcion, p.balanza , p.cambiable , p.combo , p.creado_en , p.descripcion_factura , p.dias_vencimiento, p.es_alcoholico , p.garantia, p.imagenes , p.ingrediente , p.iva, p.observacion , p.promocion , p.propagado , p.stock , p.sub_familia_id , p.tiempo_garantia , p.tipo_conservacion , p.unidad_por_caja , p.unidad_por_caja_secundaria , p.usuario_id , p.vencimiento,p.is_envase, p.envase_id  \n" +
+    @Query(value = "select distinct on (p.id, p.descripcion) p.*  \n" +
             "from productos.producto p \n" +
             "left outer join productos.presentacion p2 on p2.producto_id = p.id \n" +
             "left outer join productos.codigo c on c.presentacion_id = p2.id \n" +
@@ -45,7 +45,7 @@ public interface ProductoRepository extends HelperRepository<Producto, Long> {
     @Query(value = "select * from productos.producto p " +
             "left join productos.presentacion p2 on p2.producto_id = p.id " +
             "left join productos.codigo c on c.presentacion_id = p2.id " +
-            "where c.codigo = ?1", nativeQuery = true)
+            "where c.codigo = ?1 and p.activo = true", nativeQuery = true)
     public Producto findByCodigo(String texto);
 
     @Query(value = "select * from productos.producto p \n" +

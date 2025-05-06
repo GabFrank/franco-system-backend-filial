@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 public class ClienteInput {
     private Long id;
-    private TipoCliente tipoCliente;
+    private TipoCliente tipo;
     private Float credito;
     private String codigo;
     private Long sucursalId;
@@ -15,4 +15,6 @@ public class ClienteInput {
     private String nombre;
     private String documento;
     private String direccion;
+    private Boolean tributa;
+    private Boolean verificadoSet;
 }

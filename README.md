@@ -2,6 +2,99 @@
 
 Anotaciones de cambios discriminado por fechas
 
+-------------------------------------------------------------------------------------------------------
+07-03-2024
+-- Solo para servidores
+
+ALTER TABLE operaciones.pedido_item ADD nota_recepcion_id int8 NULL;
+ALTER TABLE operaciones.pedido_item ADD CONSTRAINT pedido_item_fk FOREIGN KEY (nota_recepcion_id) REFERENCES operaciones.nota_recepcion(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE operaciones.pedido ADD tipo_boleta varchar NULL;
+ALTER TABLE operaciones.nota_recepcion ADD tipo_boleta varchar NULL;
+
+CREATE TABLE operaciones.pedido_sucursal_influencia (
+	id bigserial NOT NULL,
+	pedido_id int8 NOT NULL,
+	sucursal_id int8 NOT NULL,
+	creado_en timestamp NULL,
+	usuario_id int8 NULL,
+	CONSTRAINT pedido_sucursal_influencia_pkey PRIMARY KEY (id),
+	CONSTRAINT pedido_sucursal_influencia_un UNIQUE (pedido_id, sucursal_id),
+	CONSTRAINT pedido_sucursal_influencia_entrega_fk FOREIGN KEY (usuario_id) REFERENCES personas.usuario(id) ON DELETE SET NULL ON UPDATE SET NULL,
+	CONSTRAINT pedido_sucursal_influencia_fk FOREIGN KEY (sucursal_id) REFERENCES empresarial.sucursal(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT pedido_sucursal_influencia_pedido_fk FOREIGN KEY (pedido_id) REFERENCES operaciones.pedido(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE operaciones.pedido_sucursal_entrega (
+	id bigserial NOT NULL,
+	pedido_id int8 NOT NULL,
+	sucursal_id int8 NOT NULL,
+	creado_en timestamp NULL,
+	usuario_id int8 NULL,
+	CONSTRAINT pedido_sucursal_entrega_pkey PRIMARY KEY (id),
+	CONSTRAINT pedido_sucursal_entrega_un UNIQUE (pedido_id, sucursal_id),
+	CONSTRAINT pedido_sucursal_entrega_fk FOREIGN KEY (sucursal_id) REFERENCES empresarial.sucursal(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT pedido_sucursal_entrega_pedido_fk FOREIGN KEY (pedido_id) REFERENCES operaciones.pedido(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT pedido_sucursal_entrega_usuario_fk FOREIGN KEY (usuario_id) REFERENCES personas.usuario(id) ON DELETE SET NULL ON UPDATE SET NULL
+);
+
+
+CREATE TABLE operaciones.pedido_fecha_entrega (
+	id bigserial NOT NULL,
+	pedido_id int8 NOT NULL,
+	fecha_entrega timestamp NOT NULL,
+	creado_en timestamp NULL,
+	usuario_id int8 NULL,
+	CONSTRAINT pedido_fecha_entrega_pkey PRIMARY KEY (id),
+	CONSTRAINT pedido_fecha_entrega_un UNIQUE (pedido_id, fecha_entrega),
+	CONSTRAINT pedido_fecha_entrega_fk FOREIGN KEY (pedido_id) REFERENCES operaciones.pedido(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT pedido_fecha_entrega_usuario_fk FOREIGN KEY (usuario_id) REFERENCES personas.usuario(id) ON DELETE SET NULL ON UPDATE SET NULL
+);
+
+-------------------------------------------------------------------------------------------------------
+17-05-23
+ALTER TABLE operaciones.venta_item DROP CONSTRAINT venta_item_fk;
+ALTER TABLE operaciones.venta_item ADD CONSTRAINT venta_item_fk FOREIGN KEY (presentacion_id) REFERENCES productos.presentacion(id) ON DELETE SET NULL ON UPDATE CASCADE;
+
+
+-------------------------------------------------------------------------------------------------------
+17-04-23
+// para servidor
+ALTER TABLE financiero.venta_credito ADD sucursal_cobro_id int8 NULL;
+ALTER TABLE financiero.venta_credito ADD cobro_id int8 NULL;
+ALTER TABLE financiero.venta_credito ADD CONSTRAINT venta_credito_cobro_fk FOREIGN KEY (sucursal_cobro_id,cobro_id) REFERENCES operaciones.cobro(id,sucursal_id) ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+// para sucursal
+ALTER TABLE financiero.venta_credito ADD sucursal_cobro_id int8 NULL;
+ALTER TABLE financiero.venta_credito ADD cobro_id int8 NULL;
+ALTER TABLE financiero.venta_credito ADD CONSTRAINT venta_credito_fk FOREIGN KEY (cobro_id) REFERENCES operaciones.cobro(id);
+
+-------------------------------------------------------------------------------------------------------
+27-01-23 (only server): 
+
+- ALTER TABLE empresarial.sucursal ADD ip varchar NULL;
+- ALTER TABLE empresarial.sucursal ADD puerto int NULL;
+
+
+-------------------------------------------------------------------------------------------------------
+25-01-23 (ONLY filiales)
+- DROP TABLE configuraciones.rabbitmq_msg;
+
+- CREATE TABLE configuraciones.rabbitmq_msg (
+	id bigserial NOT NULL,
+	tipo_accion text NULL,
+	tipo_entidad text NULL,
+	entidad JSONB NULL,
+	id_sucursal_origen numeric NULL,
+	"data" text NULL,
+	recibido_en_servidor bool NULL,
+	recibido_en_filial bool NULL,
+	exchange text NULL,
+	"key" text NULL,
+	class_type text NULL,
+	CONSTRAINT rabbitmq_msg_pkey PRIMARY KEY (id)
+);
+
 
 -------------------------------------------------------------------------------------------------------
 11-01-23 (only server)

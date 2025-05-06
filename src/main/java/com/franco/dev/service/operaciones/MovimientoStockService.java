@@ -1,14 +1,20 @@
 package com.franco.dev.service.operaciones;
 
 import com.franco.dev.domain.operaciones.MovimientoStock;
+import com.franco.dev.domain.operaciones.StockPorProductoSucursal;
 import com.franco.dev.domain.operaciones.TransferenciaItem;
+import com.franco.dev.domain.operaciones.dto.MovimientoStockCantidadAndIdDto;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.MovimientoStockRepository;
 import com.franco.dev.service.CrudService;
+import com.franco.dev.service.empresarial.SucursalService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,17 +26,27 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
     @Autowired
     private TransferenciaItemService transferenciaItemService;
 
+    @Autowired
+    private StockPorProductoSucursalService stockPorProductoSucursalService;
+
+    @Autowired
+    private SucursalService sucursalService;
+
+    @Autowired
+    private Environment env;
+
     @Override
     public MovimientoStockRepository getRepository() {
         return repository;
     }
 
-    public Float stockByProductoIdAndSucursalId(Long proId) {
-        return repository.stockByProductoId(proId) != null ? repository.stockByProductoId(proId) : 0;
+    public Double stockByProductoIdAndSucursalId(Long proId) {
+        return Double.valueOf(stockByProductoId(proId));
     }
 
     public Float stockByProductoId(Long proId) {
-        return repository.stockByProductoId(proId) != null ? repository.stockByProductoId(proId) : 0;
+        Float stock = repository.stockByProductoId(proId);
+        return stock != null ? stock : 0;
     }
 
     public MovimientoStock findByProductoIdAndTIpoAndReferenciaId(Long proId, Long referenciaId) {
@@ -42,6 +58,7 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
     }
 
     @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public MovimientoStock save(MovimientoStock entity) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
@@ -51,12 +68,13 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
     }
 
     @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public MovimientoStock saveAndSend(MovimientoStock entity, Boolean recibir) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         MovimientoStock e = super.save(entity);
 //        personaPublisher.publish(p);
-        propagacionService.propagarEntidad(e, TipoEntidad.MOVIMIENTO_STOCK, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.MOVIMIENTO_STOCK, recibir);
         return e;
     }
 
@@ -85,11 +103,11 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
             if (ti.getMotivoRechazoPreTransferencia() == null && ti.getMotivoRechazoPreparacion() == null && ti.getMotivoRechazoTransporte() == null) {
                 MovimientoStock movimientoStock = new MovimientoStock();
                 movimientoStock.setEstado(true);
-                movimientoStock.setCantidad(ti.getCantidadTransporte() * ti.getPresentacionTransporte().getCantidad() * (-1));
+                movimientoStock.setCantidad(ti.getCantidadPreTransferencia() * ti.getPresentacionPreTransferencia().getCantidad() * (-1));
                 movimientoStock.setProducto(ti.getPresentacionPreTransferencia().getProducto());
-                movimientoStock.setReferencia(id);
+                movimientoStock.setReferencia(ti.getId());
                 movimientoStock.setTipoMovimiento(TipoMovimiento.TRANSFERENCIA);
-                save(movimientoStock);
+                saveAndSend(movimientoStock, false);
             }
             ok = true;
         }
@@ -97,17 +115,21 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
     }
 
     public Boolean altaStockPorTransferencia(Long id) {
+        log.info("Entrando en alta de stock");
         Boolean ok = false;
         List<TransferenciaItem> transferenciaItemList = transferenciaItemService.findByTransferenciaItemId(id);
         for (TransferenciaItem ti : transferenciaItemList) {
+            log.info("Item: " + ti.getPresentacionRecepcion().getProducto().getDescripcion());
             if (ti.getCantidadRecepcion() != null && ti.getMotivoRechazoRecepcion() == null) {
                 MovimientoStock movimientoStock = new MovimientoStock();
                 movimientoStock.setEstado(true);
                 movimientoStock.setCantidad(ti.getCantidadRecepcion() * ti.getPresentacionRecepcion().getCantidad());
                 movimientoStock.setProducto(ti.getPresentacionPreTransferencia().getProducto());
-                movimientoStock.setReferencia(id);
+                movimientoStock.setReferencia(ti.getId());
                 movimientoStock.setTipoMovimiento(TipoMovimiento.TRANSFERENCIA);
-                save(movimientoStock);
+                log.info("movimiento creado");
+                log.info(movimientoStock.toString());
+                saveAndSend(movimientoStock, false);
             }
             ok = true;
         }

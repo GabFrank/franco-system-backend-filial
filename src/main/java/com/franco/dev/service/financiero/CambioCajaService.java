@@ -39,7 +39,7 @@ public class CambioCajaService extends CrudService<CambioCaja, CambioCajaReposit
     public CambioCaja saveAndSend(CambioCaja entity, Boolean recibir) {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         CambioCaja e = super.save(entity);
-        propagacionService.propagarEntidad(e, TipoEntidad.CAMBIO_CAJA, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.CAMBIO_CAJA, recibir);
         return e;
     }
 

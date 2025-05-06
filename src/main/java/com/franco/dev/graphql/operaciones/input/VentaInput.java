@@ -18,4 +18,6 @@ public class VentaInput {
     private Double totalGs;
     private Double totalRs;
     private Double totalDs;
+    private Long sucursalId;
+    private Long deliveryId;
 }

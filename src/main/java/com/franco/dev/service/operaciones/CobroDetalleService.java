@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -39,6 +41,7 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
     }
 
     @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public CobroDetalle save(CobroDetalle entity) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
@@ -49,13 +52,24 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
     }
 
     @Override
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public CobroDetalle saveAndSend(CobroDetalle entity, Boolean recibir) {
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         CobroDetalle e = super.save(entity);
 //        personaPublisher.publish(p);
-        propagacionService.propagarEntidad(e, TipoEntidad.COBRO_DETALLE, recibir);
+//        propagacionService.propagarEntidad(e, TipoEntidad.COBRO_DETALLE, recibir);
         return e;
+    }
+
+    @Override
+    public Boolean deleteById(Long id) {
+        CobroDetalle cobro = findById(id).orElse(null);
+        Boolean ok = cobro!=null ? super.deleteById(id) : false;
+        if(ok){
+//            propagacionService.deleteEntidad(cobro.getId(), TipoEntidad.COBRO_DETALLE);
+        }
+        return ok;
     }
 }

@@ -3,6 +3,7 @@ package com.franco.dev.config;
 
 import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.domain.empresarial.Sucursal;
+import com.franco.dev.security.Unsecured;
 import com.franco.dev.service.configuracion.LocalService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.rabbitmq.PropagacionService;
@@ -12,10 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -23,7 +21,7 @@ import java.io.Serializable;
 import java.util.List;
 
 @RestController
-@RequestMapping("/config")
+@RequestMapping("/public")
 @CrossOrigin
 public class ConfigController {
 
@@ -58,7 +56,8 @@ public class ConfigController {
 //                verificado = false;
 //            }
 //        }
-        return propagacionService.initDb();
+//        return propagacionService.initDb();
+        return true;
     }
 
     @PostMapping
@@ -70,12 +69,21 @@ public class ConfigController {
         return sucursales.getSucursalList();
     }
 
+    @Unsecured
+    @RequestMapping(value = "/sucursal-actual")
+    @ResponseBody
+    public ResponseEntity<Sucursal> getSucursalActual() {
+        log.info("Enviando sucursal actual");
+        Sucursal sucursal = service.findById(Long.valueOf(env.getProperty("sucursalId"))).orElse(null);
+        return ResponseEntity.ok(sucursal);
+    }
+
     @PostMapping
     @RequestMapping(value = "/solicitardb")
     public Boolean solicitarDb() {
         String url = "http://" + env.getProperty("ipServidorCentral") + "/config/solicitardb";
         log.info("solicitando base de datos a " + url);
-        propagacionService.solicitarDB();
+//        propagacionService.solicitarDB();
         return true;
     }
 

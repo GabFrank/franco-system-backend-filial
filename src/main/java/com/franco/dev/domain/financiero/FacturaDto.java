@@ -20,6 +20,7 @@ public class FacturaDto {
     private String credito;
     private String totalParcial;
     private String total;
+    private String descuento;
     private String totalEnLetras;
     private String ivaParcial10;
     private String ivaParcial5;

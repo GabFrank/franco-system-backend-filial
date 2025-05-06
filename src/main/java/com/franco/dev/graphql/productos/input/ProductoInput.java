@@ -38,6 +38,7 @@ public class ProductoInput extends RabbitEntity {
     private TipoConservacion tipoConservacion;
     private Long subfamiliaId;
     private Long envaseId;
+    private Boolean activo;
 
     public ProductoInput converHashMapToInput(Object obj){
         ObjectMapper mapper = new ObjectMapper();
