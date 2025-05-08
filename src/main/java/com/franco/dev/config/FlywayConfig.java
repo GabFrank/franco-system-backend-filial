@@ -32,8 +32,14 @@ public class FlywayConfig {
     public FlywayConfigurationCustomizer flywayConfigurationCustomizer() {
         return configuration -> {
             try {
-                // Clean up duplicates before Flyway starts
-                cleanupDuplicateMigrations();
+                // Log runtime environment information to help debug duplication issues
+                logEnvironmentInfo();
+                
+                // Clean up duplicates in source directory first
+                cleanupDuplicateMigrationsInSourceDir();
+                
+                // Clean up duplicates in target directory
+                cleanupDuplicateMigrationsInTargetDir();
             } catch (Exception e) {
                 logger.error("Error cleaning up duplicate migrations", e);
             }
@@ -41,19 +47,56 @@ public class FlywayConfig {
     }
     
     /**
-     * Scans the classpath for duplicate Flyway migration files and removes them
+     * Log information about the runtime environment to help debug duplication issues
      */
-    private void cleanupDuplicateMigrations() throws IOException {
-        String targetDir = "target/classes/db/migration";
+    private void logEnvironmentInfo() {
+        logger.info("==== Environment Information ====");
+        logger.info("OS Name: {}", System.getProperty("os.name"));
+        logger.info("OS Version: {}", System.getProperty("os.version"));
+        logger.info("Java Version: {}", System.getProperty("java.version"));
+        logger.info("File Encoding: {}", System.getProperty("file.encoding"));
+        logger.info("User Dir: {}", System.getProperty("user.dir"));
+        logger.info("================================");
+    }
+    
+    /**
+     * Scans the source directory for duplicate Flyway migration files and removes them
+     */
+    private void cleanupDuplicateMigrationsInSourceDir() throws IOException {
+        String sourceDir = "src/main/resources/db/migration";
         
-        logger.info("Scanning for duplicate migrations in: {}", targetDir);
+        logger.info("Scanning for duplicate migrations in source directory: {}", sourceDir);
         
-        Path migrationPath = Paths.get(targetDir);
+        Path migrationPath = Paths.get(sourceDir);
         if (!Files.exists(migrationPath)) {
-            logger.info("Migration directory not found: {}", targetDir);
+            logger.info("Source migration directory not found: {}", sourceDir);
             return;
         }
         
+        cleanupDuplicatesInDirectory(migrationPath);
+    }
+    
+    /**
+     * Scans the classpath for duplicate Flyway migration files and removes them
+     */
+    private void cleanupDuplicateMigrationsInTargetDir() throws IOException {
+        String targetDir = "target/classes/db/migration";
+        
+        logger.info("Scanning for duplicate migrations in target directory: {}", targetDir);
+        
+        Path migrationPath = Paths.get(targetDir);
+        if (!Files.exists(migrationPath)) {
+            logger.info("Target migration directory not found: {}", targetDir);
+            return;
+        }
+        
+        cleanupDuplicatesInDirectory(migrationPath);
+    }
+    
+    /**
+     * Common logic to clean up duplicates in a directory
+     */
+    private void cleanupDuplicatesInDirectory(Path migrationPath) throws IOException {
         // Find all SQL migration files
         List<Path> migrationFiles = Files.walk(migrationPath)
             .filter(path -> path.toString().endsWith(".sql"))
@@ -62,6 +105,25 @@ public class FlywayConfig {
                 return filename.matches("V[0-9]+__.*\\.sql");
             })
             .collect(Collectors.toList());
+        
+        logger.info("Found {} migration files in {}", migrationFiles.size(), migrationPath);
+        
+        // Find all files with " 2." pattern (duplicates created by file system)
+        List<Path> dupFiles = Files.walk(migrationPath)
+            .filter(path -> path.getFileName().toString().contains(" 2."))
+            .collect(Collectors.toList());
+        
+        if (!dupFiles.isEmpty()) {
+            logger.warn("Found {} files with ' 2.' in their name in {}", dupFiles.size(), migrationPath);
+            for (Path dupFile : dupFiles) {
+                logger.info("Deleting duplicate with ' 2.' pattern: {}", dupFile);
+                try {
+                    Files.delete(dupFile);
+                } catch (IOException e) {
+                    logger.error("Failed to delete duplicate file: {}", dupFile, e);
+                }
+            }
+        }
         
         // Group files by migration version
         Map<Integer, List<Path>> versionToPathsMap = new HashMap<>();
@@ -81,6 +143,12 @@ public class FlywayConfig {
             
             if (paths.size() > 1) {
                 logger.warn("Found {} duplicate migrations for version V{}", paths.size(), version);
+                
+                // Log all duplicates for troubleshooting
+                for (Path path : paths) {
+                    logger.info("Duplicate for V{}: {} (Last modified: {})", 
+                              version, path, Files.getLastModifiedTime(path));
+                }
                 
                 // Sort by last modified time (newest first)
                 paths.sort((path1, path2) -> {
@@ -109,7 +177,7 @@ public class FlywayConfig {
             }
         }
         
-        logger.info("Duplicate migration cleanup complete");
+        logger.info("Duplicate migration cleanup complete for {}", migrationPath);
     }
     
     private int extractVersionNumber(String filename) {

@@ -8,9 +8,6 @@ import com.franco.dev.service.configuracion.LocalService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.GraphQLException;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
@@ -94,16 +91,5 @@ public class TokenController {
         LoginResponse response = new LoginResponse(usuario.getId(), jwtGenerator.generate(jwtUser), sucursalService.sucursalActual());
         return ResponseEntity.ok(response);
     }
-
-}
-
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-class LoginResponse {
-    Long usuarioId;
-    String token;
-    Sucursal sucursal;
 }
 

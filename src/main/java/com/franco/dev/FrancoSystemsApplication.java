@@ -94,19 +94,26 @@ public class FrancoSystemsApplication {
 
     @Bean
     public Hibernate5Module hibernate5Module() {
-        return new Hibernate5Module();
+        Hibernate5Module module = new Hibernate5Module();
+        module.configure(Hibernate5Module.Feature.FORCE_LAZY_LOADING, false);
+        module.configure(Hibernate5Module.Feature.SERIALIZE_IDENTIFIER_FOR_LAZY_NOT_LOADED_OBJECTS, true);
+        return module;
     }
 
     @PostConstruct
     public void setUp() {
         objectMapper
                 .registerModule(new JavaTimeModule())
-                .registerModule(new ParameterNamesModule());
+                .registerModule(new ParameterNamesModule())
+                .registerModule(hibernate5Module());
     }
 
     @Bean
     public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(hibernate5Module());
+        mapper.registerModule(new JavaTimeModule());
+        return mapper;
     }
 
     @Bean

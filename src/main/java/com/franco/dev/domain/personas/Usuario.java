@@ -1,6 +1,7 @@
 package com.franco.dev.domain.personas;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.franco.dev.domain.GenericDomain;
 import com.franco.dev.utilitarios.JsonIdView;
@@ -19,6 +20,7 @@ import java.time.LocalDateTime;
 @Entity
 @Builder
 @Table(name = "usuario", schema = "personas")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Usuario extends GenericDomain implements Serializable {
 
     private static final long serialVersionUID = 1L;

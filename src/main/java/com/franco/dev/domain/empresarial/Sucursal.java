@@ -1,5 +1,6 @@
 package com.franco.dev.domain.empresarial;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.franco.dev.domain.general.Ciudad;
 import com.franco.dev.domain.personas.Usuario;
 import lombok.AllArgsConstructor;
@@ -16,6 +17,7 @@ import java.util.Date;
 @NoArgsConstructor
 @Entity
 @Table(name = "sucursal", schema = "empresarial")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Sucursal implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -40,7 +42,7 @@ public class Sucursal implements Serializable {
 
     private LocalDateTime creadoEn;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
 
