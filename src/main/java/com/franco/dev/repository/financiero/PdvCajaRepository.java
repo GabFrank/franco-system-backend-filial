@@ -38,5 +38,11 @@ public interface PdvCajaRepository extends HelperRepository<PdvCaja, Long> {
             "(c.estado = :estado or cast(:estado as com.franco.dev.domain.financiero.enums.PdvCajaEstado) is null) order by c.id")
     public Page<PdvCaja> findAllWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId, LocalDateTime fechaInicio, LocalDateTime fechaFin, Long sucId, Boolean verificado, Pageable pageable);
 
+    /**
+     * Finds the maximum ID value in the PdvCaja table
+     * @return The maximum ID value or null if table is empty
+     */
+    @Query("SELECT MAX(c.id) FROM PdvCaja c")
+    Long findMaxId();
 
 }

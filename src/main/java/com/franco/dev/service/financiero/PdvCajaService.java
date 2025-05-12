@@ -94,8 +94,10 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public PdvCaja save(PdvCaja entity) throws GraphQLException {
         Maletin m = null;
-        if (entity.getId() == null)
+        if (entity.getId() == null) {
             entity.setCreadoEn(LocalDateTime.now());
+            entity.setId(getNextId());
+        }
         if (entity.getCreadoEn() == null)
             entity.setCreadoEn(LocalDateTime.now());
         if (entity.getMaletin() != null) {
@@ -125,8 +127,10 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public PdvCaja saveAndSend(PdvCaja entity, Boolean recibir) throws GraphQLException {
         Maletin m = null;
-        if (entity.getId() == null)
+        if (entity.getId() == null) {
             entity.setCreadoEn(LocalDateTime.now());
+            entity.setId(getNextId());
+        }
         if (entity.getCreadoEn() == null)
             entity.setCreadoEn(LocalDateTime.now());
         if (entity.getMaletin() != null) {
@@ -149,9 +153,17 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         PdvCaja e = super.save(entity);
         maletinService.save(m);
-        // propagacionService.propagarEntidad(e, TipoEntidad.PDV_CAJA, recibir);
-        // propagacionService.propagarEntidad(m, TipoEntidad.MALETIN, recibir);
         return e;
+    }
+
+    /**
+     * Gets the next sequential ID for PdvCaja
+     * @return The next ID in sequence
+     */
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    private Long getNextId() {
+        Long maxId = repository.findMaxId();
+        return maxId != null ? maxId + 1 : 1L;
     }
 
     public PdvCaja findByUsuarioIdAndAbierto(Long id) {
