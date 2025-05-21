@@ -221,6 +221,7 @@ import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInsta
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
+import com.google.api.client.auth.oauth2.AuthorizationCodeRequestUrl;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.FileContent;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -236,6 +237,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
@@ -255,6 +257,22 @@ public class GoogleDriveService {
     @Autowired
     public GoogleDriveService(BackupConfig backupConfig) {
         this.backupConfig = backupConfig;
+    }
+    
+    @PostConstruct
+    public void initializeOnStartup() {
+        if (backupConfig.isEnabled()) {
+            log.info("Database backup is enabled. Initializing Google Drive service at startup...");
+            try {
+                initDriveService();
+                log.info("Google Drive service initialized successfully");
+            } catch (Exception e) {
+                log.warn("Failed to initialize Google Drive service at startup. You'll need to authenticate manually: {}", e.getMessage());
+                log.info("To authenticate manually, access: http://localhost:8082/auth/google/init");
+            }
+        } else {
+            log.info("Database backup is disabled. Google Drive service will not be initialized at startup.");
+        }
     }
     
     public synchronized void initDriveService() throws GeneralSecurityException, IOException {
@@ -316,8 +334,26 @@ public class GoogleDriveService {
                 .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
                 .setAccessType("offline")
                 .build();
+        
+        // Set up the LocalServerReceiver
         LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-        return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+        
+        // Create a custom AuthorizationCodeInstalledApp that ensures URL is displayed in logs
+        AuthorizationCodeInstalledApp app = new AuthorizationCodeInstalledApp(flow, receiver) {
+            @Override
+            protected void onAuthorization(AuthorizationCodeRequestUrl authorizationUrl) throws IOException {
+                // Always log the authorization URL clearly
+                log.info("***************************************************************");
+                log.info("Please open the following URL in a browser on any machine:");
+                log.info("{}", authorizationUrl);
+                log.info("***************************************************************");
+                
+                // Call the parent implementation which may attempt to open browser if not headless
+                super.onAuthorization(authorizationUrl);
+            }
+        };
+        
+        return app.authorize("user");
     }
     
     public File uploadFile(java.io.File fileToUpload, String mimeType) throws IOException {
@@ -763,11 +799,15 @@ public class GoogleAuthController {
 Make sure `@EnableScheduling` is added to your main application class:
 
 ```java
+package com.franco.dev;
+
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @EnableScheduling
 @SpringBootApplication
-public class YourApplication {
+public class FrancoSystemsApplication {
     // ...
 }
 ```
@@ -776,11 +816,26 @@ public class YourApplication {
 
 ### Initial Authentication
 
+When the application starts, the Google Drive authentication process begins automatically if `backup.enabled=true` in your properties. The authentication URL will be clearly displayed in the logs:
+
+```
+***************************************************************
+Please open the following URL in a browser on any machine:
+https://accounts.google.com/o/oauth2/auth?access_type=offline&client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost:8888/Callback&response_type=code&scope=https://www.googleapis.com/auth/drive.file
+***************************************************************
+```
+
+### Headless Server Authentication
+
+For servers without a graphical interface (headless):
+
 1. Start your application
-2. Access `http://localhost:8082/auth/google/init` to trigger the authentication flow
-3. You'll be redirected to a Google login page
-4. Grant the necessary permissions
-5. After authentication, tokens are stored locally and used for future requests
+2. Look for the authentication URL in the logs (with the clearly marked section above)
+3. Copy this URL and open it in a browser on any machine with a graphical interface
+4. Complete the Google authentication flow
+5. The authentication will complete on the server
+
+The implementation handles both headless and GUI environments. On headless servers, it will display the authentication URL prominently in the logs, allowing you to authenticate from any other machine.
 
 ### Changing Google Credentials
 
@@ -818,12 +873,18 @@ You can configure when the backup will run by setting the `backup.backup-hour` p
    - Ensure redirect URI is registered in Google Cloud Console
    - Clear tokens with `http://localhost:8082/auth/google/clear-tokens`
    - Check client ID and secret in application.properties
+   - Verify the authentication URL is accessible from a browser
 
-3. **Permission Issues**:
+3. **No Authentication URL in Logs**:
+   - Ensure `backup.enabled=true` in your application.properties
+   - Check application logs carefully for the URL (surrounded by asterisks)
+   - Manually trigger authentication via `http://localhost:8082/auth/google/init`
+
+4. **Permission Issues**:
    - Ensure the backup directory is writable
    - Verify Google Drive folder permissions
 
-4. **Dependency Conflicts**:
+5. **Dependency Conflicts**:
    - Use compatible versions of Google libraries
    - Avoid duplicate declarations in pom.xml
 
@@ -846,6 +907,12 @@ You can configure when the backup will run by setting the `backup.backup-hour` p
 
 This implementation provides an automated PostgreSQL database backup solution that securely stores backups in Google Drive while maintaining a clean backup history by automatically removing older files when necessary.
 
-The system is designed to be configurable, secure, and robust, with proper error handling and logging to help diagnose issues. 
+The system is designed to be configurable, secure, and robust, with proper error handling and logging to help diagnose issues. It works well in both GUI and headless environments, making it suitable for all types of servers.
 
-The enhanced version now includes the ability to specify what time of day the backup should run using a 24-hour format (0-23), defaulting to 9 AM if not specified. 
+The enhanced version includes:
+- Automatic initialization at application startup
+- Clear display of authentication URLs in logs for headless environments
+- Configurable backup time using a 24-hour format (0-23)
+- Support for authentication from any machine with a browser
+
+The system is designed to be configurable, secure, and robust, with proper error handling and logging to help diagnose issues. 

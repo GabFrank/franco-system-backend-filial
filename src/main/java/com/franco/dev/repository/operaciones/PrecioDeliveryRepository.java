@@ -1,5 +1,9 @@
 package com.franco.dev.repository.operaciones;
 
+import java.util.List;
+
+import org.springframework.data.jpa.repository.Query;
+
 import com.franco.dev.domain.operaciones.PrecioDelivery;
 import com.franco.dev.repository.HelperRepository;
 
@@ -7,6 +11,9 @@ public interface PrecioDeliveryRepository extends HelperRepository<PrecioDeliver
     default Class<PrecioDelivery> getEntityClass() {
         return PrecioDelivery.class;
     }
+
+    // return a list of PrecioDelivery where active is true, order by id asc
+    List<PrecioDelivery> findAllByActivoTrueOrderByIdAsc();
 
 //    public List<PrecioDelivery> findByProveedorPersonaNombreContainingIgnoreCase(String texto);
 

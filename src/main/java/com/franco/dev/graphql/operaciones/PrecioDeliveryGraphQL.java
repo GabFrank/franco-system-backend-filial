@@ -28,7 +28,7 @@ public class PrecioDeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutat
 
     public List<PrecioDelivery> deliveryPrecios(int page, int size){
         Pageable pageable = PageRequest.of(page,size);
-        return service.findAll(pageable);
+        return service.getRepository().findAllByActivoTrueOrderByIdAsc();
     }
 
 //    public List<PrecioDelivery> deliveryPrecioSearch(String texto){

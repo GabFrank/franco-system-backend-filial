@@ -6,6 +6,7 @@ import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInsta
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
+import com.google.api.client.auth.oauth2.AuthorizationCodeRequestUrl;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.FileContent;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -21,10 +22,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.io.FileNotFoundException;
+import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.List;
@@ -43,6 +42,22 @@ public class GoogleDriveService {
     @Autowired
     public GoogleDriveService(BackupConfig backupConfig) {
         this.backupConfig = backupConfig;
+    }
+    
+    @PostConstruct
+    public void initializeOnStartup() {
+        if (backupConfig.isEnabled()) {
+            log.info("Database backup is enabled. Initializing Google Drive service at startup...");
+            try {
+                initDriveService();
+                log.info("Google Drive service initialized successfully");
+            } catch (Exception e) {
+                log.warn("Failed to initialize Google Drive service at startup. You'll need to authenticate manually: {}", e.getMessage());
+                log.info("To authenticate manually, access: http://localhost:8082/auth/google/init");
+            }
+        } else {
+            log.info("Database backup is disabled. Google Drive service will not be initialized at startup.");
+        }
     }
     
     public synchronized void initDriveService() throws GeneralSecurityException, IOException {
@@ -104,8 +119,26 @@ public class GoogleDriveService {
                 .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
                 .setAccessType("offline")
                 .build();
+        
+        // Set up the LocalServerReceiver
         LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-        return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+        
+        // Create a custom AuthorizationCodeInstalledApp that ensures URL is displayed in logs
+        AuthorizationCodeInstalledApp app = new AuthorizationCodeInstalledApp(flow, receiver) {
+            @Override
+            protected void onAuthorization(AuthorizationCodeRequestUrl authorizationUrl) throws IOException {
+                // Always log the authorization URL clearly
+                log.info("***************************************************************");
+                log.info("Please open the following URL in a browser on any machine:");
+                log.info("{}", authorizationUrl);
+                log.info("***************************************************************");
+                
+                // Call the parent implementation which may attempt to open browser if not headless
+                super.onAuthorization(authorizationUrl);
+            }
+        };
+        
+        return app.authorize("user");
     }
     
     public File uploadFile(java.io.File fileToUpload, String mimeType) throws IOException {
