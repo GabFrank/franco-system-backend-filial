@@ -34,6 +34,9 @@ input PersonaInput {
     imagenes: String
     creadoEn: Date
     usuarioId: Int
+    isCliente: Boolean
+    isProveedor: Boolean
+    isFuncionario: Boolean
 }
 
 extend type Query {
