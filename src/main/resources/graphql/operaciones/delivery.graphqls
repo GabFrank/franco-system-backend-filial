@@ -51,6 +51,7 @@ input DeliveryInput {
     vueltoId: Int
     formaPagoId: Int
     sucursalId: Int
+    fechaConcluido: String
 }
 
 extend type Query {
