@@ -17,6 +17,13 @@ public class DateUtils {
     public static String dateToString(LocalDateTime d) {
         return formatter.format(d);
     }
+
+    // agregar comentario para entender el funcionamiento de la funcion
+    /**
+     * Convierte una fecha a un string en formato yyyy-MM-dd
+     * @param d fecha a convertir
+     * @return string en formato yyyy-MM-dd
+     */
     public static String dateToStringShort(LocalDateTime d) {
         return formatter2.format(d);
     }

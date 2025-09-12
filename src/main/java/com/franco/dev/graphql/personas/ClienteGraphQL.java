@@ -2,7 +2,6 @@ package com.franco.dev.graphql.personas;
 
 import com.franco.dev.domain.general.Contacto;
 import com.franco.dev.domain.personas.Cliente;
-import com.franco.dev.domain.personas.ConsultaRucResponse;
 import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.graphql.personas.input.ClienteInput;
 import com.franco.dev.service.empresarial.SucursalService;
@@ -11,6 +10,8 @@ import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.PersonaService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.rabbitmq.PropagacionService;
+import com.franco.dev.service.sifen.dto.response.ConsultaRucResponse;
+
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -122,7 +123,9 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public ConsultaRucResponse consultaRuc(String ruc) {
-        return service.consultaRuc(ruc);
+        ConsultaRucResponse sifenResponse = service.consultaRuc(ruc);
+        ModelMapper m = new ModelMapper();
+        return m.map(sifenResponse, ConsultaRucResponse.class);
     }
 
 }

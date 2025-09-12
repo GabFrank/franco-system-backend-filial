@@ -28,6 +28,10 @@ public class Timbrado implements Serializable {
 
     private String numero;
 
+    private Boolean isElectronico;
+
+    private String csc;
+
     private LocalDateTime fechaInicio;
     private LocalDateTime fechaFin;
 

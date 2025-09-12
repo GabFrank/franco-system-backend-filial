@@ -1,31 +1,25 @@
 package com.franco.dev.service.personas;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.franco.dev.domain.personas.Cliente;
-import com.franco.dev.domain.personas.ConsultaRucResponse;
-import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.repository.personas.ClienteRepository;
 import com.franco.dev.service.CrudService;
+import com.franco.dev.service.sifen.service.SifenService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.util.List;
 
 @Service
 @AllArgsConstructor
 public class ClienteService extends CrudService<Cliente, ClienteRepository> {
 
-    @Autowired
-    private RestTemplate restTemplate;
-
-    @Autowired
-    private ObjectMapper objectMapper;  // For JSON parsing
+    //
 
     private final ClienteRepository repository;
+
+    @Autowired
+    private final SifenService sifenService;
 
     @Override
     public ClienteRepository getRepository() {
@@ -45,30 +39,8 @@ public class ClienteService extends CrudService<Cliente, ClienteRepository> {
         return  repository.findByPersona(texto.toUpperCase());
     }
 
-    public ConsultaRucResponse consultaRuc(String ruc) {
-        String apiUrl = "https://siyopude.com/ruc/?ruc=" + ruc;
-
-        try {
-            // Fetch response as plain text
-            String rawResponse = restTemplate.getForObject(apiUrl, String.class);
-
-            // Extract the JSON part by finding the first '{'
-            int jsonStartIndex = rawResponse.indexOf("{");
-            if (jsonStartIndex == -1) {
-                throw new RuntimeException("No JSON found in the response.");
-            }
-
-            String jsonResponse = rawResponse.substring(jsonStartIndex);
-
-            // Parse the JSON response
-            ConsultaRucResponse rucResponse = objectMapper.readValue(jsonResponse, ConsultaRucResponse.class);
-            return rucResponse;
-
-        } catch (IOException e) {
-            throw new RuntimeException("Error parsing JSON response: " + e.getMessage(), e);
-        } catch (Exception e) {
-            throw new RuntimeException("Error while fetching RUC details: " + e.getMessage(), e);
-        }
+    public com.franco.dev.service.sifen.dto.response.ConsultaRucResponse consultaRuc(String ruc) {
+        return sifenService.consultaRuc(ruc);
     }
 
 }

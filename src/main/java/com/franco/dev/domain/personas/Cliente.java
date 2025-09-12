@@ -59,6 +59,9 @@ public class Cliente implements Serializable {
 
     @Column(name = "creado_en")
     private LocalDateTime creadoEn;
+
+    @Column(name = "tipo_contribuyente")
+    private Integer tipoContribuyente;
 }
 
 

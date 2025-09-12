@@ -21,6 +21,7 @@ import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
+import com.franco.dev.service.sifen.service.SifenService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
@@ -85,6 +86,9 @@ public class FacturaService {
     private ClienteService clienteService;
     @Autowired
     private PresentacionService presentacionService;
+
+    @Autowired
+    private SifenService sifenService;
 
     public DecimalFormat df = new DecimalFormat("#,###.##");
 
@@ -543,14 +547,40 @@ public class FacturaService {
             // escpos.writeLF("0");
 
             escpos.writeLF("--------------------------------");
-            if (sucursal != null && sucursal.getNroDelivery() != null) {
-                escpos.write(center, "Delivery? Escanea el codigo qr o escribinos al ");
-                escpos.writeLF(center, sucursal.getNroDelivery());
+            // Legacy: Generar el CDC
+            // Obtener cdc de la factura legal
+            if (facturaLegal.getCdc() == null) {
+                // Use emitter RUC from Timbrado instead of client RUC
+                facturaLegal.setCdc(sifenService.generarCdc(timbradoDetalle.getTimbrado().getRuc(),
+                        sucursal.getCodigoEstablecimientoFactura(), timbradoDetalle.getPuntoExpedicion(),
+                        numeroFacturaString.toString(), venta.getCreadoEn() != null ? venta.getCreadoEn() : LocalDateTime.now()));
             }
-            if (sucursal.getNroDelivery() != null) {
-                escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center),
-                        "wa.me/" + sucursal.getNroDelivery());
+
+            // Generar URL del QR para SIFEN
+            String urlQr = "https://ekuatia.set.gov.py/consultas?c=" + facturaLegal.getCdc();
+
+            // Imprimir QR con la URL de consulta
+            escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center), urlQr);
+
+            // Texto requerido por SIFEN debajo del QR
+            escpos.writeLF(center,
+                    "Consulte la validez de esta Factura Electrónica con el número de CDC impreso abajo en:");
+            escpos.writeLF(center, "https://ekuatia.set.gov.py/consultas");
+
+            // Formatear CDC en grupos de 4 dígitos
+            String cdcFormateado = facturaLegal.getCdc().replaceAll("\\s+", "");
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < cdcFormateado.length(); i += 4) {
+                if (i > 0)
+                    sb.append(" ");
+                sb.append(cdcFormateado.substring(i, Math.min(i + 4, cdcFormateado.length())));
             }
+            escpos.writeLF(center, sb.toString());
+
+            escpos.writeLF(center,
+                    "ESTE DOCUMENTO ES UNA REPRESENTACION GRAFICA DE UN DOCUMENTO ELECTRONICO (XML)");
+            escpos.writeLF("--------------------------------");
+
             escpos.feed(1);
             escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
             // escpos.writeLF("--------------------------------");
@@ -599,6 +629,8 @@ public class FacturaService {
             }
         } else {
             // throw new GraphQLException("No se pudo generar la factura");
+            // sys out selectedPrintService is null
+            System.out.println("selectedPrintService is null");
         }
         saveFacturaDto.setFacturaLegalInput(facturaLegal);
         saveFacturaDto.setFacturaLegalItemInputList(facturaLegalItemList);

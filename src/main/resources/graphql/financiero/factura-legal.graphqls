@@ -11,6 +11,7 @@ type FacturaLegal {
     nombre:String
     ruc:String
     direccion:String
+    cdc:String
     ivaParcial0:Float
     ivaParcial5:Float
     ivaParcial10:Float
@@ -35,6 +36,7 @@ input FacturaLegalInput {
     nombre:String
     ruc:String
     direccion:String
+    cdc:String
     ivaParcial0:Float
     ivaParcial5:Float
     ivaParcial10:Float

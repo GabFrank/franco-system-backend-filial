@@ -131,6 +131,7 @@ public class PrinterOutputStream extends PipedOutputStream {
         PrintService[] printServices = PrinterJob.lookupPrintServices();
         PrintService foundService = null;
 
+        // Primera búsqueda: por getName() - comparación exacta
         for (PrintService service : printServices) {
             if (service.getName().compareTo(printServiceName) == 0) {
                 foundService = service;
@@ -141,6 +142,7 @@ public class PrinterOutputStream extends PipedOutputStream {
             return foundService;
         }
 
+        // Segunda búsqueda: por getName() - comparación case-insensitive
         for (PrintService service : printServices) {
             if (service.getName().compareToIgnoreCase(printServiceName) == 0) {
                 foundService = service;
@@ -151,13 +153,111 @@ public class PrinterOutputStream extends PipedOutputStream {
             return foundService;
         }
 
+        // Tercera búsqueda: por getName() - contiene el nombre
         for (PrintService service : printServices) {
             if (service.getName().toLowerCase().contains(printServiceName.toLowerCase())) {
                 foundService = service;
                 break;
             }
         }
+        if (foundService != null) {
+            return foundService;
+        }
+
+        // Cuarta búsqueda: por atributos del PrintService - comparación exacta
+        for (PrintService service : printServices) {
+            if (isPrinterMatchByAttributes(service, printServiceName, true)) {
+                foundService = service;
+                break;
+            }
+        }
+        if (foundService != null) {
+            return foundService;
+        }
+
+        // Quinta búsqueda: por atributos del PrintService - comparación case-insensitive
+        for (PrintService service : printServices) {
+            if (isPrinterMatchByAttributes(service, printServiceName, false)) {
+                foundService = service;
+                break;
+            }
+        }
+        if (foundService != null) {
+            return foundService;
+        }
+        
         return foundService;
+    }
+
+    /**
+     * Método helper para buscar impresoras por sus atributos internos
+     * @param service PrintService a verificar
+     * @param printerName nombre de la impresora a buscar
+     * @param exactMatch true para comparación exacta, false para case-insensitive
+     * @return true si encuentra coincidencia
+     */
+    private static boolean isPrinterMatchByAttributes(PrintService service, String printerName, boolean exactMatch) {
+        try {
+            // Método 1: Buscar en toString() con diferentes formatos
+            String serviceString = service.toString();
+            String searchString = exactMatch ? serviceString : serviceString.toLowerCase();
+            
+            // Buscar patrones comunes en toString()
+            String[] patterns = {
+                "printer = \"" + printerName + "\"",
+                "printer=\"" + printerName + "\"",
+                "printer='" + printerName + "'",
+                "printer=" + printerName,
+                "name=\"" + printerName + "\"",
+                "name='" + printerName + "'"
+            };
+            
+            for (String pattern : patterns) {
+                String searchPattern = exactMatch ? pattern : pattern.toLowerCase();
+                if (searchString.contains(searchPattern)) {
+                    return true;
+                }
+            }
+            
+            // Método 2: Buscar usando reflexión en campos específicos
+            try {
+                java.lang.reflect.Field[] fields = service.getClass().getDeclaredFields();
+                for (java.lang.reflect.Field field : fields) {
+                    field.setAccessible(true);
+                    Object value = field.get(service);
+                    if (value != null) {
+                        String fieldValue = value.toString();
+                        String compareValue = exactMatch ? fieldValue : fieldValue.toLowerCase();
+                        String compareName = exactMatch ? printerName : printerName.toLowerCase();
+                        
+                        if (compareValue.equals(compareName) || compareValue.contains(compareName)) {
+                            return true;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // Si la reflexión falla, continuar con otros métodos
+            }
+            
+            // Método 3: Buscar en atributos específicos conocidos
+            javax.print.attribute.AttributeSet attributes = service.getAttributes();
+            if (attributes != null) {
+                for (javax.print.attribute.Attribute attr : attributes.toArray()) {
+                    String attrString = attr.toString();
+                    String compareAttr = exactMatch ? attrString : attrString.toLowerCase();
+                    String compareName = exactMatch ? printerName : printerName.toLowerCase();
+                    
+                    if (compareAttr.equals(compareName) || compareAttr.contains(compareName)) {
+                        return true;
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            // Si hay algún error, continuar con el siguiente servicio
+        }
+        
+        return false;
     }
 
 }

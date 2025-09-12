@@ -334,6 +334,13 @@
             <version>5.2.3</version>
         </dependency>
 
+        <!-- SIFEN integration library -->
+        <dependency>
+            <groupId>com.roshka.sifen</groupId>
+            <artifactId>rshk-jsifenlib</artifactId>
+            <version>0.2.4</version>
+        </dependency>
+
     </dependencies>
 
     <build>

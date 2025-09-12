@@ -13,6 +13,7 @@ type Cliente {
     saldo: Float
     tributa: Boolean
     verificadoSet: Boolean
+    tipoContribuyente: Int
 }
 
 input ClienteInput {
@@ -30,6 +31,7 @@ input ClienteInput {
     sucursalId: Int
     tributa: Boolean
     verificadoSet: Boolean
+    tipoContribuyente: Int
 }
 
 type ConsultaRucResponse {

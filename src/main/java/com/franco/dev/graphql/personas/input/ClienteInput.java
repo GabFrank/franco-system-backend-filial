@@ -17,4 +17,5 @@ public class ClienteInput {
     private String direccion;
     private Boolean tributa;
     private Boolean verificadoSet;
+    private Integer tipoContribuyente;
 }

@@ -1,6 +1,5 @@
 package com.franco.dev.graphql.financiero;
 
-import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.domain.empresarial.PuntoDeVenta;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.*;
@@ -8,22 +7,22 @@ import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
+import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
 import com.franco.dev.graphql.financiero.input.FacturaLegalItemInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
 import com.franco.dev.rabbit.dto.SaveFacturaDto;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.empresarial.PuntoDeVentaService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.impresion.ImpresionService;
-import com.franco.dev.service.operaciones.DeliveryService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.PersonaService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.utils.ImageService;
+import com.franco.dev.service.sifen.service.SifenService;
 import com.franco.dev.utilitarios.NumeroALetrasService;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
@@ -44,7 +43,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ResourceUtils;
 
 import javax.imageio.ImageIO;
@@ -69,6 +67,9 @@ import static com.franco.dev.utilitarios.DateUtils.dateToStringShort;
 
 @Component
 public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private SifenService sifenService;
 
     @Autowired
     private FacturaLegalService service;
@@ -125,9 +126,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private CambioService cambioService;
 
-    @Autowired
-    private DeliveryService deliveryService;
-
     public Optional<FacturaLegal> facturaLegal(Long id, Long sucId) {
         return service.findById(id);
     }
@@ -137,7 +135,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.findAll(pageable);
     }
 
-    public TimbradoDetalle saveFacturaLegal(FacturaLegalInput input, List<FacturaLegalItemInput> facturaLegalItemInputList,
+    public TimbradoDetalle saveFacturaLegal(FacturaLegalInput input,
+            List<FacturaLegalItemInput> facturaLegalItemInputList,
             String printerName, Long pdvId, Boolean print) {
         if (print == null)
             print = true;
@@ -207,7 +206,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             if (print) {
                 throw new GraphQLException("Timbrado ha vencido. Contactar con RRHH");
             }
-        } 
+        }
 
         if (timbradoDetalle != null) {
             try {
@@ -852,13 +851,67 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             // escpos.writeLF("0");
 
             escpos.writeLF("--------------------------------");
-            if (sucursal != null && sucursal.getNroDelivery() != null) {
-                escpos.write(center, "Delivery? Escaneá el código qr o escribinos al ");
-                escpos.writeLF(center, sucursal.getNroDelivery());
-            }
-            if (sucursal.getNroDelivery() != null) {
-                escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center),
-                        "wa.me/" + sucursal.getNroDelivery());
+            // vamos a reemplazar este sector por el codigo cdc
+            // if (sucursal != null && sucursal.getNroDelivery() != null) {
+            // escpos.write(center, "Delivery? Escaneá el código qr o escribinos al ");
+            // escpos.writeLF(center, sucursal.getNroDelivery());
+            // }
+            // if (sucursal.getNroDelivery() != null) {
+            // escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center),
+            // "wa.me/" + sucursal.getNroDelivery());
+            // }
+            // Generar CDC directamente usando la función generarCdc
+            if (facturaLegal.getTimbradoDetalle() != null && facturaLegal.getTimbradoDetalle().getTimbrado() != null) {
+                String ruc = facturaLegal.getTimbradoDetalle().getTimbrado().getRuc();
+                String codEstablecimiento = sucursal != null ? sucursal.getCodigoEstablecimientoFactura() : "001";
+                String puntoExpedicion = facturaLegal.getTimbradoDetalle().getPuntoExpedicion();
+                Integer numeroFactura = facturaLegal.getNumeroFactura();
+                /*
+                 * aqui necesitamos deficinar el tipo de contribuyente
+                 * 1 - Persona Fisica
+                 * 2 - Persona Juridica
+                 * Tenemos 3 formas de obtener ese dato, si el cliente ya existe en base de
+                 * datos, usar getTipoContribuyente(),
+                 * 
+                 */
+                LocalDateTime fecha = facturaLegal.getCreadoEn();
+
+                //Legacy: Generar el CDC
+                //Obtener cdc de la factura legal
+                String cdc = facturaLegal.getCdc();
+                if (cdc == null) {
+                    // Use emitter RUC from Timbrado instead of client RUC
+                    String rucEmisor = facturaLegal.getTimbradoDetalle().getTimbrado().getRuc();
+                    cdc = sifenService.generarCdc(rucEmisor, codEstablecimiento, puntoExpedicion, numeroFacturaString.toString(),
+                            fecha);
+                    facturaLegal.setCdc(cdc);
+                    service.save(facturaLegal);
+                }
+
+                // Generar URL del QR para SIFEN
+                String urlQr = "https://ekuatia.set.gov.py/consultas?c=" + cdc;
+
+                // Imprimir QR con la URL de consulta
+                escpos.write(qrCode.setSize(5).setJustification(EscPosConst.Justification.Center), urlQr);
+
+                // Texto requerido por SIFEN debajo del QR
+                escpos.writeLF(center,
+                        "Consulte la validez de esta Factura Electrónica con el número de CDC impreso abajo en:");
+                escpos.writeLF(center, "https://ekuatia.set.gov.py/consultas");
+
+                // Formatear CDC en grupos de 4 dígitos
+                String cdcFormateado = cdc.replaceAll("\\s+", "");
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < cdcFormateado.length(); i += 4) {
+                    if (i > 0)
+                        sb.append(" ");
+                    sb.append(cdcFormateado.substring(i, Math.min(i + 4, cdcFormateado.length())));
+                }
+                escpos.writeLF(center, sb.toString());
+
+                escpos.writeLF(center,
+                        "ESTE DOCUMENTO ES UNA REPRESENTACION GRAFICA DE UN DOCUMENTO ELECTRONICO (XML)");
+                escpos.writeLF("--------------------------------");
             }
             escpos.feed(1);
             escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
@@ -897,6 +950,27 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 ioe.printStackTrace();
             }
         }
+    }
+
+    // Métodos CDC movidos a SifenService
+
+    /**
+     * El código de seguridad de los documentos electrónicos (campo dCodSeg) tiene
+     * como objetivo asegurar la privacidad de los documentos emitidos, debe ser
+     * generado por el contribuyente emisor, conforme a las siguientes condiciones:
+     * • Debe ser un número positivo de 9 dígitos.
+     * • Aleatorio.
+     * • Debe ser distinto para cada DE y generado por un algoritmo de complejidad
+     * suficiente para evitar la reproducción del valor.
+     * • Rango NO SECUENCIAL entre 000000001 y 999999999.
+     * • No tener relación con ninguna información específica o directa del DE o del
+     * emisor de manera a garantizar su seguridad.
+     * • No debe ser igual al número de documento campo dNumDoc.
+     * • En caso de ser un número de menos de 9 dígitos completar con 0 a la
+     * izquierda.
+     */
+    Integer getTipoContribuyente(Cliente cliente) {
+        return cliente.getTipoContribuyente();
     }
 
 }
