@@ -35,6 +35,21 @@ public class Timbrado implements Serializable {
     private LocalDateTime fechaInicio;
     private LocalDateTime fechaFin;
 
+    // Campos para documento electrónico
+    private String email;
+    private String tipoSociedad;
+    private String domicilioFiscalDepartamento;
+    private String domicilioFiscalCiudad;
+    private String domicilioFiscalCodigoCiudad;
+    private String domicilioFiscalLocalidad;
+    private String domicilioFiscalBarrio;
+    private String domicilioFiscalDireccion;
+    private String telefono;
+    private String codActividadEconomicaPrincipal;
+    private String descActividadEconomicaPrincipal;
+    private String listCodigoActividadEconomicaSecundaria;
+    private String listDescripcionActividadEconomicaSecundaria;
+
     private Boolean activo;
 
     @CreationTimestamp

@@ -56,6 +56,10 @@ public class FacturaLegal implements Serializable {
     private String ruc;
     private String direccion;
     private String cdc;
+    
+    // Relación con documento electrónico (opcional)
+    @OneToOne(mappedBy = "facturaLegal", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private DocumentoElectronico documentoElectronico;
 
     @Column(name = "iva_parcial_0")
     private Double ivaParcial0;
@@ -81,6 +85,31 @@ public class FacturaLegal implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
+
+    // Métodos de conveniencia para acceder a datos del documento electrónico
+    public String getUrlQr() {
+        return documentoElectronico != null ? documentoElectronico.getUrlQr() : null;
+    }
+
+    public String getXmlFirmado() {
+        return documentoElectronico != null ? documentoElectronico.getXmlFirmado() : null;
+    }
+
+    public String getEstadoDocumentoElectronico() {
+        return documentoElectronico != null ? documentoElectronico.getEstadoDocumentoElectronico() : null;
+    }
+
+    public String getCodigoRespuestaSifen() {
+        return documentoElectronico != null ? documentoElectronico.getCodigoRespuestaSifen() : null;
+    }
+
+    public String getMensajeRespuestaSifen() {
+        return documentoElectronico != null ? documentoElectronico.getMensajeRespuestaSifen() : null;
+    }
+
+    public boolean tieneDocumentoElectronico() {
+        return documentoElectronico != null;
+    }
 }
 
 

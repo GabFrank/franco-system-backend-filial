@@ -18,6 +18,7 @@ import org.hibernate.annotations.TypeDef;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @AllArgsConstructor

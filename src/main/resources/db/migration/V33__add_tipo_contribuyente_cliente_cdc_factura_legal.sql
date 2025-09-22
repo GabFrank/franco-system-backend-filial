@@ -8,3 +8,6 @@ ALTER TABLE financiero.factura_legal ADD COLUMN cdc VARCHAR(255) DEFAULT NULL;
 
 
 
+
+
+

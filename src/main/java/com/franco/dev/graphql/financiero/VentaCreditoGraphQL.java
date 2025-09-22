@@ -30,7 +30,6 @@ import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
 import com.franco.dev.utilitarios.print.escpos.Style;
-import com.franco.dev.utilitarios.print.escpos.barcode.QRCode;
 import com.franco.dev.utilitarios.print.escpos.image.*;
 import com.franco.dev.utilitarios.print.output.PrinterOutputStream;
 import graphql.GraphQLException;
@@ -212,7 +211,7 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             //Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
             Style factura = new Style().setJustification(EscPosConst.Justification.Center).setFontSize(Style.FontSize._1, Style.FontSize._1);
-            QRCode qrCode = new QRCode();
+            // QRCode qrCode = new QRCode();
 
             BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
             imageBufferedImage = resize(imageBufferedImage, 200, 100);

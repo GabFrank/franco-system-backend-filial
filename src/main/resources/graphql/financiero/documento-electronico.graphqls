@@ -1,0 +1,52 @@
+type DocumentoElectronico {
+    id: ID!
+    sucursalId: Int
+    facturaLegal: FacturaLegal
+    cdc: String
+    urlQr: String
+    xmlFirmado: String
+    estadoDocumentoElectronico: String
+    codigoRespuestaSifen: String
+    mensajeRespuestaSifen: String
+    numeroDocumento: String
+    tipoDocumento: String
+    fechaEmision: Date
+    fechaRecepcionSifen: Date
+    activo: Boolean
+    creadoEn: Date
+    actualizadoEn: Date
+    usuario: Usuario
+}
+
+input DocumentoElectronicoInput {
+    id: ID
+    sucursalId: Int
+    facturaLegalId: Int
+    cdc: String
+    urlQr: String
+    xmlFirmado: String
+    xmlOriginal: String
+    estadoDocumentoElectronico: String
+    codigoRespuestaSifen: String
+    mensajeRespuestaSifen: String
+    numeroDocumento: String
+    tipoDocumento: String
+    fechaEmision: String
+    fechaRecepcionSifen: String
+    activo: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    documentoElectronico(id: ID!, sucId: ID): DocumentoElectronico
+    documentoElectronicos(page: Int = 0, size: Int = 10, sucId: ID): [DocumentoElectronico]!
+    documentoElectronicoPorFactura(facturaLegalId: ID!, sucId: ID): DocumentoElectronico
+    documentoElectronicoPorCdc(cdc: String!, sucId: ID): DocumentoElectronico
+    documentoElectronicoPorEstado(estado: String!, sucId: ID): [DocumentoElectronico]!
+    countDocumentoElectronico: Int
+}
+
+extend type Mutation {
+    saveDocumentoElectronico(entity: DocumentoElectronicoInput!): DocumentoElectronico!
+    deleteDocumentoElectronico(id: ID!, sucId: ID): Boolean!
+}

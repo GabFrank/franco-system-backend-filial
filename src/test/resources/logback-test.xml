@@ -30,6 +30,12 @@
     <logger name="org.springframework" level="INFO"/>
     <logger name="org.hibernate" level="INFO"/>
 
+    <!-- Habilitar logs de SIFEN para debugging detallado -->
+    <logger name="com.roshka.sifen" level="TRACE" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </logger>
+
     <!-- Root logger -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>

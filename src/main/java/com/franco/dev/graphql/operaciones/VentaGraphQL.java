@@ -3,7 +3,6 @@ package com.franco.dev.graphql.operaciones;
 import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.FacturaLegal;
-import com.franco.dev.domain.financiero.TimbradoDetalle;
 import com.franco.dev.domain.financiero.VentaCredito;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.Delivery;
@@ -184,7 +183,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             return this.saveVenta2(ventaInput);
         }
         Venta venta = null;
-        log.info("Guardando y enviando al cobro al servidor");
         Cobro cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
         List<VentaItem> ventaItemList1 = new ArrayList<>();
         if (cobro != null) {
@@ -214,7 +212,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     deliveryService.save(venta.getDelivery());
                 }
             }
-            log.info("Todo guardado");
         }
         if (venta.getId() == null) {
             deshacerVenta(venta, cobro, null);
@@ -222,37 +219,16 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             try {
                 if (ticket != null && ticket == true) {
                     if (pdvId != null && facturar) {
-                        FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
-                        if (venta.getCliente() == null) {
-                            facturaLegalInput.setNombre("SIN NOMBRE");
-                            facturaLegalInput.setRuc("X");
-                        } else {
-                            facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
-                            facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
-                        }
-                        facturaLegalInput.setVentaId(venta.getId());
-                        facturaLegalInput.setCredito(false);
-                        facturaLegalInput.setUsuarioId(ventaInput.getUsuarioId());
-                        List<FacturaLegalItemInput> facturaLegalItemInputList = new ArrayList<>();
-                        for (VentaItem vi : ventaItemList1) {
-                            FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
-                            fiInput.setVentaItemId(vi.getId());
-                            fiInput.setPresentacionId(vi.getPresentacion().getId());
-                            fiInput.setIva(vi.getPresentacion().getProducto().getIva());
-                            fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
-                            fiInput.setCantidad(vi.getCantidad());
-                            fiInput.setPrecioUnitario(vi.getPrecioVenta().getPrecio() - vi.getValorDescuento());
-                            fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
-                            facturaLegalItemInputList.add(fiInput);
-                        }
-                        // SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta,
-                        // facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
-                        TimbradoDetalle timbradoDetalle = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
-                                facturaLegalItemInputList, printerName, pdvId,
-                                ventaCreditoInput != null ? false : true);
-                        facturaCountDown = Integer.valueOf(env.getProperty("facturaCountDown"));
-                        if (timbradoDetalle == null)
-                            throw new GraphQLException("Problema al generar factura");
+                        // INICIO: Nueva lógica de facturación
+                        
+                        // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
+                        FacturaLegal facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList1, pdvId, cobroDetalleList);
+
+                        // Imprimir el ticket/factura con los datos del DE
+                        facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName);
+
+                        // FIN: Nueva lógica de facturación
+
                     } else if (ventaCreditoInput != null && ventaCreditoCuotaInputList != null) {
                         ventaCreditoInput.setVentaId(venta.getId());
                         ventaCreditoInput.setSucursalId(venta.getSucursalId());
@@ -295,23 +271,22 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         // SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta,
                         // facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
 
-                        TimbradoDetalle timbradoDetalle = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
-                                facturaLegalItemInputList, printerName, pdvId, false);
+                        // La llamada a saveFacturaLegal ya no es necesaria aquí.
+                        // TimbradoDetalle timbradoDetalle = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
+                        //         facturaLegalItemInputList, printerName, pdvId, false);
                         facturaCountDown = Integer.valueOf(env.getProperty("facturaCountDown"));
-                        if (timbradoDetalle == null)
-                            throw new GraphQLException("Problema al generar factura");
+                        // if (timbradoDetalle == null)
+                        //     throw new GraphQLException("Problema al generar factura");
                     }
                 } else {
                     facturaCountDown = facturaCountDown - 1;
                 }
 
             } catch (Exception e) {
-                log.info("retornando venta con exepcion");
                 e.printStackTrace();
                 return venta;
             }
         }
-        log.info("retornando venta sin excepcion");
         return venta;
     }
 

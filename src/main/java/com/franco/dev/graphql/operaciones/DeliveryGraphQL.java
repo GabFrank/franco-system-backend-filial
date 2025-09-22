@@ -1,6 +1,5 @@
 package com.franco.dev.graphql.operaciones;
 
-import com.franco.dev.domain.financiero.TimbradoDetalle;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
@@ -8,8 +7,6 @@ import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.graphql.financiero.FacturaLegalGraphQL;
-import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
-import com.franco.dev.graphql.financiero.input.FacturaLegalItemInput;
 import com.franco.dev.graphql.operaciones.input.*;
 import com.franco.dev.service.general.BarrioService;
 import com.franco.dev.service.operaciones.DeliveryService;
@@ -19,6 +16,8 @@ import com.franco.dev.service.operaciones.VueltoService;
 import com.franco.dev.service.personas.FuncionarioService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.rabbitmq.PropagacionService;
+import com.franco.dev.service.financiero.FacturaService;
+import com.franco.dev.service.financiero.FacturaLegalService;
 import graphql.GraphQLException;
 import graphql.GraphqlErrorException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
@@ -32,10 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static com.franco.dev.utilitarios.DateUtils.stringToDate;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Component
 public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
@@ -84,6 +81,12 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
     @Autowired
     private FacturaLegalGraphQL facturaLegalGraphQL;
+
+    @Autowired
+    private FacturaService facturaService;
+
+    @Autowired
+    private FacturaLegalService facturaLegalService;
 
     public Optional<Delivery> delivery(Long id, Long sucId) {
         return service.findById(id);
@@ -203,44 +206,23 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                 case PARA_ENTREGA:
                     List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
                     if (pdvId != null) {
-                        FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
-                        if (venta.getCliente() == null) {
-                            facturaLegalInput.setNombre("SIN NOMBRE");
-                            facturaLegalInput.setRuc("X");
-                        } else {
-                            facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
-                            facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
+                        try {
+                            // Crear factura legal con documento electrónico integrado
+                            // Para delivery no hay CobroDetalle, por lo que se pasa null (sin descuentos)
+                            com.franco.dev.domain.financiero.FacturaLegal facturaLegalConDE = 
+                                facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, null);
+                            
+                            if (facturaLegalConDE == null) {
+                                throw new GraphQLException("Problema al crear factura legal");
+                            }
+                            
+                            // Imprimir el ticket/factura con los datos del DE
+                            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName);
+                            
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            throw new GraphQLException("Problema al generar factura electrónica: " + e.getMessage());
                         }
-                        facturaLegalInput.setVentaId(venta.getId());
-                        facturaLegalInput.setCredito(false);
-                        facturaLegalInput.setUsuarioId(venta.getUsuario().getId());
-                        List<FacturaLegalItemInput> facturaLegalItemInputList = new ArrayList<>();
-                        for (VentaItem vi : ventaItemList) {
-                            FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
-                            fiInput.setVentaItemId(vi.getId());
-                            fiInput.setPresentacionId(vi.getPresentacion().getId());
-                            fiInput.setIva(vi.getPresentacion().getProducto().getIva());
-                            fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
-                            fiInput.setCantidad(vi.getCantidad());
-                            fiInput.setPrecioUnitario(vi.getPrecioVenta().getPrecio() - vi.getValorDescuento());
-                            fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
-                            facturaLegalItemInputList.add(fiInput);
-                        }
-                        FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
-                        fiInput.setVentaItemId(null);
-                        fiInput.setPresentacionId(null);
-                        fiInput.setIva(10);
-                        fiInput.setDescripcion("Delivery");
-                        fiInput.setCantidad(Double.valueOf(1));
-                        fiInput.setPrecioUnitario(delivery.getPrecio().getValor());
-                        fiInput.setTotal(delivery.getPrecio().getValor());
-                        facturaLegalItemInputList.add(fiInput);
-                        // SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta,
-                        // facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
-                        TimbradoDetalle timbradoDetalle = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
-                                facturaLegalItemInputList, printerName, pdvId, true);
-                        if (timbradoDetalle == null)
-                            throw new GraphQLException("Problema al generar factura");
                     } else {
                         ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, false, printerName, local, false,
                                 null, delivery);

@@ -52,10 +52,6 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
         return repository;
     }
 
-    // public List<Venta> findByAll(String texto){
-    // texto = texto.replace(' ', '%');
-    // return repository.findByProveedor(texto.toLowerCase());
-    // }
 
     public Page<Venta> findByCajaId(EmbebedPrimaryKey id, Integer page, Integer size, Boolean asc, Long formaPago,
             VentaEstado estado, Boolean isDelivery, Long monedaId) {

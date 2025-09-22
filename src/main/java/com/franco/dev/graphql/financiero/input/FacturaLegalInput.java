@@ -15,7 +15,7 @@ public class FacturaLegalInput implements Serializable {
     private Integer numeroFactura;
     private Long clienteId;
     private Long ventaId;
-    private LocalDateTime fecha;
+    private String fecha;
     private Boolean credito;
     private String nombre;
     private String ruc;

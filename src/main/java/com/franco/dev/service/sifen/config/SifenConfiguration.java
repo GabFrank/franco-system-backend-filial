@@ -24,25 +24,23 @@ public class SifenConfiguration {
 
     @Bean
     public SifenConfig sifenConfig(SifenProperties properties) throws FileNotFoundException {
-        // Validar que el archivo de certificado exista
         String certPath = properties.getCertificado().getArchivo();
+        String certPass = properties.getCertificado().getContrasena();
+
+
         if (Files.notExists(Paths.get(certPath))) {
-            log.error("****************************************************************************");
             log.error("ARCHIVO DE CERTIFICADO SIFEN NO ENCONTRADO EN: {}", certPath);
-            log.error("La aplicación no se iniciará. Verifique la ruta en `application.properties`");
-            log.error("o la variable de entorno `SIFEN_CERT_PATH`.");
-            log.error("****************************************************************************");
+            log.error("La aplicación no se iniciará. Verifique la ruta en `application.properties` o la variable de entorno `SIFEN_CERT_PATH`.");
             throw new FileNotFoundException("No se encontró el archivo de certificado SIFEN: " + certPath);
         }
 
-        log.info("Inicializando configuración de SIFEN para el ambiente: {}", properties.getAmbiente());
 
         SifenConfig config = new SifenConfig(
             TipoAmbiente.valueOf(properties.getAmbiente().toUpperCase()),
             properties.getCscId(),
             properties.getCsc(),
             TipoCertificadoCliente.valueOf(properties.getCertificado().getTipo().toUpperCase()),
-            properties.getCertificado().getArchivo(),
+            certPath,
             properties.getCertificado().getContrasena()
         );
 
@@ -55,8 +53,6 @@ public class SifenConfiguration {
             log.error("Error al inicializar la configuración de SIFEN: {}", e.getMessage());
             e.printStackTrace();
         }
-
-        log.info("Configuración de SIFEN inicializada correctamente.");
         return config;
     }
 }
