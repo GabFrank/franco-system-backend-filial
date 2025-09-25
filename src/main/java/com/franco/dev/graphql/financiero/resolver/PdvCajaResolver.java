@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
-public class CajaResolver implements GraphQLResolver<PdvCaja> {
+public class PdvCajaResolver implements GraphQLResolver<PdvCaja> {
 
     @Autowired
     private PdvCajaService pdvCajaService;

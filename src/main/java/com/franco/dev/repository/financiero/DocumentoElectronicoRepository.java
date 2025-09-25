@@ -1,6 +1,7 @@
 package com.franco.dev.repository.financiero;
 
 import com.franco.dev.domain.financiero.DocumentoElectronico;
+import com.franco.dev.domain.financiero.enums.EstadoDE;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,7 +15,9 @@ public interface DocumentoElectronicoRepository extends JpaRepository<DocumentoE
     
     Optional<DocumentoElectronico> findByCdc(String cdc);
     
-    List<DocumentoElectronico> findByEstadoDocumentoElectronico(String estado);
+    List<DocumentoElectronico> findByEstado(EstadoDE estado);
+    
+    List<DocumentoElectronico> findByLoteDe(com.franco.dev.domain.financiero.LoteDE loteDe);
     
     List<DocumentoElectronico> findBySucursalIdAndActivoTrue(Long sucursalId);
 }

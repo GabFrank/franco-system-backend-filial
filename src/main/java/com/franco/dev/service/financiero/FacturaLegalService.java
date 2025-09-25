@@ -78,7 +78,7 @@ public class FacturaLegalService extends CrudService<FacturaLegal, FacturaLegalR
             docElectronico.setCdc(infoDocumento.getCdc());
             docElectronico.setUrlQr(infoDocumento.getUrlQr());
             docElectronico.setXmlFirmado(infoDocumento.getXmlFirmado());
-            docElectronico.setEstadoDocumentoElectronico(infoDocumento.getEstadoDocumento());
+            docElectronico.setEstado(com.franco.dev.domain.financiero.enums.EstadoDE.valueOf(infoDocumento.getEstadoDocumento()));
             docElectronico.setCodigoRespuestaSifen(infoDocumento.getCodigoRespuesta());
             docElectronico.setMensajeRespuestaSifen(infoDocumento.getMensajeRespuesta());
             docElectronico.setFechaRecepcionSifen(LocalDateTime.now());

@@ -55,8 +55,7 @@ import static com.franco.dev.utilitarios.CalcularVerificadorRuc.getDigitoVerific
 import org.springframework.transaction.annotation.Transactional;
 import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.FacturaLegalItem;
-import com.franco.dev.service.financiero.FacturaLegalService;
-import com.franco.dev.service.financiero.FacturaLegalItemService;
+import com.franco.dev.domain.financiero.enums.EstadoDE;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -458,7 +457,7 @@ public class FacturaService {
                     docElectronico.setCdc(infoDocumento.getCdc());
                     docElectronico.setUrlQr(infoDocumento.getUrlQr());
                     docElectronico.setXmlFirmado(infoDocumento.getXmlFirmado());
-                    docElectronico.setEstadoDocumentoElectronico(infoDocumento.getEstadoDocumento());
+                    docElectronico.setEstado(convertirStringAEstadoDE(infoDocumento.getEstadoDocumento()));
                     docElectronico.setCodigoRespuestaSifen(infoDocumento.getCodigoRespuesta());
                     docElectronico.setMensajeRespuestaSifen(infoDocumento.getMensajeRespuesta());
                     docElectronico.setFechaRecepcionSifen(LocalDateTime.now());
@@ -475,6 +474,29 @@ public class FacturaService {
         } else {
             log.error("No se encontró un timbrado para el punto de expedición de la caja");
             return null;
+        }
+    }
+
+    private EstadoDE convertirStringAEstadoDE(String estadoString) {
+        if (estadoString == null) {
+            return EstadoDE.PENDIENTE;
+        }
+        
+        switch (estadoString.toUpperCase()) {
+            case "PENDIENTE":
+                return EstadoDE.PENDIENTE;
+            case "EN_LOTE":
+            case "EN_PROCESO":
+                return EstadoDE.EN_LOTE;
+            case "APROBADO":
+                return EstadoDE.APROBADO;
+            case "RECHAZADO":
+                return EstadoDE.RECHAZADO;
+            case "CANCELADO":
+                return EstadoDE.CANCELADO;
+            case "ERROR":
+            default:
+                return EstadoDE.PENDIENTE; // Default fallback
         }
     }
 

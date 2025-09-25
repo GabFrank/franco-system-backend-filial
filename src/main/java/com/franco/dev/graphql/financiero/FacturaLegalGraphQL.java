@@ -155,25 +155,25 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      * Guarda una factura legal con sus items y opcionalmente la imprime.
      * Este método mantiene compatibilidad con el schema GraphQL existente.
      *
-     * @param entity La factura legal a guardar
+     * @param entity      La factura legal a guardar
      * @param detalleList Lista de items de la factura legal
      * @param printerName Nombre de la impresora (opcional)
-     * @param pdvId ID del punto de venta (requerido)
-     * @param print Si debe imprimir la factura (opcional)
+     * @param pdvId       ID del punto de venta (requerido)
+     * @param print       Si debe imprimir la factura (opcional)
      * @return El timbrado detalle asociado
      */
-    public TimbradoDetalle saveFacturaLegal(FacturaLegalInput entity, List<FacturaLegalItemInput> detalleList, 
-                                           String printerName, Integer pdvId, Boolean print) {
+    public TimbradoDetalle saveFacturaLegal(FacturaLegalInput entity, List<FacturaLegalItemInput> detalleList,
+            String printerName, Integer pdvId, Boolean print) {
         try {
-            
+
             // Validar que pdvId no sea null (es requerido según el schema)
             if (pdvId == null) {
                 throw new GraphQLException("pdvId es requerido");
             }
-            
+
             // Crear la factura legal
             FacturaLegal facturaLegal = new FacturaLegal();
-            
+
             // Mapear campos básicos
             facturaLegal.setViaTributaria(entity.getViaTributaria() != null ? entity.getViaTributaria() : false);
             facturaLegal.setCredito(entity.getCredito() != null ? entity.getCredito() : false);
@@ -189,50 +189,52 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             facturaLegal.setTotalParcial10(entity.getTotalParcial10());
             facturaLegal.setTotalFinal(entity.getTotalFinal());
             facturaLegal.setDescuento(entity.getDescuento());
-            // facturaLegal.setSucursalId(entity.getSucursalId()); // TODO: Implementar si es necesario
-            
+            // facturaLegal.setSucursalId(entity.getSucursalId()); // TODO: Implementar si
+            // es necesario
+
             // Mapear fechas
             if (entity.getFecha() != null) {
                 facturaLegal.setFecha(stringToDate(entity.getFecha()));
             } else {
                 facturaLegal.setFecha(LocalDateTime.now());
             }
-            
+
             // Mapear relaciones
             if (entity.getCajaId() != null) {
                 // TODO: Implementar mapeo de caja si es necesario
             }
-            
+
             if (entity.getClienteId() != null) {
                 Optional<Cliente> cliente = clienteService.findById(entity.getClienteId());
                 cliente.ifPresent(facturaLegal::setCliente);
             }
-            
+
             if (entity.getVentaId() != null) {
                 Optional<Venta> venta = ventaService.findById(entity.getVentaId());
                 venta.ifPresent(facturaLegal::setVenta);
             }
-            
+
             if (entity.getUsuarioId() != null) {
-                Optional<com.franco.dev.domain.personas.Usuario> usuario = usuarioService.findById(entity.getUsuarioId());
+                Optional<com.franco.dev.domain.personas.Usuario> usuario = usuarioService
+                        .findById(entity.getUsuarioId());
                 usuario.ifPresent(facturaLegal::setUsuario);
             }
-            
+
             // Obtener el timbrado detalle por pdvId
             TimbradoDetalle timbradoDetalle = timbradoDetalleService.getTimbradoDetalleActual(pdvId.longValue());
             if (timbradoDetalle == null) {
                 throw new GraphQLException("No se encontró un timbrado para el punto de venta ID: " + pdvId);
             }
-            
+
             facturaLegal.setTimbradoDetalle(timbradoDetalle);
-            
+
             // Incrementar número de factura
             Long numeroFactura = timbradoDetalle.getNumeroActual() != null ? timbradoDetalle.getNumeroActual() + 1 : 1L;
             facturaLegal.setNumeroFactura(numeroFactura.intValue());
-            
+
             // Guardar la factura legal
             FacturaLegal facturaLegalGuardada = service.save(facturaLegal);
-            
+
             // Guardar los items si se proporcionan
             if (detalleList != null && !detalleList.isEmpty()) {
                 for (FacturaLegalItemInput itemInput : detalleList) {
@@ -244,50 +246,52 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     item.setTotal(itemInput.getTotal());
                     // item.setIva(itemInput.getIva()); // TODO: Implementar si es necesario
                     item.setSucursalId(facturaLegalGuardada.getSucursalId());
-                    
+
                     // Mapear relaciones del item
                     if (itemInput.getVentaItemId() != null) {
                         // TODO: Implementar mapeo de VentaItem si es necesario
                     }
-                    
+
                     if (itemInput.getUsuarioId() != null) {
-                        Optional<com.franco.dev.domain.personas.Usuario> usuario = usuarioService.findById(itemInput.getUsuarioId());
+                        Optional<com.franco.dev.domain.personas.Usuario> usuario = usuarioService
+                                .findById(itemInput.getUsuarioId());
                         usuario.ifPresent(item::setUsuario);
                     }
-                    
+
                     facturaLegalItemService.save(item);
                 }
             }
-            
+
             // Actualizar el número actual del timbrado
             timbradoDetalle.setNumeroActual(numeroFactura);
             timbradoDetalleService.save(timbradoDetalle);
-            
+
             // Generar documento electrónico si es una nueva factura
             try {
                 // Generar el documento electrónico usando el servicio
                 FacturaLegal facturaConDE = service.generarDocumentoElectronico(facturaLegalGuardada);
-                
+
             } catch (Exception e) {
-                log.error("Error al generar documento electrónico para factura ID: {}", facturaLegalGuardada.getId(), e);
+                log.error("Error al generar documento electrónico para factura ID: {}", facturaLegalGuardada.getId(),
+                        e);
                 // No lanzamos excepción para no romper el guardado de la factura
             }
-            
+
             // Imprimir si se solicita
             if (print != null && print && printerName != null) {
                 try {
                     // Recargar la factura para obtener los datos del documento electrónico
-                    FacturaLegal facturaConDE = service.findById(facturaLegalGuardada.getId()).orElse(facturaLegalGuardada);
+                    FacturaLegal facturaConDE = service.findById(facturaLegalGuardada.getId())
+                            .orElse(facturaLegalGuardada);
                     printTicket58mmFactura(facturaConDE.getVenta(), facturaConDE, null, printerName);
                 } catch (Exception e) {
                     log.error("Error al imprimir factura legal ID: {}", facturaLegalGuardada.getId(), e);
                     // No lanzamos excepción para no romper el guardado
                 }
             }
-            
-            
+
             return timbradoDetalle;
-            
+
         } catch (Exception e) {
             log.error("Error al guardar factura legal: {}", e.getMessage(), e);
             throw new GraphQLException("Error al guardar factura legal: " + e.getMessage(), e);
@@ -693,7 +697,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
             try {
                 generarFacturaAutoImpreso(fl.getVenta() != null ? fl.getVenta() : null, null,
-                        new ArrayList<>(), new ArrayList<>(), continuar, printerName, 
+                        new ArrayList<>(), new ArrayList<>(), continuar, printerName,
                         fl.getTimbradoDetalle().getPuntoDeVenta().getNombre(), input);
                 fl.setViaTributaria(true);
                 // propagacionService.propagarEntidad(fl, TipoEntidad.FACTURA);
@@ -719,7 +723,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     public void printTicket58mmFactura(Venta venta, FacturaLegal facturaLegal,
             List<FacturaLegalItem> facturaLegalItemList, String printerName) throws Exception {
-        
+
         if (facturaLegalItemList == null) {
             facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
         }
@@ -775,11 +779,17 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF(factura, facturaLegal.getTimbradoDetalle().getTimbrado().getRazonSocial().toUpperCase());
             escpos.writeLF(factura, "RUC: " + facturaLegal.getTimbradoDetalle().getTimbrado().getRuc());
             escpos.writeLF(factura, "Timbrado: " + facturaLegal.getTimbradoDetalle().getTimbrado().getNumero());
-            escpos.writeLF(factura, "De "
-                    + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaInicio()
-                            .format(impresionService.shortDate)
-                    + " a "
-                    + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaFin().format(impresionService.shortDate));
+
+            // Si el timbrado es electronico, no se imprime la fecha de inicio y fin
+            if (facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico() != true) {
+                escpos.writeLF(factura, "De "
+                        + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaInicio()
+                                .format(impresionService.shortDate)
+                        + " a "
+                        + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaFin()
+                                .format(impresionService.shortDate));
+            }
+
             Long numeroFacturaAux = Long.valueOf(facturaLegal.getNumeroFactura());
             StringBuilder numeroFacturaString = new StringBuilder();
             for (int i = 7; i > numeroFacturaAux.toString().length(); i--) {
@@ -792,7 +802,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
             escpos.writeLF(factura, "Nro: " + sucursal.getCodigoEstablecimientoFactura() + "-"
                     + facturaLegal.getTimbradoDetalle().getPuntoExpedicion() + "-" + numeroFacturaString.toString());
-            escpos.writeLF(center, "Condición: " + (facturaLegal.getCredito() == false ? "Contado" : "Crédito"));
+            escpos.writeLF(center, "Condicion: " + (facturaLegal.getCredito() == false ? "Contado" : "Crédito"));
 
             if (sucursal != null) {
                 escpos.writeLF(center, "Suc: " + sucursal.getNombre());
@@ -864,7 +874,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 escpos.writeLF(valorTotal);
             }
             escpos.writeLF("--------------------------------");
-            
+
             // Mostrar desglose de descuento si existe
             if (descuento > 0) {
                 Double totalSinDescuento = totalFinal + descuento;
@@ -874,7 +884,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     escpos.write(" ");
                 }
                 escpos.writeLF(totalParcialGs);
-                
+
                 escpos.write("Descuento: ");
                 String descuentoGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(descuento);
                 for (int i = 22; i > descuentoGs.length(); i--) {
@@ -882,7 +892,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 }
                 escpos.writeLF(descuentoGs);
             }
-            
+
             escpos.write("Total Gs: ");
             String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalFinal);
             for (int i = 22; i > valorGs.length(); i--) {
@@ -903,7 +913,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
             escpos.writeLF(totalIva5S);
             escpos.write("Exentas:     ");
-            String totalIva0S = NumberFormat.getNumberInstance(Locale.GERMAN).format(facturaLegal.getTotalParcial0().intValue());
+            String totalIva0S = NumberFormat.getNumberInstance(Locale.GERMAN)
+                    .format(facturaLegal.getTotalParcial0().intValue());
             for (int i = 19; i > totalIva0S.length(); i--) {
                 escpos.write(" ");
             }
@@ -940,12 +951,14 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             // "wa.me/" + sucursal.getNroDelivery());
             // }
             // Generar CDC directamente usando la función generarCdc
-            if (facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico() != null && facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico()) {
+            if (facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico() != null
+                    && facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico()) {
 
-                DocumentoElectronico documentoElectronico = documentoElectronicoService.findByFacturaLegalIdAndSucursalId(facturaLegal.getId(), facturaLegal.getSucursalId());
-                
+                DocumentoElectronico documentoElectronico = documentoElectronicoService
+                        .findByFacturaLegalIdAndSucursalId(facturaLegal.getId(), facturaLegal.getSucursalId());
+
                 String cdc = documentoElectronico.getCdc();
-                
+
                 // Generar URL del QR para SIFEN
                 String urlQr = documentoElectronico.getUrlQr();
 
@@ -955,10 +968,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                         log.info("Generando imagen de QR para URL de {} caracteres.", urlQr.length());
                         BufferedImage qrImage = QRCodeImageGenerator.generateQRCodeImage(urlQr, 250, 250);
 
-                        // Preparar la imagen para la impresión ESC/POS, reutilizando las variables existentes
+                        // Preparar la imagen para la impresión ESC/POS, reutilizando las variables
+                        // existentes
                         imageWrapper.setJustification(EscPosConst.Justification.Center);
                         escposImage = new EscPosImage(new CoffeeImageImpl(qrImage), algorithm);
-                        
+
                         // Enviar la imagen a la impresora
                         escpos.write(imageWrapper, escposImage);
                         escpos.feed(1);
@@ -1057,7 +1071,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     // Resolvers para campos de documento electrónico
     public DocumentoElectronico documentoElectronico(FacturaLegal facturaLegal) {
         if (facturaLegal != null && facturaLegal.getId() != null && facturaLegal.getSucursalId() != null) {
-            return documentoElectronicoService.findByFacturaLegalIdAndSucursalId(facturaLegal.getId(), facturaLegal.getSucursalId());
+            return documentoElectronicoService.findByFacturaLegalIdAndSucursalId(facturaLegal.getId(),
+                    facturaLegal.getSucursalId());
         }
         return null;
     }
@@ -1068,29 +1083,30 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     /**
      * Genera un documento electrónico completo para una factura legal.
-     * Este método utiliza la librería SIFEN para generar el CDC, URL QR y XML firmado.
+     * Este método utiliza la librería SIFEN para generar el CDC, URL QR y XML
+     * firmado.
      *
      * @param facturaLegalId El ID de la factura legal
-     * @param sucId El ID de la sucursal
-     * @return La factura legal actualizada con la información del documento electrónico
+     * @param sucId          El ID de la sucursal
+     * @return La factura legal actualizada con la información del documento
+     *         electrónico
      */
     public FacturaLegal generarDocumentoElectronico(Long facturaLegalId, Long sucId) {
         try {
-            
+
             // Verificar que la factura legal existe y pertenece a la sucursal
             FacturaLegal facturaLegal = service.findById(facturaLegalId)
                     .orElseThrow(() -> new RuntimeException("Factura legal no encontrada con ID: " + facturaLegalId));
-            
+
             if (!facturaLegal.getSucursalId().equals(sucId)) {
                 throw new RuntimeException("La factura legal no pertenece a la sucursal especificada");
             }
-            
+
             // Generar el documento electrónico
             FacturaLegal facturaActualizada = service.generarDocumentoElectronico(facturaLegal);
-            
-            
+
             return facturaActualizada;
-            
+
         } catch (Exception e) {
             log.error("Error al generar documento electrónico para factura legal ID: {}", facturaLegalId, e);
             throw new RuntimeException("Error al generar documento electrónico: " + e.getMessage(), e);

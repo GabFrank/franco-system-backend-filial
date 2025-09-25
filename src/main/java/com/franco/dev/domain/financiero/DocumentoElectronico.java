@@ -1,10 +1,14 @@
 package com.franco.dev.domain.financiero;
 
+import com.franco.dev.domain.financiero.enums.EstadoDE;
 import com.franco.dev.domain.personas.Usuario;
+import com.franco.dev.utilitarios.PostgreSQLEnumType;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.TypeDef;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
@@ -14,6 +18,10 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@TypeDef(
+        name = "estado",
+        typeClass = PostgreSQLEnumType.class
+)
 @Entity
 @Table(name = "documento_electronico", schema = "financiero")
 public class DocumentoElectronico implements Serializable {
@@ -33,11 +41,14 @@ public class DocumentoElectronico implements Serializable {
     // Información del documento electrónico
     private String cdc;
     private String urlQr;
+    @Column(columnDefinition = "TEXT")
     private String xmlFirmado;
+    @Column(columnDefinition = "TEXT")
     private String xmlOriginal;
     
     // Estado del documento
-    private String estadoDocumentoElectronico;
+    @Enumerated(EnumType.STRING)
+    private EstadoDE estado;
     private String codigoRespuestaSifen;
     private String mensajeRespuestaSifen;
     
@@ -46,6 +57,10 @@ public class DocumentoElectronico implements Serializable {
     private String tipoDocumento;
     private LocalDateTime fechaEmision;
     private LocalDateTime fechaRecepcionSifen;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lote_de_id")
+    private LoteDE loteDe;
     
     // Campos de auditoría
     private Boolean activo;

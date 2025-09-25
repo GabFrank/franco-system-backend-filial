@@ -2,10 +2,13 @@ package com.franco.dev.graphql.financiero;
 
 import com.franco.dev.domain.financiero.DocumentoElectronico;
 import com.franco.dev.domain.financiero.FacturaLegal;
+import com.franco.dev.domain.financiero.LoteDE;
+import com.franco.dev.domain.financiero.enums.EstadoDE;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.graphql.financiero.input.DocumentoElectronicoInput;
 import com.franco.dev.service.financiero.DocumentoElectronicoService;
 import com.franco.dev.service.financiero.FacturaLegalService;
+import com.franco.dev.service.financiero.LoteDEService;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -30,6 +33,9 @@ public class DocumentoElectronicoGraphQL implements GraphQLQueryResolver, GraphQ
     private FacturaLegalService facturaLegalService;
 
     @Autowired
+    private LoteDEService loteDEService;
+
+    @Autowired
     private UsuarioService usuarioService;
 
     public DocumentoElectronico documentoElectronico(Long id, Long sucId) {
@@ -49,7 +55,7 @@ public class DocumentoElectronicoGraphQL implements GraphQLQueryResolver, GraphQ
         return documentoElectronicoService.findByCdc(cdc).orElse(null);
     }
 
-    public List<DocumentoElectronico> documentoElectronicoPorEstado(String estado, Long sucId) {
+    public List<DocumentoElectronico> documentoElectronicoPorEstado(EstadoDE estado, Long sucId) {
         return documentoElectronicoService.findByEstado(estado);
     }
 
@@ -71,7 +77,8 @@ public class DocumentoElectronicoGraphQL implements GraphQLQueryResolver, GraphQ
             documentoElectronico.setCdc(input.getCdc());
             documentoElectronico.setUrlQr(input.getUrlQr());
             documentoElectronico.setXmlFirmado(input.getXmlFirmado());
-            documentoElectronico.setEstadoDocumentoElectronico(input.getEstadoDocumentoElectronico());
+            documentoElectronico.setXmlOriginal(input.getXmlOriginal());
+            documentoElectronico.setEstado(input.getEstado());
             documentoElectronico.setCodigoRespuestaSifen(input.getCodigoRespuestaSifen());
             documentoElectronico.setMensajeRespuestaSifen(input.getMensajeRespuestaSifen());
             documentoElectronico.setNumeroDocumento(input.getNumeroDocumento());
@@ -90,6 +97,11 @@ public class DocumentoElectronicoGraphQL implements GraphQLQueryResolver, GraphQ
             if (input.getFacturaLegalId() != null) {
                 Optional<FacturaLegal> facturaLegal = facturaLegalService.findById(input.getFacturaLegalId());
                 facturaLegal.ifPresent(documentoElectronico::setFacturaLegal);
+            }
+
+            if (input.getLoteDeId() != null) {
+                Optional<LoteDE> loteDE = loteDEService.findById(input.getLoteDeId());
+                loteDE.ifPresent(documentoElectronico::setLoteDe);
             }
 
             if (input.getUsuarioId() != null) {

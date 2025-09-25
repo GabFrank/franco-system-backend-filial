@@ -96,7 +96,7 @@ public class FacturaLegal implements Serializable {
     }
 
     public String getEstadoDocumentoElectronico() {
-        return documentoElectronico != null ? documentoElectronico.getEstadoDocumentoElectronico() : null;
+        return documentoElectronico != null ? documentoElectronico.getEstado().toString() : null;
     }
 
     public String getCodigoRespuestaSifen() {

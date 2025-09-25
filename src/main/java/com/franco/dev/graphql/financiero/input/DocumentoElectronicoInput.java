@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.financiero.input;
 
+import com.franco.dev.domain.financiero.enums.EstadoDE;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -9,11 +10,12 @@ public class DocumentoElectronicoInput implements Serializable {
     private Long id;
     private Long sucursalId;
     private Long facturaLegalId;
+    private Long loteDeId;
     private String cdc;
     private String urlQr;
     private String xmlFirmado;
     private String xmlOriginal;
-    private String estadoDocumentoElectronico;
+    private EstadoDE estado;
     private String codigoRespuestaSifen;
     private String mensajeRespuestaSifen;
     private String numeroDocumento;

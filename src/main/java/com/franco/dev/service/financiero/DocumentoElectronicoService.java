@@ -2,6 +2,7 @@ package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.DocumentoElectronico;
 import com.franco.dev.domain.financiero.FacturaLegal;
+import com.franco.dev.domain.financiero.enums.EstadoDE;
 import com.franco.dev.repository.financiero.DocumentoElectronicoRepository;
 import graphql.GraphQLException;
 import lombok.extern.slf4j.Slf4j;
@@ -40,8 +41,8 @@ public class DocumentoElectronicoService {
         return repository.findByCdc(cdc);
     }
 
-    public List<DocumentoElectronico> findByEstado(String estado) {
-        return repository.findByEstadoDocumentoElectronico(estado);
+    public List<DocumentoElectronico> findByEstado(EstadoDE estado) {
+        return repository.findByEstado(estado);
     }
 
     public List<DocumentoElectronico> findBySucursalId(Long sucursalId) {
@@ -57,6 +58,7 @@ public class DocumentoElectronicoService {
         documentoElectronico.setFechaEmision(facturaLegal.getFecha());
         documentoElectronico.setActivo(true);
         documentoElectronico.setUsuario(facturaLegal.getUsuario());
+        documentoElectronico.setEstado(EstadoDE.PENDIENTE);
         
         return documentoElectronico;
     }

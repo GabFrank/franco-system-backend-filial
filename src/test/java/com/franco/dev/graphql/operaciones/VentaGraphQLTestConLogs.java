@@ -128,7 +128,7 @@ public class VentaGraphQLTestConLogs {
                     log.info("✅ DocumentoElectronico creado exitosamente:");
                     log.info("- ID: {}", documentoElectronico.getId());
                     log.info("- Factura Legal ID: {}", documentoElectronico.getFacturaLegal().getId());
-                    log.info("- Estado: {}", documentoElectronico.getEstadoDocumentoElectronico());
+                    log.info("- Estado: {}", documentoElectronico.getEstado());
                     log.info("- Tipo Documento: {}", documentoElectronico.getTipoDocumento());
                     log.info("- Fecha Creación: {}", documentoElectronico.getCreadoEn());
                     
