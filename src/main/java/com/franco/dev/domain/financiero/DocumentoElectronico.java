@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.TypeDef;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -19,7 +20,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @TypeDef(
-        name = "estado",
+        name = "estado_de_enum",
         typeClass = PostgreSQLEnumType.class
 )
 @Entity
@@ -48,6 +49,8 @@ public class DocumentoElectronico implements Serializable {
     
     // Estado del documento
     @Enumerated(EnumType.STRING)
+    @Type(type = "estado_de_enum")
+    @Column(columnDefinition = "financiero.estado_de_enum")
     private EstadoDE estado;
     private String codigoRespuestaSifen;
     private String mensajeRespuestaSifen;

@@ -124,6 +124,7 @@ public class SifenSchedulerService {
 
     /**
      * Procesa lotes que fallaron y pueden ser reintentados.
+     * Distingue entre errores de red (que requieren espera) y errores de SIFEN (que pueden reintentarse).
      */
     private void procesarLotesConErrores() {
         List<LoteDE> lotesConErrores = sifenService.obtenerLotesParaReintento();
@@ -137,7 +138,7 @@ public class SifenSchedulerService {
 
         for (LoteDE lote : lotesConErrores) {
             try {
-                // Implementar backoff exponencial
+                // Solo reintentar si ha pasado el tiempo suficiente según el tipo de error
                 if (debeReintentarLote(lote)) {
                     log.info("Reintentando envío del lote {} (intento {})...", 
                             lote.getId(), lote.getIntentos() + 1);
@@ -145,6 +146,8 @@ public class SifenSchedulerService {
                     
                     // Pausa más larga para reintentos
                     Thread.sleep(5000);
+                } else {
+                    log.debug("Lote {} aún no debe ser reintentado según el backoff.", lote.getId());
                 }
                 
             } catch (Exception e) {
@@ -155,17 +158,29 @@ public class SifenSchedulerService {
 
     /**
      * Determina si un lote debe ser reintentado basado en backoff exponencial.
+     * Considera el tipo de error para aplicar diferentes estrategias de reintento.
      */
     private boolean debeReintentarLote(LoteDE lote) {
         if (lote.getFechaUltimoIntento() == null) {
             return true;
         }
 
-        // Backoff exponencial: 1 min, 2 min, 4 min, 8 min, 16 min
-        int minutosEspera = (int) Math.pow(2, lote.getIntentos());
-        LocalDateTime proximoIntento = lote.getFechaUltimoIntento().plusMinutes(minutosEspera);
-        
-        return LocalDateTime.now().isAfter(proximoIntento);
+        // Diferentes estrategias según el estado del lote
+        switch (lote.getEstado()) {
+            case ERROR_RED:
+                // Para errores de red, esperar más tiempo (30 minutos mínimo)
+                LocalDateTime proximoIntentoRed = lote.getFechaUltimoIntento().plusMinutes(30);
+                return LocalDateTime.now().isAfter(proximoIntentoRed);
+                
+            case ERROR_ENVIO:
+                // Para errores de envío, usar backoff exponencial: 1 min, 2 min, 4 min, 8 min, 16 min
+                int minutosEspera = (int) Math.pow(2, lote.getIntentos());
+                LocalDateTime proximoIntento = lote.getFechaUltimoIntento().plusMinutes(minutosEspera);
+                return LocalDateTime.now().isAfter(proximoIntento);
+                
+            default:
+                return false; // No reintentar otros estados
+        }
     }
 
     /**

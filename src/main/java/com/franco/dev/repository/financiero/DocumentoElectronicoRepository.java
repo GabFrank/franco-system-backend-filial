@@ -17,6 +17,10 @@ public interface DocumentoElectronicoRepository extends JpaRepository<DocumentoE
     
     List<DocumentoElectronico> findByEstado(EstadoDE estado);
     
+    List<DocumentoElectronico> findByEstadoOrderByIdAsc(EstadoDE estado);
+    
+    List<DocumentoElectronico> findByEstadoAndLoteDeIsNullOrderByIdAsc(EstadoDE estado);
+    
     List<DocumentoElectronico> findByLoteDe(com.franco.dev.domain.financiero.LoteDE loteDe);
     
     List<DocumentoElectronico> findBySucursalIdAndActivoTrue(Long sucursalId);

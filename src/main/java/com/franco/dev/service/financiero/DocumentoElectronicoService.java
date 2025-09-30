@@ -2,6 +2,7 @@ package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.DocumentoElectronico;
 import com.franco.dev.domain.financiero.FacturaLegal;
+import com.franco.dev.domain.financiero.LoteDE;
 import com.franco.dev.domain.financiero.enums.EstadoDE;
 import com.franco.dev.repository.financiero.DocumentoElectronicoRepository;
 import graphql.GraphQLException;
@@ -47,6 +48,10 @@ public class DocumentoElectronicoService {
 
     public List<DocumentoElectronico> findBySucursalId(Long sucursalId) {
         return repository.findBySucursalIdAndActivoTrue(sucursalId);
+    }
+
+    public List<DocumentoElectronico> findByLoteDe(LoteDE loteDe) {
+        return repository.findByLoteDe(loteDe);
     }
 
     public DocumentoElectronico createFromFacturaLegal(FacturaLegal facturaLegal) {

@@ -24,6 +24,7 @@ import com.franco.dev.domain.financiero.FacturaLegalItem;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.financiero.DocumentoElectronico;
+import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.LoteDE;
 import com.franco.dev.domain.financiero.enums.EstadoDE;
 import com.franco.dev.domain.financiero.enums.EstadoLoteDE;
@@ -35,6 +36,7 @@ import com.franco.dev.service.financiero.DocumentoElectronicoService;
 import com.franco.dev.service.financiero.FacturaLegalItemService;
 import com.franco.dev.service.sifen.dto.response.ConsultaRucResponse;
 import com.roshka.sifen.core.beans.response.RespuestaRecepcionLoteDE;
+import com.roshka.sifen.core.beans.response.RespuestaConsultaDE;
 import com.roshka.sifen.core.beans.response.RespuestaConsultaLoteDE;
 import com.roshka.sifen.Sifen;
 import com.roshka.sifen.core.beans.response.RespuestaConsultaRUC;
@@ -54,7 +56,12 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -349,6 +356,9 @@ public class SifenService {
         // Asignar código de seguridad (Restaurado)
         gOpeDE.setdCodSeg(generarCodigoSeguridad(facturaLegal.getNumeroFactura().toString()));
         
+        // Generar CDC (Código de Control) para el documento
+        String cdc = generarCDC(facturaLegal, gTimb);
+        de.setId(cdc);
 
         return de;
     }
@@ -452,28 +462,56 @@ public class SifenService {
 
     /**
      * Agrupa documentos electrónicos pendientes en nuevos lotes.
-     * Respeta el tamaño máximo y el orden FIFO.
+     * Respeta el tamaño máximo, el orden FIFO (por ID) y excluye documentos ya asignados a lotes.
      */
     @Transactional
     public void crearLotesConDocumentosPendientes() {
         log.info("Iniciando creación de lotes con documentos pendientes...");
         
+        // Obtener documentos pendientes ordenados por ID (FIFO) y sin lote asignado
         List<DocumentoElectronico> documentosPendientes = documentoElectronicoRepository
-            .findByEstado(EstadoDE.PENDIENTE);
+            .findByEstadoAndLoteDeIsNullOrderByIdAsc(EstadoDE.PENDIENTE);
         
         if (documentosPendientes.isEmpty()) {
-            log.info("No hay documentos pendientes para agrupar en lotes.");
+            log.info("No hay documentos pendientes sin lote asignado para agrupar.");
             return;
         }
 
-        log.info("Encontrados {} documentos pendientes para agrupar.", documentosPendientes.size());
+        log.info("Encontrados {} documentos pendientes sin lote asignado para agrupar.", documentosPendientes.size());
 
-        // Agrupar documentos en lotes de tamaño máximo
-        for (int i = 0; i < documentosPendientes.size(); i += maxLoteSize) {
-            int endIndex = Math.min(i + maxLoteSize, documentosPendientes.size());
-            List<DocumentoElectronico> documentosLote = documentosPendientes.subList(i, endIndex);
+        // Validar documentos antes de agrupar
+        List<DocumentoElectronico> documentosValidos = validarDocumentosParaLote(documentosPendientes);
+        
+        if (documentosValidos.isEmpty()) {
+            log.warn("No hay documentos válidos para crear lotes después de la validación.");
+            return;
+        }
+
+        // Agrupar documentos por RUC emisor y tipo de documento
+        Map<String, List<DocumentoElectronico>> grupos = agruparDocumentosPorRucYTipo(documentosValidos);
+        
+        // Crear lotes para cada grupo
+        for (Map.Entry<String, List<DocumentoElectronico>> entry : grupos.entrySet()) {
+            String claveGrupo = entry.getKey();
+            List<DocumentoElectronico> documentosGrupo = entry.getValue();
             
-            crearLoteConDocumentos(documentosLote);
+            log.info("Procesando grupo {} con {} documentos.", claveGrupo, documentosGrupo.size());
+            
+            // Dividir en lotes de máximo maxLoteSize documentos
+            List<List<DocumentoElectronico>> lotes = dividirEnLotes(documentosGrupo, maxLoteSize);
+            
+            for (List<DocumentoElectronico> lote : lotes) {
+                // Validar lote antes de crear
+                if (validarLoteAntesDeCrear(lote)) {
+                    log.info("Creando lote con documentos desde ID {} hasta ID {} ({} documentos)", 
+                            lote.get(0).getId(), 
+                            lote.get(lote.size() - 1).getId(),
+                            lote.size());
+                    crearLoteConDocumentos(lote);
+                } else {
+                    log.warn("Lote rechazado por validación. Documentos: {}", lote.size());
+                }
+            }
         }
         
         log.info("Finalizada la creación de lotes.");
@@ -511,6 +549,14 @@ public class SifenService {
     public void enviarLote(LoteDE lote) {
         log.info("Enviando lote {} a SIFEN...", lote.getId());
         
+        // Validar que el lote no haya sido enviado recientemente
+        if (lote.getFechaUltimoIntento() != null && 
+            lote.getFechaUltimoIntento().isAfter(LocalDateTime.now().minusMinutes(5))) {
+            log.warn("Lote {} enviado recientemente ({}), omitiendo envío para evitar bloqueo", 
+                lote.getId(), lote.getFechaUltimoIntento());
+            return;
+        }
+        
         try {
             // Obtener documentos del lote
             List<DocumentoElectronico> documentos = documentoElectronicoRepository
@@ -521,9 +567,13 @@ public class SifenService {
                 return;
             }
 
+            log.info("Lote {} contiene {} documentos para enviar", lote.getId(), documentos.size());
+
             // Construir la lista de DocumentoElectronico de SIFEN
             List<com.roshka.sifen.core.beans.DocumentoElectronico> sifenDocumentos = 
                 construirDocumentosSifen(documentos);
+            
+            log.info("Enviando lote {} con {} documentos a SIFEN...", lote.getId(), sifenDocumentos.size());
             
             // Enviar el lote a SIFEN
             RespuestaRecepcionLoteDE respuesta = Sifen.recepcionLoteDE(sifenDocumentos);
@@ -549,17 +599,33 @@ public class SifenService {
         List<com.roshka.sifen.core.beans.DocumentoElectronico> sifenDocumentos = new ArrayList<>();
         
         for (DocumentoElectronico documento : documentos) {
-            // TODO: Implementar la reconstrucción del DocumentoElectronico de SIFEN
-            // Esto requeriría acceso a la FacturaLegal asociada para reconstruir el documento
             log.debug("Procesando documento {} para el lote", documento.getId());
             
-            // Por ahora, esto es un placeholder
-            // En una implementación completa, necesitarías:
-            // 1. Obtener la FacturaLegal asociada al documento
-            // 2. Obtener los FacturaLegalItem asociados
-            // 3. Llamar a crearDocumentoElectronicoSifen() para reconstruir el objeto SIFEN
+            // Obtener la FacturaLegal asociada al documento
+            FacturaLegal facturaLegal = documento.getFacturaLegal();
+            if (facturaLegal == null) {
+                log.warn("Documento {} no tiene FacturaLegal asociada", documento.getId());
+                continue;
+            }
+            
+            // Obtener los FacturaLegalItem asociados
+            List<FacturaLegalItem> facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
+            if (facturaLegalItemList.isEmpty()) {
+                log.warn("FacturaLegal {} no tiene items asociados", facturaLegal.getId());
+                continue;
+            }
+            
+            log.debug("Documento {} - Factura: {}, Items: {}, CDC: {}", 
+                documento.getId(), facturaLegal.getId(), facturaLegalItemList.size(), documento.getCdc());
+            
+            // Crear el documento electrónico para SIFEN
+            com.roshka.sifen.core.beans.DocumentoElectronico deSifen = crearDocumentoElectronicoSifen(facturaLegal, facturaLegalItemList);
+            
+            // Agregar a la lista
+            sifenDocumentos.add(deSifen);
         }
         
+        log.info("Construidos {} documentos SIFEN para el lote", sifenDocumentos.size());
         return sifenDocumentos;
     }
 
@@ -583,21 +649,21 @@ public class SifenService {
                 log.info("Lote {} ya fue procesado y aprobado anteriormente.", lote.getId());
                 lote.setEstado(EstadoLoteDE.PROCESADO);
                 lote.setFechaProcesado(LocalDateTime.now());
-                actualizarDocumentosLote(lote, EstadoDE.APROBADO);
+                actualizarDocumentosLote(lote, EstadoDE.APROBADO, respuesta.getdCodRes(), "Lote ya fue procesado y aprobado anteriormente.");
                 break;
                 
             case "0305": // Lote ya procesado y rechazado
                 log.info("Lote {} ya fue procesado y rechazado anteriormente.", lote.getId());
                 lote.setEstado(EstadoLoteDE.PROCESADO);
                 lote.setFechaProcesado(LocalDateTime.now());
-                actualizarDocumentosLote(lote, EstadoDE.RECHAZADO);
+                actualizarDocumentosLote(lote, EstadoDE.RECHAZADO, respuesta.getdCodRes(), "Lote ya fue procesado y rechazado anteriormente.");
                 break;
                 
             default: // Otros códigos de rechazo
                 log.warn("Lote {} rechazado por SIFEN. Código: {}, Mensaje: {}", 
                         lote.getId(), codigoRespuesta, respuesta.getdMsgRes());
                 lote.setEstado(EstadoLoteDE.RECHAZADO);
-                actualizarDocumentosLote(lote, EstadoDE.RECHAZADO);
+                actualizarDocumentosLote(lote, EstadoDE.RECHAZADO, codigoRespuesta, respuesta.getdMsgRes());
                 break;
         }
         
@@ -648,7 +714,8 @@ public class SifenService {
                 break;
                 
             case "0301": // Lote rechazado
-                log.warn("Lote {} rechazado por SIFEN.", lote.getId());
+                log.warn("Lote {} rechazado por SIFEN. Código: {}, Mensaje: {}", 
+                        lote.getId(), codigoRespuesta, respuesta.getdMsgRes());
                 lote.setEstado(EstadoLoteDE.RECHAZADO);
                 actualizarDocumentosLoteConDetalles(lote, EstadoDE.RECHAZADO, respuesta);
                 break;
@@ -669,12 +736,27 @@ public class SifenService {
 
     /**
      * Maneja errores de comunicación durante el envío.
+     * Distingue entre errores de red (que no deben reintentarse inmediatamente) 
+     * y errores de SIFEN (que sí pueden reintentarse).
      */
     private void manejarErrorEnvio(LoteDE lote, Exception e) {
         lote.setFechaUltimoIntento(LocalDateTime.now());
-        lote.setIntentos(lote.getIntentos() + 1);
         lote.setRespuestaSifen("Error: " + e.getMessage());
         
+        // Determinar el tipo de error
+        TipoError tipoError = determinarTipoError(e);
+        
+        switch (tipoError) {
+            case ERROR_RED:
+                // Errores de red: no incrementar intentos, esperar más tiempo
+                log.warn("Error de red detectado para lote {}: {}. Esperando reconexión.", 
+                        lote.getId(), e.getMessage());
+                lote.setEstado(EstadoLoteDE.ERROR_RED);
+                break;
+                
+            case ERROR_SIFEN:
+                // Errores de SIFEN: incrementar intentos y reintentar
+                lote.setIntentos(lote.getIntentos() + 1);
         if (lote.getIntentos() >= maxRetries) {
             log.error("Lote {} superó el número máximo de reintentos ({}). Marcando como ERROR_PERMANENTE.", 
                     lote.getId(), maxRetries);
@@ -683,20 +765,74 @@ public class SifenService {
             log.warn("Lote {} falló en el intento {}/{}. Se reintentará más tarde.", 
                     lote.getId(), lote.getIntentos(), maxRetries);
             lote.setEstado(EstadoLoteDE.ERROR_ENVIO);
+                }
+                break;
+                
+            case ERROR_DESCONOCIDO:
+                // Errores desconocidos: tratar como error de SIFEN
+                lote.setIntentos(lote.getIntentos() + 1);
+                if (lote.getIntentos() >= maxRetries) {
+                    lote.setEstado(EstadoLoteDE.ERROR_PERMANENTE);
+                } else {
+                    lote.setEstado(EstadoLoteDE.ERROR_ENVIO);
+                }
+                break;
         }
         
         loteDEService.save(lote);
+    }
+    
+    /**
+     * Determina el tipo de error basado en la excepción.
+     */
+    private TipoError determinarTipoError(Exception e) {
+        String mensaje = e.getMessage().toLowerCase();
+        String nombreClase = e.getClass().getSimpleName();
+        
+        // Errores de red/conectividad
+        if (nombreClase.contains("Connect") || 
+            nombreClase.contains("Socket") ||
+            nombreClase.contains("Timeout") ||
+            nombreClase.contains("UnknownHost") ||
+            mensaje.contains("connection") ||
+            mensaje.contains("timeout") ||
+            mensaje.contains("network") ||
+            mensaje.contains("unreachable")) {
+            return TipoError.ERROR_RED;
+        }
+        
+        // Errores específicos de SIFEN
+        if (e instanceof SifenException || 
+            mensaje.contains("sifen") ||
+            mensaje.contains("xml") ||
+            mensaje.contains("schema") ||
+            mensaje.contains("validation")) {
+            return TipoError.ERROR_SIFEN;
+        }
+        
+        return TipoError.ERROR_DESCONOCIDO;
+    }
+    
+    /**
+     * Enum para clasificar tipos de errores.
+     */
+    private enum TipoError {
+        ERROR_RED,      // Problemas de conectividad/red
+        ERROR_SIFEN,    // Errores específicos de SIFEN
+        ERROR_DESCONOCIDO // Otros errores
     }
 
     /**
      * Actualiza el estado de todos los documentos de un lote.
      */
     @Transactional
-    private void actualizarDocumentosLote(LoteDE lote, EstadoDE nuevoEstado) {
+    private void actualizarDocumentosLote(LoteDE lote, EstadoDE nuevoEstado, String codigoRespuesta, String mensajeRespuesta) {
         List<DocumentoElectronico> documentos = documentoElectronicoRepository.findByLoteDe(lote);
         
         for (DocumentoElectronico documento : documentos) {
             documento.setEstado(nuevoEstado);
+            documento.setCodigoRespuestaSifen(codigoRespuesta);
+            documento.setMensajeRespuestaSifen(mensajeRespuesta);
             documentoElectronicoRepository.save(documento);
         }
         
@@ -706,28 +842,81 @@ public class SifenService {
 
     /**
      * Actualiza los documentos de un lote con información detallada de SIFEN.
-     * Este método se usa cuando tenemos información completa de la respuesta de SIFEN.
+     * Maneja casos donde algunos documentos pueden ser aprobados y otros rechazados.
      */
     @Transactional
     private void actualizarDocumentosLoteConDetalles(LoteDE lote, EstadoDE nuevoEstado, RespuestaConsultaLoteDE respuesta) {
         List<DocumentoElectronico> documentos = documentoElectronicoRepository.findByLoteDe(lote);
         
+        // Contadores para estadísticas del lote
+        int documentosAprobados = 0;
+        int documentosRechazados = 0;
+        int documentosConError = 0;
+        
         for (DocumentoElectronico documento : documentos) {
-            documento.setEstado(nuevoEstado);
+            // Determinar el estado individual del documento basado en la respuesta
+            EstadoDE estadoIndividual = determinarEstadoIndividualDocumento(documento, respuesta);
+            
+            documento.setEstado(estadoIndividual);
             documento.setFechaRecepcionSifen(LocalDateTime.now());
             documento.setCodigoRespuestaSifen(respuesta.getdCodRes());
             documento.setMensajeRespuestaSifen(respuesta.getdMsgRes());
             
-            // TODO: Obtener URL QR individual de cada documento
-            // Esto requeriría consultar cada documento individualmente o 
-            // parsear la respuesta XML del lote para extraer las URLs QR
-            // Por ahora, la URL QR se obtendrá cuando se consulte el documento individual
+            // Contar estados
+            switch (estadoIndividual) {
+                case APROBADO:
+                    documentosAprobados++;
+                    break;
+                case RECHAZADO:
+                    documentosRechazados++;
+                    break;
+                default:
+                    documentosConError++;
+                    break;
+            }
             
             documentoElectronicoRepository.save(documento);
         }
         
-        log.info("Actualizados {} documentos del lote {} al estado {} con detalles de SIFEN.", 
-                documentos.size(), lote.getId(), nuevoEstado);
+        // Determinar el estado final del lote basado en los resultados individuales
+        EstadoLoteDE estadoFinalLote = determinarEstadoFinalLote(documentosAprobados, documentosRechazados, documentosConError, documentos.size());
+        lote.setEstado(estadoFinalLote);
+        loteDEService.save(lote);
+        
+        log.info("Lote {} procesado: {} aprobados, {} rechazados, {} con error. Estado final: {}", 
+                lote.getId(), documentosAprobados, documentosRechazados, documentosConError, estadoFinalLote);
+    }
+    
+    /**
+     * Determina el estado individual de un documento basado en la respuesta de SIFEN.
+     * Por ahora, todos los documentos del lote tienen el mismo estado, pero esto puede
+     * extenderse para parsear respuestas XML detalladas.
+     */
+    private EstadoDE determinarEstadoIndividualDocumento(DocumentoElectronico documento, RespuestaConsultaLoteDE respuesta) {
+        String codigoRespuesta = respuesta.getdCodRes();
+        
+        switch (codigoRespuesta) {
+            case "0300": // Lote procesado exitosamente
+                return EstadoDE.APROBADO;
+            case "0301": // Lote rechazado
+                return EstadoDE.RECHAZADO;
+            default:
+                // Para otros códigos, mantener el estado actual o marcarlo como rechazado
+                return EstadoDE.RECHAZADO;
+        }
+    }
+    
+    /**
+     * Determina el estado final del lote basado en los resultados individuales de los documentos.
+     */
+    private EstadoLoteDE determinarEstadoFinalLote(int aprobados, int rechazados, int conError, int total) {
+        if (aprobados == total) {
+            return EstadoLoteDE.PROCESADO; // Todos aprobados
+        } else if (rechazados == total) {
+            return EstadoLoteDE.RECHAZADO; // Todos rechazados
+        } else {
+            return EstadoLoteDE.PROCESADO_CON_ERRORES; // Resultado mixto
+        }
     }
 
     /**
@@ -924,9 +1113,26 @@ public class SifenService {
 
     /**
      * Obtiene lotes que fallaron y pueden ser reintentados.
+     * Incluye tanto errores de envío como errores de red.
      */
     public List<LoteDE> obtenerLotesParaReintento() {
-        return loteDERepository.findByEstadoOrderByFechaUltimoIntentoAsc(EstadoLoteDE.ERROR_ENVIO);
+        List<LoteDE> lotesErrorEnvio = loteDERepository.findByEstadoOrderByFechaUltimoIntentoAsc(EstadoLoteDE.ERROR_ENVIO);
+        List<LoteDE> lotesErrorRed = loteDERepository.findByEstadoOrderByFechaUltimoIntentoAsc(EstadoLoteDE.ERROR_RED);
+        
+        // Combinar ambas listas manteniendo el orden por fecha
+        List<LoteDE> todosLosLotes = new ArrayList<>();
+        todosLosLotes.addAll(lotesErrorEnvio);
+        todosLosLotes.addAll(lotesErrorRed);
+        
+        // Ordenar por fecha de último intento
+        todosLosLotes.sort((l1, l2) -> {
+            if (l1.getFechaUltimoIntento() == null && l2.getFechaUltimoIntento() == null) return 0;
+            if (l1.getFechaUltimoIntento() == null) return 1;
+            if (l2.getFechaUltimoIntento() == null) return -1;
+            return l1.getFechaUltimoIntento().compareTo(l2.getFechaUltimoIntento());
+        });
+        
+        return todosLosLotes;
     }
 
     /**
@@ -1039,6 +1245,403 @@ public class SifenService {
         dto.setCodigoRespuesta("999");
         dto.setMensajeRespuesta("Error de comunicación con SIFEN: " + e.getMessage());
         return dto;
+    }
+
+    /**
+     * Genera el CDC (Código de Control) para un documento electrónico.
+     * El CDC se compone de varios elementos concatenados según las especificaciones de SIFEN.
+     * 
+     * @param facturaLegal La factura legal para la cual generar el CDC
+     * @param gTimb El objeto TgTimb con la información del timbrado
+     * @return El CDC generado como String
+     */
+    private String generarCDC(com.franco.dev.domain.financiero.FacturaLegal facturaLegal, TgTimb gTimb) {
+        try {
+            // Construir el CDC según las especificaciones de SIFEN
+            // Formato: TipoDocumento + RUC + TipoContribuyente + Establecimiento + PuntoExpedicion + NumeroDocumento + TipoEmision + FechaEmision + CodigoSeguridad
+            
+            StringBuilder cdcBuilder = new StringBuilder();
+            
+            // 1. Tipo de Documento (2 dígitos) - Factura Electrónica = 01
+            cdcBuilder.append("01");
+            
+            // 2. RUC del emisor (8 dígitos)
+            String rucEmisor = facturaLegal.getTimbradoDetalle().getTimbrado().getRuc().replace("-", "");
+            cdcBuilder.append(rucEmisor.substring(0, 8)); // Tomar solo los primeros 8 dígitos
+            
+            // 3. Tipo de Contribuyente (1 dígito) - 1=Física, 2=Jurídica
+            cdcBuilder.append(tipoContribuyenteEmisor);
+            
+            // 4. Código de Establecimiento (3 dígitos)
+            String codigoEstablecimiento = facturaLegal.getTimbradoDetalle().getSucursal().getCodigoEstablecimientoFactura();
+            cdcBuilder.append(String.format("%03d", Integer.parseInt(codigoEstablecimiento)));
+            
+            // 5. Punto de Expedición (3 dígitos)
+            String puntoExpedicion = facturaLegal.getTimbradoDetalle().getPuntoExpedicion();
+            cdcBuilder.append(String.format("%03d", Integer.parseInt(puntoExpedicion)));
+            
+            // 6. Número de Documento (7 dígitos)
+            cdcBuilder.append(String.format("%07d", facturaLegal.getNumeroFactura()));
+            
+            // 7. Tipo de Emisión (1 dígito) - Normal = 1
+            cdcBuilder.append("1");
+            
+            // 8. Fecha de Emisión (8 dígitos) - YYYYMMDD
+            String fechaEmision = facturaLegal.getFecha().toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+            cdcBuilder.append(fechaEmision);
+            
+            // 9. Código de Seguridad (9 dígitos)
+            String codigoSeguridad = generarCodigoSeguridad(facturaLegal.getNumeroFactura().toString());
+            cdcBuilder.append(codigoSeguridad);
+            
+            // 10. Dígito Verificador (1 dígito)
+            String cdcSinDV = cdcBuilder.toString();
+            int digitoVerificador = com.franco.dev.utilitarios.CalcularVerificadorCDC.calcularDigitoVerificador(cdcSinDV);
+            cdcBuilder.append(digitoVerificador);
+            
+            String cdcCompleto = cdcBuilder.toString();
+            
+            log.info("CDC generado para factura {}: {}", facturaLegal.getNumeroFactura(), cdcCompleto);
+            
+            return cdcCompleto;
+            
+        } catch (Exception e) {
+            log.error("Error al generar CDC para factura {}: {}", facturaLegal.getNumeroFactura(), e.getMessage(), e);
+            // Generar un CDC de emergencia basado en timestamp
+            return generarCDCEmergencia(facturaLegal);
+        }
+    }
+    
+    /**
+     * Genera un CDC de emergencia cuando falla la generación normal.
+     * Usa timestamp y datos básicos para crear un identificador único.
+     */
+    private String generarCDCEmergencia(com.franco.dev.domain.financiero.FacturaLegal facturaLegal) {
+        try {
+            // Usar timestamp y datos básicos para generar un CDC único
+            long timestamp = System.currentTimeMillis();
+            String ruc = facturaLegal.getTimbradoDetalle().getTimbrado().getRuc().replace("-", "");
+            String numeroFactura = String.format("%07d", facturaLegal.getNumeroFactura());
+            
+            // Crear un CDC básico: 01 + RUC + timestamp + numeroFactura
+            String cdcBase = "01" + ruc.substring(0, 8) + String.valueOf(timestamp).substring(8) + numeroFactura;
+            
+            // Calcular dígito verificador
+            int digitoVerificador = com.franco.dev.utilitarios.CalcularVerificadorCDC.calcularDigitoVerificador(cdcBase);
+            
+            String cdcEmergencia = cdcBase + digitoVerificador;
+            
+            log.warn("CDC de emergencia generado para factura {}: {}", facturaLegal.getNumeroFactura(), cdcEmergencia);
+            
+            return cdcEmergencia;
+            
+        } catch (Exception e) {
+            log.error("Error crítico al generar CDC de emergencia: {}", e.getMessage(), e);
+            // Último recurso: usar un UUID truncado
+            return "01" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 38);
+        }
+    }
+
+    /**
+     * Valida documentos antes de incluirlos en un lote para prevenir errores 0301.
+     */
+    private List<DocumentoElectronico> validarDocumentosParaLote(List<DocumentoElectronico> documentos) {
+        List<DocumentoElectronico> documentosValidos = new ArrayList<>();
+        Set<String> cdcsUnicos = new HashSet<>();
+        
+        for (DocumentoElectronico documento : documentos) {
+            // Validar CDC único
+            if (documento.getCdc() == null || documento.getCdc().isEmpty()) {
+                log.warn("Documento {} sin CDC válido, omitiendo del lote", documento.getId());
+                continue;
+            }
+            
+            if (cdcsUnicos.contains(documento.getCdc())) {
+                log.warn("Documento {} con CDC duplicado: {}, omitiendo del lote", 
+                    documento.getId(), documento.getCdc());
+                continue;
+            }
+            
+            // Validar que el documento no esté ya en procesamiento
+            if (documentoElectronicoRepository.findByCdc(documento.getCdc()).isPresent()) {
+                DocumentoElectronico existente = documentoElectronicoRepository.findByCdc(documento.getCdc()).get();
+                if (existente.getEstado() == EstadoDE.EN_LOTE || 
+                    existente.getEstado() == EstadoDE.APROBADO) {
+                    log.warn("Documento {} con CDC {} ya está en procesamiento, omitiendo del lote", 
+                        documento.getId(), documento.getCdc());
+                    continue;
+                }
+            }
+            
+            // Validar FacturaLegal asociada
+            if (documento.getFacturaLegal() == null) {
+                log.warn("Documento {} sin FacturaLegal asociada, omitiendo del lote", documento.getId());
+                continue;
+            }
+            
+            // Validar items de la factura
+            List<FacturaLegalItem> items = facturaLegalItemService.findByFacturaLegalId(documento.getFacturaLegal().getId());
+            if (items.isEmpty()) {
+                log.warn("Documento {} sin items en FacturaLegal {}, omitiendo del lote", 
+                    documento.getId(), documento.getFacturaLegal().getId());
+                continue;
+            }
+            
+            documentosValidos.add(documento);
+            cdcsUnicos.add(documento.getCdc());
+        }
+        
+        log.info("Validación completada: {} documentos válidos de {} originales", 
+            documentosValidos.size(), documentos.size());
+        
+        return documentosValidos;
+    }
+    
+    /**
+     * Valida un lote antes de crearlo para prevenir errores 0301.
+     */
+    private boolean validarLoteAntesDeCrear(List<DocumentoElectronico> documentos) {
+        if (documentos.isEmpty()) {
+            log.warn("Lote vacío rechazado");
+            return false;
+        }
+        
+        // Validar que todos los documentos tengan el mismo RUC emisor
+        String rucEmisor = null;
+        String tipoDocumento = null;
+        
+        for (DocumentoElectronico documento : documentos) {
+            FacturaLegal facturaLegal = documento.getFacturaLegal();
+            if (facturaLegal == null || facturaLegal.getTimbradoDetalle() == null || 
+                facturaLegal.getTimbradoDetalle().getTimbrado() == null) {
+                log.warn("Documento {} sin información de timbrado válida", documento.getId());
+                return false;
+            }
+            
+            String rucActual = facturaLegal.getTimbradoDetalle().getTimbrado().getRuc();
+            String tipoActual = "FACTURA"; // Por ahora solo manejamos facturas
+            
+            if (rucEmisor == null) {
+                rucEmisor = rucActual;
+                tipoDocumento = tipoActual;
+            } else if (!rucEmisor.equals(rucActual)) {
+                log.warn("Lote rechazado: documentos con RUC emisor diferente ({} vs {})", 
+                    rucEmisor, rucActual);
+                return false;
+            } else if (!tipoDocumento.equals(tipoActual)) {
+                log.warn("Lote rechazado: documentos con tipo diferente ({} vs {})", 
+                    tipoDocumento, tipoActual);
+                return false;
+            }
+        }
+        
+        // Validar tamaño del lote
+        if (documentos.size() > maxLoteSize) {
+            log.warn("Lote rechazado: excede el tamaño máximo de {} documentos", maxLoteSize);
+            return false;
+        }
+        
+        log.info("Lote validado correctamente: {} documentos, RUC: {}, Tipo: {}", 
+            documentos.size(), rucEmisor, tipoDocumento);
+        
+        return true;
+    }
+    
+    /**
+     * Agrupa documentos por RUC emisor y tipo de documento para cumplir con las reglas de SIFEN.
+     */
+    private Map<String, List<DocumentoElectronico>> agruparDocumentosPorRucYTipo(List<DocumentoElectronico> documentos) {
+        Map<String, List<DocumentoElectronico>> grupos = new HashMap<>();
+        
+        for (DocumentoElectronico documento : documentos) {
+            FacturaLegal facturaLegal = documento.getFacturaLegal();
+            String rucEmisor = facturaLegal.getTimbradoDetalle().getTimbrado().getRuc();
+            String tipoDocumento = "FACTURA"; // Por ahora solo manejamos facturas
+            
+            String claveGrupo = rucEmisor + "_" + tipoDocumento;
+            
+            grupos.computeIfAbsent(claveGrupo, k -> new ArrayList<>()).add(documento);
+        }
+        
+        log.info("Documentos agrupados en {} grupos por RUC y tipo", grupos.size());
+        for (Map.Entry<String, List<DocumentoElectronico>> entry : grupos.entrySet()) {
+            log.info("Grupo {}: {} documentos", entry.getKey(), entry.getValue().size());
+        }
+        
+        return grupos;
+    }
+    
+    /**
+     * Divide una lista de documentos en lotes de tamaño máximo.
+     */
+    private List<List<DocumentoElectronico>> dividirEnLotes(List<DocumentoElectronico> documentos, int tamañoMaximo) {
+        List<List<DocumentoElectronico>> lotes = new ArrayList<>();
+        
+        for (int i = 0; i < documentos.size(); i += tamañoMaximo) {
+            int endIndex = Math.min(i + tamañoMaximo, documentos.size());
+            List<DocumentoElectronico> lote = documentos.subList(i, endIndex);
+            lotes.add(new ArrayList<>(lote));
+        }
+        
+        log.info("Documentos divididos en {} lotes de máximo {} documentos", lotes.size(), tamañoMaximo);
+        
+        return lotes;
+    }
+
+    /**
+     * Envía un único Documento Electrónico a SIFEN.
+     * Este método es principalmente para propósitos de prueba y depuración.
+     * @param documento El documento a enviar.
+     */
+    @Transactional
+    public void enviarDE(DocumentoElectronico documento) {
+        log.info("Enviando un único DE con ID {} a SIFEN...", documento.getId());
+
+        try {
+            // Construir el DocumentoElectronico de SIFEN
+            List<com.roshka.sifen.core.beans.DocumentoElectronico> sifenDocumentos =
+                construirDocumentosSifen(Collections.singletonList(documento));
+
+            if (sifenDocumentos.isEmpty()) {
+                log.error("No se pudo construir el DE de SIFEN para el documento {}", documento.getId());
+                documento.setEstado(EstadoDE.PENDIENTE);
+                documento.setMensajeRespuestaSifen("Error interno: no se pudo construir el DE");
+                documentoElectronicoRepository.save(documento);
+                return;
+            }
+
+            log.info("Enviando DE {} (CDC: {}) a SIFEN...", documento.getId(), documento.getCdc());
+
+            // Enviar como un lote de un solo documento
+            RespuestaRecepcionLoteDE respuesta = Sifen.recepcionLoteDE(sifenDocumentos);
+
+            // Procesar la respuesta
+            procesarRespuestaEnvioUnicoDE(documento, respuesta);
+
+        } catch (SifenException e) {
+            log.error("Error de SIFEN al enviar DE {}: {}", documento.getId(), e.getMessage(), e);
+            manejarErrorEnvioUnicoDE(documento, e);
+        } catch (Exception e) {
+            log.error("Error inesperado al enviar DE {}: {}", documento.getId(), e.getMessage(), e);
+            manejarErrorEnvioUnicoDE(documento, e);
+        }
+    }
+
+    /**
+     * Procesa la respuesta de SIFEN para un envío de un único DE.
+     */
+    private void procesarRespuestaEnvioUnicoDE(DocumentoElectronico documento, RespuestaRecepcionLoteDE respuesta) {
+        documento.setMensajeRespuestaSifen(respuesta.getdMsgRes());
+        documento.setCodigoRespuestaSifen(respuesta.getdCodRes());
+
+        String codigoRespuesta = respuesta.getdCodRes();
+        switch (codigoRespuesta) {
+            case "0300": // Lote recibido (en este caso, el DE)
+                log.info("DE {} recibido y aprobado exitosamente por SIFEN.", documento.getId());
+                documento.setEstado(EstadoDE.APROBADO);
+                break;
+            default:
+                log.warn("DE {} rechazado por SIFEN. Código: {}, Mensaje: {}",
+                        documento.getId(), codigoRespuesta, respuesta.getdMsgRes());
+                documento.setEstado(EstadoDE.RECHAZADO);
+                break;
+        }
+        documentoElectronicoRepository.save(documento);
+    }
+
+    /**
+     * Maneja errores durante el envío de un único DE.
+     */
+    private void manejarErrorEnvioUnicoDE(DocumentoElectronico documento, Exception e) {
+        documento.setEstado(EstadoDE.RECHAZADO);
+        documento.setMensajeRespuestaSifen("Error: " + e.getMessage());
+        documentoElectronicoRepository.save(documento);
+    }
+
+    /**
+     * Consulta el estado de un documento electrónico directamente desde SIFEN usando su CDC.
+     * Este método consulta el estado real del documento en SIFEN, no los datos locales.
+     * 
+     * @param cdc El CDC (Código de Control) del documento electrónico a consultar
+     * @return Información del estado del documento desde SIFEN, o null si hay error
+     */
+    public DocumentoElectronicoInfo consultarEstadoDE(String cdc) {
+        log.info("Consultando estado del DE con CDC: {} directamente desde SIFEN", cdc);
+        
+        try {
+            // Consultar el estado del documento directamente desde SIFEN usando el CDC
+            RespuestaConsultaDE respuesta = Sifen.consultaDE(cdc);
+            
+            if (respuesta == null) {
+                log.error("SIFEN retornó respuesta nula para CDC: {}", cdc);
+                return crearRespuestaError(cdc, "Respuesta nula de SIFEN");
+            }
+            
+            // Log de información adicional para debugging
+            log.info("Respuesta completa de SIFEN para CDC {}: {}", cdc, respuesta.toString());
+            log.info("Código de respuesta: {}", respuesta.getdCodRes());
+            log.info("Mensaje de respuesta: {}", respuesta.getdMsgRes());
+            
+            // Crear respuesta con la información obtenida de SIFEN
+            DocumentoElectronicoInfo info = new DocumentoElectronicoInfo();
+            info.setCdc(cdc);
+            info.setCodigoRespuesta(respuesta.getdCodRes());
+            info.setMensajeRespuesta(respuesta.getdMsgRes());
+            
+            // Determinar el estado basado en la respuesta de SIFEN
+            String codigoRespuesta = respuesta.getdCodRes();
+            if (codigoRespuesta == null) {
+                log.error("SIFEN retornó código de respuesta nulo para CDC: {}", cdc);
+                log.error("Esto puede indicar un problema con la estructura de respuesta de SIFEN");
+                log.error("Respuesta completa: {}", respuesta.toString());
+                return crearRespuestaError(cdc, "Código de respuesta nulo de SIFEN - posible problema de estructura XML");
+            }
+            
+            switch (codigoRespuesta) {
+                case "0500": // Documento encontrado y aprobado
+                    info.setEstadoDocumento("APROBADO");
+                    info.setProcesamientoCorrecto(true);
+                    break;
+                case "0501": // Documento encontrado pero rechazado
+                    info.setEstadoDocumento("RECHAZADO");
+                    info.setProcesamientoCorrecto(false);
+                    break;
+                case "0502": // Documento no encontrado
+                    info.setEstadoDocumento("NO_ENCONTRADO");
+                    info.setProcesamientoCorrecto(false);
+                    break;
+                default:
+                    info.setEstadoDocumento("ERROR");
+                    info.setProcesamientoCorrecto(false);
+                    log.warn("Código de respuesta desconocido de SIFEN: {} para CDC: {}", codigoRespuesta, cdc);
+                    break;
+            }
+            
+            log.info("Estado del DE {} desde SIFEN: {} - {}", cdc, info.getEstadoDocumento(), info.getMensajeRespuesta());
+            
+            return info;
+            
+        } catch (SifenException e) {
+            log.error("Error de SIFEN al consultar estado del DE {}: {}", cdc, e.getMessage(), e);
+            return crearRespuestaError(cdc, "Error de SIFEN: " + e.getMessage());
+            
+        } catch (Exception e) {
+            log.error("Error inesperado al consultar estado del DE {}: {}", cdc, e.getMessage(), e);
+            return crearRespuestaError(cdc, "Error inesperado: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Crea una respuesta de error estandarizada.
+     */
+    private DocumentoElectronicoInfo crearRespuestaError(String cdc, String mensaje) {
+        DocumentoElectronicoInfo infoError = new DocumentoElectronicoInfo();
+        infoError.setCdc(cdc);
+        infoError.setEstadoDocumento("ERROR");
+        infoError.setCodigoRespuesta("999");
+        infoError.setMensajeRespuesta(mensaje);
+        infoError.setProcesamientoCorrecto(false);
+        return infoError;
     }
 
 }

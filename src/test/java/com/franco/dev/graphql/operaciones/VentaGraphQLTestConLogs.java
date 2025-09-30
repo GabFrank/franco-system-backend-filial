@@ -2,6 +2,7 @@ package com.franco.dev.graphql.operaciones;
 
 import com.franco.dev.domain.financiero.DocumentoElectronico;
 import com.franco.dev.domain.financiero.FacturaLegal;
+import com.franco.dev.domain.financiero.enums.EstadoDE;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
 import com.franco.dev.graphql.operaciones.input.CobroInput;
@@ -140,9 +141,15 @@ public class VentaGraphQLTestConLogs {
                         log.info("- URL QR: {}", documentoElectronico.getUrlQr());
                     }
                     
+                    // 7. Verificar estado inicial del documento electrónico
+                    verificarEstadoInicialDocumento(documentoElectronico);
+                    
                 } else {
                     log.warn("⚠️  DocumentoElectronico NO fue creado");
                     log.warn("Esto puede indicar un problema en el proceso de facturación electrónica o que la factura es autoimpresa.");
+                    
+                    // Verificar si el timbrado tiene facturación electrónica habilitada
+                    verificarConfiguracionTimbradoElectronico(facturaLegal);
                 }
                 
             } else {
@@ -297,5 +304,65 @@ public class VentaGraphQLTestConLogs {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         
         log.info("Contexto de seguridad configurado para el test");
+    }
+    
+    /**
+     * Verifica el estado inicial del documento electrónico.
+     */
+    private void verificarEstadoInicialDocumento(DocumentoElectronico documentoElectronico) {
+        log.info("=== VERIFICANDO ESTADO INICIAL DEL DOCUMENTO ELECTRÓNICO ===");
+        
+        // Verificar que el estado inicial sea PENDIENTE
+        if (documentoElectronico.getEstado() == EstadoDE.PENDIENTE) {
+            log.info("✅ Estado inicial correcto: PENDIENTE");
+        } else {
+            log.warn("⚠️  Estado inicial inesperado: {} (esperado: PENDIENTE)", documentoElectronico.getEstado());
+        }
+        
+        // Verificar que no esté asignado a un lote inicialmente
+        if (documentoElectronico.getLoteDe() == null) {
+            log.info("✅ Documento no asignado a lote inicialmente (correcto)");
+        } else {
+            log.warn("⚠️  Documento ya asignado a lote {} inicialmente", documentoElectronico.getLoteDe().getId());
+        }
+        
+        // Verificar que tenga CDC generado
+        if (documentoElectronico.getCdc() != null && !documentoElectronico.getCdc().isEmpty()) {
+            log.info("✅ CDC generado correctamente: {}", documentoElectronico.getCdc());
+        } else {
+            log.warn("⚠️  CDC no generado o vacío");
+        }
+        
+        // Verificar que tenga URL QR generada
+        if (documentoElectronico.getUrlQr() != null && !documentoElectronico.getUrlQr().isEmpty()) {
+            log.info("✅ URL QR generada correctamente: {}", documentoElectronico.getUrlQr());
+        } else {
+            log.warn("⚠️  URL QR no generada o vacía");
+        }
+    }
+    
+    
+    /**
+     * Verifica la configuración del timbrado electrónico.
+     */
+    private void verificarConfiguracionTimbradoElectronico(FacturaLegal facturaLegal) {
+        log.info("=== VERIFICANDO CONFIGURACIÓN DE TIMBRADO ELECTRÓNICO ===");
+        
+        if (facturaLegal.getTimbradoDetalle() != null && 
+            facturaLegal.getTimbradoDetalle().getTimbrado() != null) {
+            
+            Boolean isElectronico = facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico();
+            log.info("Timbrado electrónico habilitado: {}", isElectronico);
+            
+            if (Boolean.TRUE.equals(isElectronico)) {
+                log.warn("⚠️  El timbrado tiene facturación electrónica habilitada pero no se creó el documento");
+                log.warn("Esto puede indicar un problema en el proceso de generación del documento electrónico");
+            } else {
+                log.info("✅ El timbrado no tiene facturación electrónica habilitada");
+                log.info("Por eso no se creó el documento electrónico (comportamiento esperado)");
+            }
+        } else {
+            log.warn("⚠️  No se pudo verificar la configuración del timbrado");
+        }
     }
 }
