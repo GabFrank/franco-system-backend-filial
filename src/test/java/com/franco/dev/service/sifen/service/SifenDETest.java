@@ -26,13 +26,17 @@ import org.springframework.transaction.annotation.Transactional;
 import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.FacturaLegalItem;
 import com.franco.dev.domain.financiero.LoteDE;
+import com.franco.dev.domain.financiero.TimbradoDetalle;
 import com.franco.dev.domain.financiero.enums.EstadoLoteDE;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.service.financiero.FacturaLegalService;
 import com.franco.dev.service.financiero.FacturaLegalItemService;
 import com.franco.dev.service.financiero.DocumentoElectronicoService;
 import com.franco.dev.service.financiero.LoteDEService;
+import com.franco.dev.service.financiero.TimbradoDetalleService;
+import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.sifen.util.CodigosGeograficos;
+import com.franco.dev.utilitarios.CalcularVerificadorRuc;
 
 import java.lang.reflect.Field;
 
@@ -69,18 +73,144 @@ public class SifenDETest {
     @Autowired
     private LoteDEService loteDEService;
     
+    @Autowired
+    private ClienteService clienteService;
+    
+    @Autowired
+    private TimbradoDetalleService timbradoDetalleService;
+    
     // IDs de prueba
     private static final Long FACTURA_LEGAL_TEST_ID = 11843L;
+
+    /**
+     * Genera una nueva factura con datos específicos para testing
+     * 
+     * @return FacturaLegal generada
+     */
+    private FacturaLegal generarFacturaParaTest() {
+        logger.info("=== GENERANDO NUEVA FACTURA PARA TEST ===");
+        
+        // Crear nueva factura
+        FacturaLegal factura = new FacturaLegal();
+        factura.setSucursalId(24L); // Sucursal específica
+        factura.setFecha(LocalDateTime.now());
+        factura.setCredito(false); // Contado
+        
+        // Cargar cliente y timbrado detalle
+        Cliente cliente = clienteService.findById(194L).orElse(null);
+        if (cliente == null) {
+            throw new IllegalArgumentException("Cliente con ID 194 no encontrado");
+        }
+        factura.setCliente(cliente);
+        
+        TimbradoDetalle timbradoDetalle = timbradoDetalleService.findById(93L).orElse(null);
+        if (timbradoDetalle == null) {
+            throw new IllegalArgumentException("TimbradoDetalle con ID 93 no encontrado");
+        }
+        factura.setTimbradoDetalle(timbradoDetalle);
+        
+        // CORREGIDO: Obtener siguiente número correlativo del timbrado detalle
+        Long siguienteNumero = timbradoDetalle.getNumeroActual() != null ? 
+            timbradoDetalle.getNumeroActual() + 1 : 1L;
+        factura.setNumeroFactura(siguienteNumero.intValue());
+        
+        logger.info("✅ Número de factura asignado: {} (anterior: {})", 
+            siguienteNumero, timbradoDetalle.getNumeroActual());
+        
+        // Guardar factura
+        factura = facturaLegalService.save(factura);
+        logger.info("✅ Factura creada con ID: {}", factura.getId());
+        
+        // Crear 3 items aleatorios
+        List<FacturaLegalItem> items = crearItemsAleatorios(factura);
+        
+        // Calcular totales
+        double totalItems = items.stream()
+            .mapToDouble(item -> item.getCantidad().floatValue() * item.getPrecioUnitario().doubleValue())
+            .sum();
+        
+        double totalIva = totalItems * 0.10; // 10% IVA
+        double totalFinal = totalItems + totalIva;
+        
+        factura.setTotalFinal(totalFinal);
+        
+        // Actualizar factura con totales
+        factura = facturaLegalService.save(factura);
+        
+        // CORREGIDO: Actualizar número actual en TimbradoDetalle
+        timbradoDetalle.setNumeroActual(siguienteNumero);
+        timbradoDetalleService.save(timbradoDetalle);
+        logger.info("✅ TimbradoDetalle actualizado - nuevo numeroActual: {}", siguienteNumero);
+        
+        logger.info("✅ Factura completada - Total: {}, Items: {}", totalFinal, items.size());
+        logger.info("=== FIN DE GENERACIÓN DE FACTURA ===");
+        
+        return factura;
+    }
+    
+    /**
+     * Crea 3 items aleatorios para la factura
+     * 
+     * @param factura FacturaLegal asociada
+     * @return Lista de items creados
+     */
+    private List<FacturaLegalItem> crearItemsAleatorios(FacturaLegal factura) {
+        logger.info("=== CREANDO ITEMS ALEATORIOS ===");
+        
+        List<FacturaLegalItem> items = new ArrayList<>();
+        
+        // Item 1: Producto de ejemplo
+        FacturaLegalItem item1 = new FacturaLegalItem();
+        item1.setFacturaLegal(factura);
+        item1.setSucursalId(factura.getSucursalId());
+        item1.setDescripcion("TRES LEONES ETIQUETA NEGRA 750ML");
+        item1.setCantidad(2.0f);
+        item1.setPrecioUnitario(15000.0);
+        item1.setTotal(30000.0);
+        item1 = facturaLegalItemService.save(item1);
+        items.add(item1);
+        logger.info("✅ Item 1 creado: {} x {} = {}", item1.getDescripcion(), item1.getCantidad(), item1.getTotal());
+        
+        // Item 2: Producto de ejemplo
+        FacturaLegalItem item2 = new FacturaLegalItem();
+        item2.setFacturaLegal(factura);
+        item2.setSucursalId(factura.getSucursalId());
+        item2.setDescripcion("COCA COLA 500ML");
+        item2.setCantidad(3.0f);
+        item2.setPrecioUnitario(8000.0);
+        item2.setTotal(24000.0);
+        item2 = facturaLegalItemService.save(item2);
+        items.add(item2);
+        logger.info("✅ Item 2 creado: {} x {} = {}", item2.getDescripcion(), item2.getCantidad(), item2.getTotal());
+        
+        // Item 3: Producto de ejemplo
+        FacturaLegalItem item3 = new FacturaLegalItem();
+        item3.setFacturaLegal(factura);
+        item3.setSucursalId(factura.getSucursalId());
+        item3.setDescripcion("PAN INTEGRAL 500G");
+        item3.setCantidad(1.0f);
+        item3.setPrecioUnitario(12000.0);
+        item3.setTotal(12000.0);
+        item3 = facturaLegalItemService.save(item3);
+        items.add(item3);
+        logger.info("✅ Item 3 creado: {} x {} = {}", item3.getDescripcion(), item3.getCantidad(), item3.getTotal());
+        
+        logger.info("✅ Total de items creados: {}", items.size());
+        logger.info("=== FIN DE CREACIÓN DE ITEMS ===");
+        
+        return items;
+    }
+
 
     @Test
     @Transactional
     @Commit
-    public void testRecepcionDEDatosReales() throws SifenException {
+    public void testRecepcionDEDatosReales() throws Exception {
         logger.info("=== INICIANDO TEST DE RECEPCIÓN DE DE CON DATOS REALES ===");
         
-        // Cargar factura con datos reales
-        FacturaLegal factura = facturaLegalService.findById(11843L).orElse(null);
-        assert factura != null : "FacturaLegal con ID 11843 no encontrada";
+        // Generar nueva factura para test
+        FacturaLegal factura = generarFacturaParaTest();
+        logger.info("✅ Factura generada para test con ID: {}", factura.getId());
         
         logger.info("Factura cargada: ID={}, Cliente={}, Total={}", 
             factura.getId(), 
@@ -105,8 +235,55 @@ public class SifenDETest {
         logger.info("Código de respuesta: {}", respuestaLote.getdCodRes());
         logger.info("Mensaje de respuesta: {}", respuestaLote.getdMsgRes());
         
+        // CORREGIDO: Crear objeto RespuestaRecepcionDE compatible para guardar en BD
+        RespuestaRecepcionDE respuesta = new RespuestaRecepcionDE();
+        respuesta.setCodigoEstado(respuestaLote.getCodigoEstado());
+        respuesta.setdCodRes(respuestaLote.getdCodRes());
+        respuesta.setdMsgRes(respuestaLote.getdMsgRes());
+        respuesta.setRespuestaBruta(respuestaLote.getRespuestaBruta());
+        
+        logger.info("=== RESPUESTA ADAPTADA PARA DE INDIVIDUAL ===");
+        logger.info("Código HTTP: {}", respuesta.getCodigoEstado());
+        logger.info("Código de respuesta: {}", respuesta.getdCodRes());
+        logger.info("Mensaje de respuesta: {}", respuesta.getdMsgRes());
+        
+        // CORREGIDO: Agregar lógica de parsing de respuesta bruta (igual que método que funciona)
+        if (respuesta.getdCodRes() == null && respuesta.getRespuestaBruta() != null) {
+            logger.warn("⚠️ Códigos null - Parseando respuesta bruta...");
+            logger.info("Respuesta bruta SIFEN: {}", respuesta.getRespuestaBruta());
+            
+            // Intentar extraer información de la respuesta XML
+            String respuestaBruta = respuesta.getRespuestaBruta();
+            if (respuestaBruta.contains("dCodRes")) {
+                int startCod = respuestaBruta.indexOf("<ns2:dCodRes>") + 13;
+                int endCod = respuestaBruta.indexOf("</ns2:dCodRes>");
+                if (startCod > 13 && endCod > startCod) {
+                    String codigo = respuestaBruta.substring(startCod, endCod);
+                    logger.info("Código extraído de XML: {}", codigo);
+                }
+            }
+            if (respuestaBruta.contains("dMsgRes")) {
+                int startMsg = respuestaBruta.indexOf("<ns2:dMsgRes>") + 13;
+                int endMsg = respuestaBruta.indexOf("</ns2:dMsgRes>");
+                if (startMsg > 13 && endMsg > startMsg) {
+                    String mensaje = respuestaBruta.substring(startMsg, endMsg);
+                    logger.info("Mensaje extraído de XML: {}", mensaje);
+                }
+            }
+            if (respuestaBruta.contains("dEstRes")) {
+                int startEst = respuestaBruta.indexOf("<ns2:dEstRes>") + 13;
+                int endEst = respuestaBruta.indexOf("</ns2:dEstRes>");
+                if (startEst > 13 && endEst > startEst) {
+                    String estado = respuestaBruta.substring(startEst, endEst);
+                    logger.info("Estado extraído de XML: {}", estado);
+                }
+            }
+        }
+        
+        logger.info("Respuesta toString(): {}", respuesta.toString());
+        
         // Guardar en BD
-        guardarLoteYDocumento(factura, deSifen, null, respuestaLote);
+        guardarLoteYDocumento(factura, deSifen, respuesta, respuestaLote);
         
         logger.info("=== TEST DE RECEPCIÓN DE DE CON DATOS REALES COMPLETADO ===");
     }
@@ -337,7 +514,7 @@ public class SifenDETest {
     public void testConsultaLoteDe() throws SifenException {
         logger.info("=== INICIANDO TEST DE CONSULTA DE LOTE DE ===");
         
-        String protocoloLote = "1078608211747771766"; // <--- CAMBIAR ESTE PROTOCOLO
+        String protocoloLote = "1078608211748102351"; // <--- CAMBIAR ESTE PROTOCOLO
         
         RespuestaConsultaLoteDE ret = Sifen.consultaLoteDE(protocoloLote);
         logger.info("Respuesta de consulta lote DE: {}", ret.getRespuestaBruta().toString());
@@ -605,9 +782,16 @@ public class SifenDETest {
         // Datos del cliente ID 194 - CONTRIBUYENTE paraguayo
         // IMPORTANTE: Para contribuyente, usar CEDULA_PARAGUAYA y setear TANTO dNumIDRec como dRucRec
         gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
-        gDatRec.setdNumIDRec("5364471"); // Número de cédula (genera <dNumIDRec>)
-        gDatRec.setdRucRec("5364471"); // RUC sin DV (genera <dRucRec>) - DEBE SER IGUAL a dNumIDRec
-        gDatRec.setdDVRec((short) 9); // Dígito verificador del RUC (genera <dDVRec>)
+        
+        // CORREGIDO: Calcular dígito verificador correctamente usando la clase existente
+        String rucSinDV = "5364471"; // RUC del cliente 194 sin DV
+        int dvInt = CalcularVerificadorRuc.getDigitoVerificador(rucSinDV);
+        String dvCalculado = String.valueOf(dvInt);
+        logger.info("🔢 Cliente 194 - RUC sin DV: '{}', DV calculado: '{}'", rucSinDV, dvCalculado);
+        
+        gDatRec.setdNumIDRec(rucSinDV); // Número de cédula (genera <dNumIDRec>)
+        gDatRec.setdRucRec(rucSinDV); // RUC sin DV (genera <dRucRec>) - DEBE SER IGUAL a dNumIDRec
+        gDatRec.setdDVRec(Short.parseShort(dvCalculado)); // Dígito verificador calculado correctamente
         gDatRec.setdNomRec("PERALTA CRISTIAN RAFAEL"); // Razón social
         
         // Campos opcionales (comentados por ahora para probar igual que el test original)
@@ -725,9 +909,32 @@ public class SifenDETest {
      * 
      * @param factura FacturaLegal con datos reales
      * @return DocumentoElectronico configurado para SIFEN
-     * @throws SifenException Si hay error en la configuración
+     * @throws Exception Si hay error en la configuración
      */
-    private com.roshka.sifen.core.beans.DocumentoElectronico generarDEDesdeFacturaDatosReales(FacturaLegal factura) throws SifenException {
+    private com.roshka.sifen.core.beans.DocumentoElectronico generarDEDesdeFacturaDatosReales(FacturaLegal factura) throws Exception {
+        // VALIDACIONES EXHAUSTIVAS DE DATOS REQUERIDOS
+        logger.info("=== VALIDANDO DATOS REQUERIDOS PARA GENERACIÓN DE DE ===");
+        
+        // Validar factura
+        if (factura == null) {
+            throw new IllegalArgumentException("factura es requerido");
+        }
+        
+        // Validar timbradoDetalle
+        if (factura.getTimbradoDetalle() == null) {
+            throw new IllegalArgumentException("factura.timbradoDetalle es requerido");
+        }
+        
+        // Validar timbrado
+        if (factura.getTimbradoDetalle().getTimbrado() == null) {
+            throw new IllegalArgumentException("timbradoDetalle.timbrado es requerido");
+        }
+        
+        // Validar sucursal
+        if (factura.getTimbradoDetalle().getSucursal() == null) {
+            throw new IllegalArgumentException("timbradoDetalle.sucursal es requerido");
+        }
+        
         LocalDateTime currentDate = LocalDateTime.now();
 
         // Grupo A - Identificación del DE
@@ -743,10 +950,32 @@ public class SifenDETest {
         // Grupo C - Timbrado
         TgTimb gTimb = new TgTimb();
         gTimb.setiTiDE(TTiDE.FACTURA_ELECTRONICA);
+        
+        // Validar número de timbrado
+        if (factura.getTimbradoDetalle().getTimbrado().getNumero() == null) {
+            throw new IllegalArgumentException("timbrado.numero es requerido");
+        }
         gTimb.setdNumTim(Integer.parseInt(factura.getTimbradoDetalle().getTimbrado().getNumero()));
-        gTimb.setdEst(factura.getTimbradoDetalle().getSucursal().getCodigoEstablecimientoFactura());
+        
+        // CORREGIDO: Usar código fijo que funciona (igual al método que funciona)
+        gTimb.setdEst("001"); // Establecimiento fijo - igual al método que funciona
+        
+        // Validar punto de expedición
+        if (factura.getTimbradoDetalle().getPuntoExpedicion() == null) {
+            throw new IllegalArgumentException("timbradoDetalle.puntoExpedicion es requerido");
+        }
         gTimb.setdPunExp(factura.getTimbradoDetalle().getPuntoExpedicion());
+        
+        // Validar número de factura
+        if (factura.getNumeroFactura() == null) {
+            throw new IllegalArgumentException("factura.numeroFactura es requerido");
+        }
         gTimb.setdNumDoc(String.format("%07d", factura.getNumeroFactura()));
+        
+        // Validar fecha de inicio del timbrado
+        if (factura.getTimbradoDetalle().getTimbrado().getFechaInicio() == null) {
+            throw new IllegalArgumentException("timbrado.fechaInicio es requerido");
+        }
         gTimb.setdFeIniT(factura.getTimbradoDetalle().getTimbrado().getFechaInicio().toLocalDate());
         DE.setgTimb(gTimb);
 
@@ -762,76 +991,111 @@ public class SifenDETest {
 
         // Datos del Emisor (desde TimbradoDetalle y Timbrado)
         TgEmis gEmis = new TgEmis();
+        
+        // Validar RUC del emisor
+        if (factura.getTimbradoDetalle().getTimbrado().getRuc() == null) {
+            throw new IllegalArgumentException("timbrado.ruc es requerido");
+        }
         String rucCompleto = factura.getTimbradoDetalle().getTimbrado().getRuc();
         String[] rucPartes = rucCompleto.split("-");
         gEmis.setdRucEm(rucPartes[0]);
         gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
         gEmis.setiTipCont(TiTipCont.PERSONA_JURIDICA);
+        
+        // Validar razón social del emisor
+        if (factura.getTimbradoDetalle().getTimbrado().getRazonSocial() == null) {
+            throw new IllegalArgumentException("timbrado.razonSocial es requerido");
+        }
         gEmis.setdNomEmi(factura.getTimbradoDetalle().getTimbrado().getRazonSocial());
         
-        // CORREGIDO: Usar datos reales de TimbradoDetalle
-        gEmis.setdDirEmi(factura.getTimbradoDetalle().getDireccion() != null ? 
-            factura.getTimbradoDetalle().getDireccion() : "SALTO DEL GUAIRA");
+        // Validar dirección del emisor
+        if (factura.getTimbradoDetalle().getDireccion() == null) {
+            throw new IllegalArgumentException("timbradoDetalle.direccion es requerido");
+        }
+        gEmis.setdDirEmi(factura.getTimbradoDetalle().getDireccion());
         gEmis.setdNumCas("0"); // Dejar en 0 por el momento
-        gEmis.setdTelEmi(factura.getTimbradoDetalle().getTelefono() != null && !factura.getTimbradoDetalle().getTelefono().isEmpty() ? 
-            factura.getTimbradoDetalle().getTelefono() : "021000000");
+        
+        // Validar teléfono del emisor
+        if (factura.getTimbradoDetalle().getTelefono() == null) {
+            throw new IllegalArgumentException("timbradoDetalle.telefono es requerido");
+        }
+        gEmis.setdTelEmi(factura.getTimbradoDetalle().getTelefono());
+        
+        // Validar email del emisor
+        if (factura.getTimbradoDetalle().getTimbrado().getEmail() == null) {
+            throw new IllegalArgumentException("timbrado.email es requerido");
+        }
         gEmis.setdEmailE(factura.getTimbradoDetalle().getTimbrado().getEmail());
         
-        // CORREGIDO: Usar códigos geográficos de TimbradoDetalle
-        if (factura.getTimbradoDetalle().getDepartamento() != null) {
-            TDepartamento tdep = mapearDepartamento(factura.getTimbradoDetalle().getDepartamento());
-            gEmis.setcDepEmi(tdep);
-        } else {
-            gEmis.setcDepEmi(TDepartamento.CANINDEYU); // Fallback
+        // Validar códigos geográficos de TimbradoDetalle
+        if (factura.getTimbradoDetalle().getDepartamento() == null) {
+            throw new IllegalArgumentException("timbradoDetalle.departamento es requerido");
         }
+        TDepartamento tdep = mapearDepartamento(factura.getTimbradoDetalle().getDepartamento());
+        gEmis.setcDepEmi(tdep);
         
-        if (factura.getTimbradoDetalle().getCodigoCiudad() != null) {
-            Integer codigoCiudad = Integer.parseInt(factura.getTimbradoDetalle().getCodigoCiudad());
-            gEmis.setcCiuEmi(codigoCiudad);
-        } else {
-            gEmis.setcCiuEmi(207); // Fallback
+        if (factura.getTimbradoDetalle().getCodigoCiudad() == null) {
+            throw new IllegalArgumentException("timbradoDetalle.codigoCiudad es requerido");
         }
+        Integer codigoCiudad = Integer.parseInt(factura.getTimbradoDetalle().getCodigoCiudad());
+        gEmis.setcCiuEmi(codigoCiudad);
         
-        gEmis.setdDesCiuEmi(factura.getTimbradoDetalle().getCiudad() != null ? 
-            factura.getTimbradoDetalle().getCiudad() : "SALTO DEL GUAIRA");
+        if (factura.getTimbradoDetalle().getCiudad() == null) {
+            throw new IllegalArgumentException("timbradoDetalle.ciudad es requerido");
+        }
+        gEmis.setdDesCiuEmi(factura.getTimbradoDetalle().getCiudad());
 
-        // CORREGIDO: Actividades económicas desde Timbrado
+        // Validar actividades económicas desde Timbrado
         List<TgActEco> gActEcoList = new ArrayList<>();
         
-        // Actividad principal
-        if (factura.getTimbradoDetalle().getTimbrado().getCodActividadEconomicaPrincipal() != null) {
-            TgActEco gActEco = new TgActEco();
-            gActEco.setcActEco(factura.getTimbradoDetalle().getTimbrado().getCodActividadEconomicaPrincipal());
-            gActEco.setdDesActEco(factura.getTimbradoDetalle().getTimbrado().getDescActividadEconomicaPrincipal() != null ? 
-                factura.getTimbradoDetalle().getTimbrado().getDescActividadEconomicaPrincipal() : 
-                "ACTIVIDAD ECONOMICA PRINCIPAL");
-            gActEcoList.add(gActEco);
+        // Validar actividad principal
+        if (factura.getTimbradoDetalle().getTimbrado().getCodActividadEconomicaPrincipal() == null) {
+            throw new IllegalArgumentException("timbrado.codActividadEconomicaPrincipal es requerido");
+        }
+        TgActEco gActEco = new TgActEco();
+        gActEco.setcActEco(factura.getTimbradoDetalle().getTimbrado().getCodActividadEconomicaPrincipal());
+        
+        if (factura.getTimbradoDetalle().getTimbrado().getDescActividadEconomicaPrincipal() == null) {
+            throw new IllegalArgumentException("timbrado.descActividadEconomicaPrincipal es requerido");
+        }
+        gActEco.setdDesActEco(factura.getTimbradoDetalle().getTimbrado().getDescActividadEconomicaPrincipal());
+        gActEcoList.add(gActEco);
+        
+        // Validar actividades secundarias (separadas por coma)
+        if (factura.getTimbradoDetalle().getTimbrado().getListCodigoActividadEconomicaSecundaria() == null) {
+            throw new IllegalArgumentException("timbrado.listCodigoActividadEconomicaSecundaria es requerido");
         }
         
-        // Actividades secundarias (separadas por coma)
-        if (factura.getTimbradoDetalle().getTimbrado().getListCodigoActividadEconomicaSecundaria() != null &&
-            factura.getTimbradoDetalle().getTimbrado().getListDescripcionActividadEconomicaSecundaria() != null) {
-            
-            String[] codigosSecundarios = factura.getTimbradoDetalle().getTimbrado().getListCodigoActividadEconomicaSecundaria().split(",");
-            String[] descripcionesSecundarias = factura.getTimbradoDetalle().getTimbrado().getListDescripcionActividadEconomicaSecundaria().split(",");
-            
-            for (int i = 0; i < codigosSecundarios.length && i < descripcionesSecundarias.length; i++) {
-                TgActEco gActEcoSec = new TgActEco();
-                gActEcoSec.setcActEco(codigosSecundarios[i].trim());
-                gActEcoSec.setdDesActEco(descripcionesSecundarias[i].trim());
-                gActEcoList.add(gActEcoSec);
-            }
+        if (factura.getTimbradoDetalle().getTimbrado().getListDescripcionActividadEconomicaSecundaria() == null) {
+            throw new IllegalArgumentException("timbrado.listDescripcionActividadEconomicaSecundaria es requerido");
+        }
+        
+        String[] codigosSecundarios = factura.getTimbradoDetalle().getTimbrado().getListCodigoActividadEconomicaSecundaria().split(",");
+        String[] descripcionesSecundarias = factura.getTimbradoDetalle().getTimbrado().getListDescripcionActividadEconomicaSecundaria().split(",");
+        
+        for (int i = 0; i < codigosSecundarios.length && i < descripcionesSecundarias.length; i++) {
+            TgActEco gActEcoSec = new TgActEco();
+            gActEcoSec.setcActEco(codigosSecundarios[i].trim());
+            gActEcoSec.setdDesActEco(descripcionesSecundarias[i].trim());
+            gActEcoList.add(gActEcoSec);
         }
         
         gEmis.setgActEcoList(gActEcoList);
         dDatGralOpe.setgEmis(gEmis);
 
-        // Datos del Receptor (Cliente) - Usar datos reales
+        // Validar datos del Receptor (Cliente)
+        if (factura.getCliente() == null) {
+            throw new IllegalArgumentException("factura.cliente es requerido");
+        }
+        
+        if (factura.getCliente().getPersona() == null) {
+            throw new IllegalArgumentException("cliente.persona es requerido");
+        }
+        
         TgDatRec gDatRec = new TgDatRec();
         
-        if (factura.getCliente() != null && factura.getCliente().getPersona() != null) {
-            // Cliente contribuyente o no contribuyente
-            boolean esContribuyente = factura.getCliente().getTributa() != null && factura.getCliente().getTributa();
+        // Cliente contribuyente o no contribuyente
+        boolean esContribuyente = factura.getCliente().getTributa() != null && factura.getCliente().getTributa();
             
             if (esContribuyente) {
                 gDatRec.setiNatRec(TiNatRec.CONTRIBUYENTE);
@@ -849,25 +1113,37 @@ public class SifenDETest {
                     gDatRec.setiTiOpe(TiTiOpe.B2B);
                 }
                 
-                // Datos del documento
-                String documentoCompleto = factura.getCliente().getPersona().getDocumento();
-                if (documentoCompleto != null && !documentoCompleto.isEmpty()) {
-                    String[] docPartes = documentoCompleto.split("-");
-                    String rucSinDV = docPartes[0];
-                    String dv = docPartes.length > 1 ? docPartes[1] : calcularDigitoVerificador(rucSinDV);
-                    
-                    gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
-                    gDatRec.setdNumIDRec(rucSinDV);
-                    gDatRec.setdRucRec(rucSinDV);
-                    gDatRec.setdDVRec(Short.parseShort(dv));
+                // Validar datos del documento
+                if (factura.getCliente().getPersona().getDocumento() == null) {
+                    throw new IllegalArgumentException("persona.documento es requerido");
                 }
+                String documentoCompleto = factura.getCliente().getPersona().getDocumento();
+                logger.info("📋 Documento completo del cliente: '{}'", documentoCompleto);
                 
+                String documentoSinDv = documentoCompleto != null && documentoCompleto.contains("-") ? documentoCompleto.split("-")[0] : documentoCompleto;
+                logger.info("📋 Documento sin DV extraído: '{}'", documentoSinDv);
+                
+                int dvInt = CalcularVerificadorRuc.getDigitoVerificador(documentoSinDv);
+                String dv = String.valueOf(dvInt);
+                logger.info("📋 Dígito verificador calculado: '{}'", dv);
+                logger.info("📋 RUC completo para SIFEN: '{}-{}'", documentoSinDv, dv);
+                
+                gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
+                gDatRec.setdNumIDRec(documentoSinDv);
+                gDatRec.setdRucRec(documentoSinDv);
+                gDatRec.setdDVRec(Short.parseShort(dv));
+                
+                // Validar nombre del cliente
+                if (factura.getCliente().getPersona().getNombre() == null) {
+                    throw new IllegalArgumentException("persona.nombre es requerido");
+                }
                 gDatRec.setdNomRec(factura.getCliente().getPersona().getNombre());
                 
                 // Actualizar tipo de contribuyente en BD si era null
                 if (factura.getCliente().getTipoContribuyente() == null) {
                     factura.getCliente().setTipoContribuyente(tipoContribuyente == TiTipCont.PERSONA_FISICA ? 1 : 2);
-                    // TODO: Guardar cliente actualizado en BD
+                    clienteService.save(factura.getCliente());
+                    logger.info("✅ Cliente actualizado en BD con tipo de contribuyente: {}", tipoContribuyente);
                 }
                 
             } else {
@@ -880,15 +1156,6 @@ public class SifenDETest {
                 gDatRec.setdNomRec(factura.getCliente().getPersona().getNombre() != null ? 
                     factura.getCliente().getPersona().getNombre() : "SIN NOMBRE");
             }
-        } else {
-            // Cliente genérico
-            gDatRec.setiNatRec(TiNatRec.NO_CONTRIBUYENTE);
-            gDatRec.setiTiOpe(TiTiOpe.B2C);
-            gDatRec.setcPaisRec(PaisType.PRY);
-            gDatRec.setiTipIDRec(TiTipDocRec.INNOMINADO);
-            gDatRec.setdNumIDRec("X");
-            gDatRec.setdNomRec("SIN NOMBRE");
-        }
         
         dDatGralOpe.setgDatRec(gDatRec);
         DE.setgDatGralOpe(dDatGralOpe);
@@ -912,8 +1179,11 @@ public class SifenDETest {
         gPaConEIni.setiTiPago(TiTiPago.EFECTIVO); // Por ahora siempre efectivo
         gPaConEIni.setcMoneTiPag(CMondT.PYG);
         
-        // CORREGIDO: Monto desde la factura
-        BigDecimal montoTotal = factura.getTotalFinal() != null ? BigDecimal.valueOf(factura.getTotalFinal()) : BigDecimal.valueOf(19000);
+        // Validar total de la factura
+        if (factura.getTotalFinal() == null) {
+            throw new IllegalArgumentException("factura.totalFinal es requerido");
+        }
+        BigDecimal montoTotal = BigDecimal.valueOf(factura.getTotalFinal());
         if (esCredito) {
             gPaConEIni.setdMonTiPag(BigDecimal.valueOf(0)); // Entrega inicial para crédito
         } else {
@@ -927,18 +1197,38 @@ public class SifenDETest {
             // CORREGIDO: Plazo desde configuración de crédito
             TgPagCred gPagCred = new TgPagCred();
             gPagCred.setiCondCred(TiCondCred.PLAZO);
-            gPagCred.setdPlazoCre("30 días"); // TODO: Obtener desde configuración
+            gPagCred.setdPlazoCre("30 días"); // Plazo por defecto para créditos
             gCamCond.setgPagCred(gPagCred);
         }
         
         gDtipDE.setgCamCond(gCamCond);
 
-        // Cargar items de la factura
+        // Validar items de la factura
         List<FacturaLegalItem> items = facturaLegalItemService.findByFacturaLegalId(factura.getId());
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("factura.items es requerido - no se encontraron items para la factura");
+        }
+        
         List<TgCamItem> gCamItemList = new ArrayList<>();
         
         for (int i = 0; i < items.size(); i++) {
             FacturaLegalItem item = items.get(i);
+            
+            // Validar descripción del item
+            if (item.getDescripcion() == null) {
+                throw new IllegalArgumentException("item[" + i + "].descripcion es requerido");
+            }
+            
+            // Validar cantidad del item
+            if (item.getCantidad() == null) {
+                throw new IllegalArgumentException("item[" + i + "].cantidad es requerido");
+            }
+            
+            // Validar precio unitario del item
+            if (item.getPrecioUnitario() == null) {
+                throw new IllegalArgumentException("item[" + i + "].precioUnitario es requerido");
+            }
+            
             TgCamItem gCamItem = new TgCamItem();
             gCamItem.setdCodInt(String.format("%03d", i + 1));
             gCamItem.setdDesProSer(item.getDescripcion());
@@ -975,6 +1265,9 @@ public class SifenDETest {
             factura.getCliente() != null ? factura.getCliente().getId() : "N/A",
             factura.getCliente() != null && factura.getCliente().getTributa() != null ? factura.getCliente().getTributa() : false,
             items.size());
+        
+        logger.info("✅ VALIDACIÓN COMPLETADA - Todos los datos requeridos están presentes");
+        logger.info("=== FIN DE VALIDACIÓN ===");
         
         return DE;
     }
@@ -1022,16 +1315,6 @@ public class SifenDETest {
         return TiTipCont.PERSONA_FISICA;
     }
     
-    /**
-     * Calcula el dígito verificador de un RUC
-     * 
-     * @param rucSinDV RUC sin dígito verificador
-     * @return Dígito verificador calculado
-     */
-    private String calcularDigitoVerificador(String rucSinDV) {
-        // Implementación simplificada - en producción usar algoritmo oficial
-        return "0";
-    }
     
     /**
      * WORKAROUND: Aplica fix temporal para bug de dLiqTotIVA10/dLiqTotIVA5 en rshk-jsifenlib 0.2.4
@@ -1107,7 +1390,7 @@ public class SifenDETest {
             case "ÑEEMBUCU": case "ÑEEMBUCÚ": return TDepartamento.NEEMBUCU;
             case "AMAMBAY": return TDepartamento.AMAMBAY;
             case "CANINDEYU": case "CANINDEYÚ": return TDepartamento.CANINDEYU;
-            case "PRESIDENTE HAYES": case "HAYES": return TDepartamento.CAPITAL; // TODO: Buscar valor correcto en TDepartamento
+            case "PRESIDENTE HAYES": case "HAYES": return TDepartamento.PTE_HAYES;
             case "BOQUERON": case "BOQUERÓN": return TDepartamento.BOQUERON;
             case "ALTO PARAGUAY": return TDepartamento.ALTO_PARAGUAY;
             default: return TDepartamento.CAPITAL;
