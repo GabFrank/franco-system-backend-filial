@@ -123,7 +123,8 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public ConsultaRucResponse consultaRuc(String ruc) {
-        ConsultaRucResponse sifenResponse = service.consultaRuc(ruc);
+        // TODO: Implementar la lógica para consultar el RUC
+        ConsultaRucResponse sifenResponse = null; // service.consultaRuc(ruc);
         ModelMapper m = new ModelMapper();
         return m.map(sifenResponse, ConsultaRucResponse.class);
     }

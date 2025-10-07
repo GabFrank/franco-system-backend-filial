@@ -269,7 +269,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             // Generar documento electrónico si es una nueva factura
             try {
                 // Generar el documento electrónico usando el servicio
-                FacturaLegal facturaConDE = service.generarDocumentoElectronico(facturaLegalGuardada);
+                // FacturaLegal facturaConDE = service.generarDocumentoElectronico(facturaLegalGuardada);
 
             } catch (Exception e) {
                 log.error("Error al generar documento electrónico para factura ID: {}", facturaLegalGuardada.getId(),
@@ -1103,8 +1103,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
 
             // Generar el documento electrónico
-            FacturaLegal facturaActualizada = service.generarDocumentoElectronico(facturaLegal);
+            // FacturaLegal facturaActualizada = service.generarDocumentoElectronico(facturaLegal);
 
+            // TODO: Implementar la lógica para generar el documento electrónico
+            FacturaLegal facturaActualizada = null;
             return facturaActualizada;
 
         } catch (Exception e) {

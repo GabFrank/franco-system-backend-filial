@@ -52,61 +52,61 @@ public class FacturaLegalService extends CrudService<FacturaLegal, FacturaLegalR
         return repository.findByVentaId(id);
     }
 
-    /**
-     * Genera un documento electrónico completo para una factura legal.
-     * Este método utiliza la librería SIFEN para generar el CDC, URL QR y XML firmado.
-     *
-     * @param facturaLegal La factura legal para la cual generar el documento electrónico
-     * @return La factura legal actualizada con la información del documento electrónico
-     */
-    @Transactional(isolation = Isolation.SERIALIZABLE)
-    public FacturaLegal generarDocumentoElectronico(FacturaLegal facturaLegal) {
-        try {
-            log.info("Iniciando generación de DE para factura legal ID: {}", facturaLegal.getId());
+    // /**
+    //  * Genera un documento electrónico completo para una factura legal.
+    //  * Este método utiliza la librería SIFEN para generar el CDC, URL QR y XML firmado.
+    //  *
+    //  * @param facturaLegal La factura legal para la cual generar el documento electrónico
+    //  * @return La factura legal actualizada con la información del documento electrónico
+    //  */
+    // @Transactional(isolation = Isolation.SERIALIZABLE)
+    // public FacturaLegal generarDocumentoElectronico(FacturaLegal facturaLegal) {
+    //     try {
+    //         log.info("Iniciando generación de DE para factura legal ID: {}", facturaLegal.getId());
 
-            List<FacturaLegalItem> items = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
-            if (items.isEmpty()) {
-                throw new IllegalStateException("La factura legal no tiene ítems asociados.");
-            }
+    //         List<FacturaLegalItem> items = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
+    //         if (items.isEmpty()) {
+    //             throw new IllegalStateException("La factura legal no tiene ítems asociados.");
+    //         }
 
-            SifenService.DocumentoElectronicoInfo infoDocumento = sifenService.generarDocumentoElectronico(facturaLegal, items);
+    //         SifenService.DocumentoElectronicoInfo infoDocumento = sifenService.generarDocumentoElectronico(facturaLegal, items);
 
-            facturaLegal.setCdc(infoDocumento.getCdc());
-            FacturaLegal facturaActualizada = super.save(facturaLegal);
+    //         facturaLegal.setCdc(infoDocumento.getCdc());
+    //         FacturaLegal facturaActualizada = super.save(facturaLegal);
 
-            com.franco.dev.domain.financiero.DocumentoElectronico docElectronico = documentoElectronicoService.createFromFacturaLegal(facturaActualizada);
-            docElectronico.setCdc(infoDocumento.getCdc());
-            docElectronico.setUrlQr(infoDocumento.getUrlQr());
-            docElectronico.setXmlFirmado(infoDocumento.getXmlFirmado());
-            docElectronico.setEstado(com.franco.dev.domain.financiero.enums.EstadoDE.valueOf(infoDocumento.getEstadoDocumento()));
-            docElectronico.setCodigoRespuestaSifen(infoDocumento.getCodigoRespuesta());
-            docElectronico.setMensajeRespuestaSifen(infoDocumento.getMensajeRespuesta());
-            docElectronico.setFechaRecepcionSifen(LocalDateTime.now());
-            documentoElectronicoService.save(docElectronico);
+    //         com.franco.dev.domain.financiero.DocumentoElectronico docElectronico = documentoElectronicoService.createFromFacturaLegal(facturaActualizada);
+    //         docElectronico.setCdc(infoDocumento.getCdc());
+    //         docElectronico.setUrlQr(infoDocumento.getUrlQr());
+    //         docElectronico.setXmlFirmado(infoDocumento.getXmlFirmado());
+    //         docElectronico.setEstado(com.franco.dev.domain.financiero.enums.EstadoDE.valueOf(infoDocumento.getEstadoDocumento()));
+    //         docElectronico.setCodigoRespuestaSifen(infoDocumento.getCodigoRespuesta());
+    //         docElectronico.setMensajeRespuestaSifen(infoDocumento.getMensajeRespuesta());
+    //         docElectronico.setFechaRecepcionSifen(LocalDateTime.now());
+    //         documentoElectronicoService.save(docElectronico);
 
-            log.info("Documento electrónico generado y guardado para factura ID: {} con CDC: {}", facturaActualizada.getId(), infoDocumento.getCdc());
+    //         log.info("Documento electrónico generado y guardado para factura ID: {} con CDC: {}", facturaActualizada.getId(), infoDocumento.getCdc());
 
-            return facturaActualizada;
+    //         return facturaActualizada;
 
-        } catch (Exception e) {
-            log.error("Fallo total al generar documento electrónico para factura ID: {}", facturaLegal.getId(), e);
-            throw new RuntimeException("Fallo al generar el documento electrónico: " + e.getMessage(), e);
-        }
-    }
+    //     } catch (Exception e) {
+    //         log.error("Fallo total al generar documento electrónico para factura ID: {}", facturaLegal.getId(), e);
+    //         throw new RuntimeException("Fallo al generar el documento electrónico: " + e.getMessage(), e);
+    //     }
+    // }
 
-    /**
-     * Genera un documento electrónico completo para una factura legal existente.
-     * Este método es útil para regenerar documentos electrónicos cuando sea necesario.
-     *
-     * @param facturaLegalId El ID de la factura legal
-     * @return La factura legal actualizada con la información del documento electrónico
-     */
-    @Transactional(isolation = Isolation.SERIALIZABLE)
-    public FacturaLegal generarDocumentoElectronico(Long facturaLegalId) {
-        FacturaLegal facturaLegal = findById(facturaLegalId)
-                .orElseThrow(() -> new RuntimeException("Factura legal no encontrada con ID: " + facturaLegalId));
+    // /**
+    //  * Genera un documento electrónico completo para una factura legal existente.
+    //  * Este método es útil para regenerar documentos electrónicos cuando sea necesario.
+    //  *
+    //  * @param facturaLegalId El ID de la factura legal
+    //  * @return La factura legal actualizada con la información del documento electrónico
+    //  */
+    // @Transactional(isolation = Isolation.SERIALIZABLE)
+    // public FacturaLegal generarDocumentoElectronico(Long facturaLegalId) {
+    //     FacturaLegal facturaLegal = findById(facturaLegalId)
+    //             .orElseThrow(() -> new RuntimeException("Factura legal no encontrada con ID: " + facturaLegalId));
         
-        return generarDocumentoElectronico(facturaLegal);
-    }
+    //     return generarDocumentoElectronico(facturaLegal);
+    // }
 
 }

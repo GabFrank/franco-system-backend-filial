@@ -444,24 +444,24 @@ public class FacturaService {
             if (timbradoDetalle.getTimbrado() != null && Boolean.TRUE.equals(timbradoDetalle.getTimbrado().getIsElectronico())) {
                 // Generar documento electrónico directamente
                 try {
-                    List<FacturaLegalItem> facturaLegalItems = facturaLegalItemService.findByFacturaLegalId(facturaLegalGuardada.getId());
-                    SifenService.DocumentoElectronicoInfo infoDocumento = sifenService.generarDocumentoElectronico(facturaLegalGuardada, facturaLegalItems);
+                    // List<FacturaLegalItem> facturaLegalItems = facturaLegalItemService.findByFacturaLegalId(facturaLegalGuardada.getId());
+                    // SifenService.DocumentoElectronicoInfo infoDocumento = sifenService.generarDocumentoElectronico(facturaLegalGuardada, facturaLegalItems);
 
-                    // Actualizar factura con CDC
-                    facturaLegalGuardada.setCdc(infoDocumento.getCdc());
-                    // facturaLegalGuardada.setUrlQr(infoDocumento.getUrlQr());
-                    facturaLegalGuardada = facturaLegalService.save(facturaLegalGuardada);
+                    // // Actualizar factura con CDC
+                    // facturaLegalGuardada.setCdc(infoDocumento.getCdc());
+                    // // facturaLegalGuardada.setUrlQr(infoDocumento.getUrlQr());
+                    // facturaLegalGuardada = facturaLegalService.save(facturaLegalGuardada);
 
-                    // Crear y guardar documento electrónico
-                    com.franco.dev.domain.financiero.DocumentoElectronico docElectronico = documentoElectronicoService.createFromFacturaLegal(facturaLegalGuardada);
-                    docElectronico.setCdc(infoDocumento.getCdc());
-                    docElectronico.setUrlQr(infoDocumento.getUrlQr());
-                    docElectronico.setXmlFirmado(infoDocumento.getXmlFirmado());
-                    docElectronico.setEstado(convertirStringAEstadoDE(infoDocumento.getEstadoDocumento()));
-                    docElectronico.setCodigoRespuestaSifen(infoDocumento.getCodigoRespuesta());
-                    docElectronico.setMensajeRespuestaSifen(infoDocumento.getMensajeRespuesta());
-                    docElectronico.setFechaRecepcionSifen(LocalDateTime.now());
-                    documentoElectronicoService.save(docElectronico);
+                    // // Crear y guardar documento electrónico
+                    // com.franco.dev.domain.financiero.DocumentoElectronico docElectronico = documentoElectronicoService.createFromFacturaLegal(facturaLegalGuardada);
+                    // docElectronico.setCdc(infoDocumento.getCdc());
+                    // docElectronico.setUrlQr(infoDocumento.getUrlQr());
+                    // docElectronico.setXmlFirmado(infoDocumento.getXmlFirmado());
+                    // docElectronico.setEstado(convertirStringAEstadoDE(infoDocumento.getEstadoDocumento()));
+                    // docElectronico.setCodigoRespuestaSifen(infoDocumento.getCodigoRespuesta());
+                    // docElectronico.setMensajeRespuestaSifen(infoDocumento.getMensajeRespuesta());
+                    // docElectronico.setFechaRecepcionSifen(LocalDateTime.now());
+                    // documentoElectronicoService.save(docElectronico);
 
 
                 } catch (Exception e) {
