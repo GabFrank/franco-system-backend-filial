@@ -97,7 +97,19 @@ public class SifenEventoService {
         RespuestaRecepcionEvento respuesta = Sifen.recepcionEvento(eventosDE);
         
         log.info("   📥 Respuesta recibida - Código: {}", respuesta.getdCodRes());
-        log.info("✅ Evento de cancelación procesado");
+        // log respuesta bruta
+        log.info("   📥 Respuesta bruta: {}", respuesta.getRespuestaBruta());
+        
+        // 8. Actualizar estado en BD si la cancelación fue exitosa
+        if ("0300".equals(respuesta.getdCodRes())) {
+            de.setEstado(com.franco.dev.domain.financiero.enums.EstadoDE.CANCELADO);
+            de.setCodigoRespuestaSifen(respuesta.getdCodRes());
+            de.setMensajeRespuestaSifen(respuesta.getdMsgRes());
+            documentoElectronicoService.save(de);
+            log.info("✅ Evento de cancelación exitoso - DE actualizado a estado CANCELADO");
+        } else {
+            log.error("❌ Error en cancelación - Código: {} - {}", respuesta.getdCodRes(), respuesta.getdMsgRes());
+        }
         
         return respuesta;
     }
@@ -273,7 +285,16 @@ public class SifenEventoService {
         RespuestaRecepcionEvento respuesta = Sifen.recepcionEvento(eventosDE);
         
         log.info("   📥 Respuesta recibida - Código: {}", respuesta.getdCodRes());
-        log.info("✅ Evento de nominación procesado");
+        
+        // 11. Actualizar información en BD si la nominación fue exitosa
+        if ("0300".equals(respuesta.getdCodRes())) {
+            de.setCodigoRespuestaSifen(respuesta.getdCodRes());
+            de.setMensajeRespuestaSifen(respuesta.getdMsgRes());
+            documentoElectronicoService.save(de);
+            log.info("✅ Evento de nominación exitoso - DE actualizado con respuesta de SIFEN");
+        } else {
+            log.error("❌ Error en nominación - Código: {} - {}", respuesta.getdCodRes(), respuesta.getdMsgRes());
+        }
         
         return respuesta;
     }

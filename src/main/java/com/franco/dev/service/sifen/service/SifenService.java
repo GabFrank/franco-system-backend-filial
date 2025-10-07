@@ -210,8 +210,8 @@ public class SifenService {
         // 1. Obtener documentos del lote
         List<com.franco.dev.domain.financiero.DocumentoElectronico> documentos = 
             documentoElectronicoService.findByLoteDe(lote);
-        
-        if (documentos.isEmpty()) {
+            
+            if (documentos.isEmpty()) {
             throw new IllegalArgumentException("El lote " + lote.getId() + " no tiene documentos asociados");
         }
         
@@ -236,7 +236,7 @@ public class SifenService {
                         log.error("      ✗ CDC no coincide! Esperado: {}, Obtenido: {}", 
                             de.getCdc(), deSifen.obtenerCDC());
                     }
-                } catch (Exception e) {
+        } catch (Exception e) {
                     log.warn("      ⚠ Error al reconstruir desde XML: {}", e.getMessage());
                     deSifen = reconstruirDEDesdeFactura(de);
                 }
@@ -268,14 +268,14 @@ public class SifenService {
         
         // 5. Determinar estado del lote según respuesta
         if ("0300".equals(codigoRespuesta)) {
-            lote.setEstado(EstadoLoteDE.EN_PROCESO);
+                lote.setEstado(EstadoLoteDE.EN_PROCESO);
             String protocolo = extraerProtocoloDeRespuesta(respuesta.getRespuestaBruta());
             lote.setProtocolo(protocolo);
             log.info("✅ Lote {} enviado exitosamente. Protocolo: {}", lote.getId(), protocolo);
         } else {
             lote.setEstado(EstadoLoteDE.ERROR_ENVIO);
             log.error("❌ Error al enviar lote {}: {} - {}", 
-                lote.getId(), codigoRespuesta, respuesta.getdMsgRes());
+                        lote.getId(), codigoRespuesta, respuesta.getdMsgRes());
         }
         
         loteDEService.save(lote);
@@ -291,13 +291,13 @@ public class SifenService {
     public void consultarLote(LoteDE lote) throws SifenException {
         log.info("🔍 Consultando lote ID: {} con protocolo: {}", lote.getId(), lote.getProtocolo());
         
-        if (lote.getProtocolo() == null || lote.getProtocolo().isEmpty()) {
+            if (lote.getProtocolo() == null || lote.getProtocolo().isEmpty()) {
             throw new IllegalArgumentException("El lote " + lote.getId() + " no tiene protocolo para consultar");
-        }
-        
+            }
+            
         // 1. Consultar estado en SIFEN
-        RespuestaConsultaLoteDE respuesta = Sifen.consultaLoteDE(lote.getProtocolo());
-        
+            RespuestaConsultaLoteDE respuesta = Sifen.consultaLoteDE(lote.getProtocolo());
+            
         log.info("   📥 Respuesta recibida - Código: {}, Mensaje: {}", 
             respuesta.getdCodResLot(), respuesta.getdMsgResLot());
         
@@ -405,8 +405,8 @@ public class SifenService {
                 EstadoDE estadoIndividual = "Aprobado".equalsIgnoreCase(detalle.estado) 
                     ? EstadoDE.APROBADO 
                     : EstadoDE.RECHAZADO;
-                
-                documento.setEstado(estadoIndividual);
+            
+            documento.setEstado(estadoIndividual);
                 documento.setCodigoRespuestaSifen(detalle.codigo);
                 documento.setMensajeRespuestaSifen(detalle.mensaje);
                 
@@ -868,7 +868,7 @@ public class SifenService {
             log.error("Error al aplicar workaround de totales IVA: {}", e.getMessage());
         }
     }
-
+    
     /**
      * Mapea el nombre del departamento a su enum correspondiente.
      */

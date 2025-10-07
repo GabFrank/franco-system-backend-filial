@@ -616,9 +616,13 @@ for (LoteDE l : enProceso) {
   - FE: 48 horas
   - Otros DTE: 7 días
 - **Parámetros:** CDC, motivo
+- **Actualización en BD:**
+  - Si código = `0300` (exitoso) → Estado DE: `CANCELADO`
+  - Guarda código y mensaje de respuesta SIFEN
 - **Ejemplo de uso:**
   ```java
   sifenEventoService.cancelarDE("01800994825...", "Operación no concretada");
+  // Si exitoso → DE.estado = CANCELADO en BD
   ```
 
 #### 2. ✅ Inutilización de Números (`inutilizarNumeros`)
@@ -647,6 +651,9 @@ for (LoteDE l : enProceso) {
   - Soporte para no contribuyentes (con CI u otro doc)
   - Cálculo automático de DV para RUC
   - Toda la lógica de clasificación (B2B/B2C/B2G) centralizada
+- **Actualización en BD:**
+  - Si código = `0300` (exitoso) → Guarda código y mensaje de respuesta SIFEN
+  - El estado del DE permanece como `APROBADO` (nominación no cambia estado)
 - **Simplificación de API:**
   - **Antes:** `nominarReceptor(cdc, cliente, totalFactura)` → 3 parámetros
   - **Ahora:** `nominarReceptor(cdc, cliente)` → 2 parámetros ✅
@@ -654,6 +661,7 @@ for (LoteDE l : enProceso) {
   ```java
   // API simplificada - el total se obtiene automáticamente
   sifenEventoService.nominarReceptor("01800994825...", cliente);
+  // Si exitoso → Guarda respuesta SIFEN en BD
   ```
 
 ### 🎯 Otros Eventos Disponibles (No Implementados)
