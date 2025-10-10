@@ -336,10 +336,16 @@
 
         <!-- SIFEN integration library -->
         <dependency>
+            <groupId>com.frc.sifen</groupId>
+            <artifactId>frc-jsifenlib</artifactId>
+            <version>0.2.8</version>
+        </dependency>
+        
+        <!-- <dependency>
             <groupId>com.roshka.sifen</groupId>
             <artifactId>rshk-jsifenlib</artifactId>
             <version>0.2.4</version>
-        </dependency>
+        </dependency> -->
 
         <dependency>
             <groupId>com.google.zxing</groupId>
@@ -354,7 +360,6 @@
 
     </dependencies>
 
-        
 
     <build>
         <plugins>

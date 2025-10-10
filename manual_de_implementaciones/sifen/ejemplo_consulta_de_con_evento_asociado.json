@@ -1,0 +1,306 @@
+{
+	"Envelope": {
+		"Header": {
+			"__prefix": "env"
+		},
+		"Body": {
+			"rEnviConsDeResponse": {
+				"dFecProc": {
+					"__prefix": "ns2",
+					"__text": "2025-10-08T14:47:14-03:00"
+				},
+				"dCodRes": {
+					"__prefix": "ns2",
+					"__text": "0422"
+				},
+				"dMsgRes": {
+					"__prefix": "ns2",
+					"__text": "CDC encontrado"
+				},
+				"xContenDE": {
+					"rDE": {
+						"dVerFor": "150",
+						"DE": {
+							"dDVId": "2",
+							"dFecFirma": "2025-10-06T14:09:57",
+							"dSisFact": "1",
+							"gOpeDE": {
+								"iTipEmi": "1",
+								"dDesTipEmi": "Normal",
+								"dCodSeg": "737244875"
+							},
+							"gTimb": {
+								"iTiDE": "1",
+								"dDesTiDE": "Factura electrónica",
+								"dNumTim": "18270044",
+								"dEst": "001",
+								"dPunExp": "001",
+								"dNumDoc": "0000052",
+								"dFeIniT": "2025-08-29"
+							},
+							"gDatGralOpe": {
+								"dFeEmiDE": "2025-10-06T14:09:57",
+								"gOpeCom": {
+									"iTipTra": "1",
+									"dDesTipTra": "Venta de mercadería",
+									"iTImp": "1",
+									"dDesTImp": "IVA",
+									"cMoneOpe": "PYG",
+									"dDesMoneOpe": "Guarani"
+								},
+								"gEmis": {
+									"dRucEm": "80099482",
+									"dDVEmi": "5",
+									"iTipCont": "2",
+									"dNomEmi": "FRANCO AREVALOS S.A.",
+									"dDirEmi": "CALLE, PY 03 GENERAL ELIZARDO AQUINO",
+									"dNumCas": "0",
+									"cDepEmi": "18",
+									"dDesDepEmi": "CANINDEYU",
+									"cCiuEmi": "4738",
+									"dDesCiuEmi": "SALTO DEL GUAIRA",
+									"dTelEmi": "0982700027",
+									"dEmailE": "francoarevalos05@gmail.com",
+									"gActEco": [
+										{
+											"cActEco": "46304",
+											"dDesActEco": "COMERCIO AL POR MAYOR DE BEBIDAS"
+										},
+										{
+											"cActEco": "47112",
+											"dDesActEco": "COMERCIO AL POR MENOR EN MINI MERCADOS Y DESPENSAS"
+										}
+									]
+								},
+								"gDatRec": {
+									"iNatRec": "2",
+									"iTiOpe": "2",
+									"cPaisRec": "PRY",
+									"dDesPaisRe": "Paraguay",
+									"iTipIDRec": "5",
+									"dDTipIDRec": "Innominado",
+									"dNumIDRec": "0",
+									"dNomRec": "Sin Nombre"
+								}
+							},
+							"gDtipDE": {
+								"gCamFE": {
+									"iIndPres": "1",
+									"dDesIndPres": "Operación presencial"
+								},
+								"gCamCond": {
+									"iCondOpe": "1",
+									"dDCondOpe": "Contado",
+									"gPaConEIni": {
+										"iTiPago": "1",
+										"dDesTiPag": "Efectivo",
+										"dMonTiPag": "34100.0",
+										"cMoneTiPag": "PYG",
+										"dDMoneTiPag": "Guarani"
+									}
+								},
+								"gCamItem": [
+									{
+										"dCodInt": "001",
+										"dDesProSer": "TRES LEONES ETIQUETA NEGRA 750ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1.0",
+										"gValorItem": {
+											"dPUniProSer": "15000.0",
+											"dTotBruOpeItem": "15000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "15000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "13636",
+											"dLiqIVAItem": "1364",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "002",
+										"dDesProSer": "COCA COLA 500ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "2.0",
+										"gValorItem": {
+											"dPUniProSer": "8000.0",
+											"dTotBruOpeItem": "16000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "16000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "14545",
+											"dLiqIVAItem": "1455",
+											"dBasExe": "0"
+										}
+									}
+								]
+							},
+							"gTotSub": {
+								"dSubExe": "0",
+								"dSubExo": "0",
+								"dSub5": "0",
+								"dSub10": "31000",
+								"dTotOpe": "31000",
+								"dTotDesc": "0.0",
+								"dTotDescGlotem": "0",
+								"dTotAntItem": "0",
+								"dTotAnt": "0",
+								"dPorcDescTotal": "0.00",
+								"dDescTotal": "0.0",
+								"dAnticipo": "0",
+								"dRedon": "0",
+								"dComi": "0",
+								"dTotGralOpe": "31000",
+								"dIVA5": "0",
+								"dIVA10": "2819",
+								"dLiqTotIVA5": "0",
+								"dLiqTotIVA10": "0",
+								"dIVAComi": "0",
+								"dTotIVA": "2819",
+								"dBaseGrav5": "0",
+								"dBaseGrav10": "28181",
+								"dTBasGraIVA": "28181"
+							},
+							"_Id": "01800994825001001000005222025100617372448752"
+						},
+						"Signature": {
+							"SignedInfo": {
+								"CanonicalizationMethod": {
+									"_Algorithm": "http://www.w3.org/2001/10/xml-exc-c14n#"
+								},
+								"SignatureMethod": {
+									"_Algorithm": "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+								},
+								"Reference": {
+									"Transforms": {
+										"Transform": [
+											{
+												"_Algorithm": "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
+											},
+											{
+												"_Algorithm": "http://www.w3.org/2001/10/xml-exc-c14n#"
+											}
+										]
+									},
+									"DigestMethod": {
+										"_Algorithm": "http://www.w3.org/2001/04/xmlenc#sha256"
+									},
+									"DigestValue": "4ZnR3wiJr7OHFACsjJKsUe6D0r8oi9Xh9XsPA6eZsAI=",
+									"_URI": "#01800994825001001000005222025100617372448752"
+								}
+							},
+							"SignatureValue": "r71dWpjWItQLfKsUEw0+t10oA0KQ5xJys37FZKcgtYght+KdX00AesxYziPKGu2jHdkawHok4GX2\r\nEwJGMTEYMBYGA1UEBBMPRlJBTkNPIEFSRVZBTE9TMRIwEAYDVQQqEwlHVUlMTEVSTU8xIjAgBgNV\r\nBAMTGUdVSUxMRVJNTyBGUkFOQ08gQVJFVkFMT1MxEjAQBgNVBAUTCUNJMzQ5OTkxNzCCASIwDQYJ\r\nKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOgtYrO0ZYGFgS8qlCWbrFyyH4iu0xHrl3DE2G8cT47i\r\n68efq23BV2ijojZU5NeXUhr+2YlDYxumU9CR9PbVSzcbZBhcC4bz8KgPIxnYEAK/FnDE/noFmzCg\r\nQlcDTmsoHzNrYYUElW237aM3HWz0e0M7jWXdHXbKHAI8HHJv8Pk2IAaMwT4r2oDamjQ09EjTd6+n\r\nj5hNYkD761cBz08LFypEz2cug0nw+yvDSAXcKa75IHapv5H0rKfeZoVjtJ/qaHeWkdWfXl1JplbQ\r\n5wIMrStrPQaZ3gTh/MoP0DtJkZ14/jR7IhiEY6jksa3H74L6bUgHrxvAjF8kTf1Mi4atF3kCAwEA\r\nAaOCA08wggNLMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFDzKVu9Va8AxsP2t2CQ8FIaWSZnkMB8G\r\nA1UdIwQYMBaAFL41VGJoYOcm0zHBX5ex4vZkzgf1MA4GA1UdDwEB/wQEAwIF4DCBxQYDVR0RBIG9\r\ntSDDWwNRA28d341S8wdU8Aqcad3j4Rvtq5WakcpjR1ncSqM3Gacqt8QCqQoUvPdzPpJL0PSWXRVE\r\nFRULLqjagdMbQDorGICwiqd3MNMuQKLpdFHbWrAC1qqPISvvstW6H4hk8Suh31v7ejed2BF+jADJ\r\nrXLK+uK7lM77RbctBMTq9WTcY4D11iRZj5lYXrRTBj++fxLyOj5jcZGCnUE/ZWxiSRyGVKMS//pa\r\nywisZFfpxLVkcoijiRb0FTtu8+0SnyjQVEZrbA==",
+							"KeyInfo": {
+								"X509Data": {
+									"X509Certificate": "MIIIEDCCBfigAwIBAgIRAPdmqMI0j5WSS+6qirOz9powDQYJKoZIhvcNAQELBQAwgYUxCzAJBgNV\r\nBAYTAlBZMQ0wCwYDVQQKEwRJQ1BQMTgwNgYDVQQLEy9QcmVzdGFkb3IgQ3VhbGlmaWNhZG8gZGUg\r\nU2VydmljaW9zIGRlIENvbmZpYW56YTEVMBMGA1UEAxMMQ09ERTEwMCBTLkEuMRYwFAYDVQQFEw1S\r\nVUM4MDA4MDYxMC03MB4XDTI1MDgyMDE0NTM0MVoXDTI2MDgyMDE0NTM0MVowga0xCzAJBgNVBAYT\r\nAlBZMSswKQYDVQQKEyJDRVJUSUZJQ0FETyBDVUFMSUZJQ0FETyBUUklCVVRBUklPMQswCQYDVQQL\r\nMIG6gRVHVUlNRU1PODFASE9UTUFJTC5DT02kgaAwgZ0xKTAnBgNVBAoTIEZSQU5DTyBBUkVWQUxP\r\nUyBTT0NJRURBRCBBTk9OSU1BMRMwEQYDVQQLEwpESVJFQ1RPUklPMRcwFQYDVQQMEw5WSUNFUFJF\r\nU0lERU5URTEqMCgGA1UEDQwhRklSTUEgRUxFQ1RSw5NOSUNBIGRlIG5pdmVsIG1lZGlvMRYwFAYD\r\nVQQFEw1SVUM4MDA5OTQ4Mi01MIH3BgNVHSAEge8wgewwgekGCysGAQQBg65wAQEEMIHZMEYGCCsG\r\nAQUFBwIBFjpodHRwczovL2NvZGUxMDAuY29tLnB5L3JlcG9zaXRvcmlvLWRlLWRvY3VtZW50b3Mt\r\ncHVibGljb3MvMIGOBggrBgEFBQcCAjCBgQx/Y2VydGlmaWNhZG8gY3VhbGlmaWNhZG8gZGUgZmly\r\nbWEgZWxlY3Ryw7NuaWNhIHRpcG8gRjEgc3VqZXRhIGEgbGFzIGNvbmRpY2lvbmVzIGRlIHVzbyBl\r\neHB1ZXN0YXMgZW4gbGEgRFBDIGRlbCBQQ1NDIENPREUxMDAgUy5BLjB7BgNVHR8EdDByMDegNaAz\r\nhjFodHRwOi8vcGNhMS5jb2RlMTAwLmNvbS5weS9jcmxzL2NhLWNvZGUxMDAtc2EuY3JsMDegNaAz\r\nhjFodHRwOi8vcGNhMi5jb2RlMTAwLmNvbS5weS9jcmxzL2NhLWNvZGUxMDAtc2EuY3JsMCAGA1Ud\r\nJQEB/wQWMBQGCCsGAQUFBwMCBggrBgEFBQcDATCBiQYIKwYBBQUHAQEEfTB7MDkGCCsGAQUFBzAB\r\nhi1odHRwOi8vb2NzcC5jb2RlMTAwLmNvbS5weS9vY3NwL2NhLWNvZGUxMDAtc2EwPgYIKwYBBQUH\r\nMAKGMmh0dHA6Ly9wY2ExLmNvZGUxMDAuY29tLnB5L2NlcnRzL2NhLWNvZGUxMDAtc2EuY2VyMA0G\r\nCSqGSIb3DQEBCwUAA4ICAQAeb6SDm3hZVNA6T4lvgY4PmVYYgmXon9VDLJzy3/lM7prW0S5X6Nw8\r\nt5WQkZ+GSZv35/XlLuIXmkS0C8ZxQbf6EGmp+sV+S6qVL7MVSN8nNx/bZfeO6yz8k+n1+v8Yq0mR\r\nmblqTNL5FZuRkvs/c36pV2BMK2kNRYDnNCEhicwcGB/ay4zDirLDo5f0EYPdG2Xp2iTiFPWzNySc\r\nKJMP1sQWOPaiPNo5Y1+d7hldCPgsNIWDlMt5ahkcow5qF/br4dLb1gilI5kZ0Ugg3b9rUus3LArE\r\nOXtrRqlxrnqWcwmAe+uD6pSkX4p5uNtIfn7MbjTUqv4vLZWkwjVCZHCbnJG++g4RhHeLNg3psIWC\r\njSi96nQmvIySy/pRlqMRDknEA7ln0Br6IM+xAzf8AUPcg31E3/thSx5yW1WhgvEhIhLei4DKCxdm\r\nEpFdHRR1bwC/CSe+GWZBSA1NgkrEu8przJyeGYoM9WhmZJRa6r5g1qhsiBrx0PB9lw+qZcT8NyXC\r\nUCuV6KtmGiPYrdxiMGdZXy5a08lI2DBLz/u2DWqlFDuK+bQmCF1C9pGNvBBZFO90gP0UmtLg3UPr\r\nhBY2tdSpKg/gmrp5NcyIqcmXDaLroAfj1EvShlQNmL2EL7IZRvVcZlNPSzHaLeHHt/jmOytcFbMv\r\nvF+bxU5T2qevcukilvkdFw=="
+								}
+							},
+							"_xmlns": "http://www.w3.org/2000/09/xmldsig#"
+						},
+						"gCamFuFD": {
+							"dCarQR": "https://ekuatia.set.gov.py/consultas/qr?nVersion=150&Id=01800994825001001000005222025100617372448752&dFeEmiDE=323032352d31302d30365431343a30393a3537&dNumIDRec=0&dTotGralOpe=31000&dTotIVA=2819&cItems=2&DigestValue=345a6e523377694a72374f48464143736a4a4b73556536443072386f69395868395873504136655a7341493d&IdCSC=0001&cHashQR=892b8160e5b0aa8e742e6425a6c3e7c426e1d17db818c70d0820c98e81e218f6"
+						},
+						"_xmlns": "http://ekuatia.set.gov.py/sifen/xsd",
+						"_xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+						"_xsi:schemaLocation": "http://ekuatia.set.gov.py/sifen/xsd siRecepDE_v150.xsd"
+					},
+					"dProtAut": "2658109949",
+					"xContEv": {
+						"rContEv": {
+							"xEvento": {
+								"rGesEve": {
+									"rEve": {
+										"dFecFirma": "2025-10-10T13:21:36",
+										"dVerFor": "150",
+										"gGroupTiEvt": {
+											"rGeVeCan": {
+												"Id": "01800994825001001000005222025100617372448752",
+												"mOtEve": "Prueba de cancelación - Test automatizado"
+											}
+										},
+										"_Id": "1"
+									},
+									"Signature": {
+										"SignedInfo": {
+											"CanonicalizationMethod": {
+												"_Algorithm": "http://www.w3.org/2001/10/xml-exc-c14n#"
+											},
+											"SignatureMethod": {
+												"_Algorithm": "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+											},
+											"Reference": {
+												"Transforms": {
+													"Transform": [
+														{
+															"_Algorithm": "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
+														},
+														{
+															"_Algorithm": "http://www.w3.org/2001/10/xml-exc-c14n#"
+														}
+													]
+												},
+												"DigestMethod": {
+													"_Algorithm": "http://www.w3.org/2001/04/xmlenc#sha256"
+												},
+												"DigestValue": "GVBd8kCs3jLHvdXHJK+1cBIHyysF1bhIImoeFEzfPHg=",
+												"_URI": "#1"
+											}
+										},
+										"SignatureValue": "cxzexx6slHiyff0bW8gMeKOKQduE3JcEUd7Z7UIfR9LLIyHKWM6EL93nM205DLyi8PPVMpKNZfbI\r\n+9IIGG5ARH6Fr9OsaJZC2yKx6n/HeTstEZGheuez/4QGJnBX1Ue98VhQ/KdfavbtaftWYm5VEFiH\r\nOx4m/QOOlck3OqWZ9FyCxyuyLiVn3FUAw+aFaGXo/CpHYhXy+/jZkV8AKMl2Zm+zho7TEea1deP8\r\nO5t6eYoH0kacc+sFmoXyngGhAUNiPQ3bZVeyVQQDMiyB5+3TZkmUDPdAkB56HqddW4GMQynmegWT\r\nWRGjxwSLtNmNN5JEbfEQnoVzuhJqzHvMrZuHSA==",
+										"KeyInfo": {
+											"X509Data": {
+												"X509Certificate": "MIIIEDCCBfigAwIBAgIRAPdmqMI0j5WSS+6qirOz9powDQYJKoZIhvcNAQELBQAwgYUxCzAJBgNV\r\nBAYTAlBZMQ0wCwYDVQQKEwRJQ1BQMTgwNgYDVQQLEy9QcmVzdGFkb3IgQ3VhbGlmaWNhZG8gZGUg\r\nU2VydmljaW9zIGRlIENvbmZpYW56YTEVMBMGA1UEAxMMQ09ERTEwMCBTLkEuMRYwFAYDVQQFEw1S\r\nVUM4MDA4MDYxMC03MB4XDTI1MDgyMDE0NTM0MVoXDTI2MDgyMDE0NTM0MVowga0xCzAJBgNVBAYT\r\nAlBZMSswKQYDVQQKEyJDRVJUSUZJQ0FETyBDVUFMSUZJQ0FETyBUUklCVVRBUklPMQswCQYDVQQL\r\nEwJGMTEYMBYGA1UEBBMPRlJBTkNPIEFSRVZBTE9TMRIwEAYDVQQqEwlHVUlMTEVSTU8xIjAgBgNV\r\nBAMTGUdVSUxMRVJNTyBGUkFOQ08gQVJFVkFMT1MxEjAQBgNVBAUTCUNJMzQ5OTkxNzCCASIwDQYJ\r\nKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOgtYrO0ZYGFgS8qlCWbrFyyH4iu0xHrl3DE2G8cT47i\r\n68efq23BV2ijojZU5NeXUhr+2YlDYxumU9CR9PbVSzcbZBhcC4bz8KgPIxnYEAK/FnDE/noFmzCg\r\nQlcDTmsoHzNrYYUElW237aM3HWz0e0M7jWXdHXbKHAI8HHJv8Pk2IAaMwT4r2oDamjQ09EjTd6+n\r\nj5hNYkD761cBz08LFypEz2cug0nw+yvDSAXcKa75IHapv5H0rKfeZoVjtJ/qaHeWkdWfXl1JplbQ\r\n5wIMrStrPQaZ3gTh/MoP0DtJkZ14/jR7IhiEY6jksa3H74L6bUgHrxvAjF8kTf1Mi4atF3kCAwEA\r\nAaOCA08wggNLMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFDzKVu9Va8AxsP2t2CQ8FIaWSZnkMB8G\r\nA1UdIwQYMBaAFL41VGJoYOcm0zHBX5ex4vZkzgf1MA4GA1UdDwEB/wQEAwIF4DCBxQYDVR0RBIG9\r\nMIG6gRVHVUlNRU1PODFASE9UTUFJTC5DT02kgaAwgZ0xKTAnBgNVBAoTIEZSQU5DTyBBUkVWQUxP\r\nUyBTT0NJRURBRCBBTk9OSU1BMRMwEQYDVQQLEwpESVJFQ1RPUklPMRcwFQYDVQQMEw5WSUNFUFJF\r\nU0lERU5URTEqMCgGA1UEDQwhRklSTUEgRUxFQ1RSw5NOSUNBIGRlIG5pdmVsIG1lZGlvMRYwFAYD\r\nVQQFEw1SVUM4MDA5OTQ4Mi01MIH3BgNVHSAEge8wgewwgekGCysGAQQBg65wAQEEMIHZMEYGCCsG\r\nAQUFBwIBFjpodHRwczovL2NvZGUxMDAuY29tLnB5L3JlcG9zaXRvcmlvLWRlLWRvY3VtZW50b3Mt\r\ncHVibGljb3MvMIGOBggrBgEFBQcCAjCBgQx/Y2VydGlmaWNhZG8gY3VhbGlmaWNhZG8gZGUgZmly\r\nbWEgZWxlY3Ryw7NuaWNhIHRpcG8gRjEgc3VqZXRhIGEgbGFzIGNvbmRpY2lvbmVzIGRlIHVzbyBl\r\neHB1ZXN0YXMgZW4gbGEgRFBDIGRlbCBQQ1NDIENPREUxMDAgUy5BLjB7BgNVHR8EdDByMDegNaAz\r\nhjFodHRwOi8vcGNhMS5jb2RlMTAwLmNvbS5weS9jcmxzL2NhLWNvZGUxMDAtc2EuY3JsMDegNaAz\r\nhjFodHRwOi8vcGNhMi5jb2RlMTAwLmNvbS5weS9jcmxzL2NhLWNvZGUxMDAtc2EuY3JsMCAGA1Ud\r\nJQEB/wQWMBQGCCsGAQUFBwMCBggrBgEFBQcDATCBiQYIKwYBBQUHAQEEfTB7MDkGCCsGAQUFBzAB\r\nhi1odHRwOi8vb2NzcC5jb2RlMTAwLmNvbS5weS9vY3NwL2NhLWNvZGUxMDAtc2EwPgYIKwYBBQUH\r\nMAKGMmh0dHA6Ly9wY2ExLmNvZGUxMDAuY29tLnB5L2NlcnRzL2NhLWNvZGUxMDAtc2EuY2VyMA0G\r\nCSqGSIb3DQEBCwUAA4ICAQAeb6SDm3hZVNA6T4lvgY4PmVYYgmXon9VDLJzy3/lM7prW0S5X6Nw8\r\nt5WQkZ+GSZv35/XlLuIXmkS0C8ZxQbf6EGmp+sV+S6qVL7MVSN8nNx/bZfeO6yz8k+n1+v8Yq0mR\r\nmblqTNL5FZuRkvs/c36pV2BMK2kNRYDnNCEhicwcGB/ay4zDirLDo5f0EYPdG2Xp2iTiFPWzNySc\r\nKJMP1sQWOPaiPNo5Y1+d7hldCPgsNIWDlMt5ahkcow5qF/br4dLb1gilI5kZ0Ugg3b9rUus3LArE\r\nOXtrRqlxrnqWcwmAe+uD6pSkX4p5uNtIfn7MbjTUqv4vLZWkwjVCZHCbnJG++g4RhHeLNg3psIWC\r\njSi96nQmvIySy/pRlqMRDknEA7ln0Br6IM+xAzf8AUPcg31E3/thSx5yW1WhgvEhIhLei4DKCxdm\r\nEpFdHRR1bwC/CSe+GWZBSA1NgkrEu8przJyeGYoM9WhmZJRa6r5g1qhsiBrx0PB9lw+qZcT8NyXC\r\nUCuV6KtmGiPYrdxiMGdZXy5a08lI2DBLz/u2DWqlFDuK+bQmCF1C9pGNvBBZFO90gP0UmtLg3UPr\r\nhBY2tdSpKg/gmrp5NcyIqcmXDaLroAfj1EvShlQNmL2EL7IZRvVcZlNPSzHaLeHHt/jmOytcFbMv\r\nvF+bxU5T2qevcukilvkdFw=="
+											}
+										},
+										"_xmlns": "http://www.w3.org/2000/09/xmldsig#"
+									},
+									"_xmlns": "http://ekuatia.set.gov.py/sifen/xsd"
+								}
+							},
+							"rResEnviEventoDe": {
+								"rRetEnviEventoDe": {
+									"dFecProc": "2025-10-10T13:21:37",
+									"gResProcEVe": {
+										"dEstRes": "Aprobado",
+										"dProtAut": "40975537",
+										"gResProc": {
+											"dCodRes": "0600",
+											"dMsgRes": "Se encontro el evento"
+										}
+									}
+								}
+							}
+						}
+					},
+					"__prefix": "ns2"
+				},
+				"_xmlns:ns2": "http://ekuatia.set.gov.py/sifen/xsd",
+				"__prefix": "ns2"
+			},
+			"__prefix": "env"
+		},
+		"_xmlns:env": "http://www.w3.org/2003/05/soap-envelope",
+		"__prefix": "env"
+	}
+}

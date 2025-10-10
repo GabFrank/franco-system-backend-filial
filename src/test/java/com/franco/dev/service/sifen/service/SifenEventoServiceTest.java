@@ -10,9 +10,21 @@ import com.franco.dev.service.financiero.DocumentoElectronicoService;
 import com.franco.dev.service.financiero.FacturaLegalService;
 import com.franco.dev.service.financiero.LoteDEService;
 import com.franco.dev.service.personas.ClienteService;
+import com.roshka.sifen.Sifen;
+import com.roshka.sifen.core.beans.EventosDE;
+import com.roshka.sifen.core.beans.response.RespuestaConsultaDE;
 import com.roshka.sifen.core.beans.response.RespuestaRecepcionEvento;
 import com.roshka.sifen.core.exceptions.SifenException;
+import com.roshka.sifen.core.fields.request.event.TgGroupTiEvt;
+import com.roshka.sifen.core.fields.request.event.TrGeVeCan;
+import com.roshka.sifen.core.fields.request.event.TrGeVeConf;
+import com.roshka.sifen.core.fields.request.event.TrGeVeDisconf;
+import com.roshka.sifen.core.fields.request.event.TrGesEve;
+import com.roshka.sifen.core.types.TiTipConf;
+
 import lombok.extern.slf4j.Slf4j;
+
+import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,6 +32,7 @@ import org.springframework.test.annotation.Commit;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -72,8 +85,6 @@ public class SifenEventoServiceTest {
         log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
         try {
-            // 1. Buscar un DE aprobado
-            log.info("\n📋 PASO 1: Buscar DE aprobado para cancelar");
             List<DocumentoElectronico> aprobados = documentoElectronicoService.findByEstado(EstadoDE.APROBADO);
             
             if (aprobados.isEmpty()) {
@@ -83,26 +94,17 @@ public class SifenEventoServiceTest {
             }
 
             DocumentoElectronico deAprob = aprobados.get(0);
-            log.info("   ✅ DE encontrado:");
-            log.info("      - ID: {}", deAprob.getId());
-            log.info("      - CDC: {}", deAprob.getCdc());
-            log.info("      - Estado: {}", deAprob.getEstado());
-            log.info("      - Factura ID: {}", deAprob.getFacturaLegal() != null ? deAprob.getFacturaLegal().getId() : "null");
-
-            // 2. Enviar evento de cancelación
-            log.info("\n🚫 PASO 2: Enviar evento de cancelación a SIFEN");
             String motivo = "Prueba de cancelación - Test automatizado";
             log.info("   Motivo: {}", motivo);
 
             RespuestaRecepcionEvento respuesta = sifenEventoService.cancelarDE(
-                deAprob.getCdc(), 
+                "01800994825001001000005322025100614653130125", 
                 motivo
             );
 
             // 3. Mostrar respuesta
             log.info("\n📥 PASO 3: Respuesta de SIFEN");
-            log.info("   Código: {}", respuesta.getdCodRes());
-            log.info("   Mensaje: {}", respuesta.getdMsgRes());
+            log.info("   Código: {}", respuesta.getRespuestaBruta());
 
             // 4. Validar respuesta
             if ("0300".equals(respuesta.getdCodRes())) {
@@ -110,10 +112,6 @@ public class SifenEventoServiceTest {
                 
                 // Verificar actualización en BD
                 DocumentoElectronico deActualizado = documentoElectronicoService.findById(deAprob.getId()).orElse(null);
-                if (deActualizado != null) {
-                    log.info("   Estado en BD: {}", deActualizado.getEstado());
-                    log.info("   Código respuesta: {}", deActualizado.getCodigoRespuestaSifen());
-                }
             } else {
                 log.error("❌ Error en cancelación - Código: {}", respuesta.getdCodRes());
             }
@@ -394,6 +392,42 @@ public class SifenEventoServiceTest {
 
         } catch (Exception e) {
             log.error("❌ Error en test combinado: {}", e.getMessage(), e);
+        }
+    }
+
+    // ===================== TEST DE CONSULTA DE DE POR CDC =====================
+
+    /**
+     * Test de consulta de un Documento Electrónico por CDC.
+     * 
+     * Flujo:
+     * 1. Consultar DE en SIFEN usando CDC específico
+     * 2. Mostrar información del DE y sus eventos asociados
+     * 3. Validar respuesta
+     */
+    @Test
+    @Commit
+    public void testConsultaDEPorCDC() {
+        log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        log.info("🔍 TEST: Consulta de Documento Electrónico por CDC");
+        log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+        try {
+            // CDC de prueba
+            String cdcPrueba = "01800994825001001000005822025101019663052405";
+            
+            log.info("\n📄 PASO 1: Consultar DE en SIFEN");
+            log.info("   CDC: {}", cdcPrueba);
+
+            // Consultar DE
+            RespuestaConsultaDE respuesta = sifenService.consultarDE(cdcPrueba);
+
+            // Mostrar respuesta
+            log.info("\n📥 PASO 2: Respuesta de SIFEN");
+            log.info("   Código: {}", respuesta.getRespuestaBruta());
+
+        } catch (Exception e) {
+            log.error("❌ Error en test de consulta de DE por CDC: {}", e.getMessage(), e);
         }
     }
 }

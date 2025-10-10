@@ -20,15 +20,19 @@
 */
 package com.franco.dev.service.sifen.service;
 
+import com.franco.dev.domain.financiero.EventoCancelacionDE;
 import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.FacturaLegalItem;
 import com.franco.dev.domain.financiero.LoteDE;
 import com.franco.dev.domain.financiero.enums.EstadoDE;
+import com.franco.dev.domain.financiero.enums.EstadoEvento;
 import com.franco.dev.domain.financiero.enums.EstadoLoteDE;
 import com.franco.dev.service.financiero.DocumentoElectronicoService;
+import com.franco.dev.service.financiero.EventoCancelacionDEService;
 import com.franco.dev.service.financiero.FacturaLegalItemService;
 import com.franco.dev.service.financiero.LoteDEService;
 import com.franco.dev.service.personas.ClienteService;
+import com.franco.dev.service.sifen.util.SifenEventoParser;
 import com.franco.dev.service.sifen.util.SifenReceptorHelper;
 import com.roshka.sifen.Sifen;
 import com.roshka.sifen.core.beans.response.RespuestaConsultaDE;
@@ -67,6 +71,7 @@ public class SifenService {
     private final LoteDEService loteDEService;
     private final FacturaLegalItemService facturaLegalItemService;
     private final ClienteService clienteService;
+    private final EventoCancelacionDEService eventoCancelacionDEService;
     private final com.roshka.sifen.core.SifenConfig sifenConfig;
 
     @Value("${tipoContribuyenteEmisor:2}")
@@ -77,11 +82,13 @@ public class SifenService {
             LoteDEService loteDEService,
             FacturaLegalItemService facturaLegalItemService,
             ClienteService clienteService,
+            EventoCancelacionDEService eventoCancelacionDEService,
             com.roshka.sifen.core.SifenConfig sifenConfig) {
         this.documentoElectronicoService = documentoElectronicoService;
         this.loteDEService = loteDEService;
         this.facturaLegalItemService = facturaLegalItemService;
         this.clienteService = clienteService;
+        this.eventoCancelacionDEService = eventoCancelacionDEService;
         this.sifenConfig = sifenConfig;
     }
 
@@ -336,10 +343,23 @@ public class SifenService {
 
     /**
      * Consulta el estado de un documento electrónico individual en SIFEN.
+     * Actualiza el estado del DE en BD basándose en la respuesta.
+     * Extrae y actualiza eventos asociados (cancelación, etc.) si existen.
+     * 
+     * ORDEN DE PROCESAMIENTO (importante para estados):
+     * 1. Actualiza estado del DE según XML principal (APROBADO/RECHAZADO)
+     * 2. Procesa eventos asociados (cancelación, etc.)
+     * 3. Si existe evento de cancelación APROBADO, sobrescribe estado a CANCELADO
+     * 
+     * EJEMPLO:
+     * - XML dice: DE está "Aprobado" (protocolo 2658109949)
+     * - XML también contiene: Evento de cancelación "Aprobado" (protocolo 40975537)
+     * - Estado final del DE: CANCELADO (porque el evento prevalece sobre el estado original)
      * 
      * @param cdc El CDC del documento a consultar
      * @return Información del estado del documento
      */
+    @Transactional
     public RespuestaConsultaDE consultarDE(String cdc) {
         log.info("🔍 Consultando DE con CDC: {}", cdc);
         
@@ -347,10 +367,260 @@ public class SifenService {
             RespuestaConsultaDE respuesta = Sifen.consultaDE(cdc);
             log.info("   📥 Respuesta recibida - Código: {}, Mensaje: {}", 
                 respuesta.getdCodRes(), respuesta.getdMsgRes());
+            
+            // Si el DE fue encontrado (0422), procesar estado y eventos
+            if ("0422".equals(respuesta.getdCodRes())) {
+                // Paso 1: Actualizar estado base del DE
+                actualizarEstadoDesdeRespuesta(cdc, respuesta.getRespuestaBruta());
+                
+                // Paso 2: Procesar eventos (esto puede sobrescribir el estado si hay cancelación aprobada)
+                procesarEventosAsociados(cdc, respuesta.getRespuestaBruta());
+            }
+            
             return respuesta;
         } catch (SifenException e) {
             log.error("❌ Error al consultar DE {}: {}", cdc, e.getMessage());
             throw new RuntimeException("Error al consultar DE en SIFEN", e);
+        }
+    }
+    
+    /**
+     * Actualiza el estado del DocumentoElectronico basándose en la respuesta de SIFEN.
+     * 
+     * Estados posibles según SIFEN:
+     * - "Aprobado" -> APROBADO
+     * - "Aprobado con observación" -> APROBADO (ej: extemporáneo)
+     * - "Rechazado" -> RECHAZADO
+     */
+    private void actualizarEstadoDesdeRespuesta(String cdc, String xmlRespuesta) {
+        log.info("   🔄 Actualizando estado del DE desde respuesta SIFEN...");
+        
+        try {
+            // Buscar el DE en la base de datos
+            com.franco.dev.domain.financiero.DocumentoElectronico de = 
+                documentoElectronicoService.findByCdc(cdc).orElse(null);
+            
+            if (de == null) {
+                log.warn("   ⚠️ DE no encontrado en BD local - no se actualizará estado");
+                return;
+            }
+            
+            // Extraer protocolo de autorización si existe
+            String protocoloAutorizacion = extraerValorXML(xmlRespuesta, "<dProtAut>", "</dProtAut>");
+            if (protocoloAutorizacion != null && !protocoloAutorizacion.isEmpty()) {
+                log.info("   📋 Protocolo de autorización: {}", protocoloAutorizacion);
+            }
+            
+            // Extraer estado del resultado (dEstRes) del DE
+            // Este campo indica si el documento fue Aprobado, Aprobado con observación, o Rechazado
+            String estadoResultado = extraerEstadoResultadoDE(xmlRespuesta);
+            
+            if (estadoResultado == null) {
+                log.warn("   ⚠️ No se pudo determinar estado del DE desde respuesta");
+                return;
+            }
+            
+            log.info("   📊 Estado en SIFEN: {}", estadoResultado);
+            
+            // Mapear estado de SIFEN a estado local
+            EstadoDE nuevoEstado = null;
+            boolean actualizar = false;
+            
+            if ("Aprobado".equalsIgnoreCase(estadoResultado) || 
+                estadoResultado.toLowerCase().contains("aprobado con observación") ||
+                estadoResultado.toLowerCase().contains("aprobado con observacion")) {
+                
+                // Solo actualizar a APROBADO si no está ya en un estado final más específico
+                if (de.getEstado() != EstadoDE.APROBADO && 
+                    de.getEstado() != EstadoDE.CANCELADO) {
+                    nuevoEstado = EstadoDE.APROBADO;
+                    actualizar = true;
+                    log.info("   ✅ DE aprobado por SIFEN");
+                }
+                
+            } else if ("Rechazado".equalsIgnoreCase(estadoResultado)) {
+                
+                // Actualizar a RECHAZADO si no está ya en ese estado
+                if (de.getEstado() != EstadoDE.RECHAZADO) {
+                    nuevoEstado = EstadoDE.RECHAZADO;
+                    actualizar = true;
+                    log.info("   ❌ DE rechazado por SIFEN");
+                }
+            }
+            
+            // Actualizar en BD si corresponde
+            if (actualizar && nuevoEstado != null) {
+                de.setEstado(nuevoEstado);
+                de.setFechaRecepcionSifen(LocalDateTime.now());
+                documentoElectronicoService.save(de);
+                log.info("   💾 Estado del DE actualizado a: {}", nuevoEstado);
+            } else {
+                log.info("   ℹ️ Estado del DE no requiere actualización (actual: {})", de.getEstado());
+            }
+            
+        } catch (Exception e) {
+            log.error("   ❌ Error al actualizar estado del DE: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Extrae el estado del resultado (dEstRes) desde el XML de respuesta.
+     * Este campo indica si el documento fue "Aprobado", "Aprobado con observación", o "Rechazado".
+     * 
+     * Nota: En respuestas de consulta individual, el estado puede venir en diferentes partes del XML.
+     * Para consulta de lote viene en gResProcLote/dEstRes.
+     * Para consulta individual puede venir implícito en la presencia de protocolo y ausencia de errores.
+     */
+    private String extraerEstadoResultadoDE(String xmlRespuesta) {
+        if (xmlRespuesta == null) {
+            return null;
+        }
+        
+        try {
+            // Intentar extraer de gResProcLote (respuesta de lote)
+            String estadoLote = extraerValorXML(xmlRespuesta, "<ns2:dEstRes>", "</ns2:dEstRes>");
+            if (estadoLote != null && !estadoLote.isEmpty()) {
+                return estadoLote;
+            }
+            
+            // Intentar sin namespace
+            estadoLote = extraerValorXML(xmlRespuesta, "<dEstRes>", "</dEstRes>");
+            if (estadoLote != null && !estadoLote.isEmpty()) {
+                return estadoLote;
+            }
+            
+            // En consultas individuales exitosas (0422), si hay protocolo de autorización
+            // y no hay códigos de error, el documento está aprobado
+            String protocolo = extraerValorXML(xmlRespuesta, "<dProtAut>", "</dProtAut>");
+            if (protocolo != null && !protocolo.isEmpty() && !protocolo.equals("0000000000")) {
+                log.debug("   🔍 Estado inferido como 'Aprobado' por presencia de protocolo válido");
+                return "Aprobado";
+            }
+            
+            // Si no se puede determinar, retornar null
+            return null;
+            
+        } catch (Exception e) {
+            log.error("   ❌ Error al extraer estado resultado: {}", e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Procesa eventos asociados a un DE desde la respuesta de consulta.
+     */
+    private void procesarEventosAsociados(String cdc, String xmlRespuesta) {
+        log.info("   🔍 Buscando eventos asociados al DE...");
+        
+        try {
+            // Buscar el DE en la base de datos
+            com.franco.dev.domain.financiero.DocumentoElectronico de = 
+                documentoElectronicoService.findByCdc(cdc).orElse(null);
+            
+            if (de == null) {
+                log.warn("   ⚠️ DE no encontrado en BD local - no se actualizarán eventos");
+                return;
+            }
+            
+            // Extraer eventos de cancelación
+            List<SifenEventoParser.EventoCancelacion> eventosCancelacion = 
+                SifenEventoParser.extraerEventosCancelacion(xmlRespuesta);
+            
+            if (eventosCancelacion.isEmpty()) {
+                log.info("   ℹ️ No se encontraron eventos de cancelación asociados");
+                return;
+            }
+            
+            log.info("   📋 Se encontraron {} evento(s) de cancelación", eventosCancelacion.size());
+            
+            // Procesar cada evento
+            for (SifenEventoParser.EventoCancelacion eventoParsed : eventosCancelacion) {
+                procesarEventoCancelacion(de, eventoParsed);
+            }
+            
+            // Si hay eventos aprobados, actualizar estado del DE
+            if (eventoCancelacionDEService.tieneCancelacionAprobada(de.getId())) {
+                de.setEstado(EstadoDE.CANCELADO);
+                documentoElectronicoService.save(de);
+                log.info("   ✅ DE actualizado a estado CANCELADO por evento aprobado");
+            }
+            
+        } catch (Exception e) {
+            log.error("   ❌ Error al procesar eventos asociados: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Procesa un evento de cancelación individual.
+     */
+    private void procesarEventoCancelacion(
+            com.franco.dev.domain.financiero.DocumentoElectronico de, 
+            SifenEventoParser.EventoCancelacion eventoParsed) {
+        
+        try {
+            // Buscar si el evento ya existe en BD
+            EventoCancelacionDE eventoExistente = 
+                eventoCancelacionDEService.findByEventoId(eventoParsed.getEventoId()).orElse(null);
+            
+            if (eventoExistente != null) {
+                // Actualizar evento existente con datos de SIFEN
+                log.info("      🔄 Actualizando evento existente ID: {}", eventoExistente.getId());
+                
+                if (eventoParsed.getFechaProcesamiento() != null) {
+                    eventoExistente.setFechaProcesamiento(eventoParsed.getFechaProcesamiento());
+                }
+                if (eventoParsed.getProtocoloAutorizacion() != null) {
+                    eventoExistente.setProtocoloAutorizacion(eventoParsed.getProtocoloAutorizacion());
+                }
+                if (eventoParsed.getCodigoRespuesta() != null) {
+                    eventoExistente.setCodigoRespuesta(eventoParsed.getCodigoRespuesta());
+                }
+                if (eventoParsed.getMensajeRespuesta() != null) {
+                    eventoExistente.setMensajeRespuesta(eventoParsed.getMensajeRespuesta());
+                }
+                
+                // Actualizar estado según resultado
+                if ("Aprobado".equalsIgnoreCase(eventoParsed.getEstadoResultado())) {
+                    eventoExistente.setEstado(EstadoEvento.APROBADO);
+                    log.info("      ✅ Evento APROBADO - Protocolo: {}", eventoParsed.getProtocoloAutorizacion());
+                } else if ("Rechazado".equalsIgnoreCase(eventoParsed.getEstadoResultado())) {
+                    eventoExistente.setEstado(EstadoEvento.RECHAZADO);
+                    log.info("      ❌ Evento RECHAZADO - Motivo: {}", eventoParsed.getMensajeRespuesta());
+                }
+                
+                eventoCancelacionDEService.save(eventoExistente);
+                
+            } else {
+                // Crear nuevo evento si no existe (caso raro, pero posible si se perdió el registro)
+                log.info("      ➕ Creando nuevo registro de evento desde respuesta SIFEN");
+                
+                EventoCancelacionDE nuevoEvento = new EventoCancelacionDE();
+                nuevoEvento.setDocumentoElectronico(de);
+                nuevoEvento.setEventoId(eventoParsed.getEventoId());
+                nuevoEvento.setFechaFirma(eventoParsed.getFechaFirma());
+                nuevoEvento.setCdcDocumento(eventoParsed.getCdcDocumento());
+                nuevoEvento.setMotivoCancelacion(eventoParsed.getMotivoCancelacion());
+                nuevoEvento.setFechaProcesamiento(eventoParsed.getFechaProcesamiento());
+                nuevoEvento.setProtocoloAutorizacion(eventoParsed.getProtocoloAutorizacion());
+                nuevoEvento.setCodigoRespuesta(eventoParsed.getCodigoRespuesta());
+                nuevoEvento.setMensajeRespuesta(eventoParsed.getMensajeRespuesta());
+                nuevoEvento.setActivo(true);
+                
+                // Determinar estado
+                if ("Aprobado".equalsIgnoreCase(eventoParsed.getEstadoResultado())) {
+                    nuevoEvento.setEstado(EstadoEvento.APROBADO);
+                } else if ("Rechazado".equalsIgnoreCase(eventoParsed.getEstadoResultado())) {
+                    nuevoEvento.setEstado(EstadoEvento.RECHAZADO);
+                } else {
+                    nuevoEvento.setEstado(EstadoEvento.PENDIENTE);
+                }
+                
+                eventoCancelacionDEService.save(nuevoEvento);
+                log.info("      ✅ Nuevo evento creado - ID: {}", nuevoEvento.getId());
+            }
+            
+        } catch (Exception e) {
+            log.error("      ❌ Error al procesar evento individual: {}", e.getMessage());
         }
     }
 
