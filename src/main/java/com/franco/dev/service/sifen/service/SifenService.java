@@ -21,15 +21,19 @@
 package com.franco.dev.service.sifen.service;
 
 import com.franco.dev.domain.financiero.EventoCancelacionDE;
+import com.franco.dev.domain.financiero.EventoNominacionDE;
 import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.FacturaLegalItem;
 import com.franco.dev.domain.financiero.LoteDE;
 import com.franco.dev.domain.financiero.enums.EstadoDE;
 import com.franco.dev.domain.financiero.enums.EstadoEvento;
 import com.franco.dev.domain.financiero.enums.EstadoLoteDE;
+import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.service.financiero.DocumentoElectronicoService;
 import com.franco.dev.service.financiero.EventoCancelacionDEService;
+import com.franco.dev.service.financiero.EventoNominacionDEService;
 import com.franco.dev.service.financiero.FacturaLegalItemService;
+import com.franco.dev.service.financiero.FacturaLegalService;
 import com.franco.dev.service.financiero.LoteDEService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.sifen.util.SifenEventoParser;
@@ -72,6 +76,8 @@ public class SifenService {
     private final FacturaLegalItemService facturaLegalItemService;
     private final ClienteService clienteService;
     private final EventoCancelacionDEService eventoCancelacionDEService;
+    private final EventoNominacionDEService eventoNominacionDEService;
+    private final FacturaLegalService facturaLegalService;
     private final com.roshka.sifen.core.SifenConfig sifenConfig;
 
     @Value("${tipoContribuyenteEmisor:2}")
@@ -83,12 +89,16 @@ public class SifenService {
             FacturaLegalItemService facturaLegalItemService,
             ClienteService clienteService,
             EventoCancelacionDEService eventoCancelacionDEService,
+            EventoNominacionDEService eventoNominacionDEService,
+            FacturaLegalService facturaLegalService,
             com.roshka.sifen.core.SifenConfig sifenConfig) {
         this.documentoElectronicoService = documentoElectronicoService;
         this.loteDEService = loteDEService;
         this.facturaLegalItemService = facturaLegalItemService;
         this.clienteService = clienteService;
         this.eventoCancelacionDEService = eventoCancelacionDEService;
+        this.eventoNominacionDEService = eventoNominacionDEService;
+        this.facturaLegalService = facturaLegalService;
         this.sifenConfig = sifenConfig;
     }
 
@@ -419,8 +429,11 @@ public class SifenService {
                         // Paso 1: Actualizar estado base del DE
                         actualizarEstadoDesdeRespuesta(cdc, respuesta.getRespuestaBruta());
                         
-                        // Paso 2: Procesar eventos (esto puede sobrescribir el estado si hay cancelación aprobada)
+                        // Paso 2: Procesar eventos de cancelación (puede sobrescribir el estado si hay cancelación aprobada)
                         procesarEventosAsociados(cdc, respuesta.getRespuestaBruta());
+                        
+                        // Paso 3: Procesar eventos de nominación (actualiza cliente en factura si hay nominación aprobada)
+                        procesarEventosNominacion(cdc, respuesta.getRespuestaBruta());
                         break;
                         
                     case "0420": // Documento no existe o fue rechazado
@@ -672,10 +685,10 @@ public class SifenService {
     }
     
     /**
-     * Procesa eventos asociados a un DE desde la respuesta de consulta.
+     * Procesa eventos de cancelación asociados a un DE desde la respuesta de consulta.
      */
     private void procesarEventosAsociados(String cdc, String xmlRespuesta) {
-        log.info("   🔍 Buscando eventos asociados al DE...");
+        log.info("   🔍 Buscando eventos de cancelación asociados al DE...");
         
         try {
             // Buscar el DE en la base de datos
@@ -711,7 +724,51 @@ public class SifenService {
             }
             
         } catch (Exception e) {
-            log.error("   ❌ Error al procesar eventos asociados: {}", e.getMessage(), e);
+            log.error("   ❌ Error al procesar eventos de cancelación: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Procesa eventos de nominación asociados a un DE desde la respuesta de consulta.
+     * 
+     * Este método es crucial para recuperación de datos en caso de que:
+     * - Se haya enviado exitosamente una nominación a SIFEN
+     * - Pero hubo un error de BD local que impidió registrar el evento
+     * 
+     * Al consultar el DE posteriormente, si detecta un evento de nominación aprobado
+     * sin registro local, lo crea automáticamente y actualiza la factura.
+     */
+    private void procesarEventosNominacion(String cdc, String xmlRespuesta) {
+        log.info("   🔍 Buscando eventos de nominación asociados al DE...");
+        
+        try {
+            // Buscar el DE en la base de datos
+            com.franco.dev.domain.financiero.DocumentoElectronico de = 
+                documentoElectronicoService.findByCdc(cdc).orElse(null);
+            
+            if (de == null) {
+                log.warn("   ⚠️ DE no encontrado en BD local - no se procesarán eventos de nominación");
+                return;
+            }
+            
+            // Extraer eventos de nominación
+            List<SifenEventoParser.EventoNominacion> eventosNominacion = 
+                SifenEventoParser.extraerEventosNominacion(xmlRespuesta);
+            
+            if (eventosNominacion.isEmpty()) {
+                log.info("   ℹ️ No se encontraron eventos de nominación asociados");
+                return;
+            }
+            
+            log.info("   📋 Se encontraron {} evento(s) de nominación", eventosNominacion.size());
+            
+            // Procesar cada evento
+            for (SifenEventoParser.EventoNominacion eventoParsed : eventosNominacion) {
+                procesarEventoNominacion(de, eventoParsed);
+            }
+            
+        } catch (Exception e) {
+            log.error("   ❌ Error al procesar eventos de nominación: {}", e.getMessage(), e);
         }
     }
     
@@ -786,6 +843,181 @@ public class SifenService {
             
         } catch (Exception e) {
             log.error("      ❌ Error al procesar evento individual: {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * Procesa un evento de nominación individual.
+     * 
+     * Si el evento no existe en BD, lo crea automáticamente.
+     * Si el evento fue APROBADO, busca o crea el cliente y actualiza la factura.
+     */
+    private void procesarEventoNominacion(
+            com.franco.dev.domain.financiero.DocumentoElectronico de, 
+            SifenEventoParser.EventoNominacion eventoParsed) {
+        
+        try {
+            // Buscar si el evento ya existe en BD
+            EventoNominacionDE eventoExistente = 
+                eventoNominacionDEService.findByEventoId(eventoParsed.getEventoId()).orElse(null);
+            
+            if (eventoExistente != null) {
+                // Actualizar evento existente con datos de SIFEN
+                log.info("      🔄 Evento de nominación ya existe - ID BD: {}", eventoExistente.getId());
+                
+                if (eventoParsed.getFechaProcesamiento() != null) {
+                    eventoExistente.setFechaProcesamiento(eventoParsed.getFechaProcesamiento());
+                }
+                if (eventoParsed.getProtocoloAutorizacion() != null) {
+                    eventoExistente.setProtocoloAutorizacion(eventoParsed.getProtocoloAutorizacion());
+                }
+                if (eventoParsed.getCodigoRespuesta() != null) {
+                    eventoExistente.setCodigoRespuesta(eventoParsed.getCodigoRespuesta());
+                }
+                if (eventoParsed.getMensajeRespuesta() != null) {
+                    eventoExistente.setMensajeRespuesta(eventoParsed.getMensajeRespuesta());
+                }
+                
+                // Actualizar estado según resultado
+                if ("Aprobado".equalsIgnoreCase(eventoParsed.getEstadoResultado())) {
+                    eventoExistente.setEstado(EstadoEvento.APROBADO);
+                    log.info("      ✅ Evento APROBADO - Protocolo: {}", eventoParsed.getProtocoloAutorizacion());
+                } else if ("Rechazado".equalsIgnoreCase(eventoParsed.getEstadoResultado())) {
+                    eventoExistente.setEstado(EstadoEvento.RECHAZADO);
+                    log.info("      ❌ Evento RECHAZADO - Motivo: {}", eventoParsed.getMensajeRespuesta());
+                }
+                
+                eventoNominacionDEService.save(eventoExistente);
+                return; // Ya existe, no hacer más
+            }
+            
+            // =========== CREAR NUEVO EVENTO - CASO DE RECUPERACIÓN ===========
+            log.info("      ➕ Evento de nominación NO encontrado en BD - Creando desde respuesta SIFEN (recuperación)");
+            
+            FacturaLegal factura = de.getFacturaLegal();
+            if (factura == null) {
+                log.error("      ❌ DE sin factura asociada - no se puede procesar nominación");
+                return;
+            }
+            
+            // Buscar o crear el cliente basándose en los datos del evento
+            Cliente cliente = buscarOCrearClienteDesdeEvento(eventoParsed);
+            
+            if (cliente == null) {
+                log.error("      ❌ No se pudo encontrar/crear cliente para nominación");
+                return;
+            }
+            
+            log.info("      ✅ Cliente identificado: ID={}, Nombre={}", 
+                cliente.getId(), 
+                cliente.getPersona() != null ? cliente.getPersona().getNombre() : "N/A");
+            
+            // Crear nuevo evento de nominación
+            EventoNominacionDE nuevoEvento = new EventoNominacionDE();
+            nuevoEvento.setDocumentoElectronico(de);
+            nuevoEvento.setEventoId(eventoParsed.getEventoId());
+            nuevoEvento.setFechaFirma(eventoParsed.getFechaFirma());
+            nuevoEvento.setCdcDocumento(eventoParsed.getCdcDocumento());
+            nuevoEvento.setCliente(cliente);
+            nuevoEvento.setNombreReceptor(eventoParsed.getNombreReceptor());
+            
+            // Documento del receptor
+            String documentoReceptor = eventoParsed.getRucReceptor();
+            if (documentoReceptor != null && eventoParsed.getDvReceptor() != null) {
+                documentoReceptor = documentoReceptor + "-" + eventoParsed.getDvReceptor();
+            } else if (eventoParsed.getNumeroDocumento() != null) {
+                documentoReceptor = eventoParsed.getNumeroDocumento();
+            }
+            nuevoEvento.setDocumentoReceptor(documentoReceptor);
+            nuevoEvento.setTipoReceptor(eventoParsed.getTipoReceptor());
+            nuevoEvento.setTotalFactura(eventoParsed.getTotalFactura());
+            nuevoEvento.setFechaEmision(eventoParsed.getFechaEmision());
+            nuevoEvento.setFechaRecepcion(eventoParsed.getFechaRecepcion());
+            nuevoEvento.setFechaProcesamiento(eventoParsed.getFechaProcesamiento());
+            nuevoEvento.setProtocoloAutorizacion(eventoParsed.getProtocoloAutorizacion());
+            nuevoEvento.setCodigoRespuesta(eventoParsed.getCodigoRespuesta());
+            nuevoEvento.setMensajeRespuesta(eventoParsed.getMensajeRespuesta());
+            nuevoEvento.setActivo(true);
+            
+            // Determinar estado
+            if ("Aprobado".equalsIgnoreCase(eventoParsed.getEstadoResultado())) {
+                nuevoEvento.setEstado(EstadoEvento.APROBADO);
+                
+                // ✅ ACTUALIZAR FACTURA CON EL CLIENTE NOMINADO
+                factura.setCliente(cliente);
+                facturaLegalService.save(factura);
+                
+                log.info("      ✅ Evento APROBADO - Factura ID {} actualizada con cliente ID {}", 
+                    factura.getId(), cliente.getId());
+                log.info("      📋 Protocolo: {}", eventoParsed.getProtocoloAutorizacion());
+                
+            } else if ("Rechazado".equalsIgnoreCase(eventoParsed.getEstadoResultado())) {
+                nuevoEvento.setEstado(EstadoEvento.RECHAZADO);
+                log.info("      ❌ Evento RECHAZADO - Factura mantiene cliente NULL");
+            } else {
+                nuevoEvento.setEstado(EstadoEvento.PENDIENTE);
+            }
+            
+            eventoNominacionDEService.save(nuevoEvento);
+            log.info("      💾 Evento de nominación guardado en BD - ID: {}, Estado: {}", 
+                nuevoEvento.getId(), nuevoEvento.getEstado());
+            
+        } catch (Exception e) {
+            log.error("      ❌ Error al procesar evento de nominación: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Busca o crea un cliente basándose en los datos del evento de nominación.
+     * 
+     * Estrategia:
+     * 1. Si es contribuyente, buscar por RUC
+     * 2. Si no existe, crear nuevo cliente con los datos del evento
+     * 3. Si es no contribuyente, buscar por documento o crear nuevo
+     */
+    private Cliente buscarOCrearClienteDesdeEvento(SifenEventoParser.EventoNominacion eventoParsed) {
+        try {
+            String documentoBusqueda = null;
+            
+            // Determinar documento a buscar
+            if ("CONTRIBUYENTE".equals(eventoParsed.getTipoReceptor())) {
+                // Para contribuyente: RUC-DV
+                if (eventoParsed.getRucReceptor() != null) {
+                    documentoBusqueda = eventoParsed.getRucReceptor();
+                    if (eventoParsed.getDvReceptor() != null) {
+                        documentoBusqueda += "-" + eventoParsed.getDvReceptor();
+                    }
+                }
+            } else {
+                // Para no contribuyente: número de documento
+                documentoBusqueda = eventoParsed.getNumeroDocumento();
+            }
+            
+            if (documentoBusqueda == null || documentoBusqueda.isEmpty()) {
+                log.warn("      ⚠️ No se pudo determinar documento del receptor");
+                return null;
+            }
+            
+            log.info("      🔍 Buscando cliente con documento: {}", documentoBusqueda);
+            
+            // Buscar cliente por documento de persona
+            Cliente clienteEncontrado = clienteService.findByPersonaDocumento(documentoBusqueda);
+            
+            if (clienteEncontrado != null) {
+                log.info("      ✅ Cliente encontrado - ID: {}", clienteEncontrado.getId());
+                return clienteEncontrado;
+            }
+            
+            // Cliente no encontrado - crear nuevo (esto normalmente no debería pasar)
+            log.warn("      ⚠️ Cliente no encontrado con documento {} - Se debería buscar manualmente", 
+                documentoBusqueda);
+            log.warn("      💡 Sugerencia: Verificar si el cliente existe con otro formato de documento");
+            
+            return null;
+            
+        } catch (Exception e) {
+            log.error("      ❌ Error al buscar/crear cliente: {}", e.getMessage(), e);
+            return null;
         }
     }
 

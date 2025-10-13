@@ -67,6 +67,8 @@ public class SifenFlujoCompletoDELote {
     @Autowired
     private TimbradoDetalleService timbradoDetalleService;
     
+    @Autowired
+    private SifenService sifenService;
     
     @Autowired
     private com.roshka.sifen.core.SifenConfig sifenConfig;
@@ -178,6 +180,111 @@ public class SifenFlujoCompletoDELote {
         
         logger.info("✅ PASO 1 COMPLETADO: {} facturas creadas con sus DEs en estado PENDIENTE", facturas.size());
         logger.info("=== FIN DE CREACIÓN DE FACTURAS Y DEs ===");
+    }
+
+    /**
+     * PASO 1B: Crear facturas INNOMINADAS para test de nominación.
+     * 
+     * Este método crea facturas de prueba con cliente=null (innominadas)
+     * que luego pueden ser nominados con el servicio de eventos SIFEN.
+     * 
+     * INNOMINADO significa:
+     * - Receptor: "Sin Nombre"
+     * - Documento: "0"
+     * - Tipo: INNOMINADO
+     * - Solo permitido para montos < 7.000.000 PYG
+     */
+    @Test
+    @Transactional
+    @Commit
+    public void crearFacturasInnominadas() throws Exception {
+        logger.info("=== PASO 1B: CREANDO FACTURAS INNOMINADAS (CLIENTE = NULL) ===");
+        
+        List<FacturaLegal> facturas = new ArrayList<>();
+        int cantidadFacturas = 2;
+        
+        for (int i = 1; i <= cantidadFacturas; i++) {
+            logger.info("\n--- Creando factura innominada {} ---", i);
+            
+            // 1. Crear factura SIN CLIENTE (cliente = null)
+            FacturaLegal factura = new FacturaLegal();
+            factura.setSucursalId(24L);
+            factura.setFecha(LocalDateTime.now());
+            factura.setCredito(false); // Contado
+            factura.setCliente(null); // ✅ CLAVE: Cliente NULL para innominado
+            
+            // 2. Cargar timbrado detalle
+            TimbradoDetalle timbradoDetalle = timbradoDetalleService.findById(93L).orElse(null);
+            if (timbradoDetalle == null) {
+                throw new IllegalArgumentException("TimbradoDetalle con ID 93 no encontrado");
+            }
+            factura.setTimbradoDetalle(timbradoDetalle);
+            
+            // 3. Obtener siguiente número correlativo
+            Long siguienteNumero = timbradoDetalle.getNumeroActual() != null ? 
+                timbradoDetalle.getNumeroActual() + 1 : 1L;
+            factura.setNumeroFactura(siguienteNumero.intValue());
+            
+            logger.info("✅ Número de factura asignado: {}", siguienteNumero);
+            
+            // 4. Guardar factura
+            factura = facturaLegalService.save(factura);
+            logger.info("✅ Factura creada con ID: {} (Cliente: NULL - Innominado)", factura.getId());
+            
+            // 5. Crear items aleatorios
+            List<FacturaLegalItem> items = crearItemsParaFactura(factura, i);
+            
+            // 6. Calcular totales (IMPORTANTE: Debe ser < 7.000.000 para innominado)
+            double totalItems = items.stream()
+                .mapToDouble(item -> item.getCantidad().floatValue() * item.getPrecioUnitario().doubleValue())
+                .sum();
+            
+            double totalIva = totalItems * 0.10; // 10% IVA
+            double totalFinal = totalItems + totalIva;
+            
+            // Validar que no exceda el monto máximo para innominado
+            if (totalFinal >= 7_000_000.0) {
+                logger.warn("⚠️  Total {} excede el máximo para innominado (7.000.000). Ajustando...", totalFinal);
+                totalFinal = 6_500_000.0; // Ajustar a un valor seguro
+            }
+            
+            factura.setTotalFinal(totalFinal);
+            factura = facturaLegalService.save(factura);
+            
+            logger.info("💰 Total factura: {} (apto para innominado)", totalFinal);
+            
+            // 7. Actualizar número actual en TimbradoDetalle
+            timbradoDetalle.setNumeroActual(siguienteNumero);
+            timbradoDetalleService.save(timbradoDetalle);
+            
+            facturas.add(factura);
+            
+            // 8. Crear Documento Electrónico INNOMINADO usando SifenService
+            logger.info("📝 Creando DE innominado usando SifenService...");
+            try {
+                // ✅ USAR SifenService que ya maneja cliente=null correctamente
+                com.franco.dev.domain.financiero.DocumentoElectronico de = 
+                    sifenService.crearDocumentoElectronico(factura);
+                
+                logger.info("✅ DE innominado creado exitosamente");
+                logger.info("   - ID: {}", de.getId());
+                logger.info("   - CDC: {}", de.getCdc());
+                logger.info("   - Estado: {}", de.getEstado());
+                logger.info("   - Receptor: Sin Nombre (INNOMINADO)");
+                logger.info("   - Documento: 0");
+                logger.info("📋 Este DE puede ser nominado posteriormente usando SifenEventoService.nominarReceptor()");
+                
+            } catch (Exception e) {
+                logger.error("❌ Error al crear DE innominado para factura {}: {}", 
+                    factura.getId(), e.getMessage(), e);
+                throw e; // Re-lanzar para que el test falle si hay error
+            }
+        }
+        
+        logger.info("\n✅ PASO 1B COMPLETADO: {} facturas innominadas creadas con sus DEs", facturas.size());
+        logger.info("💡 SIGUIENTE PASO: Ejecuta crearLotes() y luego enviarLote() para enviar a SIFEN");
+        logger.info("💡 PARA NOMINACIÓN: Usa el test testNominacionReceptor en SifenEventoServiceTest");
+        logger.info("=== FIN DE CREACIÓN DE FACTURAS INNOMINADAS ===");
     }
 
     /**

@@ -125,8 +125,8 @@ public class SifenEventoServiceTest {
 
         try {
             // PASO 1: Configurar CDC y Cliente ID
-            String cdc = "01800994825001001000006022025101014205238751"; // Reemplazar con un CDC válido
-            Long clienteId = 194L; // Reemplazar con un ID de cliente válido
+            String cdc = "01800994825001001000006422025101310266529145"; // Reemplazar con un CDC válido
+            Long clienteId = 2L; // Reemplazar con un ID de cliente válido
             
             log.info("\n📋 PASO 1: Configuración");
             log.info("   CDC: {}", cdc);

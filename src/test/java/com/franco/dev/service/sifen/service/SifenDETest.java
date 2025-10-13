@@ -57,7 +57,7 @@ public class SifenDETest {
 
         try {
             // CDC de prueba - Reemplazar con un CDC válido de tu sistema
-            String cdcPrueba = "01800994825001001000003522025100110462644638";
+            String cdcPrueba = "01800994825001001000006422025101310266529145";
             
             log.info("\n📄 PASO 1: Buscar DE en base de datos local");
             Optional<DocumentoElectronico> deOptional = documentoElectronicoService.findByCdc(cdcPrueba);

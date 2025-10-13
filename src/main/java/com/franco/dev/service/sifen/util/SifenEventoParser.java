@@ -323,6 +323,211 @@ public class SifenEventoParser {
     }
 
     /**
+     * Extrae todos los eventos de nominación desde una respuesta XML de consulta DE.
+     */
+    public static List<EventoNominacion> extraerEventosNominacion(String xmlRespuesta) {
+        List<EventoNominacion> eventos = new ArrayList<>();
+        
+        if (xmlRespuesta == null || xmlRespuesta.isEmpty()) {
+            return eventos;
+        }
+
+        try {
+            // Buscar el contenedor de eventos
+            int inicioContEv = buscarTag(xmlRespuesta, "xContEv", true);
+            if (inicioContEv == -1) {
+                log.debug("No se encontró contenedor xContEv en la respuesta");
+                return eventos;
+            }
+
+            int finContEv = buscarTag(xmlRespuesta, "xContEv", false, inicioContEv);
+            if (finContEv == -1) return eventos;
+
+            String bloqueEventos = xmlRespuesta.substring(inicioContEv, finContEv + 20);
+
+            log.debug("Bloque de eventos encontrado, buscando eventos de nominación...");
+
+            // Buscar eventos de nominación (rGeVeNotRec)
+            int indiceInicio = 0;
+            while (indiceInicio < bloqueEventos.length()) {
+                int inicioGesEve = buscarTag(bloqueEventos, "rGesEve", true, indiceInicio);
+                if (inicioGesEve == -1) break;
+
+                int finGesEve = buscarTag(bloqueEventos, "rGesEve", false, inicioGesEve);
+                if (finGesEve == -1) break;
+
+                String bloqueGesEve = bloqueEventos.substring(inicioGesEve, finGesEve + 15);
+
+                // Verificar si es un evento de nominación
+                if (bloqueGesEve.contains("rGeVeNotRec")) {
+                    log.debug("Encontrado evento de nominación, extrayendo datos...");
+                    EventoNominacion evento = extraerDatosNominacion(bloqueGesEve, bloqueEventos);
+                    if (evento != null) {
+                        eventos.add(evento);
+                        log.info("✅ Evento de nominación extraído - ID: {}, CDC: {}, Receptor: {}, Estado: {}", 
+                            evento.getEventoId(), evento.getCdcDocumento(), evento.getNombreReceptor(), evento.getEstadoResultado());
+                    }
+                }
+
+                indiceInicio = finGesEve + 15;
+            }
+
+        } catch (Exception e) {
+            log.error("Error al extraer eventos de nominación desde XML: {}", e.getMessage(), e);
+        }
+
+        log.info("Total de eventos de nominación encontrados: {}", eventos.size());
+        return eventos;
+    }
+
+    /**
+     * Extrae los datos de un evento de nominación desde un bloque XML.
+     */
+    private static EventoNominacion extraerDatosNominacion(String bloqueGesEve, String bloqueCompleto) {
+        try {
+            EventoNominacion evento = new EventoNominacion();
+
+            // Datos del evento (rEve) - extraer ID del atributo
+            String eventoId = extraerValorXML(bloqueGesEve, "rEve", "Id=\"", "\"");
+            if (eventoId == null || eventoId.isEmpty()) {
+                eventoId = extraerValorXML(bloqueGesEve, "rEve", "_Id=\"", "\"");
+            }
+            
+            if (eventoId == null || eventoId.isEmpty()) {
+                String cdcTemp = extraerValorXML(bloqueGesEve, "Id>", "</Id>");
+                if (cdcTemp != null && !cdcTemp.isEmpty()) {
+                    eventoId = "NOM-" + System.currentTimeMillis() + "-" + cdcTemp.substring(0, Math.min(8, cdcTemp.length()));
+                } else {
+                    eventoId = "NOM-" + System.currentTimeMillis();
+                }
+                log.warn("Evento de nominación sin Id explícito, generando: {}", eventoId);
+            }
+            
+            evento.setEventoId(eventoId);
+
+            String fechaFirma = extraerValorXML(bloqueGesEve, "dFecFirma>", "</dFecFirma>");
+            if (fechaFirma == null) {
+                fechaFirma = extraerValorXML(bloqueGesEve, "<dFecFirma>", "</dFecFirma>");
+            }
+            evento.setFechaFirma(parsearFecha(fechaFirma));
+
+            // Datos de nominación (rGeVeNotRec)
+            String cdcDocumento = extraerValorXML(bloqueGesEve, "Id>", "</Id>");
+            if (cdcDocumento == null) {
+                cdcDocumento = extraerValorXML(bloqueGesEve, "<Id>", "</Id>");
+            }
+            evento.setCdcDocumento(cdcDocumento);
+
+            String nombreReceptor = extraerValorXML(bloqueGesEve, "dNomRec>", "</dNomRec>");
+            if (nombreReceptor == null) {
+                nombreReceptor = extraerValorXML(bloqueGesEve, "<dNomRec>", "</dNomRec>");
+            }
+            evento.setNombreReceptor(nombreReceptor);
+
+            String fechaEmision = extraerValorXML(bloqueGesEve, "dFecEmi>", "</dFecEmi>");
+            if (fechaEmision == null) {
+                fechaEmision = extraerValorXML(bloqueGesEve, "<dFecEmi>", "</dFecEmi>");
+            }
+            evento.setFechaEmision(parsearFecha(fechaEmision));
+
+            String fechaRecepcion = extraerValorXML(bloqueGesEve, "dFecRecep>", "</dFecRecep>");
+            if (fechaRecepcion == null) {
+                fechaRecepcion = extraerValorXML(bloqueGesEve, "<dFecRecep>", "</dFecRecep>");
+            }
+            evento.setFechaRecepcion(parsearFecha(fechaRecepcion));
+
+            String tipoReceptor = extraerValorXML(bloqueGesEve, "iTipRec>", "</iTipRec>");
+            if (tipoReceptor == null) {
+                tipoReceptor = extraerValorXML(bloqueGesEve, "<iTipRec>", "</iTipRec>");
+            }
+            evento.setTipoReceptor("1".equals(tipoReceptor) ? "CONTRIBUYENTE" : "NO_CONTRIBUYENTE");
+
+            // Para contribuyentes: RUC y DV
+            String rucReceptor = extraerValorXML(bloqueGesEve, "dRucRec>", "</dRucRec>");
+            if (rucReceptor == null) {
+                rucReceptor = extraerValorXML(bloqueGesEve, "<dRucRec>", "</dRucRec>");
+            }
+            evento.setRucReceptor(rucReceptor);
+
+            String dvReceptor = extraerValorXML(bloqueGesEve, "dDVRec>", "</dDVRec>");
+            if (dvReceptor == null) {
+                dvReceptor = extraerValorXML(bloqueGesEve, "<dDVRec>", "</dDVRec>");
+            }
+            evento.setDvReceptor(dvReceptor);
+
+            // Para no contribuyentes: tipo y número de documento
+            String tipoDocumento = extraerValorXML(bloqueGesEve, "dTipIDRec>", "</dTipIDRec>");
+            if (tipoDocumento == null) {
+                tipoDocumento = extraerValorXML(bloqueGesEve, "<dTipIDRec>", "</dTipIDRec>");
+            }
+            evento.setTipoDocumento(tipoDocumento);
+
+            String numeroDocumento = extraerValorXML(bloqueGesEve, "dNumID>", "</dNumID>");
+            if (numeroDocumento == null) {
+                numeroDocumento = extraerValorXML(bloqueGesEve, "<dNumID>", "</dNumID>");
+            }
+            evento.setNumeroDocumento(numeroDocumento);
+
+            String totalStr = extraerValorXML(bloqueGesEve, "dTotalGs>", "</dTotalGs>");
+            if (totalStr == null) {
+                totalStr = extraerValorXML(bloqueGesEve, "<dTotalGs>", "</dTotalGs>");
+            }
+            if (totalStr != null) {
+                try {
+                    evento.setTotalFactura(new java.math.BigDecimal(totalStr));
+                } catch (NumberFormatException e) {
+                    log.warn("No se pudo parsear total: {}", totalStr);
+                }
+            }
+
+            // Buscar la respuesta del evento
+            int inicioResEvento = buscarTag(bloqueCompleto, "rResEnviEventoDe", true);
+            if (inicioResEvento != -1) {
+                int finResEvento = buscarTag(bloqueCompleto, "rResEnviEventoDe", false, inicioResEvento);
+                if (finResEvento != -1) {
+                    String bloqueRespuesta = bloqueCompleto.substring(inicioResEvento, finResEvento + 25);
+
+                    String fechaProcesamiento = extraerValorXML(bloqueRespuesta, "dFecProc>", "</dFecProc>");
+                    if (fechaProcesamiento == null) {
+                        fechaProcesamiento = extraerValorXML(bloqueRespuesta, "<dFecProc>", "</dFecProc>");
+                    }
+                    evento.setFechaProcesamiento(parsearFecha(fechaProcesamiento));
+
+                    String estadoResultado = extraerValorXML(bloqueRespuesta, "dEstRes>", "</dEstRes>");
+                    if (estadoResultado == null) {
+                        estadoResultado = extraerValorXML(bloqueRespuesta, "<dEstRes>", "</dEstRes>");
+                    }
+                    evento.setEstadoResultado(estadoResultado);
+
+                    String protocolo = extraerValorXML(bloqueRespuesta, "dProtAut>", "</dProtAut>");
+                    if (protocolo == null) {
+                        protocolo = extraerValorXML(bloqueRespuesta, "<dProtAut>", "</dProtAut>");
+                    }
+                    evento.setProtocoloAutorizacion(protocolo);
+
+                    String codigoRespuesta = extraerValorXML(bloqueRespuesta, "dCodRes>", "</dCodRes>");
+                    if (codigoRespuesta == null) {
+                        codigoRespuesta = extraerValorXML(bloqueRespuesta, "<dCodRes>", "</dCodRes>");
+                    }
+                    evento.setCodigoRespuesta(codigoRespuesta);
+
+                    String mensajeRespuesta = extraerValorXML(bloqueRespuesta, "dMsgRes>", "</dMsgRes>");
+                    if (mensajeRespuesta == null) {
+                        mensajeRespuesta = extraerValorXML(bloqueRespuesta, "<dMsgRes>", "</dMsgRes>");
+                    }
+                    evento.setMensajeRespuesta(mensajeRespuesta);
+                }
+            }
+
+            return evento;
+
+        } catch (Exception e) {
+            log.error("Error al extraer datos de nominación: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    /**
      * DTO que contiene los datos de un evento de cancelación extraído del XML.
      */
     @Data
@@ -331,6 +536,35 @@ public class SifenEventoParser {
         private LocalDateTime fechaFirma;
         private String cdcDocumento;
         private String motivoCancelacion;
+        
+        // Respuesta de SIFEN
+        private LocalDateTime fechaProcesamiento;
+        private String estadoResultado;        // "Aprobado" o "Rechazado"
+        private String protocoloAutorizacion;
+        private String codigoRespuesta;
+        private String mensajeRespuesta;
+    }
+    
+    /**
+     * DTO que contiene los datos de un evento de nominación extraído del XML.
+     */
+    @Data
+    public static class EventoNominacion {
+        private String eventoId;
+        private LocalDateTime fechaFirma;
+        private String cdcDocumento;
+        
+        // Datos del receptor nominado
+        private String nombreReceptor;
+        private String tipoReceptor;          // "CONTRIBUYENTE" o "NO_CONTRIBUYENTE"
+        private String rucReceptor;           // Para contribuyentes
+        private String dvReceptor;            // Para contribuyentes
+        private String tipoDocumento;         // Para no contribuyentes
+        private String numeroDocumento;       // Para no contribuyentes
+        
+        private java.math.BigDecimal totalFactura;
+        private LocalDateTime fechaEmision;
+        private LocalDateTime fechaRecepcion;
         
         // Respuesta de SIFEN
         private LocalDateTime fechaProcesamiento;
