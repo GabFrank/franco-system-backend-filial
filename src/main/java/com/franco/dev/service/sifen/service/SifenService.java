@@ -346,6 +346,16 @@ public class SifenService {
      * Actualiza el estado del DE en BD basándose en la respuesta.
      * Extrae y actualiza eventos asociados (cancelación, etc.) si existen.
      * 
+     * TRANSACCIÓN:
+     * - Usa REQUIRES_NEW para que cada consulta sea independiente
+     * - Si una consulta falla, no afecta a otras consultas ni a la transacción padre
+     * - Permite procesar múltiples DEs sin que un error bloquee el resto
+     * 
+     * CÓDIGOS DE RESPUESTA MANEJADOS:
+     * - 0422: CDC encontrado → Actualiza estado según respuesta (APROBADO/RECHAZADO)
+     * - 0420: Documento no existe o rechazado → Marca como RECHAZADO
+     * - 0421: Error en CDC (formato inválido) → Marca como RECHAZADO
+     * 
      * ORDEN DE PROCESAMIENTO (importante para estados):
      * 1. Actualiza estado del DE según XML principal (APROBADO/RECHAZADO)
      * 2. Procesa eventos asociados (cancelación, etc.)
@@ -356,31 +366,186 @@ public class SifenService {
      * - XML también contiene: Evento de cancelación "Aprobado" (protocolo 40975537)
      * - Estado final del DE: CANCELADO (porque el evento prevalece sobre el estado original)
      * 
+     * RETRY:
+     * - Implementa reintentos automáticos ante errores intermitentes de SIFEN
+     * - Usa backoff exponencial (1s, 2s, 4s)
+     * - Máximo 3 intentos por defecto
+     * 
      * @param cdc El CDC del documento a consultar
      * @return Información del estado del documento
      */
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public RespuestaConsultaDE consultarDE(String cdc) {
+        return consultarDEConRetry(cdc, 3, 1000);
+    }
+    
+    /**
+     * Consulta DE con mecanismo de retry configurable.
+     * 
+     * @param cdc El CDC del documento a consultar
+     * @param maxReintentos Número máximo de intentos (por defecto 3)
+     * @param delayInicialMs Delay inicial en milisegundos (por defecto 1000)
+     * @return Información del estado del documento
+     */
+    private RespuestaConsultaDE consultarDEConRetry(String cdc, int maxReintentos, long delayInicialMs) {
         log.info("🔍 Consultando DE con CDC: {}", cdc);
         
-        try {
-            RespuestaConsultaDE respuesta = Sifen.consultaDE(cdc);
-            log.info("   📥 Respuesta recibida - Código: {}, Mensaje: {}", 
-                respuesta.getdCodRes(), respuesta.getdMsgRes());
+        int intento = 0;
+        Exception ultimaException = null;
+        
+        while (intento < maxReintentos) {
+            intento++;
             
-            // Si el DE fue encontrado (0422), procesar estado y eventos
-            if ("0422".equals(respuesta.getdCodRes())) {
-                // Paso 1: Actualizar estado base del DE
-                actualizarEstadoDesdeRespuesta(cdc, respuesta.getRespuestaBruta());
+            try {
+                if (intento > 1) {
+                    log.info("   🔄 Reintento {}/{} para CDC: {}", intento, maxReintentos, cdc);
+                }
                 
-                // Paso 2: Procesar eventos (esto puede sobrescribir el estado si hay cancelación aprobada)
-                procesarEventosAsociados(cdc, respuesta.getRespuestaBruta());
+                RespuestaConsultaDE respuesta = Sifen.consultaDE(cdc);
+                
+                // Verificar si la respuesta es válida (no null)
+                if (respuesta.getdCodRes() == null && respuesta.getdMsgRes() == null) {
+                    throw new RuntimeException("Respuesta SOAP inválida - probablemente HTML en lugar de XML");
+                }
+                
+                log.info("   📥 Respuesta recibida - Código: {}, Mensaje: {}", 
+                    respuesta.getdCodRes(), respuesta.getdMsgRes());
+                
+                // Procesar respuesta según código
+                String codigoRespuesta = respuesta.getdCodRes();
+                
+                switch (codigoRespuesta) {
+                    case "0422": // CDC encontrado - Éxito
+                        // Paso 1: Actualizar estado base del DE
+                        actualizarEstadoDesdeRespuesta(cdc, respuesta.getRespuestaBruta());
+                        
+                        // Paso 2: Procesar eventos (esto puede sobrescribir el estado si hay cancelación aprobada)
+                        procesarEventosAsociados(cdc, respuesta.getRespuestaBruta());
+                        break;
+                        
+                    case "0420": // Documento no existe o fue rechazado
+                        log.warn("   ⚠️ DE no encontrado o rechazado en SIFEN");
+                        actualizarEstadoDENoEncontrado(cdc, codigoRespuesta, respuesta.getdMsgRes());
+                        break;
+                        
+                    case "0421": // Error en CDC (formato inválido)
+                        log.error("   ❌ CDC inválido según SIFEN");
+                        actualizarEstadoDENoEncontrado(cdc, codigoRespuesta, respuesta.getdMsgRes());
+                        break;
+                        
+                    default:
+                        log.warn("   ⚠️ Código de respuesta no esperado: {}", codigoRespuesta);
+                        break;
+                }
+                
+                // Éxito - retornar respuesta
+                if (intento > 1) {
+                    log.info("   ✅ Consulta exitosa después de {} intento(s)", intento);
+                }
+                return respuesta;
+                
+            } catch (SifenException e) {
+                ultimaException = e;
+                log.warn("   ⚠️ Intento {}/{} falló: {}", intento, maxReintentos, e.getMessage());
+                
+            } catch (RuntimeException e) {
+                ultimaException = e;
+                // Errores de parsing SOAP (HTML en lugar de XML)
+                if (e.getMessage() != null && 
+                    (e.getMessage().contains("envelope") || 
+                     e.getMessage().contains("SOAP") ||
+                     e.getMessage().contains("inválida"))) {
+                    log.warn("   ⚠️ Intento {}/{} falló - Error de parsing SOAP (probablemente HTML en respuesta)", 
+                        intento, maxReintentos);
+                } else {
+                    log.warn("   ⚠️ Intento {}/{} falló: {}", intento, maxReintentos, e.getMessage());
+                }
+                
+            } catch (Exception e) {
+                ultimaException = e;
+                log.warn("   ⚠️ Intento {}/{} falló - Error inesperado: {}", 
+                    intento, maxReintentos, e.getMessage());
             }
             
-            return respuesta;
-        } catch (SifenException e) {
-            log.error("❌ Error al consultar DE {}: {}", cdc, e.getMessage());
-            throw new RuntimeException("Error al consultar DE en SIFEN", e);
+            // Si no es el último intento, esperar antes de reintentar (backoff exponencial)
+            if (intento < maxReintentos) {
+                long delay = delayInicialMs * (long) Math.pow(2, intento - 1);
+                log.info("   ⏱️ Esperando {}ms antes del siguiente intento...", delay);
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    log.error("   ❌ Retry interrumpido");
+                    break;
+                }
+            }
+        }
+        
+        // Todos los intentos fallaron
+        log.error("❌ Error al consultar DE {} después de {} intentos", cdc, maxReintentos);
+        throw new RuntimeException(
+            String.format("Error al consultar DE en SIFEN después de %d intentos. CDC: %s", 
+                maxReintentos, cdc), 
+            ultimaException
+        );
+    }
+    
+    /**
+     * Actualiza el estado de un DE que no fue encontrado o fue rechazado en SIFEN.
+     * 
+     * Códigos manejados:
+     * - 0420: Documento no existe en SIFEN o ha sido rechazado
+     * - 0421: Error en CDC (formato inválido)
+     * 
+     * @param cdc CDC del documento
+     * @param codigoRespuesta Código de respuesta de SIFEN
+     * @param mensajeRespuesta Mensaje de respuesta de SIFEN
+     */
+    private void actualizarEstadoDENoEncontrado(String cdc, String codigoRespuesta, String mensajeRespuesta) {
+        log.info("   🔄 Actualizando estado del DE no encontrado/rechazado...");
+        
+        try {
+            // Buscar el DE en la base de datos
+            com.franco.dev.domain.financiero.DocumentoElectronico de = 
+                documentoElectronicoService.findByCdc(cdc).orElse(null);
+            
+            if (de == null) {
+                log.warn("   ⚠️ DE no encontrado en BD local - no se actualizará");
+                return;
+            }
+            
+            EstadoDE estadoAnterior = de.getEstado();
+            log.info("   📊 Estado actual en BD: {}", estadoAnterior);
+            
+            // Solo actualizar si el estado actual indica que debería estar en SIFEN
+            // No actualizar si ya está en PENDIENTE, ERROR, etc.
+            if (estadoAnterior == EstadoDE.APROBADO || 
+                estadoAnterior == EstadoDE.EN_LOTE ||
+                estadoAnterior == EstadoDE.CANCELADO) {
+                
+                // Código 0420: Documento no existe o fue rechazado
+                // Esto puede significar:
+                // 1. Nunca fue enviado a SIFEN (aunque nuestro registro dice que sí)
+                // 2. Fue rechazado por SIFEN
+                // 3. Fue cancelado y eliminado de SIFEN
+                
+                de.setEstado(EstadoDE.RECHAZADO);
+                de.setCodigoRespuestaSifen(codigoRespuesta);
+                de.setMensajeRespuestaSifen(mensajeRespuesta);
+                de.setFechaRecepcionSifen(LocalDateTime.now());
+                
+                documentoElectronicoService.save(de);
+                
+                log.warn("   ⚠️ Estado actualizado: {} → RECHAZADO", estadoAnterior);
+                log.warn("   📝 Motivo: {} - {}", codigoRespuesta, mensajeRespuesta);
+                
+            } else {
+                log.info("   ℹ️ Estado {} no requiere actualización para código {}", 
+                    estadoAnterior, codigoRespuesta);
+            }
+            
+        } catch (Exception e) {
+            log.error("   ❌ Error al actualizar estado de DE no encontrado: {}", e.getMessage(), e);
         }
     }
     

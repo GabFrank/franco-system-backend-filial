@@ -450,7 +450,9 @@ public class SifenEventoService {
         
         // 7. Crear gestión de evento
         TrGesEve gestionEvento = new TrGesEve();
-        gestionEvento.setId(cdc + "-NOM"); // ID único para el evento de nominación
+        int numeroRandom = new Random().nextInt(9999999) + 1;
+        String eventoId = String.valueOf(numeroRandom);
+        gestionEvento.setId(eventoId); // ID único para el evento de nominación
         gestionEvento.setdFecFirma(LocalDateTime.now());
         gestionEvento.setgGroupTiEvt(tipoEvento);
         

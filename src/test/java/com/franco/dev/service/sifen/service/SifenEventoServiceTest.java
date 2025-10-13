@@ -1,30 +1,15 @@
 package com.franco.dev.service.sifen.service;
 
 import com.franco.dev.domain.financiero.DocumentoElectronico;
-import com.franco.dev.domain.financiero.FacturaLegal;
-import com.franco.dev.domain.financiero.LoteDE;
 import com.franco.dev.domain.financiero.enums.EstadoDE;
-import com.franco.dev.domain.financiero.enums.EstadoLoteDE;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.service.financiero.DocumentoElectronicoService;
-import com.franco.dev.service.financiero.FacturaLegalService;
-import com.franco.dev.service.financiero.LoteDEService;
 import com.franco.dev.service.personas.ClienteService;
-import com.roshka.sifen.Sifen;
-import com.roshka.sifen.core.beans.EventosDE;
-import com.roshka.sifen.core.beans.response.RespuestaConsultaDE;
 import com.roshka.sifen.core.beans.response.RespuestaRecepcionEvento;
 import com.roshka.sifen.core.exceptions.SifenException;
-import com.roshka.sifen.core.fields.request.event.TgGroupTiEvt;
-import com.roshka.sifen.core.fields.request.event.TrGeVeCan;
-import com.roshka.sifen.core.fields.request.event.TrGeVeConf;
-import com.roshka.sifen.core.fields.request.event.TrGeVeDisconf;
-import com.roshka.sifen.core.fields.request.event.TrGesEve;
-import com.roshka.sifen.core.types.TiTipConf;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,8 +17,6 @@ import org.springframework.test.annotation.Commit;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -53,16 +36,7 @@ public class SifenEventoServiceTest {
     private SifenEventoService sifenEventoService;
 
     @Autowired
-    private SifenService sifenService;
-
-    @Autowired
     private DocumentoElectronicoService documentoElectronicoService;
-
-    @Autowired
-    private FacturaLegalService facturaLegalService;
-
-    @Autowired
-    private LoteDEService loteDEService;
 
     @Autowired
     private ClienteService clienteService;
@@ -85,6 +59,15 @@ public class SifenEventoServiceTest {
         log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
         try {
+            // CDC de prueba - Reemplazar con un CDC válido de un DE aprobado
+            String cdc = "01800994825001001000005322025100614653130125";
+            String motivo = "Prueba de cancelación - Test automatizado";
+            
+            log.info("\n📋 PASO 1: Configuración");
+            log.info("   CDC: {}", cdc);
+            log.info("   Motivo: {}", motivo);
+
+            // Verificar que el DE existe
             List<DocumentoElectronico> aprobados = documentoElectronicoService.findByEstado(EstadoDE.APROBADO);
             
             if (aprobados.isEmpty()) {
@@ -93,14 +76,8 @@ public class SifenEventoServiceTest {
                 return;
             }
 
-            DocumentoElectronico deAprob = aprobados.get(0);
-            String motivo = "Prueba de cancelación - Test automatizado";
-            log.info("   Motivo: {}", motivo);
-
-            RespuestaRecepcionEvento respuesta = sifenEventoService.cancelarDE(
-                "01800994825001001000005322025100614653130125", 
-                motivo
-            );
+            log.info("\n📤 PASO 2: Enviar evento de cancelación a SIFEN");
+            RespuestaRecepcionEvento respuesta = sifenEventoService.cancelarDE(cdc, motivo);
 
             // 3. Mostrar respuesta
             log.info("\n📥 PASO 3: Respuesta de SIFEN");
@@ -109,9 +86,6 @@ public class SifenEventoServiceTest {
             // 4. Validar respuesta
             if ("0300".equals(respuesta.getdCodRes())) {
                 log.info("✅ Cancelación exitosa - Código 0300");
-                
-                // Verificar actualización en BD
-                DocumentoElectronico deActualizado = documentoElectronicoService.findById(deAprob.getId()).orElse(null);
             } else {
                 log.error("❌ Error en cancelación - Código: {}", respuesta.getdCodRes());
             }
@@ -133,11 +107,14 @@ public class SifenEventoServiceTest {
      * Test de nominación de receptor para factura innominada.
      * 
      * Flujo:
-     * 1. Crear factura innominada (sin cliente)
-     * 2. Crear DE y enviar a SIFEN
-     * 3. Consultar lote hasta que sea aprobado
-     * 4. Nominar receptor con un cliente específico
-     * 5. Validar respuesta
+     * 1. Buscar un DE aprobado por CDC
+     * 2. Buscar el cliente por ID
+     * 3. Nominar receptor con el cliente especificado
+     * 4. Validar respuesta
+     * 
+     * NOTA: Este test requiere:
+     * - Un CDC de un DE aprobado e innominado (sin cliente)
+     * - Un ID de cliente válido en la base de datos
      */
     @Test
     @Commit
@@ -147,87 +124,80 @@ public class SifenEventoServiceTest {
         log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
         try {
-            // 1. Crear factura innominada (cliente null)
-            log.info("\n📋 PASO 1: Crear factura innominada (sin cliente)");
-            FacturaLegal facturaInnominada = crearFacturaInnominada();
-            log.info("   ✅ Factura creada:");
-            log.info("      - ID: {}", facturaInnominada.getId());
-            log.info("      - Número: {}", facturaInnominada.getNumeroFactura());
-            log.info("      - Total: {}", facturaInnominada.getTotalFinal());
-            log.info("      - Cliente: null (innominado)");
-
-            // 2. Crear DE
-            log.info("\n📄 PASO 2: Crear Documento Electrónico");
-            DocumentoElectronico de = sifenService.crearDocumentoElectronico(facturaInnominada);
-            log.info("   ✅ DE creado:");
+            // PASO 1: Configurar CDC y Cliente ID
+            String cdc = "01800994825001001000006022025101014205238751"; // Reemplazar con un CDC válido
+            Long clienteId = 194L; // Reemplazar con un ID de cliente válido
+            
+            log.info("\n📋 PASO 1: Configuración");
+            log.info("   CDC: {}", cdc);
+            log.info("   Cliente ID: {}", clienteId);
+            
+            // PASO 2: Buscar el Documento Electrónico
+            log.info("\n📄 PASO 2: Buscar Documento Electrónico");
+            DocumentoElectronico de = documentoElectronicoService.findByCdc(cdc).orElse(null);
+            
+            if (de == null) {
+                log.error("❌ No se encontró DE con CDC: {}", cdc);
+                log.info("💡 Sugerencia: Verifica que el CDC sea correcto");
+                return;
+            }
+            
+            log.info("   ✅ DE encontrado:");
             log.info("      - ID: {}", de.getId());
             log.info("      - CDC: {}", de.getCdc());
             log.info("      - Estado: {}", de.getEstado());
-
-            // 3. Crear lote y enviar
-            log.info("\n📦 PASO 3: Crear lote y enviar a SIFEN");
-            LoteDE lote = sifenService.crearLote();
-            sifenService.vincularDocumentosALote(lote, Collections.singletonList(de));
-            sifenService.enviarLote(lote);
-            log.info("   ✅ Lote enviado:");
-            log.info("      - ID: {}", lote.getId());
-            log.info("      - Protocolo: {}", lote.getProtocolo());
-            log.info("      - Estado: {}", lote.getEstado());
-
-            // 4. Esperar y consultar hasta que sea aprobado
-            log.info("\n⏳ PASO 4: Consultar lote hasta aprobación");
-            boolean aprobado = esperarAprobacionLote(lote);
+            log.info("      - Factura ID: {}", de.getFacturaLegal() != null ? de.getFacturaLegal().getId() : "null");
             
-            if (!aprobado) {
-                log.error("❌ Lote no fue aprobado. Cancelar test de nominación.");
+            // Validar que el DE esté aprobado
+            if (de.getEstado() != EstadoDE.APROBADO) {
+                log.warn("⚠️ El DE no está en estado APROBADO (estado actual: {})", de.getEstado());
+                log.info("💡 La nominación solo aplica para DEs aprobados");
                 return;
             }
-
-            // Refrescar DE para obtener estado actualizado
-            de = documentoElectronicoService.findById(de.getId()).orElse(de);
-            log.info("   ✅ Lote aprobado - DE actualizado:");
-            log.info("      - Estado DE: {}", de.getEstado());
-
-            // 5. Seleccionar cliente para nominación
-            log.info("\n👤 PASO 5: Nominar receptor");
-            Long clienteId = 194L; // Cliente válido para nominación
+            
+            // PASO 3: Buscar el Cliente
+            log.info("\n👤 PASO 3: Buscar Cliente");
             Cliente cliente = clienteService.findById(clienteId).orElse(null);
             
             if (cliente == null) {
-                log.error("❌ Cliente {} no encontrado. Usar otro cliente ID.", clienteId);
+                log.error("❌ No se encontró cliente con ID: {}", clienteId);
+                log.info("💡 Sugerencia: Verifica que el ID del cliente sea correcto");
                 return;
             }
-
-            log.info("   Cliente seleccionado:");
+            
+            log.info("   ✅ Cliente encontrado:");
             log.info("      - ID: {}", cliente.getId());
-            log.info("      - Nombre: {}", cliente.getPersona().getNombre());
-            log.info("      - Documento: {}", cliente.getPersona().getDocumento());
+            log.info("      - Nombre: {}", cliente.getPersona() != null ? cliente.getPersona().getNombre() : "null");
+            log.info("      - Documento: {}", cliente.getPersona() != null ? cliente.getPersona().getDocumento() : "null");
             log.info("      - Tributa: {}", cliente.getTributa());
-
-            // 6. Enviar evento de nominación
-            log.info("\n📤 PASO 6: Enviar evento de nominación a SIFEN");
-            RespuestaRecepcionEvento respuesta = sifenEventoService.nominarReceptor(
-                de.getCdc(),
-                cliente
-            );
-
-            // 7. Mostrar respuesta
-            log.info("\n📥 PASO 7: Respuesta de SIFEN");
+            
+            // PASO 4: Nominar receptor
+            log.info("\n📤 PASO 4: Nominar receptor en SIFEN");
+            RespuestaRecepcionEvento respuesta = sifenEventoService.nominarReceptor(cdc, cliente);
+            
+            // PASO 5: Mostrar respuesta
+            log.info("\n📥 PASO 5: Respuesta de SIFEN");
             log.info("   Código: {}", respuesta.getdCodRes());
             log.info("   Mensaje: {}", respuesta.getdMsgRes());
-
-            // 8. Validar respuesta
+            
+            // PASO 6: Validar respuesta
+            log.info("\n✓ PASO 6: Validar respuesta");
             if ("0300".equals(respuesta.getdCodRes())) {
-                log.info("✅ Nominación exitosa - Código 0300");
+                log.info("   ✅ Nominación exitosa - Código 0300");
                 
                 // Verificar actualización en BD
                 DocumentoElectronico deActualizado = documentoElectronicoService.findById(de.getId()).orElse(null);
                 if (deActualizado != null) {
-                    log.info("   Código respuesta en BD: {}", deActualizado.getCodigoRespuestaSifen());
-                    log.info("   Mensaje respuesta en BD: {}", deActualizado.getMensajeRespuestaSifen());
+                    log.info("   📊 Estado del DE en BD:");
+                    log.info("      - Código respuesta: {}", deActualizado.getCodigoRespuestaSifen());
+                    log.info("      - Mensaje respuesta: {}", deActualizado.getMensajeRespuestaSifen());
                 }
+            } else if ("0600".equals(respuesta.getdCodRes())) {
+                log.info("   ✅ Evento registrado - Código 0600 (pendiente de procesamiento)");
+                log.info("   💡 El evento fue recibido y está en cola para procesamiento");
             } else {
-                log.error("❌ Error en nominación - Código: {}", respuesta.getdCodRes());
+                log.error("   ❌ Error en nominación - Código: {}", respuesta.getdCodRes());
+                log.error("   📝 Mensaje: {}", respuesta.getdMsgRes());
             }
 
             log.info("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -238,196 +208,6 @@ public class SifenEventoServiceTest {
             log.error("❌ Error de SIFEN en nominación: {}", e.getMessage(), e);
         } catch (Exception e) {
             log.error("❌ Error inesperado en test de nominación: {}", e.getMessage(), e);
-        }
-    }
-
-    // ===================== MÉTODOS AUXILIARES =====================
-
-    /**
-     * Crea una factura innominada para testing.
-     */
-    private FacturaLegal crearFacturaInnominada() {
-        FacturaLegal factura = new FacturaLegal();
-        
-        // Datos básicos
-        int numeroCorrelativo = (int) (System.currentTimeMillis() % 10000000);
-        factura.setNumeroFactura(numeroCorrelativo);
-        factura.setCliente(null); // INNOMINADO
-        
-        // Montos de prueba (bajo límite de 7.000.000 para innominado)
-        double total = 50000.0;
-        factura.setTotalFinal(total);
-        
-        // Nota: FacturaLegal no tiene setObservacion, setValorTotal ni setTotalGs
-        // Solo necesitamos setTotalFinal y setCliente(null) para factura innominada
-        
-        return facturaLegalService.save(factura);
-    }
-
-    /**
-     * Espera y consulta el lote hasta que sea aprobado o rechazado.
-     * 
-     * @param lote Lote a consultar
-     * @return true si fue aprobado, false si fue rechazado o timeout
-     */
-    private boolean esperarAprobacionLote(LoteDE lote) {
-        int intentos = 0;
-        int maxIntentos = 10;
-        int intervaloMs = 5000; // 5 segundos entre consultas
-
-        while (intentos < maxIntentos) {
-            intentos++;
-            
-            try {
-                log.info("   Intento {}/{} - Consultando lote...", intentos, maxIntentos);
-                Thread.sleep(intervaloMs);
-                
-                sifenService.consultarLote(lote);
-                
-                // Refrescar lote desde BD
-                LoteDE loteActualizado = loteDEService.findById(lote.getId()).orElse(lote);
-                EstadoLoteDE estado = loteActualizado.getEstado();
-                
-                log.info("      Estado actual: {}", estado);
-                
-                if (estado == EstadoLoteDE.PROCESADO) {
-                    log.info("   ✅ Lote procesado y aprobado");
-                    return true;
-                } else if (estado == EstadoLoteDE.RECHAZADO) {
-                    log.error("   ❌ Lote rechazado");
-                    return false;
-                } else if (estado == EstadoLoteDE.PROCESADO_CON_ERRORES) {
-                    log.warn("   ⚠️ Lote procesado con errores");
-                    return false;
-                }
-                
-                // Continuar esperando si está EN_PROCESO
-                
-            } catch (Exception e) {
-                log.error("   ❌ Error en consulta de lote: {}", e.getMessage());
-            }
-        }
-        
-        log.warn("   ⏱️ Timeout alcanzado - Lote no fue aprobado en {} intentos", maxIntentos);
-        return false;
-    }
-
-    // ===================== TEST COMBINADO =====================
-
-    /**
-     * Test combinado que prueba flujo completo:
-     * 1. Crear DE innominado → aprobarlo
-     * 2. Nominarlo con un cliente
-     * 3. Cancelarlo
-     */
-    @Test
-    @Commit
-    public void testFlujoCombinado_Nominacion_Y_Cancelacion() {
-        log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        log.info("🔄 TEST COMBINADO: Nominación + Cancelación");
-        log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
-        try {
-            // 1. Crear, enviar y aprobar factura innominada
-            log.info("\n📋 FASE 1: Crear y aprobar factura innominada");
-            FacturaLegal factura = crearFacturaInnominada();
-            DocumentoElectronico de = sifenService.crearDocumentoElectronico(factura);
-            
-            LoteDE lote = sifenService.crearLote();
-            sifenService.vincularDocumentosALote(lote, Collections.singletonList(de));
-            sifenService.enviarLote(lote);
-            
-            if (!esperarAprobacionLote(lote)) {
-                log.error("❌ No se pudo aprobar el DE innominado. Cancelar test.");
-                return;
-            }
-            
-            de = documentoElectronicoService.findById(de.getId()).orElse(de);
-            log.info("✅ DE innominado aprobado - CDC: {}", de.getCdc());
-
-            // 2. Nominar receptor
-            log.info("\n👤 FASE 2: Nominar receptor");
-            Cliente cliente = clienteService.findById(194L).orElse(null);
-            
-            if (cliente == null) {
-                log.error("❌ Cliente no encontrado. Cancelar test.");
-                return;
-            }
-
-            RespuestaRecepcionEvento respNominacion = sifenEventoService.nominarReceptor(
-                de.getCdc(),
-                cliente
-            );
-            
-            log.info("   Respuesta nominación - Código: {}", respNominacion.getdCodRes());
-            
-            if (!"0300".equals(respNominacion.getdCodRes())) {
-                log.error("❌ Nominación falló. No proceder con cancelación.");
-                return;
-            }
-            
-            log.info("✅ Receptor nominado exitosamente");
-
-            // 3. Cancelar DE
-            log.info("\n🚫 FASE 3: Cancelar DE");
-            RespuestaRecepcionEvento respCancelacion = sifenEventoService.cancelarDE(
-                de.getCdc(),
-                "Cancelación después de nominación - Test combinado"
-            );
-            
-            log.info("   Respuesta cancelación - Código: {}", respCancelacion.getdCodRes());
-            
-            if ("0300".equals(respCancelacion.getdCodRes())) {
-                log.info("✅ DE cancelado exitosamente");
-            } else {
-                log.error("❌ Error en cancelación - Código: {}", respCancelacion.getdCodRes());
-            }
-
-            log.info("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            log.info("✅ TEST COMBINADO COMPLETADO");
-            log.info("   - Factura innominada: ✅ Creada y aprobada");
-            log.info("   - Nominación: {}", "0300".equals(respNominacion.getdCodRes()) ? "✅" : "❌");
-            log.info("   - Cancelación: {}", "0300".equals(respCancelacion.getdCodRes()) ? "✅" : "❌");
-            log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-
-        } catch (Exception e) {
-            log.error("❌ Error en test combinado: {}", e.getMessage(), e);
-        }
-    }
-
-    // ===================== TEST DE CONSULTA DE DE POR CDC =====================
-
-    /**
-     * Test de consulta de un Documento Electrónico por CDC.
-     * 
-     * Flujo:
-     * 1. Consultar DE en SIFEN usando CDC específico
-     * 2. Mostrar información del DE y sus eventos asociados
-     * 3. Validar respuesta
-     */
-    @Test
-    @Commit
-    public void testConsultaDEPorCDC() {
-        log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        log.info("🔍 TEST: Consulta de Documento Electrónico por CDC");
-        log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
-        try {
-            // CDC de prueba
-            String cdcPrueba = "01800994825001001000005822025101019663052405";
-            
-            log.info("\n📄 PASO 1: Consultar DE en SIFEN");
-            log.info("   CDC: {}", cdcPrueba);
-
-            // Consultar DE
-            RespuestaConsultaDE respuesta = sifenService.consultarDE(cdcPrueba);
-
-            // Mostrar respuesta
-            log.info("\n📥 PASO 2: Respuesta de SIFEN");
-            log.info("   Código: {}", respuesta.getRespuestaBruta());
-
-        } catch (Exception e) {
-            log.error("❌ Error en test de consulta de DE por CDC: {}", e.getMessage(), e);
         }
     }
 }

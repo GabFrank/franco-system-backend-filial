@@ -8,6 +8,8 @@ import com.franco.dev.repository.financiero.DocumentoElectronicoRepository;
 import graphql.GraphQLException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -28,6 +30,11 @@ public class DocumentoElectronicoService {
             }
         }
         return repository.save(documentoElectronico);
+    }
+
+    // find all with limit order by id desc
+    public List<DocumentoElectronico> findAllWithLimit(int limit) {
+        return repository.findAll(PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "id"))).getContent();
     }
 
     public Optional<DocumentoElectronico> findById(Long id) {

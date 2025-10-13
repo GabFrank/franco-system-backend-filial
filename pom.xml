@@ -336,11 +336,11 @@
 
         <!-- SIFEN integration library -->
         <dependency>
-            <groupId>com.frc.sifen</groupId>
-            <artifactId>frc-jsifenlib</artifactId>
-            <version>0.2.8</version>
+            <groupId>io.github.gabfrank</groupId>
+            <artifactId>jsifenlib</artifactId>
+            <version>0.2.4-frc.13</version>
         </dependency>
-        
+
         <!-- <dependency>
             <groupId>com.roshka.sifen</groupId>
             <artifactId>rshk-jsifenlib</artifactId>
@@ -360,6 +360,15 @@
 
     </dependencies>
 
+    <repositories>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/GabFrank/rshk-jsifenlib</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
     <build>
         <plugins>
