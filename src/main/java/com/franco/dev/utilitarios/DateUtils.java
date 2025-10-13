@@ -1,6 +1,8 @@
 package com.franco.dev.utilitarios;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 public class DateUtils {
@@ -31,7 +33,15 @@ public class DateUtils {
     public static LocalDateTime toDate(String s) {
         return LocalDateTime.parse(s, formatter);
     }
+    
     public static LocalDateTime stringToDate(String s) {
+        // Handle ISO-8601 format with timezone (e.g., "2025-10-13T18:06:28.768Z")
+        if (s.contains("T") && (s.endsWith("Z") || s.contains("+"))) {
+            // Parse as Instant and convert to LocalDateTime in system default timezone
+            Instant instant = Instant.parse(s);
+            return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+        }
+        // Fallback to original formatter for backward compatibility
         return LocalDateTime.parse(s, formatter);
     }
 

@@ -442,31 +442,24 @@ public class FacturaService {
             timbradoDetalleService.save(timbradoDetalle);
 
             if (timbradoDetalle.getTimbrado() != null && Boolean.TRUE.equals(timbradoDetalle.getTimbrado().getIsElectronico())) {
-                // Generar documento electrónico directamente
+                // Generar documento electrónico directamente usando SifenService
                 try {
-                    // List<FacturaLegalItem> facturaLegalItems = facturaLegalItemService.findByFacturaLegalId(facturaLegalGuardada.getId());
-                    // SifenService.DocumentoElectronicoInfo infoDocumento = sifenService.generarDocumentoElectronico(facturaLegalGuardada, facturaLegalItems);
-
-                    // // Actualizar factura con CDC
-                    // facturaLegalGuardada.setCdc(infoDocumento.getCdc());
-                    // // facturaLegalGuardada.setUrlQr(infoDocumento.getUrlQr());
-                    // facturaLegalGuardada = facturaLegalService.save(facturaLegalGuardada);
-
-                    // // Crear y guardar documento electrónico
-                    // com.franco.dev.domain.financiero.DocumentoElectronico docElectronico = documentoElectronicoService.createFromFacturaLegal(facturaLegalGuardada);
-                    // docElectronico.setCdc(infoDocumento.getCdc());
-                    // docElectronico.setUrlQr(infoDocumento.getUrlQr());
-                    // docElectronico.setXmlFirmado(infoDocumento.getXmlFirmado());
-                    // docElectronico.setEstado(convertirStringAEstadoDE(infoDocumento.getEstadoDocumento()));
-                    // docElectronico.setCodigoRespuestaSifen(infoDocumento.getCodigoRespuesta());
-                    // docElectronico.setMensajeRespuestaSifen(infoDocumento.getMensajeRespuesta());
-                    // docElectronico.setFechaRecepcionSifen(LocalDateTime.now());
-                    // documentoElectronicoService.save(docElectronico);
-
-
+                    log.info("📝 Generando Documento Electrónico para factura ID: {}", facturaLegalGuardada.getId());
+                    
+                    com.franco.dev.domain.financiero.DocumentoElectronico de = 
+                        sifenService.crearDocumentoElectronico(facturaLegalGuardada);
+                    
+                    // Actualizar la factura con el CDC del DE para impresión
+                    facturaLegalGuardada.setCdc(de.getCdc());
+                    facturaLegalGuardada = facturaLegalService.save(facturaLegalGuardada);
+                    
+                    log.info("✅ Documento Electrónico generado exitosamente - CDC: {}", de.getCdc());
+                    
                 } catch (Exception e) {
-                    log.error("Error al generar documento electrónico para factura ID: {}", facturaLegalGuardada.getId(), e);
+                    log.error("❌ Error al generar documento electrónico para factura ID: {}", facturaLegalGuardada.getId(), e);
+                    log.error("   Detalle del error: {}", e.getMessage());
                     // No lanzamos excepción para no romper el flujo, pero registramos el error
+                    // La factura se creó correctamente, solo falló la generación del DE
                 }
             }
 

@@ -61,7 +61,4 @@ public class CalcularVerificadorCDC {
         return calcularDigitoVerificador(numero, 11);
     }
 
-    public static void main(String[] args) {
-        System.out.println(calcularDigitoVerificador("0144444401700100100145282201701251587326098"));
-    }
 }

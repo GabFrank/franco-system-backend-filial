@@ -165,7 +165,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     public TimbradoDetalle saveFacturaLegal(FacturaLegalInput entity, List<FacturaLegalItemInput> detalleList,
             String printerName, Integer pdvId, Boolean print) {
         try {
-
+            if(print == null){
+                print = true;
+            }
             // Validar que pdvId no sea null (es requerido según el schema)
             if (pdvId == null) {
                 throw new GraphQLException("pdvId es requerido");
@@ -189,8 +191,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             facturaLegal.setTotalParcial10(entity.getTotalParcial10());
             facturaLegal.setTotalFinal(entity.getTotalFinal());
             facturaLegal.setDescuento(entity.getDescuento());
-            // facturaLegal.setSucursalId(entity.getSucursalId()); // TODO: Implementar si
-            // es necesario
 
             // Mapear fechas
             if (entity.getFecha() != null) {
@@ -227,6 +227,13 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
 
             facturaLegal.setTimbradoDetalle(timbradoDetalle);
+            
+            // Asignar sucursal desde el timbrado detalle
+            if (timbradoDetalle.getSucursal() != null && timbradoDetalle.getSucursal().getId() != null) {
+                facturaLegal.setSucursalId(timbradoDetalle.getSucursal().getId());
+            } else {
+                throw new GraphQLException("El timbrado detalle no tiene una sucursal asignada");
+            }
 
             // Incrementar número de factura
             Long numeroFactura = timbradoDetalle.getNumeroActual() != null ? timbradoDetalle.getNumeroActual() + 1 : 1L;
@@ -266,26 +273,76 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             timbradoDetalle.setNumeroActual(numeroFactura);
             timbradoDetalleService.save(timbradoDetalle);
 
-            // Generar documento electrónico si es una nueva factura
-            try {
-                // Generar el documento electrónico usando el servicio
-                // FacturaLegal facturaConDE = service.generarDocumentoElectronico(facturaLegalGuardada);
+            // Calcular totales de la factura antes de generar el DE
+            if (detalleList != null && !detalleList.isEmpty()) {
+                Double totalParcial0 = 0.0;
+                Double totalParcial5 = 0.0;
+                Double totalParcial10 = 0.0;
+                Double ivaParcial5 = 0.0;
+                Double ivaParcial10 = 0.0;
+                
+                for (FacturaLegalItemInput itemInput : detalleList) {
+                    Double totalItem = itemInput.getTotal();
+                    Integer iva = itemInput.getIva() != null ? itemInput.getIva() : 10; // Default 10%
+                    
+                    if (iva == 10) {
+                        totalParcial10 += totalItem;
+                        ivaParcial10 += totalItem / 11;
+                    } else if (iva == 5) {
+                        totalParcial5 += totalItem;
+                        ivaParcial5 += totalItem / 21;
+                    } else {
+                        totalParcial0 += totalItem;
+                    }
+                }
+                
+                facturaLegalGuardada.setTotalParcial0(totalParcial0);
+                facturaLegalGuardada.setTotalParcial5(totalParcial5);
+                facturaLegalGuardada.setTotalParcial10(totalParcial10);
+                facturaLegalGuardada.setIvaParcial5(ivaParcial5);
+                facturaLegalGuardada.setIvaParcial10(ivaParcial10);
+                facturaLegalGuardada.setTotalFinal(totalParcial0 + totalParcial5 + totalParcial10);
+                
+                // Guardar factura con totales calculados
+                facturaLegalGuardada = service.save(facturaLegalGuardada);
+                
+                log.info("✅ Totales calculados - Total Final: {}", facturaLegalGuardada.getTotalFinal());
+            }
 
-            } catch (Exception e) {
-                log.error("Error al generar documento electrónico para factura ID: {}", facturaLegalGuardada.getId(),
-                        e);
-                // No lanzamos excepción para no romper el guardado de la factura
+            // Generar documento electrónico si el timbrado es electrónico
+            if (timbradoDetalle.getTimbrado() != null && Boolean.TRUE.equals(timbradoDetalle.getTimbrado().getIsElectronico())) {
+                try {
+                    log.info("📝 Generando Documento Electrónico para factura ID: {}", facturaLegalGuardada.getId());
+                    
+                    com.franco.dev.domain.financiero.DocumentoElectronico de = 
+                        sifenService.crearDocumentoElectronico(facturaLegalGuardada);
+                    
+                    // Actualizar la factura con el CDC del DE para impresión
+                    facturaLegalGuardada.setCdc(de.getCdc());
+                    facturaLegalGuardada = service.save(facturaLegalGuardada);
+                    
+                    log.info("✅ Documento Electrónico generado exitosamente - CDC: {}", de.getCdc());
+                    
+                } catch (Exception e) {
+                    log.error("❌ Error al generar documento electrónico para factura ID: {}", facturaLegalGuardada.getId(), e);
+                    log.error("   Detalle del error: {}", e.getMessage());
+                    // No lanzamos excepción para no romper el guardado de la factura
+                }
             }
 
             // Imprimir si se solicita
             if (print != null && print && printerName != null) {
                 try {
-                    // Recargar la factura para obtener los datos del documento electrónico
-                    FacturaLegal facturaConDE = service.findById(facturaLegalGuardada.getId())
-                            .orElse(facturaLegalGuardada);
-                    printTicket58mmFactura(facturaConDE.getVenta(), facturaConDE, null, printerName);
+                    log.info("🖨️  Imprimiendo factura legal ID: {} en impresora: {}", facturaLegalGuardada.getId(), printerName);
+                    
+                    // Imprimir usando la factura ya actualizada con CDC y URL QR
+                    printTicket58mmFactura(facturaLegalGuardada.getVenta(), facturaLegalGuardada, null, printerName);
+                    
+                    log.info("✅ Factura impresa exitosamente");
+                    
                 } catch (Exception e) {
-                    log.error("Error al imprimir factura legal ID: {}", facturaLegalGuardada.getId(), e);
+                    log.error("❌ Error al imprimir factura legal ID: {}", facturaLegalGuardada.getId(), e);
+                    log.error("   Detalle del error: {}", e.getMessage());
                     // No lanzamos excepción para no romper el guardado
                 }
             }

@@ -245,6 +245,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     return venta;
                 } else if (facturaCountDown == 0) {
                     if (pdvId != null) {
+                        log.info("📋 Facturación silenciosa activada (facturaCountDown == 0) - Generando factura legal con DE sin imprimir");
+                        
                         FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
                         if (venta.getCliente() == null) {
                             facturaLegalInput.setNombre("SIN NOMBRE");
@@ -256,6 +258,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         facturaLegalInput.setVentaId(venta.getId());
                         facturaLegalInput.setCredito(ventaCreditoInput != null ? true : false);
                         facturaLegalInput.setUsuarioId(ventaInput.getUsuarioId());
+                        
+                        // Calcular totales desde CobroDetalle
+                        Double totalFinal = venta.getTotalGs();
+                        facturaLegalInput.setTotalFinal(totalFinal);
+                        
                         List<FacturaLegalItemInput> facturaLegalItemInputList = new ArrayList<>();
                         for (VentaItem vi : ventaItemList1) {
                             FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
@@ -268,15 +275,18 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                             fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
                             facturaLegalItemInputList.add(fiInput);
                         }
-                        // SaveFacturaDto saveFacturaDto = facturaService.printTicket58mmFactura(venta,
-                        // facturaLegalInput, facturaLegalItemInputList, printerName, pdvId, false);
-
-                        // La llamada a saveFacturaLegal ya no es necesaria aquí.
-                        // TimbradoDetalle timbradoDetalle = facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput,
-                        //         facturaLegalItemInputList, printerName, pdvId, false);
+                        
+                        // Generar factura legal con DE SIN IMPRIMIR (print = false)
+                        try {
+                            facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, 
+                                facturaLegalItemInputList, printerName, pdvId.intValue(), false);
+                            log.info("✅ Factura legal con DE generada exitosamente (sin impresión)");
+                        } catch (Exception fe) {
+                            log.error("❌ Error en facturación silenciosa: {}", fe.getMessage(), fe);
+                            // No lanzamos excepción para no romper el flujo de venta
+                        }
+                        
                         facturaCountDown = Integer.valueOf(env.getProperty("facturaCountDown"));
-                        // if (timbradoDetalle == null)
-                        //     throw new GraphQLException("Problema al generar factura");
                     }
                 } else {
                     facturaCountDown = facturaCountDown - 1;
