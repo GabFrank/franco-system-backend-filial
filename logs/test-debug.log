@@ -4862,3 +4862,928 @@ You may wish to exclude one of them to ensure predictable runtime behavior
 2025-10-13 14:18:56.782 [main] INFO  class com.roshka.sifen.internal.helpers.SoapHelper - Enviando mensaje SOAP
 2025-10-13 14:18:57.441 [main] INFO  c.roshka.sifen.internal.request.BaseRequest - Petición realizada, se formatea la respuesta
 2025-10-13 14:18:57.442 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    📥 Respuesta recibida - Código: 0422, Mensaje: CDC encontrado
+2025-10-13 14:36:56.758 [Thread-5] INFO  o.s.scheduling.concurrent.ThreadPoolTaskScheduler - Shutting down ExecutorService 'taskScheduler'
+2025-10-13 14:36:57.035 [Thread-5] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-10-13 14:36:57.047 [Thread-5] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-10-13 14:36:57.069 [Thread-5] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-10-13 14:36:57.123 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    🔄 Actualizando estado del DE desde respuesta SIFEN...
+2025-10-13 14:37:00.494 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Neither @ContextConfiguration nor @ContextHierarchy found for test class [com.franco.dev.service.sifen.service.SifenDETest], using SpringBootContextLoader
+2025-10-13 14:37:00.501 [main] INFO  o.s.test.context.support.AbstractContextLoader - Could not detect default resource locations for test class [com.franco.dev.service.sifen.service.SifenDETest]: no resource found for suffixes {-context.xml, Context.groovy}.
+2025-10-13 14:37:00.502 [main] INFO  o.s.t.c.support.AnnotationConfigContextLoaderUtils - Could not detect default configuration classes for test class [com.franco.dev.service.sifen.service.SifenDETest]: SifenDETest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2025-10-13 14:37:00.675 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Found @SpringBootConfiguration com.franco.dev.FrancoSystemsApplication for test class com.franco.dev.service.sifen.service.SifenDETest
+2025-10-13 14:37:00.772 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Loaded default TestExecutionListener class names from location [META-INF/spring.factories]: [org.springframework.boot.test.mock.mockito.MockitoTestExecutionListener, org.springframework.boot.test.mock.mockito.ResetMocksTestExecutionListener, org.springframework.boot.test.autoconfigure.restdocs.RestDocsTestExecutionListener, org.springframework.boot.test.autoconfigure.web.client.MockRestServiceServerResetTestExecutionListener, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrintOnlyOnFailureTestExecutionListener, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverTestExecutionListener, org.springframework.test.context.web.ServletTestExecutionListener, org.springframework.test.context.support.DirtiesContextBeforeModesTestExecutionListener, org.springframework.test.context.support.DependencyInjectionTestExecutionListener, org.springframework.test.context.support.DirtiesContextTestExecutionListener, org.springframework.test.context.transaction.TransactionalTestExecutionListener, org.springframework.test.context.jdbc.SqlScriptsTestExecutionListener]
+2025-10-13 14:37:00.786 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Using TestExecutionListeners: [org.springframework.test.context.web.ServletTestExecutionListener@7068e664, org.springframework.test.context.support.DirtiesContextBeforeModesTestExecutionListener@60db1c0e, org.springframework.boot.test.mock.mockito.MockitoTestExecutionListener@3e78b6a5, org.springframework.boot.test.autoconfigure.SpringBootDependencyInjectionTestExecutionListener@769a1df5, org.springframework.test.context.support.DirtiesContextTestExecutionListener@41f69e84, org.springframework.test.context.transaction.TransactionalTestExecutionListener@7975d1d8, org.springframework.test.context.jdbc.SqlScriptsTestExecutionListener@2438dcd, org.springframework.boot.test.mock.mockito.ResetMocksTestExecutionListener@24105dc5, org.springframework.boot.test.autoconfigure.restdocs.RestDocsTestExecutionListener@5167f57d, org.springframework.boot.test.autoconfigure.web.client.MockRestServiceServerResetTestExecutionListener@64b0598, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrintOnlyOnFailureTestExecutionListener@18f8cd79, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverTestExecutionListener@3e2055d6]
+2025-10-13 14:37:01.220 [main] WARN  o.s.b.t.j.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer - 
+
+Found multiple occurrences of org.json.JSONObject on the class path:
+
+	jar:file:/Users/gabfranck/.m2/repository/com/vaadin/external/google/android-json/0.0.20131108.vaadin1/android-json-0.0.20131108.vaadin1.jar!/org/json/JSONObject.class
+	jar:file:/Users/gabfranck/.m2/repository/org/json/json/20210307/json-20210307.jar!/org/json/JSONObject.class
+
+You may wish to exclude one of them to ensure predictable runtime behavior
+
+2025-10-13 14:37:01.249 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - Starting SifenDETest on IMACs-iMac.local with PID 59062 (started by gabfranck in /Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server)
+2025-10-13 14:37:01.251 [main] DEBUG com.franco.dev.service.sifen.service.SifenDETest - Running with Spring Boot v2.1.15.RELEASE, Spring v5.1.16.RELEASE
+2025-10-13 14:37:01.252 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - The following profiles are active: dev,test
+2025-10-13 14:37:03.303 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-10-13 14:37:03.953 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 642ms. Found 113 JPA repository interfaces.
+2025-10-13 14:37:04.746 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'org.springframework.retry.annotation.RetryConfiguration' of type [org.springframework.retry.annotation.RetryConfiguration$$EnhancerBySpringCGLIB$$2992031] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:37:05.048 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler@75f8d9b0' of type [org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:37:05.077 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'methodSecurityMetadataSource' of type [org.springframework.security.access.method.DelegatingMethodSecurityMetadataSource] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:37:05.673 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port(s): 0 (http)
+2025-10-13 14:37:05.704 [main] INFO  org.apache.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-auto-1"]
+2025-10-13 14:37:05.724 [main] INFO  org.apache.catalina.core.StandardService - Starting service [Tomcat]
+2025-10-13 14:37:05.724 [main] INFO  org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/9.0.36]
+2025-10-13 14:37:05.881 [main] INFO  o.a.c.core.ContainerBase.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-10-13 14:37:05.881 [main] INFO  org.springframework.web.context.ContextLoader - Root WebApplicationContext: initialization completed in 4593 ms
+2025-10-13 14:37:06.482 [main] INFO  c.franco.dev.config.RetryableDatabasePostProcessor - -----> configuring a retryable datasource for beanName = dataSource
+2025-10-13 14:37:06.610 [main] INFO  com.franco.dev.config.FlywayConfig - ==== Environment Information ====
+2025-10-13 14:37:06.611 [main] INFO  com.franco.dev.config.FlywayConfig - OS Name: Mac OS X
+2025-10-13 14:37:06.611 [main] INFO  com.franco.dev.config.FlywayConfig - OS Version: 13.7.1
+2025-10-13 14:37:06.612 [main] INFO  com.franco.dev.config.FlywayConfig - Java Version: 1.8.0_333
+2025-10-13 14:37:06.612 [main] INFO  com.franco.dev.config.FlywayConfig - File Encoding: UTF-8
+2025-10-13 14:37:06.612 [main] INFO  com.franco.dev.config.FlywayConfig - User Dir: /Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server
+2025-10-13 14:37:06.612 [main] INFO  com.franco.dev.config.FlywayConfig - ================================
+2025-10-13 14:37:06.612 [main] INFO  com.franco.dev.config.FlywayConfig - Scanning for duplicate migrations in source directory: src/main/resources/db/migration
+2025-10-13 14:37:06.621 [main] INFO  com.franco.dev.config.FlywayConfig - Found 40 migration files in src/main/resources/db/migration
+2025-10-13 14:37:06.623 [main] INFO  com.franco.dev.config.FlywayConfig - Duplicate migration cleanup complete for src/main/resources/db/migration
+2025-10-13 14:37:06.623 [main] INFO  com.franco.dev.config.FlywayConfig - Scanning for duplicate migrations in target directory: target/classes/db/migration
+2025-10-13 14:37:06.626 [main] INFO  com.franco.dev.config.FlywayConfig - Found 40 migration files in target/classes/db/migration
+2025-10-13 14:37:06.629 [main] INFO  com.franco.dev.config.FlywayConfig - Duplicate migration cleanup complete for target/classes/db/migration
+2025-10-13 14:37:06.662 [main] INFO  org.flywaydb.core.internal.license.VersionPrinter - Flyway Community Edition 5.2.3 by Boxfuse
+2025-10-13 14:37:06.745 [main] INFO  o.flywaydb.core.internal.database.DatabaseFactory - Database: jdbc:postgresql://localhost:5552/general-fact-test (PostgreSQL 16.4)
+2025-10-13 14:37:06.920 [main] WARN  org.flywaydb.core.internal.database.base.Database - Flyway upgrade recommended: PostgreSQL 16.4 is newer than this version of Flyway and support has not been tested.
+2025-10-13 14:37:06.969 [main] INFO  o.f.c.i.schemahistory.JdbcTableSchemaHistory - Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2025-10-13 14:37:07.037 [main] INFO  org.flywaydb.core.internal.command.DbRepair - Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.078s).
+2025-10-13 14:37:07.049 [main] WARN  org.flywaydb.core.internal.database.base.Database - Flyway upgrade recommended: PostgreSQL 16.4 is newer than this version of Flyway and support has not been tested.
+2025-10-13 14:37:07.106 [main] INFO  org.flywaydb.core.internal.command.DbMigrate - Current version of schema "public": 43
+2025-10-13 14:37:07.107 [main] INFO  org.flywaydb.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2025-10-13 14:37:07.317 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-10-13 14:37:07.339 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-10-13 14:37:07.500 [main] INFO  org.hibernate.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-10-13 14:37:07.574 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 5.4.17.Final
+2025-10-13 14:37:07.779 [main] INFO  org.hibernate.annotations.common.Version - HCANN000001: Hibernate Commons Annotations {5.1.0.Final}
+2025-10-13 14:37:08.037 [main] INFO  org.hibernate.dialect.Dialect - HHH000400: Using dialect: org.hibernate.dialect.PostgreSQLDialect
+2025-10-13 14:37:08.497 [main] WARN  Hibernate Types - You should use Hypersistence Optimizer to speed up your Hibernate application!
+2025-10-13 14:37:08.497 [main] WARN  Hibernate Types - For more details, go to https://vladmihalcea.com/hypersistence-optimizer/
+2025-10-13 14:37:08.498 [main] INFO  Hibernate Types - 
+ _    _                           _     _
+| |  | |                         (_)   | |
+| |__| |_   _ _ __   ___ _ __ ___ _ ___| |_ ___ _ __   ___ ___
+|  __  | | | | '_ \ / _ \ '__/ __| / __| __/ _ \ '_ \ / __/ _ \
+| |  | | |_| | |_) |  __/ |  \__ \ \__ \ ||  __/ | | | (_|  __/
+|_|  |_|\__, | .__/ \___|_|  |___/_|___/\__\___|_| |_|\___\___|
+         __/ | |
+        |___/|_|
+
+           ____        _   _           _
+          / __ \      | | (_)         (_)
+         | |  | |_ __ | |_ _ _ __ ___  _ _______ _ __
+         | |  | | '_ \| __| | '_ ` _ \| |_  / _ \ '__|
+         | |__| | |_) | |_| | | | | | | |/ /  __/ |
+          \____/| .__/ \__|_|_| |_| |_|_/___\___|_|
+                | |
+                |_|
+
+2025-10-13 14:37:08.499 [main] INFO  Hibernate Types - Check out the README page for more info about the Hypersistence Optimizer banner https://github.com/vladmihalcea/hibernate-types#how-to-remove-the-hypersistence-optimizer-banner-from-the-log
+2025-10-13 14:37:10.869 [main] INFO  o.h.e.t.jta.platform.internal.JtaPlatformInitiator - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-10-13 14:37:10.897 [main] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-10-13 14:37:11.854 [main] INFO  org.springframework.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final void org.springframework.amqp.rabbit.core.RabbitTemplate.start()] because it is marked as final: Consider using interface-based JDK proxies instead!
+2025-10-13 14:37:11.854 [main] INFO  org.springframework.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final void org.springframework.amqp.rabbit.core.RabbitTemplate.stop()] because it is marked as final: Consider using interface-based JDK proxies instead!
+2025-10-13 14:37:13.568 [main] WARN  com.franco.dev.service.utils.ImageService - Mac OS X
+2025-10-13 14:37:14.820 [main] ERROR o.s.boot.web.embedded.tomcat.TomcatStarter - Error starting Tomcat context. Exception: org.springframework.beans.factory.UnsatisfiedDependencyException. Message: Error creating bean with name 'graphQLServletRegistrationBean' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLServletRegistrationBean' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLHttpServlet' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLHttpServlet' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLServletConfiguration' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLServletConfiguration' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'invocationInputFactory' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'invocationInputFactory' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchemaProvider' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchemaProvider' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchema' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchema' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'schemaParser' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'schemaParser' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'documentoElectronicoGraphQL': Unsatisfied dependency expressed through field 'facturaLegalService'; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'facturaLegalService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]: Unsatisfied dependency expressed through constructor parameter 3; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+2025-10-13 14:37:14.855 [main] INFO  org.apache.catalina.core.StandardService - Stopping service [Tomcat]
+2025-10-13 14:37:14.858 [main] WARN  org.apache.catalina.loader.WebappClassLoaderBase - The web application [ROOT] appears to have started a thread named [HikariPool-1 housekeeper] but has failed to stop it. This is very likely to create a memory leak. Stack trace of thread:
+ sun.misc.Unsafe.park(Native Method)
+ java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:215)
+ java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:2078)
+ java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1093)
+ java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:809)
+ java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1074)
+ java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+ java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+ java.lang.Thread.run(Thread.java:750)
+2025-10-13 14:37:14.860 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Unable to start web server; nested exception is org.springframework.boot.web.server.WebServerException: Unable to start embedded Tomcat
+2025-10-13 14:37:14.870 [main] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-10-13 14:37:14.873 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-10-13 14:37:14.887 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-10-13 14:37:14.900 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLoggingListener - 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-10-13 14:37:14.902 [main] ERROR o.s.b.diagnostics.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+The dependencies of some of the beans in the application context form a cycle:
+
+   graphQLServletRegistrationBean defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]
+      ↓
+   graphQLHttpServlet defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]
+      ↓
+   graphQLServletConfiguration defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]
+      ↓
+   invocationInputFactory defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]
+      ↓
+   graphQLSchemaProvider defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]
+      ↓
+   graphQLSchema defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]
+      ↓
+   schemaParser defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]
+      ↓
+   documentoElectronicoGraphQL (field private com.franco.dev.service.financiero.FacturaLegalService com.franco.dev.graphql.financiero.DocumentoElectronicoGraphQL.facturaLegalService)
+┌─────┐
+|  facturaLegalService defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]
+↑     ↓
+|  sifenService defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]
+└─────┘
+
+
+2025-10-13 14:37:14.964 [main] WARN  o.s.b.t.j.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer - 
+
+Found multiple occurrences of org.json.JSONObject on the class path:
+
+	jar:file:/Users/gabfranck/.m2/repository/com/vaadin/external/google/android-json/0.0.20131108.vaadin1/android-json-0.0.20131108.vaadin1.jar!/org/json/JSONObject.class
+	jar:file:/Users/gabfranck/.m2/repository/org/json/json/20210307/json-20210307.jar!/org/json/JSONObject.class
+
+You may wish to exclude one of them to ensure predictable runtime behavior
+
+2025-10-13 14:37:14.966 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - Starting SifenDETest on IMACs-iMac.local with PID 59062 (started by gabfranck in /Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server)
+2025-10-13 14:37:14.967 [main] DEBUG com.franco.dev.service.sifen.service.SifenDETest - Running with Spring Boot v2.1.15.RELEASE, Spring v5.1.16.RELEASE
+2025-10-13 14:37:14.967 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - The following profiles are active: dev,test
+2025-10-13 14:37:15.513 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-10-13 14:37:15.838 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 324ms. Found 113 JPA repository interfaces.
+2025-10-13 14:37:16.048 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'org.springframework.retry.annotation.RetryConfiguration' of type [org.springframework.retry.annotation.RetryConfiguration$$EnhancerBySpringCGLIB$$2992031] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:37:16.134 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler@15913e21' of type [org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:37:16.176 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'methodSecurityMetadataSource' of type [org.springframework.security.access.method.DelegatingMethodSecurityMetadataSource] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:37:16.553 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port(s): 0 (http)
+2025-10-13 14:37:16.554 [main] INFO  org.apache.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-auto-2"]
+2025-10-13 14:37:16.555 [main] INFO  org.apache.catalina.core.StandardService - Starting service [Tomcat]
+2025-10-13 14:37:16.555 [main] INFO  org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/9.0.36]
+2025-10-13 14:37:16.570 [main] INFO  o.a.c.c.ContainerBase.[Tomcat-1].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-10-13 14:37:16.570 [main] INFO  org.springframework.web.context.ContextLoader - Root WebApplicationContext: initialization completed in 1599 ms
+2025-10-13 14:37:16.976 [main] INFO  c.franco.dev.config.RetryableDatabasePostProcessor - -----> configuring a retryable datasource for beanName = dataSource
+2025-10-13 14:37:17.036 [main] INFO  com.franco.dev.config.FlywayConfig - ==== Environment Information ====
+2025-10-13 14:37:17.036 [main] INFO  com.franco.dev.config.FlywayConfig - OS Name: Mac OS X
+2025-10-13 14:37:17.036 [main] INFO  com.franco.dev.config.FlywayConfig - OS Version: 13.7.1
+2025-10-13 14:37:17.036 [main] INFO  com.franco.dev.config.FlywayConfig - Java Version: 1.8.0_333
+2025-10-13 14:37:17.036 [main] INFO  com.franco.dev.config.FlywayConfig - File Encoding: UTF-8
+2025-10-13 14:37:17.036 [main] INFO  com.franco.dev.config.FlywayConfig - User Dir: /Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server
+2025-10-13 14:37:17.036 [main] INFO  com.franco.dev.config.FlywayConfig - ================================
+2025-10-13 14:37:17.037 [main] INFO  com.franco.dev.config.FlywayConfig - Scanning for duplicate migrations in source directory: src/main/resources/db/migration
+2025-10-13 14:37:17.038 [main] INFO  com.franco.dev.config.FlywayConfig - Found 40 migration files in src/main/resources/db/migration
+2025-10-13 14:37:17.040 [main] INFO  com.franco.dev.config.FlywayConfig - Duplicate migration cleanup complete for src/main/resources/db/migration
+2025-10-13 14:37:17.040 [main] INFO  com.franco.dev.config.FlywayConfig - Scanning for duplicate migrations in target directory: target/classes/db/migration
+2025-10-13 14:37:17.043 [main] INFO  com.franco.dev.config.FlywayConfig - Found 40 migration files in target/classes/db/migration
+2025-10-13 14:37:17.045 [main] INFO  com.franco.dev.config.FlywayConfig - Duplicate migration cleanup complete for target/classes/db/migration
+2025-10-13 14:37:17.069 [main] INFO  o.flywaydb.core.internal.database.DatabaseFactory - Database: jdbc:postgresql://localhost:5552/general-fact-test (PostgreSQL 16.4)
+2025-10-13 14:37:17.070 [main] WARN  org.flywaydb.core.internal.database.base.Database - Flyway upgrade recommended: PostgreSQL 16.4 is newer than this version of Flyway and support has not been tested.
+2025-10-13 14:37:17.084 [main] INFO  o.f.c.i.schemahistory.JdbcTableSchemaHistory - Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2025-10-13 14:37:17.117 [main] INFO  org.flywaydb.core.internal.command.DbRepair - Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.037s).
+2025-10-13 14:37:17.125 [main] WARN  org.flywaydb.core.internal.database.base.Database - Flyway upgrade recommended: PostgreSQL 16.4 is newer than this version of Flyway and support has not been tested.
+2025-10-13 14:37:17.168 [main] INFO  org.flywaydb.core.internal.command.DbMigrate - Current version of schema "public": 43
+2025-10-13 14:37:17.168 [main] INFO  org.flywaydb.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2025-10-13 14:37:17.275 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-2 - Starting...
+2025-10-13 14:37:17.284 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-2 - Start completed.
+2025-10-13 14:37:17.381 [main] INFO  org.hibernate.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-10-13 14:37:17.404 [main] INFO  org.hibernate.dialect.Dialect - HHH000400: Using dialect: org.hibernate.dialect.PostgreSQLDialect
+2025-10-13 14:37:18.342 [main] INFO  o.h.e.t.jta.platform.internal.JtaPlatformInitiator - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-10-13 14:37:18.343 [main] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-10-13 14:37:19.442 [main] WARN  com.franco.dev.service.utils.ImageService - Mac OS X
+2025-10-13 14:37:20.282 [main] ERROR o.s.boot.web.embedded.tomcat.TomcatStarter - Error starting Tomcat context. Exception: org.springframework.beans.factory.UnsatisfiedDependencyException. Message: Error creating bean with name 'graphQLServletRegistrationBean' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLServletRegistrationBean' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLHttpServlet' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLHttpServlet' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLServletConfiguration' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLServletConfiguration' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'invocationInputFactory' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'invocationInputFactory' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchemaProvider' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchemaProvider' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchema' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchema' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'schemaParser' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'schemaParser' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'documentoElectronicoGraphQL': Unsatisfied dependency expressed through field 'facturaLegalService'; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'facturaLegalService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]: Unsatisfied dependency expressed through constructor parameter 3; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+2025-10-13 14:37:20.284 [main] INFO  org.apache.catalina.core.StandardService - Stopping service [Tomcat]
+2025-10-13 14:37:20.287 [main] WARN  org.apache.catalina.loader.WebappClassLoaderBase - The web application [ROOT] appears to have started a thread named [HikariPool-2 housekeeper] but has failed to stop it. This is very likely to create a memory leak. Stack trace of thread:
+ sun.misc.Unsafe.park(Native Method)
+ java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:215)
+ java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:2078)
+ java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1093)
+ java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:809)
+ java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1074)
+ java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+ java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+ java.lang.Thread.run(Thread.java:750)
+2025-10-13 14:37:20.289 [main] WARN  org.apache.catalina.loader.WebappClassLoaderBase - The web application [ROOT] appears to have started a thread named [HikariPool-2 connection adder] but has failed to stop it. This is very likely to create a memory leak. Stack trace of thread:
+ sun.misc.Unsafe.park(Native Method)
+ java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:215)
+ java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:2078)
+ java.util.concurrent.LinkedBlockingQueue.poll(LinkedBlockingQueue.java:467)
+ java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1073)
+ java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+ java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+ java.lang.Thread.run(Thread.java:750)
+2025-10-13 14:37:20.291 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Unable to start web server; nested exception is org.springframework.boot.web.server.WebServerException: Unable to start embedded Tomcat
+2025-10-13 14:37:20.299 [main] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-10-13 14:37:20.299 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-2 - Shutdown initiated...
+2025-10-13 14:37:20.307 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-2 - Shutdown completed.
+2025-10-13 14:37:20.315 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLoggingListener - 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-10-13 14:37:20.315 [main] ERROR o.s.b.diagnostics.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+The dependencies of some of the beans in the application context form a cycle:
+
+   graphQLServletRegistrationBean defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]
+      ↓
+   graphQLHttpServlet defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]
+      ↓
+   graphQLServletConfiguration defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]
+      ↓
+   invocationInputFactory defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]
+      ↓
+   graphQLSchemaProvider defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]
+      ↓
+   graphQLSchema defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]
+      ↓
+   schemaParser defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]
+      ↓
+   documentoElectronicoGraphQL (field private com.franco.dev.service.financiero.FacturaLegalService com.franco.dev.graphql.financiero.DocumentoElectronicoGraphQL.facturaLegalService)
+┌─────┐
+|  facturaLegalService defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]
+↑     ↓
+|  sifenService defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]
+└─────┘
+
+
+2025-10-13 14:37:20.327 [main] ERROR o.springframework.test.context.TestContextManager - Caught exception while allowing TestExecutionListener [org.springframework.boot.test.autoconfigure.SpringBootDependencyInjectionTestExecutionListener@769a1df5] to prepare test instance [com.franco.dev.service.sifen.service.SifenDETest@1b2aa9c9]
+java.lang.IllegalStateException: Failed to load ApplicationContext
+	at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.loadContext(DefaultCacheAwareContextLoaderDelegate.java:125)
+	at org.springframework.test.context.support.DefaultTestContext.getApplicationContext(DefaultTestContext.java:108)
+	at org.springframework.test.context.support.DependencyInjectionTestExecutionListener.injectDependencies(DependencyInjectionTestExecutionListener.java:118)
+	at org.springframework.test.context.support.DependencyInjectionTestExecutionListener.prepareTestInstance(DependencyInjectionTestExecutionListener.java:83)
+	at org.springframework.boot.test.autoconfigure.SpringBootDependencyInjectionTestExecutionListener.prepareTestInstance(SpringBootDependencyInjectionTestExecutionListener.java:43)
+	at org.springframework.test.context.TestContextManager.prepareTestInstance(TestContextManager.java:246)
+	at org.springframework.test.context.junit.jupiter.SpringExtension.postProcessTestInstance(SpringExtension.java:97)
+	at org.junit.jupiter.engine.descriptor.ClassTestDescriptor.lambda$invokeTestInstancePostProcessors$5(ClassTestDescriptor.java:349)
+	at org.junit.jupiter.engine.descriptor.JupiterTestDescriptor.executeAndMaskThrowable(JupiterTestDescriptor.java:215)
+	at org.junit.jupiter.engine.descriptor.ClassTestDescriptor.lambda$invokeTestInstancePostProcessors$6(ClassTestDescriptor.java:349)
+	at java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:193)
+	at java.util.stream.ReferencePipeline$2$1.accept(ReferencePipeline.java:175)
+	at java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1384)
+	at java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:482)
+	at java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:472)
+	at java.util.stream.StreamSpliterators$WrappingSpliterator.forEachRemaining(StreamSpliterators.java:312)
+	at java.util.stream.Streams$ConcatSpliterator.forEachRemaining(Streams.java:743)
+	at java.util.stream.Streams$ConcatSpliterator.forEachRemaining(Streams.java:742)
+	at java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:580)
+	at org.junit.jupiter.engine.descriptor.ClassTestDescriptor.invokeTestInstancePostProcessors(ClassTestDescriptor.java:348)
+	at org.junit.jupiter.engine.descriptor.ClassTestDescriptor.instantiateAndPostProcessTestInstance(ClassTestDescriptor.java:270)
+	at org.junit.jupiter.engine.descriptor.ClassTestDescriptor.lambda$testInstanceProvider$2(ClassTestDescriptor.java:259)
+	at org.junit.jupiter.engine.descriptor.ClassTestDescriptor.lambda$testInstanceProvider$3(ClassTestDescriptor.java:263)
+	at java.util.Optional.orElseGet(Optional.java:267)
+	at org.junit.jupiter.engine.descriptor.ClassTestDescriptor.lambda$testInstanceProvider$4(ClassTestDescriptor.java:262)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.prepare(TestMethodTestDescriptor.java:82)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.prepare(TestMethodTestDescriptor.java:59)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$prepare$0(NodeTestTask.java:83)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:72)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.prepare(NodeTestTask.java:83)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:69)
+	at java.util.ArrayList.forEach(ArrayList.java:1259)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:38)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$4(NodeTestTask.java:112)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:72)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:98)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:74)
+	at java.util.ArrayList.forEach(ArrayList.java:1259)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:38)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$4(NodeTestTask.java:112)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:72)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:98)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:74)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:32)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:57)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:51)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:220)
+	at org.junit.platform.launcher.core.DefaultLauncher.lambda$execute$6(DefaultLauncher.java:188)
+	at org.junit.platform.launcher.core.DefaultLauncher.withInterceptedStreams(DefaultLauncher.java:202)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:181)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:128)
+	at org.eclipse.jdt.internal.junit5.runner.JUnit5TestReference.run(JUnit5TestReference.java:102)
+	at org.eclipse.jdt.internal.junit.runner.TestExecution.run(TestExecution.java:40)
+	at org.eclipse.jdt.internal.junit.runner.RemoteTestRunner.runTests(RemoteTestRunner.java:520)
+	at org.eclipse.jdt.internal.junit.runner.RemoteTestRunner.runTests(RemoteTestRunner.java:748)
+	at org.eclipse.jdt.internal.junit.runner.RemoteTestRunner.run(RemoteTestRunner.java:443)
+	at org.eclipse.jdt.internal.junit.runner.RemoteTestRunner.main(RemoteTestRunner.java:211)
+Caused by: org.springframework.context.ApplicationContextException: Unable to start web server; nested exception is org.springframework.boot.web.server.WebServerException: Unable to start embedded Tomcat
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.onRefresh(ServletWebServerApplicationContext.java:156)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:544)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:141)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:744)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:391)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:312)
+	at org.springframework.boot.test.context.SpringBootContextLoader.loadContext(SpringBootContextLoader.java:121)
+	at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.loadContextInternal(DefaultCacheAwareContextLoaderDelegate.java:99)
+	at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.loadContext(DefaultCacheAwareContextLoaderDelegate.java:117)
+	... 56 common frames omitted
+Caused by: org.springframework.boot.web.server.WebServerException: Unable to start embedded Tomcat
+	at org.springframework.boot.web.embedded.tomcat.TomcatWebServer.initialize(TomcatWebServer.java:124)
+	at org.springframework.boot.web.embedded.tomcat.TomcatWebServer.<init>(TomcatWebServer.java:86)
+	at org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory.getTomcatWebServer(TomcatServletWebServerFactory.java:416)
+	at org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory.getWebServer(TomcatServletWebServerFactory.java:180)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.createWebServer(ServletWebServerApplicationContext.java:180)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.onRefresh(ServletWebServerApplicationContext.java:153)
+	... 64 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLServletRegistrationBean' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLServletRegistrationBean' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLHttpServlet' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLHttpServlet' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLServletConfiguration' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLServletConfiguration' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'invocationInputFactory' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'invocationInputFactory' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchemaProvider' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchemaProvider' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchema' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchema' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'schemaParser' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'schemaParser' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'documentoElectronicoGraphQL': Unsatisfied dependency expressed through field 'facturaLegalService'; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'facturaLegalService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]: Unsatisfied dependency expressed through constructor parameter 3; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:769)
+	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:509)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1320)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1159)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:555)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:515)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:320)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:226)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:204)
+	at org.springframework.boot.web.servlet.ServletContextInitializerBeans.getOrderedBeansOfType(ServletContextInitializerBeans.java:211)
+	at org.springframework.boot.web.servlet.ServletContextInitializerBeans.getOrderedBeansOfType(ServletContextInitializerBeans.java:202)
+	at org.springframework.boot.web.servlet.ServletContextInitializerBeans.addServletContextInitializerBeans(ServletContextInitializerBeans.java:96)
+	at org.springframework.boot.web.servlet.ServletContextInitializerBeans.<init>(ServletContextInitializerBeans.java:85)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.getServletContextInitializerBeans(ServletWebServerApplicationContext.java:253)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.selfInitialize(ServletWebServerApplicationContext.java:227)
+	at org.springframework.boot.web.embedded.tomcat.TomcatStarter.onStartup(TomcatStarter.java:53)
+	at org.apache.catalina.core.StandardContext.startInternal(StandardContext.java:5128)
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:183)
+	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1384)
+	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1374)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:75)
+	at java.util.concurrent.AbstractExecutorService.submit(AbstractExecutorService.java:134)
+	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:909)
+	at org.apache.catalina.core.StandardHost.startInternal(StandardHost.java:841)
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:183)
+	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1384)
+	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1374)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:75)
+	at java.util.concurrent.AbstractExecutorService.submit(AbstractExecutorService.java:134)
+	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:909)
+	at org.apache.catalina.core.StandardEngine.startInternal(StandardEngine.java:262)
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:183)
+	at org.apache.catalina.core.StandardService.startInternal(StandardService.java:421)
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:183)
+	at org.apache.catalina.core.StandardServer.startInternal(StandardServer.java:930)
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:183)
+	at org.apache.catalina.startup.Tomcat.start(Tomcat.java:468)
+	at org.springframework.boot.web.embedded.tomcat.TomcatWebServer.initialize(TomcatWebServer.java:105)
+	... 69 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLHttpServlet' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLHttpServlet' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLServletConfiguration' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLServletConfiguration' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'invocationInputFactory' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'invocationInputFactory' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchemaProvider' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchemaProvider' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchema' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchema' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'schemaParser' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'schemaParser' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'documentoElectronicoGraphQL': Unsatisfied dependency expressed through field 'facturaLegalService'; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'facturaLegalService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]: Unsatisfied dependency expressed through constructor parameter 3; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:769)
+	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:509)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1320)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1159)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:555)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:515)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:320)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:226)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:277)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1271)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1191)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:857)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:760)
+	... 109 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLServletConfiguration' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLServletConfiguration' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'invocationInputFactory' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'invocationInputFactory' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchemaProvider' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchemaProvider' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchema' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchema' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'schemaParser' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'schemaParser' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'documentoElectronicoGraphQL': Unsatisfied dependency expressed through field 'facturaLegalService'; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'facturaLegalService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]: Unsatisfied dependency expressed through constructor parameter 3; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:769)
+	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:509)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1320)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1159)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:555)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:515)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:320)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:226)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:277)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1271)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1191)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:857)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:760)
+	... 123 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'invocationInputFactory' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'invocationInputFactory' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchemaProvider' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchemaProvider' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchema' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchema' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'schemaParser' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'schemaParser' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'documentoElectronicoGraphQL': Unsatisfied dependency expressed through field 'facturaLegalService'; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'facturaLegalService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]: Unsatisfied dependency expressed through constructor parameter 3; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:769)
+	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:509)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1320)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1159)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:555)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:515)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:320)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:226)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:277)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1271)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1191)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:857)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:760)
+	... 137 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchemaProvider' defined in class path resource [graphql/kickstart/spring/web/boot/GraphQLWebAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchemaProvider' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchema' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchema' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'schemaParser' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'schemaParser' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'documentoElectronicoGraphQL': Unsatisfied dependency expressed through field 'facturaLegalService'; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'facturaLegalService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]: Unsatisfied dependency expressed through constructor parameter 3; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:769)
+	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:509)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1320)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1159)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:555)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:515)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:320)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:226)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:277)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1271)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1191)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:857)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:760)
+	... 151 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphQLSchema' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'graphQLSchema' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'schemaParser' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'schemaParser' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'documentoElectronicoGraphQL': Unsatisfied dependency expressed through field 'facturaLegalService'; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'facturaLegalService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]: Unsatisfied dependency expressed through constructor parameter 3; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:769)
+	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:509)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1320)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1159)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:555)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:515)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:320)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:226)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:277)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1271)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1191)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:857)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:760)
+	... 165 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'schemaParser' defined in class path resource [graphql/kickstart/tools/boot/GraphQLJavaToolsAutoConfiguration.class]: Unsatisfied dependency expressed through method 'schemaParser' parameter 0; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'documentoElectronicoGraphQL': Unsatisfied dependency expressed through field 'facturaLegalService'; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'facturaLegalService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]: Unsatisfied dependency expressed through constructor parameter 3; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:769)
+	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:509)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1320)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1159)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:555)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:515)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:320)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:226)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:277)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1271)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1191)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:857)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:760)
+	... 179 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'documentoElectronicoGraphQL': Unsatisfied dependency expressed through field 'facturaLegalService'; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'facturaLegalService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]: Unsatisfied dependency expressed through constructor parameter 3; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+	at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement.inject(AutowiredAnnotationBeanPostProcessor.java:598)
+	at org.springframework.beans.factory.annotation.InjectionMetadata.inject(InjectionMetadata.java:90)
+	at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:376)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.populateBean(AbstractAutowireCapableBeanFactory.java:1404)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:592)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:515)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:320)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:226)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:277)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.addCandidateEntry(DefaultListableBeanFactory.java:1487)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.findAutowireCandidates(DefaultListableBeanFactory.java:1451)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveMultipleBeans(DefaultListableBeanFactory.java:1342)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1229)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1191)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:857)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:760)
+	... 193 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'facturaLegalService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/financiero/FacturaLegalService.class]: Unsatisfied dependency expressed through constructor parameter 3; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:769)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:218)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1340)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1186)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:555)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:515)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:320)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:226)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:277)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1271)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1191)
+	at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement.inject(AutowiredAnnotationBeanPostProcessor.java:595)
+	... 210 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'sifenService' defined in file [/Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server/target/classes/com/franco/dev/service/sifen/service/SifenService.class]: Unsatisfied dependency expressed through constructor parameter 6; nested exception is org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:769)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:218)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1340)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1186)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:555)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:515)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:320)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:226)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:277)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1271)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1191)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:857)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:760)
+	... 223 common frames omitted
+Caused by: org.springframework.beans.factory.BeanCurrentlyInCreationException: Error creating bean with name 'facturaLegalService': Requested bean is currently in creation: Is there an unresolvable circular reference?
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.beforeSingletonCreation(DefaultSingletonBeanRegistry.java:347)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:219)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:277)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1271)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1191)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:857)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:760)
+	... 237 common frames omitted
+2025-10-13 14:40:29.553 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Neither @ContextConfiguration nor @ContextHierarchy found for test class [com.franco.dev.service.sifen.service.SifenDETest], using SpringBootContextLoader
+2025-10-13 14:40:29.560 [main] INFO  o.s.test.context.support.AbstractContextLoader - Could not detect default resource locations for test class [com.franco.dev.service.sifen.service.SifenDETest]: no resource found for suffixes {-context.xml, Context.groovy}.
+2025-10-13 14:40:29.561 [main] INFO  o.s.t.c.support.AnnotationConfigContextLoaderUtils - Could not detect default configuration classes for test class [com.franco.dev.service.sifen.service.SifenDETest]: SifenDETest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2025-10-13 14:40:29.742 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Found @SpringBootConfiguration com.franco.dev.FrancoSystemsApplication for test class com.franco.dev.service.sifen.service.SifenDETest
+2025-10-13 14:40:29.844 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Loaded default TestExecutionListener class names from location [META-INF/spring.factories]: [org.springframework.boot.test.mock.mockito.MockitoTestExecutionListener, org.springframework.boot.test.mock.mockito.ResetMocksTestExecutionListener, org.springframework.boot.test.autoconfigure.restdocs.RestDocsTestExecutionListener, org.springframework.boot.test.autoconfigure.web.client.MockRestServiceServerResetTestExecutionListener, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrintOnlyOnFailureTestExecutionListener, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverTestExecutionListener, org.springframework.test.context.web.ServletTestExecutionListener, org.springframework.test.context.support.DirtiesContextBeforeModesTestExecutionListener, org.springframework.test.context.support.DependencyInjectionTestExecutionListener, org.springframework.test.context.support.DirtiesContextTestExecutionListener, org.springframework.test.context.transaction.TransactionalTestExecutionListener, org.springframework.test.context.jdbc.SqlScriptsTestExecutionListener]
+2025-10-13 14:40:29.861 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Using TestExecutionListeners: [org.springframework.test.context.web.ServletTestExecutionListener@7068e664, org.springframework.test.context.support.DirtiesContextBeforeModesTestExecutionListener@60db1c0e, org.springframework.boot.test.mock.mockito.MockitoTestExecutionListener@3e78b6a5, org.springframework.boot.test.autoconfigure.SpringBootDependencyInjectionTestExecutionListener@769a1df5, org.springframework.test.context.support.DirtiesContextTestExecutionListener@41f69e84, org.springframework.test.context.transaction.TransactionalTestExecutionListener@7975d1d8, org.springframework.test.context.jdbc.SqlScriptsTestExecutionListener@2438dcd, org.springframework.boot.test.mock.mockito.ResetMocksTestExecutionListener@24105dc5, org.springframework.boot.test.autoconfigure.restdocs.RestDocsTestExecutionListener@5167f57d, org.springframework.boot.test.autoconfigure.web.client.MockRestServiceServerResetTestExecutionListener@64b0598, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrintOnlyOnFailureTestExecutionListener@18f8cd79, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverTestExecutionListener@3e2055d6]
+2025-10-13 14:40:30.450 [main] WARN  o.s.b.t.j.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer - 
+
+Found multiple occurrences of org.json.JSONObject on the class path:
+
+	jar:file:/Users/gabfranck/.m2/repository/com/vaadin/external/google/android-json/0.0.20131108.vaadin1/android-json-0.0.20131108.vaadin1.jar!/org/json/JSONObject.class
+	jar:file:/Users/gabfranck/.m2/repository/org/json/json/20210307/json-20210307.jar!/org/json/JSONObject.class
+
+You may wish to exclude one of them to ensure predictable runtime behavior
+
+2025-10-13 14:40:30.460 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - Starting SifenDETest on IMACs-iMac.local with PID 59607 (started by gabfranck in /Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server)
+2025-10-13 14:40:30.460 [main] DEBUG com.franco.dev.service.sifen.service.SifenDETest - Running with Spring Boot v2.1.15.RELEASE, Spring v5.1.16.RELEASE
+2025-10-13 14:40:30.461 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - The following profiles are active: dev,test
+2025-10-13 14:40:32.611 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-10-13 14:40:33.443 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 822ms. Found 113 JPA repository interfaces.
+2025-10-13 14:40:34.403 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'org.springframework.retry.annotation.RetryConfiguration' of type [org.springframework.retry.annotation.RetryConfiguration$$EnhancerBySpringCGLIB$$df7bbaad] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:40:34.743 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler@66a8751a' of type [org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:40:34.772 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'methodSecurityMetadataSource' of type [org.springframework.security.access.method.DelegatingMethodSecurityMetadataSource] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:40:35.555 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port(s): 0 (http)
+2025-10-13 14:40:35.580 [main] INFO  org.apache.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-auto-1"]
+2025-10-13 14:40:35.602 [main] INFO  org.apache.catalina.core.StandardService - Starting service [Tomcat]
+2025-10-13 14:40:35.603 [main] INFO  org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/9.0.36]
+2025-10-13 14:40:35.820 [main] INFO  o.a.c.core.ContainerBase.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-10-13 14:40:35.820 [main] INFO  org.springframework.web.context.ContextLoader - Root WebApplicationContext: initialization completed in 5339 ms
+2025-10-13 14:40:36.589 [main] INFO  c.franco.dev.config.RetryableDatabasePostProcessor - -----> configuring a retryable datasource for beanName = dataSource
+2025-10-13 14:40:36.742 [main] INFO  com.franco.dev.config.FlywayConfig - ==== Environment Information ====
+2025-10-13 14:40:36.743 [main] INFO  com.franco.dev.config.FlywayConfig - OS Name: Mac OS X
+2025-10-13 14:40:36.744 [main] INFO  com.franco.dev.config.FlywayConfig - OS Version: 13.7.1
+2025-10-13 14:40:36.745 [main] INFO  com.franco.dev.config.FlywayConfig - Java Version: 1.8.0_333
+2025-10-13 14:40:36.745 [main] INFO  com.franco.dev.config.FlywayConfig - File Encoding: UTF-8
+2025-10-13 14:40:36.746 [main] INFO  com.franco.dev.config.FlywayConfig - User Dir: /Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server
+2025-10-13 14:40:36.748 [main] INFO  com.franco.dev.config.FlywayConfig - ================================
+2025-10-13 14:40:36.749 [main] INFO  com.franco.dev.config.FlywayConfig - Scanning for duplicate migrations in source directory: src/main/resources/db/migration
+2025-10-13 14:40:36.759 [main] INFO  com.franco.dev.config.FlywayConfig - Found 40 migration files in src/main/resources/db/migration
+2025-10-13 14:40:36.762 [main] INFO  com.franco.dev.config.FlywayConfig - Duplicate migration cleanup complete for src/main/resources/db/migration
+2025-10-13 14:40:36.762 [main] INFO  com.franco.dev.config.FlywayConfig - Scanning for duplicate migrations in target directory: target/classes/db/migration
+2025-10-13 14:40:36.766 [main] INFO  com.franco.dev.config.FlywayConfig - Found 40 migration files in target/classes/db/migration
+2025-10-13 14:40:36.767 [main] INFO  com.franco.dev.config.FlywayConfig - Duplicate migration cleanup complete for target/classes/db/migration
+2025-10-13 14:40:36.804 [main] INFO  org.flywaydb.core.internal.license.VersionPrinter - Flyway Community Edition 5.2.3 by Boxfuse
+2025-10-13 14:40:36.899 [main] INFO  o.flywaydb.core.internal.database.DatabaseFactory - Database: jdbc:postgresql://localhost:5552/general-fact-test (PostgreSQL 16.4)
+2025-10-13 14:40:36.921 [main] WARN  org.flywaydb.core.internal.database.base.Database - Flyway upgrade recommended: PostgreSQL 16.4 is newer than this version of Flyway and support has not been tested.
+2025-10-13 14:40:36.972 [main] INFO  o.f.c.i.schemahistory.JdbcTableSchemaHistory - Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2025-10-13 14:40:37.047 [main] INFO  org.flywaydb.core.internal.command.DbRepair - Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.087s).
+2025-10-13 14:40:37.059 [main] WARN  org.flywaydb.core.internal.database.base.Database - Flyway upgrade recommended: PostgreSQL 16.4 is newer than this version of Flyway and support has not been tested.
+2025-10-13 14:40:37.108 [main] INFO  org.flywaydb.core.internal.command.DbMigrate - Current version of schema "public": 43
+2025-10-13 14:40:37.109 [main] INFO  org.flywaydb.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2025-10-13 14:40:37.546 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-10-13 14:40:37.571 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-10-13 14:40:37.772 [main] INFO  org.hibernate.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-10-13 14:40:37.854 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 5.4.17.Final
+2025-10-13 14:40:38.057 [main] INFO  org.hibernate.annotations.common.Version - HCANN000001: Hibernate Commons Annotations {5.1.0.Final}
+2025-10-13 14:40:38.295 [main] INFO  org.hibernate.dialect.Dialect - HHH000400: Using dialect: org.hibernate.dialect.PostgreSQLDialect
+2025-10-13 14:40:38.795 [main] WARN  Hibernate Types - You should use Hypersistence Optimizer to speed up your Hibernate application!
+2025-10-13 14:40:38.795 [main] WARN  Hibernate Types - For more details, go to https://vladmihalcea.com/hypersistence-optimizer/
+2025-10-13 14:40:38.795 [main] INFO  Hibernate Types - 
+ _    _                           _     _
+| |  | |                         (_)   | |
+| |__| |_   _ _ __   ___ _ __ ___ _ ___| |_ ___ _ __   ___ ___
+|  __  | | | | '_ \ / _ \ '__/ __| / __| __/ _ \ '_ \ / __/ _ \
+| |  | | |_| | |_) |  __/ |  \__ \ \__ \ ||  __/ | | | (_|  __/
+|_|  |_|\__, | .__/ \___|_|  |___/_|___/\__\___|_| |_|\___\___|
+         __/ | |
+        |___/|_|
+
+           ____        _   _           _
+          / __ \      | | (_)         (_)
+         | |  | |_ __ | |_ _ _ __ ___  _ _______ _ __
+         | |  | | '_ \| __| | '_ ` _ \| |_  / _ \ '__|
+         | |__| | |_) | |_| | | | | | | |/ /  __/ |
+          \____/| .__/ \__|_|_| |_| |_|_/___\___|_|
+                | |
+                |_|
+
+2025-10-13 14:40:38.796 [main] INFO  Hibernate Types - Check out the README page for more info about the Hypersistence Optimizer banner https://github.com/vladmihalcea/hibernate-types#how-to-remove-the-hypersistence-optimizer-banner-from-the-log
+2025-10-13 14:40:41.135 [main] INFO  o.h.e.t.jta.platform.internal.JtaPlatformInitiator - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-10-13 14:40:41.154 [main] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-10-13 14:40:42.345 [main] INFO  org.springframework.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final void org.springframework.amqp.rabbit.core.RabbitTemplate.start()] because it is marked as final: Consider using interface-based JDK proxies instead!
+2025-10-13 14:40:42.346 [main] INFO  org.springframework.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final void org.springframework.amqp.rabbit.core.RabbitTemplate.stop()] because it is marked as final: Consider using interface-based JDK proxies instead!
+2025-10-13 14:40:44.375 [main] WARN  com.franco.dev.service.utils.ImageService - Mac OS X
+2025-10-13 14:40:46.087 [main] INFO  class com.roshka.sifen.Sifen - Configuración de Sifen guardada correctamente
+2025-10-13 14:40:55.179 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'estado: PdvCajaEstado' on input type 'PdvCajaInput' -> com.franco.dev.graphql.financiero.input.PdvCajaInput. Try adding it manually to the dictionary
+2025-10-13 14:40:55.200 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'BarrioInput' -> com.franco.dev.graphql.general.input.BarrioInput. Try adding it manually to the dictionary
+2025-10-13 14:40:55.203 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'CiudadInput' -> com.franco.dev.graphql.general.input.CiudadInput. Try adding it manually to the dictionary
+2025-10-13 14:40:55.205 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'ContactoInput' -> com.franco.dev.graphql.general.input.ContactoInput. Try adding it manually to the dictionary
+2025-10-13 14:40:55.207 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'PaisInput' -> com.franco.dev.graphql.general.input.PaisInput. Try adding it manually to the dictionary
+2025-10-13 14:40:55.308 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'ClienteInput' -> com.franco.dev.graphql.personas.input.ClienteInput. Try adding it manually to the dictionary
+2025-10-13 14:40:55.327 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'ProveedorDiasVisitaInput' -> com.franco.dev.graphql.personas.input.ProveedorDiasVisitaInput. Try adding it manually to the dictionary
+2025-10-13 14:40:56.684 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: VentaCreditoCuota
+2025-10-13 14:40:56.684 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: VentaCredito
+2025-10-13 14:40:56.684 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: Meses
+2025-10-13 14:40:56.684 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: DeliveryUpdate
+2025-10-13 14:40:56.684 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: PrintData
+2025-10-13 14:40:56.684 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: ExistenciaCostoPorSucursal
+2025-10-13 14:40:56.685 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: ProductoCompra
+2025-10-13 14:40:56.686 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: ProductoExistenciaCostos
+2025-10-13 14:40:56.688 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root query resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Query'!  Either remove the graphql.kickstart.tools.GraphQLQueryResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.VentaCreditoCuotasGraphQL@40f6e092
+2025-10-13 14:40:56.689 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root query resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Query'!  Either remove the graphql.kickstart.tools.GraphQLQueryResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.productos.CostoPorProductoGraphQL@2c8c4afb
+2025-10-13 14:40:56.689 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root query resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Query'!  Either remove the graphql.kickstart.tools.GraphQLQueryResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.productos.ProductoExistenciaCostoGraphQL@2603ad0a
+2025-10-13 14:40:56.690 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.empresarial.ConfiguracionGeneralGraphQL@1b33bbbe
+2025-10-13 14:40:56.690 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.empresarial.SucursalGraphQL@79d15b02
+2025-10-13 14:40:56.691 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.empresarial.resolver.PuntoDeVentaGraphQL@2d154a38
+2025-10-13 14:40:56.691 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.TimbradoDetalleGraphQL@2293d694
+2025-10-13 14:40:56.692 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.TimbradoGraphQL@43df5cba
+2025-10-13 14:40:56.692 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.VentaCreditoCuotasGraphQL@40f6e092
+2025-10-13 14:40:56.692 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.print.PrintGraphQL@4cf52777
+2025-10-13 14:40:56.693 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.productos.ProductoExistenciaCostoGraphQL@2603ad0a
+2025-10-13 14:40:57.170 [main] INFO  g.k.spring.web.boot.GraphQLWebAutoConfiguration - Building GraphQLObjectMapper including errorHandler: null
+2025-10-13 14:40:58.729 [main] DEBUG c.franco.dev.security.JwtAuthenticationTokenFilter - Filter 'authenticationTokenFilter' configured for use
+2025-10-13 14:40:58.832 [main] INFO  com.franco.dev.service.utils.GoogleDriveService - Database backup is disabled. Google Drive service will not be initialized at startup.
+2025-10-13 14:40:58.835 [main] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database host: localhost
+2025-10-13 14:40:58.835 [main] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database port: 5552
+2025-10-13 14:40:58.835 [main] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database name: general-fact-test
+2025-10-13 14:40:58.836 [main] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database backup scheduled to run at 9:00 every day
+2025-10-13 14:40:59.517 [main] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration$JpaWebMvcConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-10-13 14:40:59.948 [main] INFO  o.s.b.actuate.endpoint.web.EndpointLinksResolver - Exposing 2 endpoint(s) beneath base path '/actuator'
+2025-10-13 14:41:00.051 [main] INFO  o.s.security.web.DefaultSecurityFilterChain - Creating filter chain: any request, [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@43405ae5, org.springframework.security.web.context.SecurityContextPersistenceFilter@212b37d2, org.springframework.security.web.header.HeaderWriterFilter@73fc5c9c, org.springframework.web.filter.CorsFilter@4ac6ccfc, org.springframework.security.web.authentication.logout.LogoutFilter@7a40e452, com.franco.dev.security.JwtAuthenticationTokenFilter@1f15cb5a, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@4d88d1d9, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@6c8ee97, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@3cc27ab4, org.springframework.security.web.session.SessionManagementFilter@faf65ac, org.springframework.security.web.access.ExceptionTranslationFilter@41588114, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@1bbf849]
+2025-10-13 14:41:01.994 [main] INFO  o.s.scheduling.concurrent.ThreadPoolTaskScheduler - Initializing ExecutorService 'taskScheduler'
+2025-10-13 14:41:03.010 [main] INFO  org.apache.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-auto-1"]
+2025-10-13 14:41:03.039 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port(s): 60133 (http) with context path ''
+2025-10-13 14:41:03.042 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - Started SifenDETest in 33.149 seconds (JVM running for 34.407)
+2025-10-13 14:41:03.113 [main] INFO  o.s.test.context.transaction.TransactionContext - Began transaction (1) for test context [DefaultTestContext@5a877525 testClass = SifenDETest, testInstance = com.franco.dev.service.sifen.service.SifenDETest@3b210322, testMethod = testConsultarDEPorCDC@SifenDETest, testException = [null], mergedContextConfiguration = [WebMergedContextConfiguration@6c525925 testClass = SifenDETest, locations = '{}', classes = '{class com.franco.dev.FrancoSystemsApplication}', contextInitializerClasses = '[]', activeProfiles = '{dev, test}', propertySourceLocations = '{}', propertySourceProperties = '{org.springframework.boot.test.context.SpringBootTestContextBootstrapper=true, server.port=0}', contextCustomizers = set[org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@179ece50, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@1fa121e2, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.web.client.TestRestTemplateContextCustomizer@7a8c8dcf, org.springframework.boot.test.web.reactive.server.WebTestClientContextCustomizer@b3ca52e, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@0, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizerFactory$Customizer@70325e14], resourceBasePath = 'src/main/webapp', contextLoader = 'org.springframework.boot.test.context.SpringBootContextLoader', parent = [null]], attributes = map['org.springframework.test.context.web.ServletTestExecutionListener.activateListener' -> false]]; transaction manager [org.springframework.orm.jpa.JpaTransactionManager@1575c8cc]; rollback [false]
+2025-10-13 14:41:03.223 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2025-10-13 14:41:03.223 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 🔍 TEST: Consulta de Documento Electrónico por CDC
+2025-10-13 14:41:03.223 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2025-10-13 14:41:03.223 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 
+📄 PASO 1: Buscar DE en base de datos local
+2025-10-13 14:41:03.359 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    ✅ DE encontrado:
+2025-10-13 14:41:03.359 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - ID: 108
+2025-10-13 14:41:03.359 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - CDC: 01800994825001001000006422025101310266529145
+2025-10-13 14:41:03.359 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Estado antes: APROBADO
+2025-10-13 14:41:03.360 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Fecha emisión: 2025-10-13T13:57:30.325
+2025-10-13 14:41:03.360 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 
+📡 PASO 2: Consultar DE en SIFEN
+2025-10-13 14:41:03.360 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    CDC: 01800994825001001000006422025101310266529145
+2025-10-13 14:41:03.372 [main] INFO  com.franco.dev.service.sifen.service.SifenService - 🔍 Consultando DE con CDC: 01800994825001001000006422025101310266529145
+2025-10-13 14:41:03.373 [main] INFO  class com.roshka.sifen.Sifen - Preparando petición 'Consulta de DE'
+2025-10-13 14:41:03.469 [main] INFO  c.roshka.sifen.internal.request.BaseRequest - XML generado, se realiza la petición
+2025-10-13 14:41:03.508 [main] INFO  c.roshka.sifen.internal.request.BaseRequest - Este es el xml a enviarse a la SIFEN 
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><env:Envelope xmlns:env="http://www.w3.org/2003/05/soap-envelope"><env:Header/><env:Body><rEnviConsDeRequest xmlns="http://ekuatia.set.gov.py/sifen/xsd"><dId>1</dId><dCDC>01800994825001001000006422025101310266529145</dCDC></rEnviConsDeRequest></env:Body></env:Envelope>
+2025-10-13 14:41:03.520 [main] INFO  c.roshka.sifen.internal.helpers.SSLContextHelper - Contexto SSL no cargado aún. Empezando carga...
+2025-10-13 14:41:03.571 [main] INFO  class com.roshka.sifen.internal.helpers.SoapHelper - Conectando a: https://sifen.set.gov.py/de/ws/consultas/consulta.wsdl
+2025-10-13 14:41:03.973 [main] INFO  class com.roshka.sifen.internal.helpers.SoapHelper - Enviando mensaje SOAP
+2025-10-13 14:41:04.983 [main] INFO  c.roshka.sifen.internal.request.BaseRequest - Petición realizada, se formatea la respuesta
+2025-10-13 14:41:04.984 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    📥 Respuesta recibida - Código: 0422, Mensaje: CDC encontrado
+2025-10-13 14:41:04.985 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    🔄 Actualizando estado del DE desde respuesta SIFEN...
+2025-10-13 14:41:04.996 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    📋 Protocolo de autorización: 2668116524
+2025-10-13 14:41:04.996 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    📊 Estado en SIFEN: Aprobado
+2025-10-13 14:41:04.997 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    ℹ️ Estado del DE no requiere actualización (actual: APROBADO)
+2025-10-13 14:41:04.997 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    🔍 Buscando eventos de cancelación asociados al DE...
+2025-10-13 14:41:05.020 [main] DEBUG c.franco.dev.service.sifen.util.SifenEventoParser - Bloque de eventos encontrado, buscando rGesEve...
+2025-10-13 14:41:05.020 [main] INFO  c.franco.dev.service.sifen.util.SifenEventoParser - Total de eventos de cancelación encontrados: 0
+2025-10-13 14:41:05.020 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    ℹ️ No se encontraron eventos de cancelación asociados
+2025-10-13 14:41:05.020 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    🔍 Buscando eventos de nominación asociados al DE...
+2025-10-13 14:41:05.022 [main] DEBUG c.franco.dev.service.sifen.util.SifenEventoParser - Bloque de eventos encontrado, buscando eventos de nominación...
+2025-10-13 14:41:05.023 [main] DEBUG c.franco.dev.service.sifen.util.SifenEventoParser - Encontrado evento de nominación, extrayendo datos...
+2025-10-13 14:41:05.024 [main] INFO  c.franco.dev.service.sifen.util.SifenEventoParser - ✅ Evento de nominación extraído - ID: 96293088, CDC: 01800994825001001000006422025101310266529145, Receptor: FRANCO AREVALOS GABRIEL FRANCISCO, Estado: Aprobado
+2025-10-13 14:41:05.024 [main] INFO  c.franco.dev.service.sifen.util.SifenEventoParser - Total de eventos de nominación encontrados: 1
+2025-10-13 14:41:05.024 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    📋 Se encontraron 1 evento(s) de nominación
+2025-10-13 14:41:05.037 [main] INFO  com.franco.dev.service.sifen.service.SifenService -       ➕ Evento de nominación NO encontrado en BD - Creando desde respuesta SIFEN (recuperación)
+2025-10-13 14:41:05.037 [main] INFO  com.franco.dev.service.sifen.service.SifenService -       🔍 Buscando cliente con documento: 4043581-4
+2025-10-13 14:41:05.054 [main] WARN  com.franco.dev.service.sifen.service.SifenService -       ⚠️ Cliente no encontrado con documento 4043581-4 - Se debería buscar manualmente
+2025-10-13 14:41:05.054 [main] WARN  com.franco.dev.service.sifen.service.SifenService -       💡 Sugerencia: Verificar si el cliente existe con otro formato de documento
+2025-10-13 14:41:05.054 [main] ERROR com.franco.dev.service.sifen.service.SifenService -       ❌ No se pudo encontrar/crear cliente para nominación
+2025-10-13 14:41:05.060 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 
+📥 PASO 3: Respuesta de SIFEN
+2025-10-13 14:41:05.061 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    Código: 0422
+2025-10-13 14:41:05.061 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    Mensaje: CDC encontrado
+2025-10-13 14:41:05.061 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 
+💾 PASO 4: Verificar actualización en base de datos
+2025-10-13 14:41:05.070 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    ✅ DE actualizado:
+2025-10-13 14:41:05.070 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - ID: 108
+2025-10-13 14:41:05.070 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - CDC: 01800994825001001000006422025101310266529145
+2025-10-13 14:41:05.070 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Estado después: APROBADO
+2025-10-13 14:41:05.070 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Código respuesta: 0600
+2025-10-13 14:41:05.070 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Mensaje respuesta: Evento registrado correctamente
+2025-10-13 14:41:05.070 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Fecha recepción SIFEN: 2025-10-13T13:59:57.913
+2025-10-13 14:41:05.070 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    ℹ️ Estado sin cambios: APROBADO
+2025-10-13 14:41:05.070 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2025-10-13 14:41:05.070 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - ✅ TEST DE CONSULTA POR CDC COMPLETADO
+2025-10-13 14:41:05.070 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2025-10-13 14:41:05.079 [main] INFO  o.s.test.context.transaction.TransactionContext - Committed transaction for test: [DefaultTestContext@5a877525 testClass = SifenDETest, testInstance = com.franco.dev.service.sifen.service.SifenDETest@3b210322, testMethod = testConsultarDEPorCDC@SifenDETest, testException = [null], mergedContextConfiguration = [WebMergedContextConfiguration@6c525925 testClass = SifenDETest, locations = '{}', classes = '{class com.franco.dev.FrancoSystemsApplication}', contextInitializerClasses = '[]', activeProfiles = '{dev, test}', propertySourceLocations = '{}', propertySourceProperties = '{org.springframework.boot.test.context.SpringBootTestContextBootstrapper=true, server.port=0}', contextCustomizers = set[org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@179ece50, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@1fa121e2, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.web.client.TestRestTemplateContextCustomizer@7a8c8dcf, org.springframework.boot.test.web.reactive.server.WebTestClientContextCustomizer@b3ca52e, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@0, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizerFactory$Customizer@70325e14], resourceBasePath = 'src/main/webapp', contextLoader = 'org.springframework.boot.test.context.SpringBootContextLoader', parent = [null]], attributes = map['org.springframework.test.context.web.ServletTestExecutionListener.activateListener' -> false]]
+2025-10-13 14:41:05.139 [Thread-5] INFO  o.s.scheduling.concurrent.ThreadPoolTaskScheduler - Shutting down ExecutorService 'taskScheduler'
+2025-10-13 14:41:05.244 [Thread-5] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-10-13 14:41:05.251 [Thread-5] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-10-13 14:41:05.269 [Thread-5] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-10-13 14:46:54.021 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Neither @ContextConfiguration nor @ContextHierarchy found for test class [com.franco.dev.service.sifen.service.SifenDETest], using SpringBootContextLoader
+2025-10-13 14:46:54.027 [main] INFO  o.s.test.context.support.AbstractContextLoader - Could not detect default resource locations for test class [com.franco.dev.service.sifen.service.SifenDETest]: no resource found for suffixes {-context.xml, Context.groovy}.
+2025-10-13 14:46:54.028 [main] INFO  o.s.t.c.support.AnnotationConfigContextLoaderUtils - Could not detect default configuration classes for test class [com.franco.dev.service.sifen.service.SifenDETest]: SifenDETest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2025-10-13 14:46:54.206 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Found @SpringBootConfiguration com.franco.dev.FrancoSystemsApplication for test class com.franco.dev.service.sifen.service.SifenDETest
+2025-10-13 14:46:54.314 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Loaded default TestExecutionListener class names from location [META-INF/spring.factories]: [org.springframework.boot.test.mock.mockito.MockitoTestExecutionListener, org.springframework.boot.test.mock.mockito.ResetMocksTestExecutionListener, org.springframework.boot.test.autoconfigure.restdocs.RestDocsTestExecutionListener, org.springframework.boot.test.autoconfigure.web.client.MockRestServiceServerResetTestExecutionListener, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrintOnlyOnFailureTestExecutionListener, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverTestExecutionListener, org.springframework.test.context.web.ServletTestExecutionListener, org.springframework.test.context.support.DirtiesContextBeforeModesTestExecutionListener, org.springframework.test.context.support.DependencyInjectionTestExecutionListener, org.springframework.test.context.support.DirtiesContextTestExecutionListener, org.springframework.test.context.transaction.TransactionalTestExecutionListener, org.springframework.test.context.jdbc.SqlScriptsTestExecutionListener]
+2025-10-13 14:46:54.332 [main] INFO  o.s.b.t.context.SpringBootTestContextBootstrapper - Using TestExecutionListeners: [org.springframework.test.context.web.ServletTestExecutionListener@7068e664, org.springframework.test.context.support.DirtiesContextBeforeModesTestExecutionListener@60db1c0e, org.springframework.boot.test.mock.mockito.MockitoTestExecutionListener@3e78b6a5, org.springframework.boot.test.autoconfigure.SpringBootDependencyInjectionTestExecutionListener@769a1df5, org.springframework.test.context.support.DirtiesContextTestExecutionListener@41f69e84, org.springframework.test.context.transaction.TransactionalTestExecutionListener@7975d1d8, org.springframework.test.context.jdbc.SqlScriptsTestExecutionListener@2438dcd, org.springframework.boot.test.mock.mockito.ResetMocksTestExecutionListener@24105dc5, org.springframework.boot.test.autoconfigure.restdocs.RestDocsTestExecutionListener@5167f57d, org.springframework.boot.test.autoconfigure.web.client.MockRestServiceServerResetTestExecutionListener@64b0598, org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrintOnlyOnFailureTestExecutionListener@18f8cd79, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverTestExecutionListener@3e2055d6]
+2025-10-13 14:46:54.775 [main] WARN  o.s.b.t.j.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer - 
+
+Found multiple occurrences of org.json.JSONObject on the class path:
+
+	jar:file:/Users/gabfranck/.m2/repository/com/vaadin/external/google/android-json/0.0.20131108.vaadin1/android-json-0.0.20131108.vaadin1.jar!/org/json/JSONObject.class
+	jar:file:/Users/gabfranck/.m2/repository/org/json/json/20210307/json-20210307.jar!/org/json/JSONObject.class
+
+You may wish to exclude one of them to ensure predictable runtime behavior
+
+2025-10-13 14:46:54.789 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - Starting SifenDETest on IMACs-iMac.local with PID 60617 (started by gabfranck in /Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server)
+2025-10-13 14:46:54.789 [main] DEBUG com.franco.dev.service.sifen.service.SifenDETest - Running with Spring Boot v2.1.15.RELEASE, Spring v5.1.16.RELEASE
+2025-10-13 14:46:54.789 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - The following profiles are active: dev,test
+2025-10-13 14:46:57.102 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-10-13 14:46:57.773 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 664ms. Found 113 JPA repository interfaces.
+2025-10-13 14:46:58.579 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'org.springframework.retry.annotation.RetryConfiguration' of type [org.springframework.retry.annotation.RetryConfiguration$$EnhancerBySpringCGLIB$$f93fe5a5] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:46:58.879 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler@29c80149' of type [org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:46:58.903 [main] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'methodSecurityMetadataSource' of type [org.springframework.security.access.method.DelegatingMethodSecurityMetadataSource] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-13 14:46:59.547 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port(s): 0 (http)
+2025-10-13 14:46:59.574 [main] INFO  org.apache.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-auto-1"]
+2025-10-13 14:46:59.592 [main] INFO  org.apache.catalina.core.StandardService - Starting service [Tomcat]
+2025-10-13 14:46:59.593 [main] INFO  org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/9.0.36]
+2025-10-13 14:46:59.755 [main] INFO  o.a.c.core.ContainerBase.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-10-13 14:46:59.755 [main] INFO  org.springframework.web.context.ContextLoader - Root WebApplicationContext: initialization completed in 4941 ms
+2025-10-13 14:47:00.282 [main] INFO  c.franco.dev.config.RetryableDatabasePostProcessor - -----> configuring a retryable datasource for beanName = dataSource
+2025-10-13 14:47:00.414 [main] INFO  com.franco.dev.config.FlywayConfig - ==== Environment Information ====
+2025-10-13 14:47:00.414 [main] INFO  com.franco.dev.config.FlywayConfig - OS Name: Mac OS X
+2025-10-13 14:47:00.414 [main] INFO  com.franco.dev.config.FlywayConfig - OS Version: 13.7.1
+2025-10-13 14:47:00.414 [main] INFO  com.franco.dev.config.FlywayConfig - Java Version: 1.8.0_333
+2025-10-13 14:47:00.414 [main] INFO  com.franco.dev.config.FlywayConfig - File Encoding: UTF-8
+2025-10-13 14:47:00.414 [main] INFO  com.franco.dev.config.FlywayConfig - User Dir: /Users/gabfranck/workspace/frc-sistemas-informaticos/backend/filial/frc-filial-server
+2025-10-13 14:47:00.414 [main] INFO  com.franco.dev.config.FlywayConfig - ================================
+2025-10-13 14:47:00.414 [main] INFO  com.franco.dev.config.FlywayConfig - Scanning for duplicate migrations in source directory: src/main/resources/db/migration
+2025-10-13 14:47:00.425 [main] INFO  com.franco.dev.config.FlywayConfig - Found 40 migration files in src/main/resources/db/migration
+2025-10-13 14:47:00.428 [main] INFO  com.franco.dev.config.FlywayConfig - Duplicate migration cleanup complete for src/main/resources/db/migration
+2025-10-13 14:47:00.428 [main] INFO  com.franco.dev.config.FlywayConfig - Scanning for duplicate migrations in target directory: target/classes/db/migration
+2025-10-13 14:47:00.431 [main] INFO  com.franco.dev.config.FlywayConfig - Found 40 migration files in target/classes/db/migration
+2025-10-13 14:47:00.435 [main] INFO  com.franco.dev.config.FlywayConfig - Duplicate migration cleanup complete for target/classes/db/migration
+2025-10-13 14:47:00.469 [main] INFO  org.flywaydb.core.internal.license.VersionPrinter - Flyway Community Edition 5.2.3 by Boxfuse
+2025-10-13 14:47:00.582 [main] INFO  o.flywaydb.core.internal.database.DatabaseFactory - Database: jdbc:postgresql://localhost:5552/general-fact-test (PostgreSQL 16.4)
+2025-10-13 14:47:00.774 [main] WARN  org.flywaydb.core.internal.database.base.Database - Flyway upgrade recommended: PostgreSQL 16.4 is newer than this version of Flyway and support has not been tested.
+2025-10-13 14:47:00.826 [main] INFO  o.f.c.i.schemahistory.JdbcTableSchemaHistory - Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2025-10-13 14:47:00.907 [main] INFO  org.flywaydb.core.internal.command.DbRepair - Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.095s).
+2025-10-13 14:47:00.920 [main] WARN  org.flywaydb.core.internal.database.base.Database - Flyway upgrade recommended: PostgreSQL 16.4 is newer than this version of Flyway and support has not been tested.
+2025-10-13 14:47:00.975 [main] INFO  org.flywaydb.core.internal.command.DbMigrate - Current version of schema "public": 43
+2025-10-13 14:47:00.976 [main] INFO  org.flywaydb.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2025-10-13 14:47:01.165 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-10-13 14:47:01.187 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-10-13 14:47:01.354 [main] INFO  org.hibernate.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-10-13 14:47:01.429 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 5.4.17.Final
+2025-10-13 14:47:01.697 [main] INFO  org.hibernate.annotations.common.Version - HCANN000001: Hibernate Commons Annotations {5.1.0.Final}
+2025-10-13 14:47:01.937 [main] INFO  org.hibernate.dialect.Dialect - HHH000400: Using dialect: org.hibernate.dialect.PostgreSQLDialect
+2025-10-13 14:47:02.408 [main] WARN  Hibernate Types - You should use Hypersistence Optimizer to speed up your Hibernate application!
+2025-10-13 14:47:02.408 [main] WARN  Hibernate Types - For more details, go to https://vladmihalcea.com/hypersistence-optimizer/
+2025-10-13 14:47:02.409 [main] INFO  Hibernate Types - 
+ _    _                           _     _
+| |  | |                         (_)   | |
+| |__| |_   _ _ __   ___ _ __ ___ _ ___| |_ ___ _ __   ___ ___
+|  __  | | | | '_ \ / _ \ '__/ __| / __| __/ _ \ '_ \ / __/ _ \
+| |  | | |_| | |_) |  __/ |  \__ \ \__ \ ||  __/ | | | (_|  __/
+|_|  |_|\__, | .__/ \___|_|  |___/_|___/\__\___|_| |_|\___\___|
+         __/ | |
+        |___/|_|
+
+           ____        _   _           _
+          / __ \      | | (_)         (_)
+         | |  | |_ __ | |_ _ _ __ ___  _ _______ _ __
+         | |  | | '_ \| __| | '_ ` _ \| |_  / _ \ '__|
+         | |__| | |_) | |_| | | | | | | |/ /  __/ |
+          \____/| .__/ \__|_|_| |_| |_|_/___\___|_|
+                | |
+                |_|
+
+2025-10-13 14:47:02.412 [main] INFO  Hibernate Types - Check out the README page for more info about the Hypersistence Optimizer banner https://github.com/vladmihalcea/hibernate-types#how-to-remove-the-hypersistence-optimizer-banner-from-the-log
+2025-10-13 14:47:04.439 [main] INFO  o.h.e.t.jta.platform.internal.JtaPlatformInitiator - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-10-13 14:47:04.451 [main] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-10-13 14:47:05.363 [main] INFO  org.springframework.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final void org.springframework.amqp.rabbit.core.RabbitTemplate.start()] because it is marked as final: Consider using interface-based JDK proxies instead!
+2025-10-13 14:47:05.363 [main] INFO  org.springframework.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final void org.springframework.amqp.rabbit.core.RabbitTemplate.stop()] because it is marked as final: Consider using interface-based JDK proxies instead!
+2025-10-13 14:47:07.354 [main] WARN  com.franco.dev.service.utils.ImageService - Mac OS X
+2025-10-13 14:47:09.005 [main] INFO  class com.roshka.sifen.Sifen - Configuración de Sifen guardada correctamente
+2025-10-13 14:47:17.390 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'estado: PdvCajaEstado' on input type 'PdvCajaInput' -> com.franco.dev.graphql.financiero.input.PdvCajaInput. Try adding it manually to the dictionary
+2025-10-13 14:47:17.431 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'BarrioInput' -> com.franco.dev.graphql.general.input.BarrioInput. Try adding it manually to the dictionary
+2025-10-13 14:47:17.436 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'CiudadInput' -> com.franco.dev.graphql.general.input.CiudadInput. Try adding it manually to the dictionary
+2025-10-13 14:47:17.441 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'ContactoInput' -> com.franco.dev.graphql.general.input.ContactoInput. Try adding it manually to the dictionary
+2025-10-13 14:47:17.446 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'PaisInput' -> com.franco.dev.graphql.general.input.PaisInput. Try adding it manually to the dictionary
+2025-10-13 14:47:17.581 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'ClienteInput' -> com.franco.dev.graphql.personas.input.ClienteInput. Try adding it manually to the dictionary
+2025-10-13 14:47:17.588 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'ProveedorDiasVisitaInput' -> com.franco.dev.graphql.personas.input.ProveedorDiasVisitaInput. Try adding it manually to the dictionary
+2025-10-13 14:47:18.136 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: VentaCreditoCuota
+2025-10-13 14:47:18.136 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: VentaCredito
+2025-10-13 14:47:18.136 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: Meses
+2025-10-13 14:47:18.136 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: DeliveryUpdate
+2025-10-13 14:47:18.136 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: PrintData
+2025-10-13 14:47:18.136 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: ExistenciaCostoPorSucursal
+2025-10-13 14:47:18.136 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: ProductoCompra
+2025-10-13 14:47:18.136 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: ProductoExistenciaCostos
+2025-10-13 14:47:18.140 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root query resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Query'!  Either remove the graphql.kickstart.tools.GraphQLQueryResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.VentaCreditoCuotasGraphQL@3580dd47
+2025-10-13 14:47:18.140 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root query resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Query'!  Either remove the graphql.kickstart.tools.GraphQLQueryResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.productos.CostoPorProductoGraphQL@7e532896
+2025-10-13 14:47:18.140 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root query resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Query'!  Either remove the graphql.kickstart.tools.GraphQLQueryResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.productos.ProductoExistenciaCostoGraphQL@4999462c
+2025-10-13 14:47:18.140 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.empresarial.ConfiguracionGeneralGraphQL@4a595315
+2025-10-13 14:47:18.140 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.empresarial.SucursalGraphQL@1ae042f3
+2025-10-13 14:47:18.141 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.empresarial.resolver.PuntoDeVentaGraphQL@51430893
+2025-10-13 14:47:18.141 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.TimbradoDetalleGraphQL@1c2abde0
+2025-10-13 14:47:18.141 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.TimbradoGraphQL@76117cac
+2025-10-13 14:47:18.141 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.VentaCreditoCuotasGraphQL@3580dd47
+2025-10-13 14:47:18.141 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.print.PrintGraphQL@2fc3d28
+2025-10-13 14:47:18.141 [main] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.productos.ProductoExistenciaCostoGraphQL@4999462c
+2025-10-13 14:47:18.530 [main] INFO  g.k.spring.web.boot.GraphQLWebAutoConfiguration - Building GraphQLObjectMapper including errorHandler: null
+2025-10-13 14:47:19.910 [main] DEBUG c.franco.dev.security.JwtAuthenticationTokenFilter - Filter 'authenticationTokenFilter' configured for use
+2025-10-13 14:47:19.994 [main] INFO  com.franco.dev.service.utils.GoogleDriveService - Database backup is disabled. Google Drive service will not be initialized at startup.
+2025-10-13 14:47:19.997 [main] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database host: localhost
+2025-10-13 14:47:19.998 [main] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database port: 5552
+2025-10-13 14:47:19.998 [main] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database name: general-fact-test
+2025-10-13 14:47:19.998 [main] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database backup scheduled to run at 9:00 every day
+2025-10-13 14:47:20.553 [main] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration$JpaWebMvcConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-10-13 14:47:20.835 [main] INFO  o.s.b.actuate.endpoint.web.EndpointLinksResolver - Exposing 2 endpoint(s) beneath base path '/actuator'
+2025-10-13 14:47:20.915 [main] INFO  o.s.security.web.DefaultSecurityFilterChain - Creating filter chain: any request, [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@57514114, org.springframework.security.web.context.SecurityContextPersistenceFilter@2b5dfb1b, org.springframework.security.web.header.HeaderWriterFilter@258f3e5, org.springframework.web.filter.CorsFilter@229dfe7e, org.springframework.security.web.authentication.logout.LogoutFilter@38abd486, com.franco.dev.security.JwtAuthenticationTokenFilter@28502e11, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@f1056f0, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@44db06d9, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@79eaabdc, org.springframework.security.web.session.SessionManagementFilter@57f59036, org.springframework.security.web.access.ExceptionTranslationFilter@1fc5dba2, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@527afebf]
+2025-10-13 14:47:22.340 [main] INFO  o.s.scheduling.concurrent.ThreadPoolTaskScheduler - Initializing ExecutorService 'taskScheduler'
+2025-10-13 14:47:23.091 [main] INFO  org.apache.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-auto-1"]
+2025-10-13 14:47:23.123 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port(s): 60359 (http) with context path ''
+2025-10-13 14:47:23.126 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - Started SifenDETest in 28.759 seconds (JVM running for 30.074)
+2025-10-13 14:47:23.185 [main] INFO  o.s.test.context.transaction.TransactionContext - Began transaction (1) for test context [DefaultTestContext@38dd3dd5 testClass = SifenDETest, testInstance = com.franco.dev.service.sifen.service.SifenDETest@75ec71eb, testMethod = testConsultarDEPorCDC@SifenDETest, testException = [null], mergedContextConfiguration = [WebMergedContextConfiguration@2f850d83 testClass = SifenDETest, locations = '{}', classes = '{class com.franco.dev.FrancoSystemsApplication}', contextInitializerClasses = '[]', activeProfiles = '{dev, test}', propertySourceLocations = '{}', propertySourceProperties = '{org.springframework.boot.test.context.SpringBootTestContextBootstrapper=true, server.port=0}', contextCustomizers = set[org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@179ece50, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@1fa121e2, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.web.client.TestRestTemplateContextCustomizer@7a8c8dcf, org.springframework.boot.test.web.reactive.server.WebTestClientContextCustomizer@b3ca52e, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@0, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizerFactory$Customizer@70325e14], resourceBasePath = 'src/main/webapp', contextLoader = 'org.springframework.boot.test.context.SpringBootContextLoader', parent = [null]], attributes = map['org.springframework.test.context.web.ServletTestExecutionListener.activateListener' -> false]]; transaction manager [org.springframework.orm.jpa.JpaTransactionManager@46f87131]; rollback [false]
+2025-10-13 14:47:23.238 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2025-10-13 14:47:23.238 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 🔍 TEST: Consulta de Documento Electrónico por CDC
+2025-10-13 14:47:23.238 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2025-10-13 14:47:23.239 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 
+📄 PASO 1: Buscar DE en base de datos local
+2025-10-13 14:47:23.337 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    ✅ DE encontrado:
+2025-10-13 14:47:23.337 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - ID: 108
+2025-10-13 14:47:23.338 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - CDC: 01800994825001001000006422025101310266529145
+2025-10-13 14:47:23.338 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Estado antes: APROBADO
+2025-10-13 14:47:23.338 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Fecha emisión: 2025-10-13T13:57:30.325
+2025-10-13 14:47:23.338 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 
+📡 PASO 2: Consultar DE en SIFEN
+2025-10-13 14:47:23.338 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    CDC: 01800994825001001000006422025101310266529145
+2025-10-13 14:47:23.347 [main] INFO  com.franco.dev.service.sifen.service.SifenService - 🔍 Consultando DE con CDC: 01800994825001001000006422025101310266529145
+2025-10-13 14:47:23.348 [main] INFO  class com.roshka.sifen.Sifen - Preparando petición 'Consulta de DE'
+2025-10-13 14:47:23.422 [main] INFO  c.roshka.sifen.internal.request.BaseRequest - XML generado, se realiza la petición
+2025-10-13 14:47:23.462 [main] INFO  c.roshka.sifen.internal.request.BaseRequest - Este es el xml a enviarse a la SIFEN 
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><env:Envelope xmlns:env="http://www.w3.org/2003/05/soap-envelope"><env:Header/><env:Body><rEnviConsDeRequest xmlns="http://ekuatia.set.gov.py/sifen/xsd"><dId>1</dId><dCDC>01800994825001001000006422025101310266529145</dCDC></rEnviConsDeRequest></env:Body></env:Envelope>
+2025-10-13 14:47:23.471 [main] INFO  c.roshka.sifen.internal.helpers.SSLContextHelper - Contexto SSL no cargado aún. Empezando carga...
+2025-10-13 14:47:23.521 [main] INFO  class com.roshka.sifen.internal.helpers.SoapHelper - Conectando a: https://sifen.set.gov.py/de/ws/consultas/consulta.wsdl
+2025-10-13 14:47:23.821 [main] INFO  class com.roshka.sifen.internal.helpers.SoapHelper - Enviando mensaje SOAP
+2025-10-13 14:47:24.156 [main] INFO  c.roshka.sifen.internal.request.BaseRequest - Petición realizada, se formatea la respuesta
+2025-10-13 14:47:24.157 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    📥 Respuesta recibida - Código: 0422, Mensaje: CDC encontrado
+2025-10-13 14:47:24.157 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    🔄 Actualizando estado del DE desde respuesta SIFEN...
+2025-10-13 14:47:24.163 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    📋 Protocolo de autorización: 2668116524
+2025-10-13 14:47:24.163 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    📊 Estado en SIFEN: Aprobado
+2025-10-13 14:47:24.163 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    ℹ️ Estado del DE no requiere actualización (actual: APROBADO)
+2025-10-13 14:47:24.163 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    🔍 Buscando eventos de cancelación asociados al DE...
+2025-10-13 14:47:24.181 [main] DEBUG c.franco.dev.service.sifen.util.SifenEventoParser - Bloque de eventos encontrado, buscando rGesEve...
+2025-10-13 14:47:24.182 [main] INFO  c.franco.dev.service.sifen.util.SifenEventoParser - Total de eventos de cancelación encontrados: 0
+2025-10-13 14:47:24.182 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    ℹ️ No se encontraron eventos de cancelación asociados
+2025-10-13 14:47:24.183 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    🔍 Buscando eventos de nominación asociados al DE...
+2025-10-13 14:47:24.186 [main] DEBUG c.franco.dev.service.sifen.util.SifenEventoParser - Bloque de eventos encontrado, buscando eventos de nominación...
+2025-10-13 14:47:24.186 [main] DEBUG c.franco.dev.service.sifen.util.SifenEventoParser - Encontrado evento de nominación, extrayendo datos...
+2025-10-13 14:47:24.187 [main] INFO  c.franco.dev.service.sifen.util.SifenEventoParser - ✅ Evento de nominación extraído - ID: 96293088, CDC: 01800994825001001000006422025101310266529145, Receptor: FRANCO AREVALOS GABRIEL FRANCISCO, Estado: Aprobado
+2025-10-13 14:47:24.187 [main] INFO  c.franco.dev.service.sifen.util.SifenEventoParser - Total de eventos de nominación encontrados: 1
+2025-10-13 14:47:24.187 [main] INFO  com.franco.dev.service.sifen.service.SifenService -    📋 Se encontraron 1 evento(s) de nominación
+2025-10-13 14:47:24.196 [main] INFO  com.franco.dev.service.sifen.service.SifenService -       ➕ Evento de nominación NO encontrado en BD - Creando desde respuesta SIFEN (recuperación)
+2025-10-13 14:47:24.196 [main] INFO  com.franco.dev.service.sifen.service.SifenService -       📋 Receptor CONTRIBUYENTE - RUC: 4043581, DV: 4
+2025-10-13 14:47:24.196 [main] INFO  com.franco.dev.service.sifen.service.SifenService -       🔍 Buscando cliente con documento limpio: '4043581' (original: '4043581')
+2025-10-13 14:47:24.221 [main] INFO  com.franco.dev.service.sifen.service.SifenService -       ✅ Cliente encontrado - ID: 2, Nombre: FRANCO AREVALOS GABRIEL FRANCISCO
+2025-10-13 14:47:24.222 [main] INFO  com.franco.dev.service.sifen.service.SifenService -       ✅ Cliente identificado: ID=2, Nombre=FRANCO AREVALOS GABRIEL FRANCISCO
+2025-10-13 14:47:24.260 [main] INFO  com.franco.dev.service.sifen.service.SifenService -       ✅ Evento APROBADO - Factura ID 11911 actualizada con cliente ID 2
+2025-10-13 14:47:24.260 [main] INFO  com.franco.dev.service.sifen.service.SifenService -       📋 Protocolo: 41063674
+2025-10-13 14:47:24.296 [main] INFO  com.franco.dev.service.sifen.service.SifenService -       💾 Evento de nominación guardado en BD - ID: 2, Estado: APROBADO
+2025-10-13 14:47:24.304 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 
+📥 PASO 3: Respuesta de SIFEN
+2025-10-13 14:47:24.304 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    Código: 0422
+2025-10-13 14:47:24.305 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    Mensaje: CDC encontrado
+2025-10-13 14:47:24.305 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 
+💾 PASO 4: Verificar actualización en base de datos
+2025-10-13 14:47:24.309 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    ✅ DE actualizado:
+2025-10-13 14:47:24.309 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - ID: 108
+2025-10-13 14:47:24.309 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - CDC: 01800994825001001000006422025101310266529145
+2025-10-13 14:47:24.309 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Estado después: APROBADO
+2025-10-13 14:47:24.309 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Código respuesta: 0600
+2025-10-13 14:47:24.309 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Mensaje respuesta: Evento registrado correctamente
+2025-10-13 14:47:24.309 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -       - Fecha recepción SIFEN: 2025-10-13T13:59:57.913
+2025-10-13 14:47:24.309 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest -    ℹ️ Estado sin cambios: APROBADO
+2025-10-13 14:47:24.309 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2025-10-13 14:47:24.309 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - ✅ TEST DE CONSULTA POR CDC COMPLETADO
+2025-10-13 14:47:24.309 [main] INFO  com.franco.dev.service.sifen.service.SifenDETest - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2025-10-13 14:47:24.320 [main] INFO  o.s.test.context.transaction.TransactionContext - Committed transaction for test: [DefaultTestContext@38dd3dd5 testClass = SifenDETest, testInstance = com.franco.dev.service.sifen.service.SifenDETest@75ec71eb, testMethod = testConsultarDEPorCDC@SifenDETest, testException = [null], mergedContextConfiguration = [WebMergedContextConfiguration@2f850d83 testClass = SifenDETest, locations = '{}', classes = '{class com.franco.dev.FrancoSystemsApplication}', contextInitializerClasses = '[]', activeProfiles = '{dev, test}', propertySourceLocations = '{}', propertySourceProperties = '{org.springframework.boot.test.context.SpringBootTestContextBootstrapper=true, server.port=0}', contextCustomizers = set[org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@179ece50, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@1fa121e2, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.web.client.TestRestTemplateContextCustomizer@7a8c8dcf, org.springframework.boot.test.web.reactive.server.WebTestClientContextCustomizer@b3ca52e, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@0, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizerFactory$Customizer@70325e14], resourceBasePath = 'src/main/webapp', contextLoader = 'org.springframework.boot.test.context.SpringBootContextLoader', parent = [null]], attributes = map['org.springframework.test.context.web.ServletTestExecutionListener.activateListener' -> false]]
+2025-10-13 14:47:24.367 [Thread-5] INFO  o.s.scheduling.concurrent.ThreadPoolTaskScheduler - Shutting down ExecutorService 'taskScheduler'
+2025-10-13 14:47:24.422 [Thread-5] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-10-13 14:47:24.425 [Thread-5] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-10-13 14:47:24.445 [Thread-5] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.

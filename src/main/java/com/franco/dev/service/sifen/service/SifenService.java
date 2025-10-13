@@ -47,6 +47,7 @@ import com.roshka.sifen.core.fields.request.de.*;
 import com.roshka.sifen.core.types.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -90,7 +91,7 @@ public class SifenService {
             ClienteService clienteService,
             EventoCancelacionDEService eventoCancelacionDEService,
             EventoNominacionDEService eventoNominacionDEService,
-            FacturaLegalService facturaLegalService,
+            @Lazy FacturaLegalService facturaLegalService,
             com.roshka.sifen.core.SifenConfig sifenConfig) {
         this.documentoElectronicoService = documentoElectronicoService;
         this.loteDEService = loteDEService;
@@ -968,29 +969,33 @@ public class SifenService {
     }
     
     /**
-     * Busca o crea un cliente basándose en los datos del evento de nominación.
+     * Busca un cliente basándose en los datos del evento de nominación.
+     * 
+     * IMPORTANTE: En la BD, los documentos se guardan SIN guión ni DV.
+     * Ejemplos:
+     * - Evento trae: RUC=4043581, DV=4
+     * - En BD está guardado: "4043581" (sin guión ni DV)
      * 
      * Estrategia:
-     * 1. Si es contribuyente, buscar por RUC
-     * 2. Si no existe, crear nuevo cliente con los datos del evento
-     * 3. Si es no contribuyente, buscar por documento o crear nuevo
+     * 1. Extraer solo el número base (sin guión ni DV)
+     * 2. Buscar por ese número
+     * 3. Si no existe, retornar null (no crear automáticamente)
      */
     private Cliente buscarOCrearClienteDesdeEvento(SifenEventoParser.EventoNominacion eventoParsed) {
         try {
             String documentoBusqueda = null;
             
-            // Determinar documento a buscar
+            // Determinar documento a buscar (SOLO EL NÚMERO BASE, SIN DV)
             if ("CONTRIBUYENTE".equals(eventoParsed.getTipoReceptor())) {
-                // Para contribuyente: RUC-DV
-                if (eventoParsed.getRucReceptor() != null) {
-                    documentoBusqueda = eventoParsed.getRucReceptor();
-                    if (eventoParsed.getDvReceptor() != null) {
-                        documentoBusqueda += "-" + eventoParsed.getDvReceptor();
-                    }
-                }
+                // Para contribuyente: usar solo el RUC (sin el DV)
+                documentoBusqueda = eventoParsed.getRucReceptor();
+                log.info("      📋 Receptor CONTRIBUYENTE - RUC: {}, DV: {}", 
+                    eventoParsed.getRucReceptor(), 
+                    eventoParsed.getDvReceptor());
             } else {
                 // Para no contribuyente: número de documento
                 documentoBusqueda = eventoParsed.getNumeroDocumento();
+                log.info("      📋 Receptor NO CONTRIBUYENTE - Doc: {}", documentoBusqueda);
             }
             
             if (documentoBusqueda == null || documentoBusqueda.isEmpty()) {
@@ -998,25 +1003,35 @@ public class SifenService {
                 return null;
             }
             
-            log.info("      🔍 Buscando cliente con documento: {}", documentoBusqueda);
+            // LIMPIEZA: Remover cualquier guión o carácter no numérico (por si acaso)
+            // En la BD se guarda solo números: "4043581", "80099482", etc.
+            String documentoLimpio = documentoBusqueda.replaceAll("[^0-9]", "");
+            
+            log.info("      🔍 Buscando cliente con documento limpio: '{}' (original: '{}')", 
+                documentoLimpio, documentoBusqueda);
             
             // Buscar cliente por documento de persona
-            Cliente clienteEncontrado = clienteService.findByPersonaDocumento(documentoBusqueda);
+            Cliente clienteEncontrado = clienteService.findByPersonaDocumento(documentoLimpio);
             
             if (clienteEncontrado != null) {
-                log.info("      ✅ Cliente encontrado - ID: {}", clienteEncontrado.getId());
+                log.info("      ✅ Cliente encontrado - ID: {}, Nombre: {}", 
+                    clienteEncontrado.getId(),
+                    clienteEncontrado.getPersona() != null ? clienteEncontrado.getPersona().getNombre() : "N/A");
                 return clienteEncontrado;
             }
             
-            // Cliente no encontrado - crear nuevo (esto normalmente no debería pasar)
-            log.warn("      ⚠️ Cliente no encontrado con documento {} - Se debería buscar manualmente", 
-                documentoBusqueda);
-            log.warn("      💡 Sugerencia: Verificar si el cliente existe con otro formato de documento");
+            // Cliente no encontrado
+            log.warn("      ⚠️ Cliente NO encontrado con documento '{}'", documentoLimpio);
+            log.warn("      💡 Posibles causas:");
+            log.warn("         - El cliente no existe en la BD");
+            log.warn("         - El documento está en formato diferente");
+            log.warn("         - Verificar manualmente en la tabla personas.persona");
+            log.warn("      📝 Para recuperar: Buscar cliente manualmente y volver a nominar");
             
             return null;
             
         } catch (Exception e) {
-            log.error("      ❌ Error al buscar/crear cliente: {}", e.getMessage(), e);
+            log.error("      ❌ Error al buscar cliente: {}", e.getMessage(), e);
             return null;
         }
     }
