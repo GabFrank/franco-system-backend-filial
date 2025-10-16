@@ -96,7 +96,7 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
     public List<VentaPorPeriodoV1Dto> ventaPorPeriodo(String inicio, String fin) {
         List<VentaPorPeriodoV1Dto> ventaPorPeriodoList = new ArrayList<>();
         LocalDateTime fechaInicio = LocalDateTime.parse(inicio);
-        LocalDateTime fechaFin = LocalDateTime.parse(fin);
+        LocalDateTime fechaFin = LocalDateTime.parse(fin); 
         Long cantDias = DAYS.between(fechaInicio, fechaFin);
         for (int i = 0; i < cantDias; i++) {
             VentaPorPeriodoV1Dto ventaPorPeriodoV1Dto = new VentaPorPeriodoV1Dto();

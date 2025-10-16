@@ -29,6 +29,7 @@ import com.franco.dev.domain.financiero.enums.EstadoDE;
 import com.franco.dev.domain.financiero.enums.EstadoEvento;
 import com.franco.dev.domain.financiero.enums.EstadoLoteDE;
 import com.franco.dev.domain.personas.Cliente;
+import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.service.financiero.DocumentoElectronicoService;
 import com.franco.dev.service.financiero.EventoCancelacionDEService;
 import com.franco.dev.service.financiero.EventoNominacionDEService;
@@ -53,6 +54,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -1495,9 +1497,20 @@ public class SifenService {
             TgCamItem gCamItem = new TgCamItem();
             gCamItem.setdCodInt(String.format("%03d", i + 1));
             gCamItem.setdDesProSer(item.getDescripcion());
-            gCamItem.setcUniMed(TcUniMed.UNI);
-            gCamItem.setdCantProSer(BigDecimal.valueOf(item.getCantidad().doubleValue()));
 
+            Producto producto = item.getVentaItem() != null ? item.getVentaItem().getProducto() : null;
+
+            BigDecimal cantidad;
+            float cantidadFloat = item.getCantidad() != null ? item.getCantidad() : 0.0f;
+
+            if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
+                gCamItem.setcUniMed(TcUniMed.kg);
+                cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(3, RoundingMode.HALF_UP);
+            } else {
+                gCamItem.setcUniMed(TcUniMed.UNI);
+                cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(0, RoundingMode.HALF_UP);
+            }
+            gCamItem.setdCantProSer(cantidad);
             TgValorItem gValorItem = new TgValorItem();
             gValorItem.setdPUniProSer(BigDecimal.valueOf(item.getPrecioUnitario().doubleValue()));
 

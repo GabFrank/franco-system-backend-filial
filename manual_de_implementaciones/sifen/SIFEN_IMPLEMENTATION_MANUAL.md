@@ -17,6 +17,49 @@ La implementación se organiza en los siguientes paquetes principales:
 
 El proyecto utiliza un fork personalizado de la librería `rshk-jsifenlib`. Es crucial incluir la siguiente dependencia y repositorio en el archivo `pom.xml`.
 
+Para que Maven pueda descargar tu lib desde GitHub Packages, tenés que agregar las credenciales en el registry de Maven (el ~/.m2/settings.xml) y usar el mismo id que pusiste en el <repository>. Acá va, paso a paso:
+
+1) Crear el token en GitHub
+
+En GitHub: Settings → Developer settings → Personal access tokens.
+
+Creá un Personal Access Token (classic o fine-grained) con scope read:packages (solo lectura).
+
+Copiá el token (se muestra una sola vez).
+
+Nota: GitHub Packages para Maven siempre requiere autenticación, incluso para repos públicos.
+
+2) Configurar ~/.m2/settings.xml
+
+En tu máquina de desarrollo (Linux/Mac: ~/.m2/settings.xml; Windows: %USERPROFILE%\.m2\settings.xml) agregá un <server> cuyo id sea exactamente github (igual al del <repository> que ya tenés en el pom.xml):
+
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+  <servers>
+    <server>
+      <id>github</id>
+      <!-- Tu usuario de GitHub (owner de la cuenta) -->
+      <username>GabFrank</username>
+      <!-- El PAT que creaste con read:packages -->
+      <password>GH_PAT_XXXXXXXXXXXX</password>
+    </server>
+  </servers>
+
+  <!-- Opcional pero recomendado: usar variables de entorno -->
+  <!--
+  <servers>
+    <server>
+      <id>github</id>
+      <username>${env.GITHUB_ACTOR}</username>
+      <password>${env.GITHUB_TOKEN}</password>
+    </server>
+  </servers>
+  -->
+</settings>
+
 **Dependencia:**
 ```xml
 <dependency>
