@@ -14,6 +14,7 @@ type Sucursal {
     codigoEstablecimientoFactura: String
     ip: String
     puerto: Int
+    activo: Boolean
 }
 
 extend type Query {

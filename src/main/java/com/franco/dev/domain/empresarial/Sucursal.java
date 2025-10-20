@@ -56,4 +56,6 @@ public class Sucursal implements Serializable {
     
     private Integer puerto;
 
+    private Boolean activo;
+
 }

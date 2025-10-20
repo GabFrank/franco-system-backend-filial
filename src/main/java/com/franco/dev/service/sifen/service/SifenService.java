@@ -20,6 +20,7 @@
 */
 package com.franco.dev.service.sifen.service;
 
+import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.EventoCancelacionDE;
 import com.franco.dev.domain.financiero.EventoNominacionDE;
 import com.franco.dev.domain.financiero.FacturaLegal;
@@ -30,6 +31,7 @@ import com.franco.dev.domain.financiero.enums.EstadoEvento;
 import com.franco.dev.domain.financiero.enums.EstadoLoteDE;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.productos.Producto;
+import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.DocumentoElectronicoService;
 import com.franco.dev.service.financiero.EventoCancelacionDEService;
 import com.franco.dev.service.financiero.EventoNominacionDEService;
@@ -81,6 +83,7 @@ public class SifenService {
     private final EventoCancelacionDEService eventoCancelacionDEService;
     private final EventoNominacionDEService eventoNominacionDEService;
     private final FacturaLegalService facturaLegalService;
+    private final SucursalService sucursalService;
     private final com.roshka.sifen.core.SifenConfig sifenConfig;
 
     @Value("${tipoContribuyenteEmisor:2}")
@@ -94,6 +97,7 @@ public class SifenService {
             EventoCancelacionDEService eventoCancelacionDEService,
             EventoNominacionDEService eventoNominacionDEService,
             @Lazy FacturaLegalService facturaLegalService,
+            SucursalService sucursalService,
             com.roshka.sifen.core.SifenConfig sifenConfig) {
         this.documentoElectronicoService = documentoElectronicoService;
         this.loteDEService = loteDEService;
@@ -102,6 +106,7 @@ public class SifenService {
         this.eventoCancelacionDEService = eventoCancelacionDEService;
         this.eventoNominacionDEService = eventoNominacionDEService;
         this.facturaLegalService = facturaLegalService;
+        this.sucursalService = sucursalService;
         this.sifenConfig = sifenConfig;
     }
 
@@ -188,6 +193,15 @@ public class SifenService {
         lote.setFechaUltimoIntento(LocalDateTime.now());
         lote.setIntentos(0);
         lote.setCreadoEn(LocalDateTime.now());
+        
+        // Asignar sucursal actual
+        Sucursal sucursalActual = sucursalService.sucursalActual();
+        if (sucursalActual != null) {
+            lote.setSucursal(sucursalActual);
+            log.info("   Sucursal asignada: {} (ID: {})", sucursalActual.getNombre(), sucursalActual.getId());
+        } else {
+            log.warn("   No se pudo obtener la sucursal actual");
+        }
         
         LoteDE loteGuardado = loteDEService.save(lote);
         log.info("✅ Lote creado - ID: {}", loteGuardado.getId());
@@ -724,6 +738,14 @@ public class SifenService {
                 de.setEstado(EstadoDE.CANCELADO);
                 documentoElectronicoService.save(de);
                 log.info("   ✅ DE actualizado a estado CANCELADO por evento aprobado");
+                
+                // ✅ ACTUALIZAR FACTURA LEGAL - MARCAR COMO INACTIVA
+                FacturaLegal factura = de.getFacturaLegal();
+                if (factura != null) {
+                    factura.setActivo(false);
+                    facturaLegalService.save(factura);
+                    log.info("   📄 Factura Legal ID {} marcada como INACTIVA", factura.getId());
+                }
             }
             
         } catch (Exception e) {
@@ -830,6 +852,12 @@ public class SifenService {
                 nuevoEvento.setCodigoRespuesta(eventoParsed.getCodigoRespuesta());
                 nuevoEvento.setMensajeRespuesta(eventoParsed.getMensajeRespuesta());
                 nuevoEvento.setActivo(true);
+                
+                // Asignar sucursal actual
+                Sucursal sucursalActual = sucursalService.sucursalActual();
+                if (sucursalActual != null) {
+                    nuevoEvento.setSucursal(sucursalActual);
+                }
                 
                 // Determinar estado
                 if ("Aprobado".equalsIgnoreCase(eventoParsed.getEstadoResultado())) {
@@ -941,6 +969,12 @@ public class SifenService {
             nuevoEvento.setCodigoRespuesta(eventoParsed.getCodigoRespuesta());
             nuevoEvento.setMensajeRespuesta(eventoParsed.getMensajeRespuesta());
             nuevoEvento.setActivo(true);
+            
+            // Asignar sucursal actual
+            Sucursal sucursalActual = sucursalService.sucursalActual();
+            if (sucursalActual != null) {
+                nuevoEvento.setSucursal(sucursalActual);
+            }
             
             // Determinar estado
             if ("Aprobado".equalsIgnoreCase(eventoParsed.getEstadoResultado())) {

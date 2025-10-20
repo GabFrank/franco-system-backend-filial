@@ -1,5 +1,6 @@
 package com.franco.dev.domain.financiero;
 
+import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.enums.EstadoEvento;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.utilitarios.PostgreSQLEnumType;
@@ -77,5 +78,9 @@ public class EventoCancelacionDE implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sucursal_id", nullable = true)
+    private Sucursal sucursal;
 }
 

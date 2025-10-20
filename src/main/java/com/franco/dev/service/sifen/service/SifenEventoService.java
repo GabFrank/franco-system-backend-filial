@@ -1,5 +1,6 @@
 package com.franco.dev.service.sifen.service;
 
+import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.DocumentoElectronico;
 import com.franco.dev.domain.financiero.EventoCancelacionDE;
 import com.franco.dev.domain.financiero.EventoNominacionDE;
@@ -7,6 +8,7 @@ import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.Timbrado;
 import com.franco.dev.domain.financiero.enums.EstadoEvento;
 import com.franco.dev.domain.personas.Cliente;
+import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.DocumentoElectronicoService;
 import com.franco.dev.service.financiero.EventoCancelacionDEService;
 import com.franco.dev.service.financiero.EventoNominacionDEService;
@@ -49,16 +51,19 @@ public class SifenEventoService {
     private final EventoCancelacionDEService eventoCancelacionDEService;
     private final EventoNominacionDEService eventoNominacionDEService;
     private final FacturaLegalService facturaLegalService;
+    private final SucursalService sucursalService;
 
     public SifenEventoService(
             DocumentoElectronicoService documentoElectronicoService,
             EventoCancelacionDEService eventoCancelacionDEService,
             EventoNominacionDEService eventoNominacionDEService,
-            FacturaLegalService facturaLegalService) {
+            FacturaLegalService facturaLegalService,
+            SucursalService sucursalService) {
         this.documentoElectronicoService = documentoElectronicoService;
         this.eventoCancelacionDEService = eventoCancelacionDEService;
         this.eventoNominacionDEService = eventoNominacionDEService;
         this.facturaLegalService = facturaLegalService;
+        this.sucursalService = sucursalService;
     }
 
     // ===================== CANCELACIÓN DE DE =====================
@@ -153,6 +158,13 @@ public class SifenEventoService {
         eventoCancelacion.setEstado(EstadoEvento.PENDIENTE);
         eventoCancelacion.setActivo(true);
         
+        // Asignar sucursal actual
+        Sucursal sucursalActual = sucursalService.sucursalActual();
+        if (sucursalActual != null) {
+            eventoCancelacion.setSucursal(sucursalActual);
+            log.info("   Sucursal asignada: {} (ID: {})", sucursalActual.getNombre(), sucursalActual.getId());
+        }
+        
         // 10. Enviar a SIFEN
         log.info("   📤 Enviando evento de cancelación a SIFEN...");
         RespuestaRecepcionEvento respuesta = Sifen.recepcionEvento(eventosDE);
@@ -210,6 +222,14 @@ public class SifenEventoService {
             de.setCodigoRespuestaSifen(codigoRespuesta);
             de.setMensajeRespuestaSifen(mensajeRespuesta);
             documentoElectronicoService.save(de);
+            
+            // ✅ ACTUALIZAR FACTURA LEGAL - MARCAR COMO INACTIVA
+            FacturaLegal factura = de.getFacturaLegal();
+            if (factura != null) {
+                factura.setActivo(false);
+                facturaLegalService.save(factura);
+                log.info("   📄 Factura Legal ID {} marcada como INACTIVA", factura.getId());
+            }
             
             log.info("   ✅ Evento APROBADO - DE actualizado a estado CANCELADO");
             log.info("   📋 Código SIFEN: {} - {}", codigoRespuesta, mensajeRespuesta);
@@ -533,6 +553,13 @@ public class SifenEventoService {
         eventoNominacion.setFechaRecepcion(fechaRecepcion);
         eventoNominacion.setEstado(EstadoEvento.PENDIENTE);
         eventoNominacion.setActivo(true);
+        
+        // Asignar sucursal actual
+        Sucursal sucursalActual = sucursalService.sucursalActual();
+        if (sucursalActual != null) {
+            eventoNominacion.setSucursal(sucursalActual);
+            log.info("   Sucursal asignada: {} (ID: {})", sucursalActual.getNombre(), sucursalActual.getId());
+        }
         
         // 13. Enviar a SIFEN
         log.info("   📤 Enviando evento de nominación a SIFEN...");
