@@ -41,6 +41,23 @@ public class FormaPago implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
+
+    public String getAbreviatura() {
+        switch (descripcion) {
+            case "EFECTIVO":
+                return "E";
+            case "TRANSFERENCIA":
+                return "T";
+            case "TARJETA":
+                return "TJ";
+            case "CHEQUE":
+                return "CH";
+            case "CONVENIO":
+                return "C";
+            default:
+                return descripcion.substring(0, 3);
+        }
+    }
 }
 
 

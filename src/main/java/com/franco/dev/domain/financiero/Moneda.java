@@ -42,6 +42,19 @@ public class Moneda implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
+
+    public String getAbreviatura() {
+        switch (denominacion) {
+            case "GUARANI":
+                return "Gs";
+            case "REAL":
+                return "Rs";
+            case "DOLAR":
+                return "Us";
+            default:
+                return denominacion.substring(0, 3);
+        }
+    }
 }
 
 

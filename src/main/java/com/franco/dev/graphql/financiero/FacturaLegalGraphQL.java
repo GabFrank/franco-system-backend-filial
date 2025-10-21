@@ -4,6 +4,7 @@ import com.franco.dev.domain.empresarial.PuntoDeVenta;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.*;
 import com.franco.dev.domain.operaciones.Cobro;
+import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
@@ -16,6 +17,7 @@ import com.franco.dev.service.empresarial.PuntoDeVentaService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.impresion.ImpresionService;
+import com.franco.dev.service.operaciones.CobroDetalleService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.PersonaService;
@@ -133,6 +135,12 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private DocumentoElectronicoService documentoElectronicoService;
+
+    @Autowired
+    private CobroDetalleService cobroDetalleService;
+
+    @Autowired
+    private MonedaService monedaService;
 
     public Optional<FacturaLegal> facturaLegal(Long id, Long sucId) {
         return service.findById(id);
@@ -808,6 +816,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         Double precioDeliveryDs = 0.0;
         Double cambioRs = cambioService.findLastByMonedaId(Long.valueOf(2)).getValorEnGs();
         Double cambioDs = cambioService.findLastByMonedaId(Long.valueOf(3)).getValorEnGs();
+        
+        // Obtener instancias de las monedas para usar getAbreviatura()
+        Moneda monedaGs = monedaService.findById(Long.valueOf(1)).orElse(null);
+        Moneda monedaRs = monedaService.findById(Long.valueOf(2)).orElse(null);
+        Moneda monedaDs = monedaService.findById(Long.valueOf(3)).orElse(null);
 
         if (delivery != null) {
             precioDeliveryGs = delivery.getPrecio().getValor();
@@ -930,32 +943,268 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 }
                 escpos.writeLF(valorTotal);
             }
-            escpos.writeLF("--------------------------------");
+            // escpos.writeLF("--------------------------------");
 
-            // Mostrar desglose de descuento si existe
-            if (descuento > 0) {
-                Double totalSinDescuento = totalFinal + descuento;
-                escpos.write("Total parcial: ");
-                String totalParcialGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalSinDescuento);
-                for (int i = 17; i > totalParcialGs.length(); i--) {
-                    escpos.write(" ");
-                }
-                escpos.writeLF(totalParcialGs);
+            // Sección de totales comentada - ahora se muestra por moneda abajo
+            // // Mostrar desglose de descuento si existe
+            // if (descuento > 0) {
+            //     Double totalSinDescuento = totalFinal + descuento;
+            //     escpos.write("Total parcial: ");
+            //     String totalParcialGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalSinDescuento);
+            //     for (int i = 17; i > totalParcialGs.length(); i--) {
+            //         escpos.write(" ");
+            //     }
+            //     escpos.writeLF(totalParcialGs);
+            //
+            //     escpos.write("Descuento: ");
+            //     String descuentoGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(descuento);
+            //     for (int i = 21; i > descuentoGs.length(); i--) {
+            //         escpos.write(" ");
+            //     }
+            //     escpos.writeLF(descuentoGs);
+            // }
+            //
+            // escpos.write("Total Gs: ");
+            // String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalFinal);
+            // for (int i = 22; i > valorGs.length(); i--) {
+            //     escpos.write(" ");
+            // }
+            // escpos.writeLF(new Style().setBold(true), valorGs);
 
-                escpos.write("Descuento: ");
-                String descuentoGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(descuento);
-                for (int i = 22; i > descuentoGs.length(); i--) {
-                    escpos.write(" ");
-                }
-                escpos.writeLF(descuentoGs);
-            }
-
-            escpos.write("Total Gs: ");
-            String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalFinal);
-            for (int i = 22; i > valorGs.length(); i--) {
+            // Nueva sección de totales por moneda
+            escpos.writeLF("------------Totales-------------");
+            // Header: 4 (moneda) + 9 (Parcial) + 9 (Desc.) + 10 (Final) = 32
+            escpos.write("   "); // 4 espacios para moneda
+            escpos.write("   Parcial"); // 7 chars
+            escpos.write("    "); // 2 espacios = 9 total
+            escpos.write("Desc."); // 5 chars
+            escpos.write("     "); // 4 espacios = 9 total
+            escpos.writeLF("Final"); // 5 chars
+            
+            // Calcular totales por moneda
+            Double totalParcialGs = totalFinal + descuento;
+            Double totalParcialRs = totalParcialGs / cambioRs;
+            Double totalParcialDs = totalParcialGs / cambioDs;
+            
+            Double descuentoRs = descuento / cambioRs;
+            Double descuentoDs = descuento / cambioDs;
+            
+            Double totalFinalRs = totalFinal / cambioRs;
+            Double totalFinalDs = totalFinal / cambioDs;
+            
+            // Línea de Guaraníes
+            escpos.write(monedaGs != null ? monedaGs.getAbreviatura() + ". " : "Gs. ");
+            String parcialGsStr = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalParcialGs.intValue());
+            int espaciosParcialGs = 9 - parcialGsStr.length();
+            for (int i = 0; i < espaciosParcialGs; i++) {
                 escpos.write(" ");
             }
-            escpos.writeLF(new Style().setBold(true), valorGs);
+            escpos.write(parcialGsStr);
+            
+            String descGsStr = NumberFormat.getNumberInstance(Locale.GERMAN).format(descuento.intValue());
+            int espaciosDescGs = 9 - descGsStr.length();
+            for (int i = 0; i < espaciosDescGs; i++) {
+                escpos.write(" ");
+            }
+            escpos.write(descGsStr);
+            
+            String finalGsStr = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalFinal.intValue());
+            int espaciosFinalGs = 10 - finalGsStr.length();
+            for (int i = 0; i < espaciosFinalGs; i++) {
+                escpos.write(" ");
+            }
+            escpos.writeLF(finalGsStr);
+            
+            // Línea de Reales
+            escpos.write(monedaRs != null ? monedaRs.getAbreviatura() + ". " : "Rs. ");
+            String parcialRsStr = String.format(Locale.GERMAN, "%.2f", totalParcialRs);
+            int espaciosParcialRs = 9 - parcialRsStr.length();
+            for (int i = 0; i < espaciosParcialRs; i++) {
+                escpos.write(" ");
+            }
+            escpos.write(parcialRsStr);
+            
+            String descRsStr = String.format(Locale.GERMAN, "%.2f", descuentoRs);
+            int espaciosDescRs = 9 - descRsStr.length();
+            for (int i = 0; i < espaciosDescRs; i++) {
+                escpos.write(" ");
+            }
+            escpos.write(descRsStr);
+            
+            String finalRsStr = String.format(Locale.GERMAN, "%.2f", totalFinalRs);
+            int espaciosFinalRs = 10 - finalRsStr.length();
+            for (int i = 0; i < espaciosFinalRs; i++) {
+                escpos.write(" ");
+            }
+            escpos.writeLF(finalRsStr);
+            
+            // Línea de Dólares
+            escpos.write(monedaDs != null ? monedaDs.getAbreviatura() + ". " : "Us. ");
+            String parcialDsStr = String.format(Locale.GERMAN, "%.2f", totalParcialDs);
+            int espaciosParcialDs = 9 - parcialDsStr.length();
+            for (int i = 0; i < espaciosParcialDs; i++) {
+                escpos.write(" ");
+            }
+            escpos.write(parcialDsStr);
+            
+            String descDsStr = String.format(Locale.GERMAN, "%.2f", descuentoDs);
+            int espaciosDescDs = 9 - descDsStr.length();
+            for (int i = 0; i < espaciosDescDs; i++) {
+                escpos.write(" ");
+            }
+            escpos.write(descDsStr);
+            
+            String finalDsStr = String.format(Locale.GERMAN, "%.2f", totalFinalDs);
+            int espaciosFinalDs = 10 - finalDsStr.length();
+            for (int i = 0; i < espaciosFinalDs; i++) {
+                escpos.write(" ");
+            }
+            escpos.writeLF(finalDsStr);
+
+            // agregar cobro detalle por moneda
+            if (venta != null && venta.getCobro() != null) {
+                List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(venta.getCobro().getId());
+                
+                // Filtrar solo pagos y vueltos, ignorar descuentos y aumentos
+                List<CobroDetalle> pagosYVueltos = new ArrayList<>();
+                for (CobroDetalle cd : cobroDetalleList) {
+                    if ((cd.getPago() != null && cd.getPago()) || (cd.getVuelto() != null && cd.getVuelto())) {
+                        pagosYVueltos.add(cd);
+                    }
+                }
+                
+                if (!pagosYVueltos.isEmpty()) {
+                    // Agrupar por moneda
+                    Map<Long, List<CobroDetalle>> porMoneda = new LinkedHashMap<>();
+                    for (CobroDetalle cd : pagosYVueltos) {
+                        Long monedaId = cd.getMoneda().getId();
+                        if (!porMoneda.containsKey(monedaId)) {
+                            porMoneda.put(monedaId, new ArrayList<>());
+                        }
+                        porMoneda.get(monedaId).add(cd);
+                    }
+                    
+                    escpos.writeLF("------------Detalles------------");
+                    // Header con columnas Pago y Vuelto (total 32 caracteres)
+                    // Distribución: 4 (moneda) + 18 (pago) + 10 (vuelto) = 32
+                    escpos.write("    ");  // espacios para columna moneda (4 chars)
+                    escpos.write("          Pago");  // (4 chars)
+                    for (int i = 0; i < 8; i++) {  // espacios para completar columna pago (10 chars)
+                        escpos.write(" ");
+                    }
+                    escpos.writeLF("Vuelto");  // (6 chars + los que quedan = 14 chars totales para título vuelto)
+                    
+                    // Procesar cada moneda
+                    for (Map.Entry<Long, List<CobroDetalle>> entry : porMoneda.entrySet()) {
+                        List<CobroDetalle> detallesMoneda = entry.getValue();
+                        
+                        // Agrupar pagos por forma de pago para esta moneda
+                        Map<Long, CobroDetalle> pagosPorFormaPago = new LinkedHashMap<>();
+                        Double vueltoTotal = 0.0;
+                        
+                        for (CobroDetalle cd : detallesMoneda) {
+                            if (cd.getPago() != null && cd.getPago()) {
+                                Long formaPagoId = cd.getFormaPago() != null ? cd.getFormaPago().getId() : 0L;
+                                pagosPorFormaPago.put(formaPagoId, cd);
+                            } else if (cd.getVuelto() != null && cd.getVuelto()) {
+                                vueltoTotal += cd.getValor();
+                            }
+                        }
+                        
+                        // Imprimir cada pago
+                        // Distribución de 32 caracteres: 4 (moneda) + 18 (pago) + 10 (vuelto)
+                        int lineasPago = 0;
+                        for (Map.Entry<Long, CobroDetalle> pagoEntry : pagosPorFormaPago.entrySet()) {
+                            CobroDetalle pago = pagoEntry.getValue();
+                            String simboloMoneda = pago.getMoneda() != null ? pago.getMoneda().getAbreviatura() + "." : "N/A";
+                            
+                            // Obtener abreviatura de forma de pago
+                            String abrevFormaPago = pago.getFormaPago() != null ? pago.getFormaPago().getAbreviatura() : "N/A";
+                            
+                            // Formatear valor del pago
+                            String valorPagoStr;
+                            if (pago.getMoneda().getId() == 1) { // Guaraníes
+                                valorPagoStr = NumberFormat.getNumberInstance(Locale.GERMAN).format(pago.getValor().intValue());
+                            } else { // Otras monedas (con decimales)
+                                valorPagoStr = String.format(Locale.GERMAN, "%.2f", pago.getValor());
+                            }
+                            valorPagoStr = valorPagoStr + " (" + abrevFormaPago + ")";
+                            
+                            // Columna 1: Moneda (4 caracteres)
+                            escpos.write(simboloMoneda);
+                            for (int i = simboloMoneda.length(); i < 4; i++) {
+                                escpos.write(" ");
+                            }
+                            
+                            // Columna 2: Pago (18 caracteres, alineado a derecha)
+                            int espaciosPago = 18 - valorPagoStr.length();
+                            for (int i = 0; i < espaciosPago; i++) {
+                                escpos.write(" ");
+                            }
+                            escpos.write(valorPagoStr);
+                            
+                            // Columna 3: Vuelto (10 caracteres, alineado a derecha)
+                            if (lineasPago == 0) {
+                                String valorVueltoStr;
+                                if (vueltoTotal != 0) {
+                                    // Usar valor absoluto del vuelto (puede venir negativo de la BD)
+                                    Double vueltoAbsoluto = Math.abs(vueltoTotal);
+                                    if (pago.getMoneda().getId() == 1) { // Guaraníes
+                                        valorVueltoStr = NumberFormat.getNumberInstance(Locale.GERMAN).format(vueltoAbsoluto.intValue());
+                                    } else { // Otras monedas (con decimales)
+                                        valorVueltoStr = String.format(Locale.GERMAN, "%.2f", vueltoAbsoluto);
+                                    }
+                                } else {
+                                    valorVueltoStr = "0";
+                                }
+                                int espaciosVuelto = 10 - valorVueltoStr.length();
+                                for (int i = 0; i < espaciosVuelto; i++) {
+                                    escpos.write(" ");
+                                }
+                                escpos.writeLF(valorVueltoStr);
+                            } else {
+                                // Para líneas subsiguientes, dejar vacío
+                                escpos.writeLF("");
+                            }
+                            
+                            lineasPago++;
+                        }
+                        
+                        // Si solo hay vuelto sin pago (caso raro pero por si acaso)
+                        if (pagosPorFormaPago.isEmpty() && vueltoTotal != 0) {
+                            CobroDetalle primerDetalle = detallesMoneda.get(0);
+                            String simboloMoneda = primerDetalle.getMoneda() != null ? primerDetalle.getMoneda().getAbreviatura() + "." : "N/A";
+                            
+                            // Columna 1: Moneda (4 caracteres)
+                            escpos.write(simboloMoneda);
+                            for (int i = simboloMoneda.length(); i < 4; i++) {
+                                escpos.write(" ");
+                            }
+                            
+                            // Columna 2: Pago vacía (18 caracteres)
+                            for (int i = 0; i < 18; i++) {
+                                escpos.write(" ");
+                            }
+                            
+                            // Columna 3: Vuelto (10 caracteres, alineado a derecha)
+                            // Usar valor absoluto del vuelto (puede venir negativo de la BD)
+                            Double vueltoAbsoluto = Math.abs(vueltoTotal);
+                            String valorVueltoStr;
+                            if (primerDetalle.getMoneda().getId() == 1) {
+                                valorVueltoStr = NumberFormat.getNumberInstance(Locale.GERMAN).format(vueltoAbsoluto.intValue());
+                            } else {
+                                valorVueltoStr = String.format(Locale.GERMAN, "%.2f", vueltoAbsoluto);
+                            }
+                            int espaciosVuelto = 10 - valorVueltoStr.length();
+                            for (int i = 0; i < espaciosVuelto; i++) {
+                                escpos.write(" ");
+                            }
+                            escpos.writeLF(valorVueltoStr);
+                        }
+                    }
+                }
+            }
+
             escpos.writeLF("--------Liquidacion IVA---------");
             escpos.write("Gravadas 10%:");
             String totalIva10S = NumberFormat.getNumberInstance(Locale.GERMAN).format(totalIva10.intValue());
