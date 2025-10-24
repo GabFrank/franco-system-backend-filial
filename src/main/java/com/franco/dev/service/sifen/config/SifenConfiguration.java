@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.Nullable;
 
 import java.io.FileNotFoundException;
 import java.nio.file.Files;
@@ -19,40 +20,40 @@ import java.nio.file.Paths;
 @Slf4j
 @Configuration
 @EnableConfigurationProperties(SifenProperties.class)
-@ConditionalOnProperty(name = "sifen.enabled", havingValue = "true", matchIfMissing = true)
 public class SifenConfiguration {
 
     @Bean
-    public SifenConfig sifenConfig(SifenProperties properties) throws FileNotFoundException {
+    @Nullable
+    public SifenConfig sifenConfig(SifenProperties properties) throws SifenException, FileNotFoundException {
+        if (!properties.isEnabled()) {
+            log.warn("SIFEN está deshabilitado (sifen.enabled=false). El bean SifenConfig no se creará.");
+            return null;
+        }
+
+        log.info("SIFEN está habilitado. Intentando configurar SifenConfig...");
         String certPath = properties.getCertificado().getArchivo();
-        String certPass = properties.getCertificado().getContrasena();
-
-
-        if (Files.notExists(Paths.get(certPath))) {
-            log.error("ARCHIVO DE CERTIFICADO SIFEN NO ENCONTRADO EN: {}", certPath);
-            log.error("La aplicación no se iniciará. Verifique la ruta en `application.properties` o la variable de entorno `SIFEN_CERT_PATH`.");
+        if (certPath == null || Files.notExists(Paths.get(certPath))) {
+            log.error("Archivo de certificado SIFEN no encontrado en la ruta: {}", certPath);
             throw new FileNotFoundException("No se encontró el archivo de certificado SIFEN: " + certPath);
         }
 
-
-        SifenConfig config = new SifenConfig(
-            TipoAmbiente.valueOf(properties.getAmbiente().toUpperCase()),
-            properties.getCscId(),
-            properties.getCsc(),
-            TipoCertificadoCliente.valueOf(properties.getCertificado().getTipo().toUpperCase()),
-            certPath,
-            properties.getCertificado().getContrasena()
-        );
-
-        config.setHabilitarNotaTecnica13(properties.isHabilitarNotaTecnica13());
-
-        // Inicializa la configuración global de la librería
         try {
+            SifenConfig config = new SifenConfig(
+                TipoAmbiente.valueOf(properties.getAmbiente().toUpperCase()),
+                properties.getCscId(),
+                properties.getCsc(),
+                TipoCertificadoCliente.valueOf(properties.getCertificado().getTipo().toUpperCase()),
+                certPath,
+                properties.getCertificado().getContrasena()
+            );
+
+            config.setHabilitarNotaTecnica13(properties.isHabilitarNotaTecnica13());
             Sifen.setSifenConfig(config);
-        } catch (SifenException e) {
-            log.error("Error al inicializar la configuración de SIFEN: {}", e.getMessage());
-            e.printStackTrace();
+            log.info("SIFEN Config inicializado correctamente para el ambiente: {}", properties.getAmbiente());
+            return config;
+        } catch (Exception e) {
+            log.error("Error fatal al inicializar la configuración de SIFEN: {}", e.getMessage(), e);
+            throw new RuntimeException("Error al inicializar SifenConfig: " + e.getMessage());
         }
-        return config;
     }
 }

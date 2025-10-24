@@ -1,7 +1,8 @@
 package com.franco.dev.service.configuracion;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+// TODO: Si necesitas usar JSONObject, usa Jackson ObjectMapper en su lugar
+// import org.json.JSONArray;
+// import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;

@@ -22,6 +22,7 @@ import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.PersonaService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.sifen.service.SifenService;
@@ -141,6 +142,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private MonedaService monedaService;
+
+    @Autowired
+    private ProductoService productoService;
 
     public Optional<FacturaLegal> facturaLegal(Long id, Long sucId) {
         return service.findById(id);
@@ -267,6 +271,13 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                         // TODO: Implementar mapeo de VentaItem si es necesario
                     }
 
+                    // Vincular producto si se proporciona productoId
+                    if (itemInput.getProductoId() != null) {
+                        Optional<com.franco.dev.domain.productos.Producto> producto = productoService
+                                .findById(itemInput.getProductoId());
+                        producto.ifPresent(item::setProducto);
+                    }
+
                     if (itemInput.getUsuarioId() != null) {
                         Optional<com.franco.dev.domain.personas.Usuario> usuario = usuarioService
                                 .findById(itemInput.getUsuarioId());
@@ -291,7 +302,21 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 
                 for (FacturaLegalItemInput itemInput : detalleList) {
                     Double totalItem = itemInput.getTotal();
-                    Integer iva = itemInput.getIva() != null ? itemInput.getIva() : 10; // Default 10%
+                    Integer iva = itemInput.getIva();
+                    
+                    // Si no se proporciona IVA en el input, intentar obtenerlo del producto
+                    if (iva == null && itemInput.getProductoId() != null) {
+                        Optional<com.franco.dev.domain.productos.Producto> producto = productoService
+                                .findById(itemInput.getProductoId());
+                        if (producto.isPresent()) {
+                            iva = producto.get().getIva();
+                        }
+                    }
+                    
+                    // Default 10% si no se puede determinar el IVA
+                    if (iva == null) {
+                        iva = 10;
+                    }
                     
                     if (iva == 10) {
                         totalParcial10 += totalItem;
@@ -922,9 +947,17 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF("--------------------------------");
             for (FacturaLegalItem vi : facturaLegalItemList) {
                 Integer iva = null;
-                if (vi.getPresentacion() != null) {
+                
+                // Prioridad 1: IVA del producto vinculado directamente
+                if (vi.getProducto() != null) {
+                    iva = vi.getProducto().getIva();
+                }
+                // Prioridad 2: IVA del producto a través de la presentación
+                else if (vi.getPresentacion() != null) {
                     iva = vi.getPresentacion().getProducto().getIva();
                 }
+                
+                // Default 10% si no se puede determinar el IVA
                 if (iva == null) {
                     iva = 10;
                 }

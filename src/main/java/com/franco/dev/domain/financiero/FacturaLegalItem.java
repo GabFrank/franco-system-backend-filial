@@ -3,6 +3,7 @@ package com.franco.dev.domain.financiero;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.Presentacion;
+import com.franco.dev.domain.productos.Producto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -36,6 +37,11 @@ public class FacturaLegalItem implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "presentacion_id", nullable = true)
     private Presentacion presentacion;
+    
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "producto_id", nullable = true)
+    private Producto producto;
+    
     private Float cantidad;
     private String descripcion;
     private Double precioUnitario;

@@ -934,7 +934,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
      }
 
     public Page<Venta> ventasPorCajaId(Long idVenta, Long idCaja, Integer page, Integer size, Boolean asc, Long sucId,
-            Long formaPago, VentaEstado estado, Boolean isDelivery, Long monedaId) {
+            Long formaPago, VentaEstado estado, Boolean isDelivery, Long monedaId, Boolean conDescuento) {
         if (idVenta != null) {
             Venta venta = service.findById(idVenta).orElse(null);
             return new PageImpl<>(Arrays.asList(venta), PageRequest.of(0, 1), 1);

@@ -8,6 +8,7 @@ import java.io.Serializable;
 public class FacturaLegalItemInput implements Serializable {
     private Long id;
     private Long presentacionId;
+    private Long productoId;
     private Long clienteId;
     private Long facturaLegalId;
     private Long ventaItemId;

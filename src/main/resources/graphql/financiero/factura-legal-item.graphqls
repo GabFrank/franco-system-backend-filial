@@ -1,6 +1,7 @@
 type FacturaLegalItem {
     id:ID!
     presentacion: Presentacion
+    producto: Producto
     facturaLegal:FacturaLegal
     ventaItem:VentaItem
     cantidad:Float
@@ -15,6 +16,7 @@ type FacturaLegalItem {
 input FacturaLegalItemInput {
     id:ID
     presentacionId: Int
+    productoId: Int
     facturaLegalId:Int
     ventaItemId:Int
     cantidad:Float

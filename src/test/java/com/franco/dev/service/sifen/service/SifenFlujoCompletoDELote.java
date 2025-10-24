@@ -28,7 +28,7 @@ import com.franco.dev.service.financiero.DocumentoElectronicoService;
 import com.franco.dev.service.financiero.LoteDEService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.financiero.TimbradoDetalleService;
-import com.franco.dev.service.sifen.util.CodigosGeograficos;
+// import com.franco.dev.service.sifen.util.CodigosGeograficos;
 import com.franco.dev.utilitarios.CalcularVerificadorRuc;
 
 import java.lang.reflect.Field;
@@ -1515,7 +1515,7 @@ public class SifenFlujoCompletoDELote {
         gEmis.setdDirEmi(factura.getTimbradoDetalle().getDireccion());
         gEmis.setdNumCas("0");
         gEmis.setcDepEmi(com.roshka.sifen.core.types.TDepartamento.CANINDEYU);
-        gEmis.setcCiuEmi(CodigosGeograficos.Ciudad.SALTO_DEL_GUAIRA.getCodigo());
+        // gEmis.setcCiuEmi(CodigosGeograficos.Ciudad.SALTO_DEL_GUAIRA.getCodigo());
         gEmis.setdDesCiuEmi("SALTO DEL GUAIRA");
         gEmis.setdTelEmi(factura.getTimbradoDetalle().getTelefono());
         gEmis.setdEmailE(factura.getTimbradoDetalle().getTimbrado().getEmail());

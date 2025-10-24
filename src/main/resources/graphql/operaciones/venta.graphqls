@@ -49,7 +49,7 @@ extend type Query {
     venta(id:ID!, sucId: ID):Venta
     ventas(page:Int = 0, size:Int = 10, sucId: ID):[Venta]!
     countVenta: Int
-    ventasPorCajaId(idVenta:ID, idCaja:ID!, page: Int, size: Int, asc: Boolean, sucId: ID, formaPago: ID, estado: VentaEstado, isDelivery: Boolean, monedaId: Int):VentaPage
+    ventasPorCajaId(idVenta:ID, idCaja:ID!, page: Int, size: Int, asc: Boolean, sucId: ID, formaPago: ID, estado: VentaEstado, isDelivery: Boolean, monedaId: Int, conDescuento: Boolean):VentaPage
     ventaPorPeriodo(inicio:String, fin:String, sucId: ID): [VentaPorPeriodo]
 }
 

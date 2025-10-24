@@ -383,6 +383,16 @@ public class FacturaService {
             }
         }
 
+        // Incluir costo de delivery si existe
+        Double precioDelivery = 0.0;
+        if (venta.getDelivery() != null && venta.getDelivery().getPrecio() != null) {
+            precioDelivery = venta.getDelivery().getPrecio().getValor();
+            // El delivery se considera gravado al 10% IVA
+            totalParcial10 += precioDelivery;
+            ivaParcial10 += precioDelivery / 11;
+            log.info("💰 Delivery incluido en factura legal - Precio: {}", precioDelivery);
+        }
+
         // Aplicar ajuste (descuento o aumento) proporcionalmente a cada categoría de IVA
         Double totalSinAjuste = totalParcial0 + totalParcial5 + totalParcial10;
         
@@ -435,7 +445,21 @@ public class FacturaService {
                 fli.setPrecioUnitario(vi.getPrecio());
                 Double total = vi.getPrecio() * vi.getCantidad();
                 fli.setTotal(total);
+                fli.setSucursalId(facturaLegalGuardada.getSucursalId());
                 facturaLegalItemService.save(fli);
+            }
+
+            // Agregar delivery como item adicional si existe
+            if (precioDelivery > 0) {
+                FacturaLegalItem deliveryItem = new FacturaLegalItem();
+                deliveryItem.setFacturaLegal(facturaLegalGuardada);
+                deliveryItem.setCantidad(1.0f);
+                deliveryItem.setDescripcion("SERVICIO DE DELIVERY");
+                deliveryItem.setPrecioUnitario(precioDelivery);
+                deliveryItem.setTotal(precioDelivery);
+                deliveryItem.setSucursalId(facturaLegalGuardada.getSucursalId());
+                facturaLegalItemService.save(deliveryItem);
+                log.info("✅ Item de delivery agregado a factura legal - Descripción: SERVICIO DE DELIVERY, Total: {}", precioDelivery);
             }
 
             timbradoDetalle.setNumeroActual(numeroFactura);

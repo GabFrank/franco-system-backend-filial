@@ -49,6 +49,7 @@ import com.roshka.sifen.core.exceptions.SifenException;
 import com.roshka.sifen.core.fields.request.de.*;
 import com.roshka.sifen.core.types.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -85,6 +86,7 @@ public class SifenService {
     private final FacturaLegalService facturaLegalService;
     private final SucursalService sucursalService;
     private final com.roshka.sifen.core.SifenConfig sifenConfig;
+    private final boolean sifenEnabled;
 
     @Value("${tipoContribuyenteEmisor:2}")
     private Integer tipoContribuyenteEmisor;
@@ -98,7 +100,7 @@ public class SifenService {
             EventoNominacionDEService eventoNominacionDEService,
             @Lazy FacturaLegalService facturaLegalService,
             SucursalService sucursalService,
-            com.roshka.sifen.core.SifenConfig sifenConfig) {
+            @Autowired(required = false) com.roshka.sifen.core.SifenConfig sifenConfig) {
         this.documentoElectronicoService = documentoElectronicoService;
         this.loteDEService = loteDEService;
         this.facturaLegalItemService = facturaLegalItemService;
@@ -108,6 +110,16 @@ public class SifenService {
         this.facturaLegalService = facturaLegalService;
         this.sucursalService = sucursalService;
         this.sifenConfig = sifenConfig;
+        this.sifenEnabled = (this.sifenConfig != null);
+        if (!sifenEnabled) {
+            log.warn("SIFEN Service inicializado, pero SIFEN está DESHABILITADO. No se procesarán operaciones SIFEN.");
+        }
+    }
+
+    private void verificarSifenHabilitado() {
+        if (!sifenEnabled) {
+            throw new IllegalStateException("SIFEN está deshabilitado. No se puede ejecutar la operación.");
+        }
     }
 
     // ===================== CREACIÓN DE DOCUMENTOS ELECTRÓNICOS =====================
@@ -123,7 +135,7 @@ public class SifenService {
     @Transactional
     public com.franco.dev.domain.financiero.DocumentoElectronico crearDocumentoElectronico(
             FacturaLegal factura) throws Exception {
-        
+        verificarSifenHabilitado();
         log.info("📝 Creando Documento Electrónico para factura ID: {}", factura.getId());
         
         // 1. Crear el objeto DE de la BD
@@ -239,6 +251,7 @@ public class SifenService {
      */
     @Transactional
     public void enviarLote(LoteDE lote) throws SifenException {
+        verificarSifenHabilitado();
         log.info("📤 Enviando lote ID: {} a SIFEN...", lote.getId());
         
         // 1. Obtener documentos del lote
@@ -323,6 +336,7 @@ public class SifenService {
      */
     @Transactional
     public void consultarLote(LoteDE lote) throws SifenException {
+        verificarSifenHabilitado();
         log.info("🔍 Consultando lote ID: {} con protocolo: {}", lote.getId(), lote.getProtocolo());
         
             if (lote.getProtocolo() == null || lote.getProtocolo().isEmpty()) {
@@ -403,6 +417,7 @@ public class SifenService {
      */
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public RespuestaConsultaDE consultarDE(String cdc) {
+        verificarSifenHabilitado();
         return consultarDEConRetry(cdc, 3, 1000);
     }
     
@@ -415,6 +430,7 @@ public class SifenService {
      * @return Información del estado del documento
      */
     private RespuestaConsultaDE consultarDEConRetry(String cdc, int maxReintentos, long delayInicialMs) {
+        verificarSifenHabilitado();
         log.info("🔍 Consultando DE con CDC: {}", cdc);
         
         int intento = 0;
@@ -1495,6 +1511,13 @@ public class SifenService {
 
     /**
      * Construye los datos de items y condiciones de pago.
+     * 
+     * IMPORTANTE: Para determinar el producto asociado a cada item, se usa la siguiente prioridad:
+     * 1. Producto vinculado directamente al FacturaLegalItem (nuevo campo producto_id)
+     * 2. Producto a través de VentaItem (para compatibilidad con facturas vinculadas a ventas)
+     * 
+     * Esta lógica permite que las facturas legales independientes (no vinculadas a ventas)
+     * mantengan acceso a información crítica del producto como IVA y si es pesable.
      */
     private TgDtipDE construirDatosItems(FacturaLegal factura, List<FacturaLegalItem> items) {
         TgDtipDE gDtipDE = new TgDtipDE();
@@ -1532,17 +1555,27 @@ public class SifenService {
             gCamItem.setdCodInt(String.format("%03d", i + 1));
             gCamItem.setdDesProSer(item.getDescripcion());
 
-            Producto producto = item.getVentaItem() != null ? item.getVentaItem().getProducto() : null;
+            // Prioridad 1: Producto vinculado directamente al FacturaLegalItem
+            Producto producto = item.getProducto();
+            
+            // Prioridad 2: Producto a través de VentaItem (para compatibilidad con facturas vinculadas a ventas)
+            if (producto == null && item.getVentaItem() != null) {
+                producto = item.getVentaItem().getProducto();
+            }
 
             BigDecimal cantidad;
             float cantidadFloat = item.getCantidad() != null ? item.getCantidad() : 0.0f;
 
+            // Determinar unidad de medida basándose en si el producto es pesable
             if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
                 gCamItem.setcUniMed(TcUniMed.kg);
                 cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(3, RoundingMode.HALF_UP);
+                log.debug("   Producto {} marcado como pesable - usando kg", producto.getDescripcion());
             } else {
                 gCamItem.setcUniMed(TcUniMed.UNI);
                 cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(0, RoundingMode.HALF_UP);
+                log.debug("   Producto {} no es pesable - usando unidades", 
+                    producto != null ? producto.getDescripcion() : "N/A");
             }
             gCamItem.setdCantProSer(cantidad);
             TgValorItem gValorItem = new TgValorItem();
@@ -1553,9 +1586,38 @@ public class SifenService {
             gCamItem.setgValorItem(gValorItem);
 
             TgCamIVA gCamIVA = new TgCamIVA();
-            gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
-            gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
-            gCamIVA.setdTasaIVA(BigDecimal.valueOf(10));
+            
+            // Determinar IVA usando la misma prioridad que para el producto
+            Integer iva = null;
+            if (producto != null && producto.getIva() != null) {
+                iva = producto.getIva();
+                log.debug("   IVA obtenido del producto {}: {}%", producto.getDescripcion(), iva);
+            } else {
+                iva = 10; // Default to 10%
+                log.debug("   IVA no disponible del producto - usando default: {}%", iva);
+            }
+
+            switch (iva) {
+                case 5:
+                    gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
+                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
+                    gCamIVA.setdTasaIVA(BigDecimal.valueOf(5));
+                    gCamIVA.setdBasExe(BigDecimal.ZERO);
+                    log.debug("   Configurado IVA 5% para producto");
+                    break;
+                case 0:
+                    gCamIVA.setiAfecIVA(TiAfecIVA.EXENTO);
+                    log.debug("   Configurado IVA EXENTO para producto");
+                    break;
+                case 10:
+                default:
+                    gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
+                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
+                    gCamIVA.setdTasaIVA(BigDecimal.valueOf(10));
+                    gCamIVA.setdBasExe(BigDecimal.ZERO);
+                    log.debug("   Configurado IVA 10% para producto");
+                    break;
+            }
             gCamItem.setgCamIVA(gCamIVA);
 
             gCamItemList.add(gCamItem);
