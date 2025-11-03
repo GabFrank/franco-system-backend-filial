@@ -1346,7 +1346,28 @@ public class SifenService {
         TgTimb gTimb = new TgTimb();
         gTimb.setiTiDE(TTiDE.FACTURA_ELECTRONICA);
         gTimb.setdNumTim(Integer.parseInt(factura.getTimbradoDetalle().getTimbrado().getNumero()));
-        gTimb.setdEst("001");
+        
+        // Obtener código de establecimiento desde la sucursal (requerido)
+        String codigoEstablecimiento = null;
+        if (factura.getTimbradoDetalle().getSucursal() != null && 
+            factura.getTimbradoDetalle().getSucursal().getCodigoEstablecimientoFactura() != null &&
+            !factura.getTimbradoDetalle().getSucursal().getCodigoEstablecimientoFactura().trim().isEmpty()) {
+            codigoEstablecimiento = factura.getTimbradoDetalle().getSucursal().getCodigoEstablecimientoFactura().trim();
+            log.debug("   Código de establecimiento obtenido de sucursal: {}", codigoEstablecimiento);
+        } else {
+            String mensajeError = "No se puede obtener el código de establecimiento (dEst). ";
+            if (factura.getTimbradoDetalle().getSucursal() == null) {
+                mensajeError += "La factura no tiene una sucursal asociada en el timbradoDetalle.";
+            } else if (factura.getTimbradoDetalle().getSucursal().getCodigoEstablecimientoFactura() == null ||
+                       factura.getTimbradoDetalle().getSucursal().getCodigoEstablecimientoFactura().trim().isEmpty()) {
+                mensajeError += String.format("La sucursal ID %d no tiene configurado el campo 'codigoEstablecimientoFactura'.", 
+                    factura.getTimbradoDetalle().getSucursal().getId());
+            }
+            log.error("   ❌ {}", mensajeError);
+            throw new IllegalArgumentException(mensajeError);
+        }
+        gTimb.setdEst(codigoEstablecimiento);
+        
         gTimb.setdPunExp(factura.getTimbradoDetalle().getPuntoExpedicion());
         gTimb.setdNumDoc(String.format("%07d", factura.getNumeroFactura()));
         gTimb.setdFeIniT(factura.getTimbradoDetalle().getTimbrado().getFechaInicio().toLocalDate());

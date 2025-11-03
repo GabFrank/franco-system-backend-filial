@@ -422,7 +422,7 @@ public class FacturaService {
         facturaLegal.setIvaParcial5(ivaParcial5);
         facturaLegal.setIvaParcial10(ivaParcial10);
         facturaLegal.setDescuento(ajusteNeto);
-        facturaLegal.setTotalFinal(venta.getTotalGs());
+        facturaLegal.setTotalFinal(totalParcial0 + totalParcial5 + totalParcial10);
         facturaLegal.setUsuario(venta.getUsuario());
         facturaLegal.setSucursalId(venta.getSucursalId());
         facturaLegal.setCredito(false);

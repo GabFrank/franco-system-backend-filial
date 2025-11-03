@@ -8,10 +8,11 @@
 DO $$
 DECLARE
     v_pubname TEXT;
+    v_puballtables BOOLEAN;
     v_table_count INTEGER := 0;
 BEGIN
     -- Buscar la publicación que coincida con el patrón filial*_pub
-    SELECT pubname INTO v_pubname
+    SELECT pubname, puballtables INTO v_pubname, v_puballtables
     FROM pg_publication
     WHERE pubname LIKE 'filial%_pub'
     LIMIT 1;
@@ -23,6 +24,14 @@ BEGIN
     
     RAISE NOTICE '============================================================';
     RAISE NOTICE 'Publicación encontrada: %', v_pubname;
+
+    -- Si la publicación es FOR ALL TABLES, no se necesita hacer nada
+    IF v_puballtables THEN
+        RAISE NOTICE 'La publicación ya está configurada como FOR ALL TABLES. No se requiere agregar tablas individuales.';
+        RAISE NOTICE '============================================================';
+        RETURN;
+    END IF;
+
     RAISE NOTICE 'Agregando tablas de facturación electrónica...';
     RAISE NOTICE '============================================================';
     
@@ -98,14 +107,23 @@ END $$;
 DO $$
 DECLARE
     v_pubname TEXT;
+    v_puballtables BOOLEAN;
     v_count INTEGER;
 BEGIN
-    SELECT pubname INTO v_pubname
+    SELECT pubname, puballtables INTO v_pubname, v_puballtables
     FROM pg_publication
     WHERE pubname LIKE 'filial%_pub'
     LIMIT 1;
     
     IF v_pubname IS NOT NULL THEN
+        -- Si la publicación es FOR ALL TABLES, la verificación es exitosa por defecto
+        IF v_puballtables THEN
+            RAISE NOTICE '';
+            RAISE NOTICE '📋 VERIFICACIÓN - Publicación % es FOR ALL TABLES.', v_pubname;
+            RAISE NOTICE '✅ Verificación exitosa: Todas las tablas están en la publicación';
+            RETURN;
+        END IF;
+
         RAISE NOTICE '';
         RAISE NOTICE '📋 VERIFICACIÓN - Tablas de facturación electrónica en %:', v_pubname;
         RAISE NOTICE '------------------------------------------------------------';
