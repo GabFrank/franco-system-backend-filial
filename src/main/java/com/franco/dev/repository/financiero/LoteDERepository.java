@@ -12,5 +12,7 @@ public interface LoteDERepository extends HelperRepository<LoteDE, Long> {
     
     List<LoteDE> findByEstadoOrderByFechaUltimoIntentoAsc(EstadoLoteDE estado);
     
+    List<LoteDE> findByEstadoInOrderByCreadoEnAsc(List<EstadoLoteDE> estados);
+    
     LoteDE findByProtocolo(String protocolo);
 }

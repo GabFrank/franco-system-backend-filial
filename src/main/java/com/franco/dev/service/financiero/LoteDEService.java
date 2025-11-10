@@ -27,4 +27,8 @@ public class LoteDEService extends CrudService<LoteDE, LoteDERepository> {
     public List<LoteDE> findByEstado(EstadoLoteDE estado) {
         return repository.findByEstadoOrderByCreadoEnAsc(estado);
     }
+    
+    public List<LoteDE> findByEstados(List<EstadoLoteDE> estados) {
+        return repository.findByEstadoInOrderByCreadoEnAsc(estados);
+    }
 }

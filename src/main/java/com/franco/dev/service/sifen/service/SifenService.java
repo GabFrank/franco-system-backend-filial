@@ -1091,6 +1091,32 @@ public class SifenService {
     // ===================== MÉTODOS AUXILIARES PRIVADOS =====================
 
     /**
+     * Normaliza un BigDecimal para cumplir con el esquema SIFEN que requiere máximo 4 dígitos decimales.
+     * 
+     * @param valor El valor BigDecimal a normalizar (puede ser null)
+     * @return BigDecimal normalizado con máximo 4 decimales, o BigDecimal.ZERO si el valor es null
+     */
+    private BigDecimal normalizarDecimalesMonetarios(BigDecimal valor) {
+        if (valor == null) {
+            return BigDecimal.ZERO;
+        }
+        return valor.setScale(4, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Normaliza un Double para cumplir con el esquema SIFEN que requiere máximo 4 dígitos decimales.
+     * 
+     * @param valor El valor Double a normalizar (puede ser null)
+     * @return BigDecimal normalizado con máximo 4 decimales, o BigDecimal.ZERO si el valor es null
+     */
+    private BigDecimal normalizarDecimalesMonetarios(Double valor) {
+        if (valor == null) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(valor).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    /**
      * Procesa la respuesta de un lote que ha concluido su procesamiento (código 0362).
      * Analiza individualmente cada documento en la respuesta.
      */
@@ -1555,7 +1581,8 @@ public class SifenService {
         TgPaConEIni gPaConEIni = new TgPaConEIni();
         gPaConEIni.setiTiPago(TiTiPago.EFECTIVO);
         gPaConEIni.setcMoneTiPag(CMondT.PYG);
-        gPaConEIni.setdMonTiPag(BigDecimal.valueOf(factura.getTotalFinal()));
+        // Limitar decimales a 4 dígitos según esquema SIFEN (cvc-fractionDigits-valid)
+        gPaConEIni.setdMonTiPag(normalizarDecimalesMonetarios(factura.getTotalFinal()));
         gPaConEIniList.add(gPaConEIni);
         gCamCond.setgPaConEIniList(gPaConEIniList);
         
@@ -1600,7 +1627,8 @@ public class SifenService {
             }
             gCamItem.setdCantProSer(cantidad);
             TgValorItem gValorItem = new TgValorItem();
-            gValorItem.setdPUniProSer(BigDecimal.valueOf(item.getPrecioUnitario().doubleValue()));
+            // Limitar decimales a 4 dígitos según esquema SIFEN (cvc-fractionDigits-valid)
+            gValorItem.setdPUniProSer(normalizarDecimalesMonetarios(item.getPrecioUnitario()));
 
             TgValorRestaItem gValorRestaItem = new TgValorRestaItem();
             gValorItem.setgValorRestaItem(gValorRestaItem);
@@ -1621,9 +1649,9 @@ public class SifenService {
             switch (iva) {
                 case 5:
                     gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
-                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
-                    gCamIVA.setdTasaIVA(BigDecimal.valueOf(5));
-                    gCamIVA.setdBasExe(BigDecimal.ZERO);
+                    gCamIVA.setdPropIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(100)));
+                    gCamIVA.setdTasaIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(5)));
+                    gCamIVA.setdBasExe(normalizarDecimalesMonetarios(BigDecimal.ZERO));
                     log.debug("   Configurado IVA 5% para producto");
                     break;
                 case 0:
@@ -1633,9 +1661,9 @@ public class SifenService {
                 case 10:
                 default:
                     gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
-                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
-                    gCamIVA.setdTasaIVA(BigDecimal.valueOf(10));
-                    gCamIVA.setdBasExe(BigDecimal.ZERO);
+                    gCamIVA.setdPropIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(100)));
+                    gCamIVA.setdTasaIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(10)));
+                    gCamIVA.setdBasExe(normalizarDecimalesMonetarios(BigDecimal.ZERO));
                     log.debug("   Configurado IVA 10% para producto");
                     break;
             }
@@ -1650,12 +1678,13 @@ public class SifenService {
 
     /**
      * Aplica fix para bug de totales IVA en la librería SIFEN.
+     * También normaliza los valores a 4 decimales según esquema SIFEN.
      */
     private void aplicarFixTotalesIVA(TgTotSub totales) {
         try {
             // Fix para IVA 10%
             if (totales.getdIVA10() != null && totales.getdIVA10().compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal valorIVA10 = totales.getdIVA10();
+                BigDecimal valorIVA10 = normalizarDecimalesMonetarios(totales.getdIVA10());
                 BigDecimal valorActualLiq10 = totales.getdLiqTotIVA10();
                 
                 if (valorActualLiq10 == null || valorActualLiq10.compareTo(BigDecimal.ZERO) == 0) {
@@ -1667,7 +1696,7 @@ public class SifenService {
             
             // Fix para IVA 5%
             if (totales.getdIVA5() != null && totales.getdIVA5().compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal valorIVA5 = totales.getdIVA5();
+                BigDecimal valorIVA5 = normalizarDecimalesMonetarios(totales.getdIVA5());
                 BigDecimal valorActualLiq5 = totales.getdLiqTotIVA5();
                 
                 if (valorActualLiq5 == null || valorActualLiq5.compareTo(BigDecimal.ZERO) == 0) {

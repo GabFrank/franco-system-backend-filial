@@ -61,6 +61,10 @@ public class DocumentoElectronicoService {
         return repository.findByLoteDe(loteDe);
     }
 
+    public List<DocumentoElectronico> findByMensajeRespuestaSifen(String mensajeRespuestaSifen) {
+        return repository.findByMensajeRespuestaSifen(mensajeRespuestaSifen);
+    }
+
     public DocumentoElectronico createFromFacturaLegal(FacturaLegal facturaLegal) {
         DocumentoElectronico documentoElectronico = new DocumentoElectronico();
         documentoElectronico.setFacturaLegal(facturaLegal);

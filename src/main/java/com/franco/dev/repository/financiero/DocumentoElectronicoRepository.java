@@ -24,4 +24,6 @@ public interface DocumentoElectronicoRepository extends JpaRepository<DocumentoE
     List<DocumentoElectronico> findByLoteDe(com.franco.dev.domain.financiero.LoteDE loteDe);
     
     List<DocumentoElectronico> findBySucursalIdAndActivoTrue(Long sucursalId);
+    
+    List<DocumentoElectronico> findByMensajeRespuestaSifen(String mensajeRespuestaSifen);
 }
