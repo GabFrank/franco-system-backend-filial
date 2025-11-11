@@ -1,5 +1,6 @@
 package com.franco.dev.service.operaciones;
 
+import com.franco.dev.domain.dto.StockPorTipoMovimientoDto;
 import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.StockPorProductoSucursal;
 import com.franco.dev.domain.operaciones.TransferenciaItem;
@@ -12,12 +13,15 @@ import com.franco.dev.service.empresarial.SucursalService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -42,6 +46,22 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
 
     public Double stockByProductoIdAndSucursalId(Long proId) {
         return Double.valueOf(stockByProductoId(proId));
+    }
+
+    public Double stockByProductoIdAndSucursalId(Long proId, Long sucId) {
+        Float stock = repository.stockByProductoIdAndSucursalId(proId, sucId);
+        if(stock == null) stock = Float.valueOf(0);
+        return Double.valueOf(stock);
+    }
+
+    public Double stockByProductoIdExecptMovStockId(Long proId, Long movId, Long sucId) {
+        Float stock = repository.stockByProductoIdExeptMovimientoId(proId, movId, sucId);
+        return Double.valueOf(stock != null ? stock : 0);
+    }
+
+    public Double stockByProductoIdAndSucursalIdAntesDeFecha(Long proId, Long sucId, LocalDateTime fecha) {
+        Float stock = repository.stockByProductoIdAndSucursalIdAntesDeFecha(proId, sucId, fecha);
+        return Double.valueOf(stock != null ? stock : 0);
     }
 
     public Float stockByProductoId(Long proId) {
@@ -134,5 +154,53 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
             ok = true;
         }
         return ok;
+    }
+
+    public Page<MovimientoStock> findMovimientoStockWithFilters(LocalDateTime inicio,
+                                                                LocalDateTime fin,
+                                                                List<Long> sucursalList,
+                                                                Long productoId,
+                                                                List<TipoMovimiento> tipoMovimientoList,
+                                                                Long usuarioId,
+                                                                Pageable pageable) {
+        List<String> stringEnum = null;
+        if (tipoMovimientoList != null) {
+            stringEnum = tipoMovimientoList.stream()
+                    .map(Enum::name)
+                    .collect(Collectors.toList());
+        }
+
+        return repository.findByFilters(inicio, fin, sucursalList, productoId, stringEnum, usuarioId, pageable);
+    }
+
+    public Double findStockWithFilters(LocalDateTime inicio,
+                                       LocalDateTime fin,
+                                       List<Long> sucursalList,
+                                       Long productoId,
+                                       List<TipoMovimiento> tipoMovimientoList,
+                                       Long usuarioId) {
+        List<String> stringEnum = null;
+        if (tipoMovimientoList != null) {
+            stringEnum = tipoMovimientoList.stream()
+                    .map(Enum::name)
+                    .collect(Collectors.toList());
+        }
+        Double stock = repository.findStockWithFilters(inicio, fin, sucursalList, productoId, stringEnum, usuarioId);
+        return stock == null ? 0 : stock;
+    }
+
+    public List<StockPorTipoMovimientoDto> findStockPorTipoMovimiento(LocalDateTime inicio,
+                                                                      LocalDateTime fin,
+                                                                      List<Long> sucursalList,
+                                                                      Long productoId,
+                                                                      List<TipoMovimiento> tipoMovimientoList,
+                                                                      Long usuarioId) {
+        List<String> stringEnum = null;
+        if (tipoMovimientoList != null) {
+            stringEnum = tipoMovimientoList.stream()
+                    .map(Enum::name)
+                    .collect(Collectors.toList());
+        }
+        return repository.findStockPorTipoMovimiento(inicio, fin, sucursalList, productoId, stringEnum, usuarioId);
     }
 }

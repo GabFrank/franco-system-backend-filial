@@ -1,9 +1,11 @@
 package com.franco.dev.graphql.operaciones.resolver;
 
+import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.Pedido;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.domain.personas.Proveedor;
+import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
 import com.franco.dev.service.operaciones.PedidoService;
 import com.franco.dev.service.personas.ProveedorService;
@@ -27,6 +29,9 @@ public class MovimientoStockResolverResolver implements GraphQLResolver<Movimien
     @Autowired
     private PedidoService pedidoService;
 
+    @Autowired
+    private SucursalService sucursalService;
+
     public Proveedor proveedor(MovimientoStock e) {
         if (e.getTipoMovimiento() == TipoMovimiento.COMPRA) {
             Pedido pedido = new Pedido();
@@ -40,5 +45,8 @@ public class MovimientoStockResolverResolver implements GraphQLResolver<Movimien
         return null;
     }
 
+    public Sucursal sucursal(MovimientoStock e){
+        return e.getSucursalId() != null ? sucursalService.findById(e.getSucursalId()).orElse(null) : null;
+    }
 
 }

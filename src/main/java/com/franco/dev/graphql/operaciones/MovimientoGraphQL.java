@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.domain.dto.StockPorTipoMovimientoDto;
 import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.graphql.operaciones.input.MovimientoStockInput;
@@ -13,12 +14,16 @@ import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
+import static com.franco.dev.utilitarios.DateUtils.stringToDate;
 
 @Component
 public class MovimientoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
@@ -40,6 +45,18 @@ public class MovimientoGraphQL implements GraphQLQueryResolver, GraphQLMutationR
 
     @Autowired
     private Environment env;
+
+    public Page<MovimientoStock> findMovimientoStockByFilters(String inicio,
+                                               String fin,
+                                               List<Long> sucursalList,
+                                               Long productoId,
+                                               List<TipoMovimiento> tipoMovimientoList,
+                                               Long usuarioId,
+                                               Integer page, Integer size) {
+        Pageable pageable = PageRequest.of(page, size);
+        if(productoId==null || inicio == null || fin == null) return null;
+        return service.findMovimientoStockWithFilters(stringToDate(inicio), stringToDate(fin), sucursalList, productoId, tipoMovimientoList, usuarioId, pageable);
+    }
 
     public Optional<MovimientoStock> movimientoStock(Long id, Long sucId) {
         return service.findById(id);
@@ -78,7 +95,37 @@ public class MovimientoGraphQL implements GraphQLQueryResolver, GraphQLMutationR
     }
 
     public Double stockPorProducto(Long id, Long sucId) {
-        return service.stockByProductoIdAndSucursalId(id);
+        if(sucId == null) return Double.valueOf(service.stockByProductoId(id));
+        return service.stockByProductoIdAndSucursalId(id, sucId);
+    }
+
+    public Double stockByProductoIdExeptMovimientoId(Long productoId, Long movimientoId, Long sucursalId) {
+        return service.stockByProductoIdExecptMovStockId(productoId, movimientoId, sucursalId);
+    }
+
+    public Double stockByProductoIdAntesDeFecha(Long productoId, Long sucursalId, String fecha) {
+        LocalDateTime fechaDate = stringToDate(fecha);
+        return service.stockByProductoIdAndSucursalIdAntesDeFecha(productoId, sucursalId, fechaDate);
+    }
+
+    public Double findStockWithFilters(String inicio,
+                                  String fin,
+                                  List<Long> sucursalList,
+                                  Long productoId,
+                                  List<TipoMovimiento> tipoMovimientoList,
+                                  Long usuarioId){
+        if(productoId==null || inicio == null || fin == null) return null;
+        return service.findStockWithFilters(stringToDate(inicio), stringToDate(fin), sucursalList, productoId, tipoMovimientoList, usuarioId);
+    }
+
+    public List<StockPorTipoMovimientoDto> findStockPorTipoMovimiento(String inicio,
+                                                           String fin,
+                                                           List<Long> sucursalList,
+                                                           Long productoId,
+                                                           List<TipoMovimiento> tipoMovimientoList,
+                                                           Long usuarioId){
+        if(productoId==null || inicio == null || fin == null) return null;
+        return service.findStockPorTipoMovimiento(stringToDate(inicio), stringToDate(fin), sucursalList, productoId, tipoMovimientoList, usuarioId);
     }
 
 }
