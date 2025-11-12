@@ -9,6 +9,7 @@ import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.personas.Cliente;
+import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
 import com.franco.dev.graphql.financiero.input.FacturaLegalItemInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
@@ -279,6 +280,40 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
             // Guardar la factura legal
             FacturaLegal facturaLegalGuardada = service.save(facturaLegal);
+
+            // Actualizar dirección y email de la persona del cliente si existe cliente y persona
+            if (facturaLegalGuardada.getCliente() != null && facturaLegalGuardada.getCliente().getPersona() != null) {
+                Persona persona = facturaLegalGuardada.getCliente().getPersona();
+                boolean necesitaActualizar = false;
+                
+                // Actualizar dirección si se proporciona y es diferente
+                if (entity.getDireccion() != null && !entity.getDireccion().trim().isEmpty()) {
+                    String nuevaDireccion = entity.getDireccion().trim();
+                    String direccionActual = persona.getDireccion() != null ? persona.getDireccion() : "";
+                    if (!nuevaDireccion.equals(direccionActual)) {
+                        persona.setDireccion(nuevaDireccion);
+                        necesitaActualizar = true;
+                    }
+                }
+                
+                // Actualizar email si se proporciona y es diferente
+                if (entity.getEmail() != null && !entity.getEmail().trim().isEmpty()) {
+                    String nuevoEmail = entity.getEmail().trim();
+                    String emailActual = persona.getEmail() != null ? persona.getEmail() : "";
+                    // Comparar sin considerar mayúsculas/minúsculas ya que PersonaService guarda en mayúsculas
+                    if (!nuevoEmail.equalsIgnoreCase(emailActual)) {
+                        persona.setEmail(nuevoEmail);
+                        necesitaActualizar = true;
+                    }
+                }
+                
+                // Guardar persona actualizada si hubo cambios
+                if (necesitaActualizar) {
+                    personaService.save(persona);
+                    log.info("✅ Persona del cliente actualizada - ID: {}, Dirección: {}, Email: {}", 
+                        persona.getId(), persona.getDireccion(), persona.getEmail());
+                }
+            }
 
             // Guardar los items si se proporcionan
             if (detalleList != null && !detalleList.isEmpty()) {
