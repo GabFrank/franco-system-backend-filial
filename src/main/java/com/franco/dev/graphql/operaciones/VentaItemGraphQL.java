@@ -56,26 +56,29 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         return service.findAll(pageable);
     }
 
-//    public List<VentaItem> ventaItemSearch(String texto){
-//        return service.findByAll(texto);
-//    }
+    // public List<VentaItem> ventaItemSearch(String texto){
+    // return service.findByAll(texto);
+    // }
 
     public VentaItem saveVentaItem(VentaItemInput input) {
         ModelMapper m = new ModelMapper();
         Venta venta = ventaService.findById(input.getVentaId()).orElse(null);
         VentaItem e = m.map(input, VentaItem.class);
-        if (e.getUsuario() != null) e.setUsuario(venta.getUsuario());
-        if (e.getProducto() != null) e.setProducto(productoService.findById(input.getProductoId()).orElse(null));
+        if (e.getUsuario() != null)
+            e.setUsuario(venta.getUsuario());
+        if (e.getProducto() != null)
+            e.setProducto(productoService.findById(input.getProductoId()).orElse(null));
         if (e.getPresentacion() != null)
             e.setPresentacion(presentacionService.findById(input.getPresentacionId()).orElse(null));
-        if (e.getVenta() != null) e.setVenta(venta);
+        if (e.getVenta() != null)
+            e.setVenta(venta);
         if (e.getPrecioVenta() != null)
             e.setPrecioVenta(precioPorSucursalService.findById(input.getPrecioVentaId()).orElse(null));
         e = service.saveAndSend(e, false);
         return e;
     }
 
-    public void calcularTotalVenta(Venta venta){
+    public void calcularTotalVenta(Venta venta) {
         List<VentaItem> ventaItemList = service.findByVentaId(venta.getId());
         Cambio cambioRs = cambioService.findLastByMonedaId((long) 2);
         Cambio cambioDs = cambioService.findLastByMonedaId((long) 3);
@@ -94,11 +97,12 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
     public Boolean deleteVentaItem(Long id, Long sucId) {
         VentaItem ventaItem = service.findById(id).orElse(null);
         Venta venta = null;
-        if(ventaItem!=null){
+        if (ventaItem != null) {
             venta = ventaItem.getVenta();
         }
         Boolean ok = service.deleteById(id);
-        if(venta != null) calcularTotalVenta(venta);
+        if (venta != null)
+            calcularTotalVenta(venta);
         return ok;
     }
 

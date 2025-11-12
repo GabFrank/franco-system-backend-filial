@@ -5173,3 +5173,118 @@ org.springframework.transaction.UnexpectedRollbackException: Transaction silentl
 2025-11-11 16:39:46.401 [Thread-9] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
 2025-11-11 16:39:46.425 [Thread-9] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
 2025-11-11 16:39:46.490 [Thread-9] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-11-11 16:57:28.528 [restartedMain] INFO  com.franco.dev.FrancoSystemsApplication - Starting FrancoSystemsApplication on ultron with PID 223063 (/home/ultron/Documentos/angular/franco-system-backend-filial/target/classes started by ultron in /home/ultron/Documentos/angular/franco-system-backend-filial)
+2025-11-11 16:57:28.535 [restartedMain] DEBUG com.franco.dev.FrancoSystemsApplication - Running with Spring Boot v2.1.15.RELEASE, Spring v5.1.16.RELEASE
+2025-11-11 16:57:28.536 [restartedMain] INFO  com.franco.dev.FrancoSystemsApplication - No active profile set, falling back to default profiles: default
+2025-11-11 16:57:28.591 [restartedMain] INFO  o.s.b.d.env.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2025-11-11 16:57:28.591 [restartedMain] INFO  o.s.b.d.env.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2025-11-11 16:57:31.794 [restartedMain] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-11-11 16:57:32.486 [restartedMain] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 683ms. Found 113 JPA repository interfaces.
+2025-11-11 16:57:33.304 [restartedMain] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'org.springframework.retry.annotation.RetryConfiguration' of type [org.springframework.retry.annotation.RetryConfiguration$$EnhancerBySpringCGLIB$$b46ae884] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-11-11 16:57:33.654 [restartedMain] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler@4c344843' of type [org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-11-11 16:57:33.670 [restartedMain] INFO  o.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker - Bean 'methodSecurityMetadataSource' of type [org.springframework.security.access.method.DelegatingMethodSecurityMetadataSource] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-11-11 16:57:34.555 [restartedMain] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port(s): 8082 (http)
+2025-11-11 16:57:34.578 [restartedMain] INFO  org.apache.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-0.0.0.0-8082"]
+2025-11-11 16:57:34.594 [restartedMain] INFO  org.apache.catalina.core.StandardService - Starting service [Tomcat]
+2025-11-11 16:57:34.594 [restartedMain] INFO  org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/9.0.36]
+2025-11-11 16:57:34.712 [restartedMain] INFO  o.a.c.core.ContainerBase.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-11-11 16:57:34.713 [restartedMain] INFO  org.springframework.web.context.ContextLoader - Root WebApplicationContext: initialization completed in 6121 ms
+2025-11-11 16:57:35.135 [restartedMain] INFO  c.franco.dev.config.RetryableDatabasePostProcessor - -----> configuring a retryable datasource for beanName = dataSource
+2025-11-11 16:57:35.251 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - ==== Environment Information ====
+2025-11-11 16:57:35.252 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - OS Name: Linux
+2025-11-11 16:57:35.252 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - OS Version: 6.12.48+deb13-amd64
+2025-11-11 16:57:35.252 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - Java Version: 1.8.0_462
+2025-11-11 16:57:35.252 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - File Encoding: UTF-8
+2025-11-11 16:57:35.252 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - User Dir: /home/ultron/Documentos/angular/franco-system-backend-filial
+2025-11-11 16:57:35.253 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - ================================
+2025-11-11 16:57:35.253 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - Scanning for duplicate migrations in source directory: src/main/resources/db/migration
+2025-11-11 16:57:35.260 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - Found 50 migration files in src/main/resources/db/migration
+2025-11-11 16:57:35.263 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - Duplicate migration cleanup complete for src/main/resources/db/migration
+2025-11-11 16:57:35.263 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - Scanning for duplicate migrations in target directory: target/classes/db/migration
+2025-11-11 16:57:35.265 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - Found 50 migration files in target/classes/db/migration
+2025-11-11 16:57:35.267 [restartedMain] INFO  com.franco.dev.config.FlywayConfig - Duplicate migration cleanup complete for target/classes/db/migration
+2025-11-11 16:57:35.299 [restartedMain] INFO  org.flywaydb.core.internal.license.VersionPrinter - Flyway Community Edition 5.2.3 by Boxfuse
+2025-11-11 16:57:35.867 [restartedMain] INFO  o.flywaydb.core.internal.database.DatabaseFactory - Database: jdbc:postgresql://localhost:5551/general6 (PostgreSQL 13.22)
+2025-11-11 16:57:35.895 [restartedMain] WARN  org.flywaydb.core.internal.database.base.Database - Flyway upgrade recommended: PostgreSQL 13.22 is newer than this version of Flyway and support has not been tested.
+2025-11-11 16:57:35.962 [restartedMain] INFO  o.f.c.i.schemahistory.JdbcTableSchemaHistory - Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2025-11-11 16:57:36.038 [restartedMain] INFO  org.flywaydb.core.internal.command.DbRepair - Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.093s).
+2025-11-11 16:57:36.073 [restartedMain] WARN  org.flywaydb.core.internal.database.base.Database - Flyway upgrade recommended: PostgreSQL 13.22 is newer than this version of Flyway and support has not been tested.
+2025-11-11 16:57:36.169 [restartedMain] INFO  org.flywaydb.core.internal.command.DbMigrate - Current version of schema "public": 53
+2025-11-11 16:57:36.185 [restartedMain] INFO  org.flywaydb.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2025-11-11 16:57:36.356 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-11-11 16:57:36.382 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-11-11 16:57:36.484 [restartedMain] INFO  org.hibernate.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-11-11 16:57:36.718 [restartedMain] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 5.4.17.Final
+2025-11-11 16:57:36.940 [restartedMain] INFO  org.hibernate.annotations.common.Version - HCANN000001: Hibernate Commons Annotations {5.1.0.Final}
+2025-11-11 16:57:37.136 [restartedMain] INFO  org.hibernate.dialect.Dialect - HHH000400: Using dialect: org.hibernate.dialect.PostgreSQLDialect
+2025-11-11 16:57:37.618 [restartedMain] WARN  Hibernate Types - You should use Hypersistence Optimizer to speed up your Hibernate application!
+2025-11-11 16:57:37.619 [restartedMain] WARN  Hibernate Types - For more details, go to https://vladmihalcea.com/hypersistence-optimizer/
+2025-11-11 16:57:37.619 [restartedMain] INFO  Hibernate Types - 
+ _    _                           _     _
+| |  | |                         (_)   | |
+| |__| |_   _ _ __   ___ _ __ ___ _ ___| |_ ___ _ __   ___ ___
+|  __  | | | | '_ \ / _ \ '__/ __| / __| __/ _ \ '_ \ / __/ _ \
+| |  | | |_| | |_) |  __/ |  \__ \ \__ \ ||  __/ | | | (_|  __/
+|_|  |_|\__, | .__/ \___|_|  |___/_|___/\__\___|_| |_|\___\___|
+         __/ | |
+        |___/|_|
+
+           ____        _   _           _
+          / __ \      | | (_)         (_)
+         | |  | |_ __ | |_ _ _ __ ___  _ _______ _ __
+         | |  | | '_ \| __| | '_ ` _ \| |_  / _ \ '__|
+         | |__| | |_) | |_| | | | | | | |/ /  __/ |
+          \____/| .__/ \__|_|_| |_| |_|_/___\___|_|
+                | |
+                |_|
+
+2025-11-11 16:57:37.620 [restartedMain] INFO  Hibernate Types - Check out the README page for more info about the Hypersistence Optimizer banner https://github.com/vladmihalcea/hibernate-types#how-to-remove-the-hypersistence-optimizer-banner-from-the-log
+2025-11-11 16:57:39.357 [restartedMain] INFO  o.h.e.t.jta.platform.internal.JtaPlatformInitiator - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-11-11 16:57:39.366 [restartedMain] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-11-11 16:57:40.162 [restartedMain] INFO  org.springframework.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final void org.springframework.amqp.rabbit.core.RabbitTemplate.start()] because it is marked as final: Consider using interface-based JDK proxies instead!
+2025-11-11 16:57:40.162 [restartedMain] INFO  org.springframework.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final void org.springframework.amqp.rabbit.core.RabbitTemplate.stop()] because it is marked as final: Consider using interface-based JDK proxies instead!
+2025-11-11 16:57:41.675 [restartedMain] WARN  com.franco.dev.service.utils.ImageService - Linux
+2025-11-11 16:57:43.078 [restartedMain] WARN  c.f.dev.service.sifen.config.SifenConfiguration - SIFEN está deshabilitado (sifen.enabled=false). El bean SifenConfig no se creará.
+2025-11-11 16:57:43.080 [restartedMain] WARN  com.franco.dev.service.sifen.service.SifenService - SIFEN Service inicializado, pero SIFEN está DESHABILITADO. No se procesarán operaciones SIFEN.
+2025-11-11 16:57:48.894 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'estado: PdvCajaEstado' on input type 'PdvCajaInput' -> com.franco.dev.graphql.financiero.input.PdvCajaInput. Try adding it manually to the dictionary
+2025-11-11 16:57:48.913 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'BarrioInput' -> com.franco.dev.graphql.general.input.BarrioInput. Try adding it manually to the dictionary
+2025-11-11 16:57:48.916 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'CiudadInput' -> com.franco.dev.graphql.general.input.CiudadInput. Try adding it manually to the dictionary
+2025-11-11 16:57:48.919 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'ContactoInput' -> com.franco.dev.graphql.general.input.ContactoInput. Try adding it manually to the dictionary
+2025-11-11 16:57:48.921 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'PaisInput' -> com.franco.dev.graphql.general.input.PaisInput. Try adding it manually to the dictionary
+2025-11-11 16:57:49.163 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'ClienteInput' -> com.franco.dev.graphql.personas.input.ClienteInput. Try adding it manually to the dictionary
+2025-11-11 16:57:49.195 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Cannot find definition for field 'creadoEn: Date' on input type 'ProveedorDiasVisitaInput' -> com.franco.dev.graphql.personas.input.ProveedorDiasVisitaInput. Try adding it manually to the dictionary
+2025-11-11 16:57:49.734 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: VentaCreditoCuota
+2025-11-11 16:57:49.734 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: VentaCredito
+2025-11-11 16:57:49.734 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: Meses
+2025-11-11 16:57:49.734 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: DeliveryUpdate
+2025-11-11 16:57:49.734 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: PrintData
+2025-11-11 16:57:49.734 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: ExistenciaCostoPorSucursal
+2025-11-11 16:57:49.734 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: ProductoCompra
+2025-11-11 16:57:49.734 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Schema type was defined but can never be accessed, and can be safely deleted: ProductoExistenciaCostos
+2025-11-11 16:57:49.737 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Root query resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Query'!  Either remove the graphql.kickstart.tools.GraphQLQueryResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.VentaCreditoCuotasGraphQL@16207855
+2025-11-11 16:57:49.737 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Root query resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Query'!  Either remove the graphql.kickstart.tools.GraphQLQueryResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.productos.CostoPorProductoGraphQL@69505d25
+2025-11-11 16:57:49.737 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Root query resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Query'!  Either remove the graphql.kickstart.tools.GraphQLQueryResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.productos.ProductoExistenciaCostoGraphQL@ecdf2ca
+2025-11-11 16:57:49.737 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.empresarial.ConfiguracionGeneralGraphQL@2e0920bf
+2025-11-11 16:57:49.738 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.empresarial.SucursalGraphQL@22809b39
+2025-11-11 16:57:49.738 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.empresarial.resolver.PuntoDeVentaGraphQL@25f815f1
+2025-11-11 16:57:49.738 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.TimbradoDetalleGraphQL@6f903d2a
+2025-11-11 16:57:49.738 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.TimbradoGraphQL@7e9f2d1c
+2025-11-11 16:57:49.738 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.financiero.VentaCreditoCuotasGraphQL@16207855
+2025-11-11 16:57:49.738 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.print.PrintGraphQL@6b58aca
+2025-11-11 16:57:49.738 [restartedMain] WARN  graphql.kickstart.tools.SchemaClassScanner - Root mutation resolver was provided but no methods on it were used in data fetchers for GraphQL type 'Mutation'!  Either remove the graphql.kickstart.tools.GraphQLMutationResolver interface from the resolver or remove the resolver entirely: com.franco.dev.graphql.productos.ProductoExistenciaCostoGraphQL@ecdf2ca
+2025-11-11 16:57:50.199 [restartedMain] INFO  g.k.spring.web.boot.GraphQLWebAutoConfiguration - Building GraphQLObjectMapper including errorHandler: null
+2025-11-11 16:57:51.035 [restartedMain] DEBUG c.franco.dev.security.JwtAuthenticationTokenFilter - Filter 'authenticationTokenFilter' configured for use
+2025-11-11 16:57:51.109 [restartedMain] INFO  com.franco.dev.service.utils.GoogleDriveService - Database backup is disabled. Google Drive service will not be initialized at startup.
+2025-11-11 16:57:51.110 [restartedMain] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database host: localhost
+2025-11-11 16:57:51.111 [restartedMain] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database port: 5551
+2025-11-11 16:57:51.111 [restartedMain] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database name: general6
+2025-11-11 16:57:51.111 [restartedMain] INFO  com.franco.dev.service.utils.DatabaseBackupService - Database backup scheduled to run at 9:00 every day
+2025-11-11 16:57:51.506 [restartedMain] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration$JpaWebMvcConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-11-11 16:57:51.740 [restartedMain] INFO  o.s.b.actuate.endpoint.web.EndpointLinksResolver - Exposing 2 endpoint(s) beneath base path '/actuator'
+2025-11-11 16:57:51.774 [restartedMain] INFO  o.s.security.web.DefaultSecurityFilterChain - Creating filter chain: any request, [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@29a49a2a, org.springframework.security.web.context.SecurityContextPersistenceFilter@6f193c22, org.springframework.security.web.header.HeaderWriterFilter@5b71fff2, org.springframework.web.filter.CorsFilter@7223bfcb, org.springframework.security.web.authentication.logout.LogoutFilter@6893f3ab, com.franco.dev.security.JwtAuthenticationTokenFilter@49964dce, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@157de82c, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@50762d16, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@7368fc96, org.springframework.security.web.session.SessionManagementFilter@729fe7ee, org.springframework.security.web.access.ExceptionTranslationFilter@3bd2f517, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@4b1e44a8]
+2025-11-11 16:57:52.778 [restartedMain] INFO  o.s.scheduling.concurrent.ThreadPoolTaskScheduler - Initializing ExecutorService 'taskScheduler'
+2025-11-11 16:57:53.039 [restartedMain] INFO  o.s.b.d.autoconfigure.OptionalLiveReloadServer - LiveReload server is running on port 35729
+2025-11-11 16:57:53.239 [restartedMain] INFO  org.apache.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-0.0.0.0-8082"]
+2025-11-11 16:57:53.296 [restartedMain] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port(s): 8082 (http) with context path ''
+2025-11-11 16:57:53.300 [restartedMain] INFO  com.franco.dev.FrancoSystemsApplication - Started FrancoSystemsApplication in 25.42 seconds (JVM running for 26.738)
+2025-11-11 16:58:23.240 [scheduling-1] DEBUG c.f.d.service.sifen.service.SifenSchedulerService - Scheduler de SIFEN deshabilitado
