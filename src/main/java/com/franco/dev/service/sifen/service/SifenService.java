@@ -39,11 +39,14 @@ import com.franco.dev.service.financiero.FacturaLegalItemService;
 import com.franco.dev.service.financiero.FacturaLegalService;
 import com.franco.dev.service.financiero.LoteDEService;
 import com.franco.dev.service.personas.ClienteService;
+import com.franco.dev.service.sifen.dto.response.ConsultaRucResponse;
 import com.franco.dev.service.sifen.util.SifenEventoParser;
+import com.franco.dev.utilitarios.CalcularVerificadorRuc;
 import com.franco.dev.service.sifen.util.SifenReceptorHelper;
 import com.roshka.sifen.Sifen;
 import com.roshka.sifen.core.beans.response.RespuestaConsultaDE;
 import com.roshka.sifen.core.beans.response.RespuestaConsultaLoteDE;
+import com.roshka.sifen.core.beans.response.RespuestaConsultaRUC;
 import com.roshka.sifen.core.beans.response.RespuestaRecepcionLoteDE;
 import com.roshka.sifen.core.exceptions.SifenException;
 import com.roshka.sifen.core.fields.request.de.*;
@@ -87,6 +90,59 @@ public class SifenService {
     private final SucursalService sucursalService;
     private final com.roshka.sifen.core.SifenConfig sifenConfig;
     private final boolean sifenEnabled;
+
+    public boolean isSifenEnabled() {
+        return sifenEnabled;
+    }
+
+    public ConsultaRucResponse consultaRuc(String ruc) {
+        verificarSifenHabilitado();
+        try {
+            RespuestaConsultaRUC respuesta = Sifen.consultaRUC(ruc, sifenConfig);
+            return mapearConsultaRuc(respuesta);
+        } catch (SifenException e) {
+            log.warn("⚠️ Error de SIFEN al consultar RUC {}: {}", ruc, e.getMessage());
+            return null;
+        } catch (Exception e) {
+            log.error("❌ Error inesperado al consultar RUC {}: {}", ruc, e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private ConsultaRucResponse mapearConsultaRuc(RespuestaConsultaRUC respuesta) {
+        if (respuesta == null) {
+            return null;
+        }
+
+        ConsultaRucResponse dto = new ConsultaRucResponse();
+        dto.setCodigoRespuesta(respuesta.getdCodRes());
+        dto.setMensajeRespuesta(respuesta.getdMsgRes());
+        dto.setMensajeProcesamiento(respuesta.getdMsgRes());
+        dto.setMensajeValidacion(respuesta.getdMsgRes());
+        boolean exito = "0300".equals(respuesta.getdCodRes());
+        dto.setProcesamientoCorrecto(exito);
+        dto.setValidacionCorrecta(exito);
+
+        com.roshka.sifen.core.fields.response.ruc.TxContRuc datos = respuesta.getxContRUC();
+        if (datos != null) {
+            String rucRespuesta = datos.getdRUCCons();
+            dto.setRuc(rucRespuesta);
+            dto.setRazonSocial(datos.getdRazCons());
+            dto.setEstadoContribuyente(datos.getdDesEstCons());
+            dto.setEstado(datos.getdDesEstCons());
+            dto.setCodigoEstadoContribuyente(datos.getdCodEstCons());
+            dto.setEsFacturadorElectronico(datos.getdRUCFactElec());
+            if (rucRespuesta != null) {
+                Integer dv = CalcularVerificadorRuc.getDigitoVerificador(rucRespuesta);
+                if (dv != null) {
+                    dto.setDv(String.valueOf(dv));
+                }
+            }
+            dto.setNombre(datos.getdRazCons());
+        }
+
+        return dto;
+    }
 
     @Value("${tipoContribuyenteEmisor:2}")
     private Integer tipoContribuyenteEmisor;

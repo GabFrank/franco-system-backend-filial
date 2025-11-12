@@ -14,6 +14,7 @@ import java.util.List;
 public class PersonaService extends CrudService<Persona, PersonaRepository> {
 
     private final PersonaRepository repository;
+    private final CentralPersonasIntegrationService centralPersonasIntegrationService;
 //    private final PersonaPublisher personaPublisher;
 
 
@@ -33,6 +34,8 @@ public class PersonaService extends CrudService<Persona, PersonaRepository> {
 
     @Override
     public Persona save(Persona entity) {
+        Persona synced = centralPersonasIntegrationService.syncPersona(entity);
+        applySyncedValues(entity, synced);
         if (entity.getId() == null) {
             entity.setCreadoEn(LocalDateTime.now());
         }
@@ -47,5 +50,23 @@ public class PersonaService extends CrudService<Persona, PersonaRepository> {
 
     public List<Persona> saveAll(List<Persona> entityList) {
         return repository.saveAll(entityList);
+    }
+
+    private void applySyncedValues(Persona target, Persona source) {
+        if (source == null) {
+            return;
+        }
+        target.setId(source.getId());
+        target.setNombre(source.getNombre());
+        target.setApodo(source.getApodo());
+        target.setDocumento(source.getDocumento());
+        target.setEmail(source.getEmail());
+        target.setDireccion(source.getDireccion());
+        target.setTelefono(source.getTelefono());
+        target.setSexo(source.getSexo());
+        target.setSocialMedia(source.getSocialMedia());
+        target.setImagenes(source.getImagenes());
+        target.setNacimiento(source.getNacimiento());
+        target.setCreadoEn(source.getCreadoEn());
     }
 }

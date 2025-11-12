@@ -1,0 +1,120 @@
+package com.franco.dev.service.personas;
+
+import com.franco.dev.domain.personas.Cliente;
+import com.franco.dev.domain.personas.Persona;
+import com.franco.dev.domain.personas.Usuario;
+import com.franco.dev.service.personas.dto.ClienteSyncRequest;
+import com.franco.dev.service.personas.dto.PersonaSyncRequest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.core.env.Environment;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+@Service
+@RequiredArgsConstructor
+public class CentralPersonasIntegrationService {
+
+    private static final String PERSONA_ENDPOINT = "/api/personas";
+    private static final String CLIENTE_ENDPOINT = "/api/personas/clientes";
+    private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+    private final RestTemplate restTemplate;
+    private final Environment environment;
+
+    public Persona syncPersona(Persona persona) {
+        PersonaSyncRequest request = buildPersonaRequest(persona);
+        String url = buildUrl(PERSONA_ENDPOINT);
+        return executePost(url, request, Persona.class);
+    }
+
+    public Cliente syncCliente(Cliente cliente) {
+        ClienteSyncRequest request = buildClienteRequest(cliente);
+        String url = buildUrl(CLIENTE_ENDPOINT);
+        return executePost(url, request, Cliente.class);
+    }
+
+    private PersonaSyncRequest buildPersonaRequest(Persona persona) {
+        PersonaSyncRequest request = new PersonaSyncRequest();
+        request.setId(persona.getId());
+        request.setNombre(persona.getNombre());
+        request.setApodo(persona.getApodo());
+        request.setSexo(persona.getSexo());
+        request.setDocumento(persona.getDocumento());
+        request.setEmail(persona.getEmail());
+        request.setDireccion(persona.getDireccion());
+        request.setTelefono(persona.getTelefono());
+        request.setSocialMedia(persona.getSocialMedia());
+        request.setImagenes(persona.getImagenes());
+
+        if (persona.getUsuario() != null) {
+            request.setUsuarioId(persona.getUsuario().getId());
+        }
+
+        if (persona.getCiudad() != null) {
+            request.setCiudadId(persona.getCiudad().getId());
+        }
+
+        LocalDateTime nacimiento = persona.getNacimiento();
+        if (nacimiento != null) {
+            request.setNacimiento(ISO_FORMATTER.format(nacimiento));
+        }
+
+        return request;
+    }
+
+    private ClienteSyncRequest buildClienteRequest(Cliente cliente) {
+        ClienteSyncRequest request = new ClienteSyncRequest();
+        request.setId(cliente.getId());
+        request.setTipo(cliente.getTipo());
+        request.setCredito(cliente.getCredito());
+        request.setCodigo(cliente.getCodigo());
+        request.setTributa(cliente.getTributa());
+        request.setVerificadoSet(cliente.getVerificadoSet());
+
+        if (cliente.getPersona() != null) {
+            request.setPersonaId(cliente.getPersona().getId());
+        }
+
+        if (cliente.getSucursal() != null) {
+            request.setSucursalId(cliente.getSucursal().getId());
+        }
+
+        Usuario usuario = cliente.getUsuario();
+        if (usuario != null) {
+            request.setUsuarioId(usuario.getId());
+        }
+
+        return request;
+    }
+
+    private String buildUrl(String endpoint) {
+        String host = environment.getProperty("ipServidorCentral");
+        if (!StringUtils.hasText(host)) {
+            throw new IllegalStateException("Propiedad 'ipServidorCentral' no configurada");
+        }
+        String baseUrl = host.startsWith("http") ? host : "http://" + host;
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        return baseUrl + endpoint;
+    }
+
+    private <T, R> R executePost(String url, T body, Class<R> responseType) {
+        try {
+            ResponseEntity<R> response = restTemplate.postForEntity(url, body, responseType);
+            if (response.getBody() == null) {
+                throw new IllegalStateException("Respuesta vacia al sincronizar con el servidor central");
+            }
+            return response.getBody();
+        } catch (RestClientException e) {
+            throw new IllegalStateException("Error la conectar con el servidor central", e);
+        }
+    }
+}
+

@@ -232,10 +232,36 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 usuario.ifPresent(facturaLegal::setUsuario);
             }
 
-            // Obtener el timbrado detalle por pdvId
-            TimbradoDetalle timbradoDetalle = timbradoDetalleService.getTimbradoDetalleActual(pdvId.longValue());
+            boolean sifenHabilitado = sifenService != null && sifenService.isSifenEnabled();
+
+            TimbradoDetalle timbradoDetalle = timbradoDetalleService
+                    .getTimbradoDetalleActual(pdvId.longValue(), sifenHabilitado);
+
             if (timbradoDetalle == null) {
-                throw new GraphQLException("No se encontró un timbrado para el punto de venta ID: " + pdvId);
+                String mensajeError = sifenHabilitado
+                        ? "SIFEN está habilitado, pero no se encontró un timbrado electrónico activo para el punto de venta ID: "
+                                + pdvId
+                        : "SIFEN está deshabilitado, pero no se encontró un timbrado no electrónico activo para el punto de venta ID: "
+                                + pdvId;
+                throw new GraphQLException(mensajeError);
+            }
+
+            if (timbradoDetalle.getTimbrado() == null) {
+                throw new GraphQLException(
+                        "El timbrado detalle recuperado no tiene un timbrado asociado para el punto de venta ID: "
+                                + pdvId);
+            }
+
+            Boolean timbradoEsElectronico = Boolean.TRUE.equals(timbradoDetalle.getTimbrado().getIsElectronico());
+            if (sifenHabilitado && !timbradoEsElectronico) {
+                throw new GraphQLException(
+                        "SIFEN está habilitado y se requiere un timbrado electrónico activo para el punto de venta ID: "
+                                + pdvId);
+            }
+            if (!sifenHabilitado && timbradoEsElectronico) {
+                throw new GraphQLException(
+                        "SIFEN está deshabilitado y se requiere un timbrado no electrónico activo para el punto de venta ID: "
+                                + pdvId);
             }
 
             facturaLegal.setTimbradoDetalle(timbradoDetalle);

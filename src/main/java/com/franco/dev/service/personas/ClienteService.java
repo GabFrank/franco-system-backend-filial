@@ -15,6 +15,7 @@ public class ClienteService extends CrudService<Cliente, ClienteRepository> {
     //
 
     private final ClienteRepository repository;
+    private final CentralPersonasIntegrationService centralPersonasIntegrationService;
 
     @Override
     public ClienteRepository getRepository() {
@@ -34,6 +35,25 @@ public class ClienteService extends CrudService<Cliente, ClienteRepository> {
         return  repository.findByPersona(texto.toUpperCase());
     }
 
+    @Override
+    public Cliente save(Cliente entity) {
+        Cliente synced = centralPersonasIntegrationService.syncCliente(entity);
+        applySyncedValues(entity, synced);
+        return super.save(entity);
+    }
+
+    private void applySyncedValues(Cliente target, Cliente source) {
+        if (source == null) {
+            return;
+        }
+        target.setId(source.getId());
+        target.setTipo(source.getTipo());
+        target.setCredito(source.getCredito());
+        target.setCodigo(source.getCodigo());
+        target.setTributa(source.getTributa());
+        target.setVerificadoSet(source.getVerificadoSet());
+        target.setCreadoEn(source.getCreadoEn());
+    }
 }
 
 

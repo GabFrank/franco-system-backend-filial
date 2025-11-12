@@ -11,8 +11,11 @@ public interface TimbradoDetalleRepository extends HelperRepository<TimbradoDeta
         return TimbradoDetalle.class;
     }
 
-    public List<TimbradoDetalle> findByTimbradoId(Long id);
+    List<TimbradoDetalle> findByTimbradoId(Long id);
 
-    public TimbradoDetalle findFirstByPuntoDeVentaIdOrderByIdDesc(Long id);
+    TimbradoDetalle findFirstByPuntoDeVentaIdOrderByIdDesc(Long id);
+
+    TimbradoDetalle findFirstByPuntoDeVentaIdAndActivoTrueAndTimbrado_ActivoTrueAndTimbrado_IsElectronicoOrderByIdDesc(
+            Long puntoDeVentaId, Boolean isElectronico);
 
 }
