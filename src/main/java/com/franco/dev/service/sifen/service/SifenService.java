@@ -123,8 +123,30 @@ public class SifenService {
     @Transactional
     public com.franco.dev.domain.financiero.DocumentoElectronico crearDocumentoElectronico(
             FacturaLegal factura) throws Exception {
+        return crearDocumentoElectronico(factura, null, null);
+    }
+
+    /**
+     * Crea un Documento Electrónico para una factura y lo persiste en BD con estado PENDIENTE.
+     * Genera el XML original y la URL QR para uso posterior.
+     * Soporta moneda extranjera cuando se proporcionan monedaExtranjera y tipoCambio.
+     * 
+     * @param factura La factura legal para la cual crear el DE
+     * @param monedaExtranjera Código de moneda extranjera (ej: "USD", "EUR") - opcional
+     * @param tipoCambio Tipo de cambio a utilizar - opcional
+     * @return El DocumentoElectronico persistido con CDC y XML original
+     * @throws Exception Si hay error en la generación
+     */
+    @Transactional
+    public com.franco.dev.domain.financiero.DocumentoElectronico crearDocumentoElectronico(
+            FacturaLegal factura, String monedaExtranjera, Double tipoCambio) throws Exception {
         
-        log.info("📝 Creando Documento Electrónico para factura ID: {}", factura.getId());
+        if (monedaExtranjera != null && tipoCambio != null) {
+            log.info("📝 Creando Documento Electrónico en moneda extranjera {} (cambio: {}) para factura ID: {}", 
+                monedaExtranjera, tipoCambio, factura.getId());
+        } else {
+            log.info("📝 Creando Documento Electrónico para factura ID: {}", factura.getId());
+        }
         
         // 1. Crear el objeto DE de la BD
         com.franco.dev.domain.financiero.DocumentoElectronico de = 
@@ -138,7 +160,7 @@ public class SifenService {
         
         // 3. Generar el objeto DE de SIFEN
         com.roshka.sifen.core.beans.DocumentoElectronico deSifen = 
-            generarDEDesdeFacturaDatosReales(factura, items);
+            generarDEDesdeFacturaDatosReales(factura, items, monedaExtranjera, tipoCambio);
         
         // 4. Asignar CDC
         String cdc = deSifen.obtenerCDC();
@@ -1293,7 +1315,7 @@ public class SifenService {
         }
         
         com.roshka.sifen.core.beans.DocumentoElectronico deSifen = 
-            generarDEDesdeFacturaDatosReales(factura, items);
+            generarDEDesdeFacturaDatosReales(factura, items, null, null);
         
         // Forzar CDC original si difiere
         if (!de.getCdc().equals(deSifen.obtenerCDC())) {
@@ -1307,13 +1329,25 @@ public class SifenService {
     /**
      * Genera un DocumentoElectronico de SIFEN desde una FacturaLegal usando datos reales.
      * Utiliza SifenReceptorHelper para configuración correcta del receptor.
+     * Soporta moneda extranjera cuando se proporcionan monedaExtranjera y tipoCambio.
      * 
+     * @param factura La factura legal
+     * @param items Los items de la factura
+     * @param monedaExtranjera Código de moneda extranjera (ej: "USD", "EUR") - opcional
+     * @param tipoCambio Tipo de cambio a utilizar - opcional
      * @throws SifenException Si hay error al generar el DE
      */
     private com.roshka.sifen.core.beans.DocumentoElectronico generarDEDesdeFacturaDatosReales(
-            FacturaLegal factura, List<FacturaLegalItem> items) throws SifenException {
+            FacturaLegal factura, List<FacturaLegalItem> items, String monedaExtranjera, Double tipoCambio) throws SifenException {
         
-        log.debug("Generando DE desde FacturaLegal ID: {}", factura.getId());
+        boolean esMonedaExtranjera = monedaExtranjera != null && tipoCambio != null;
+        
+        if (esMonedaExtranjera) {
+            log.debug("Generando DE en moneda extranjera {} (cambio: {}) desde FacturaLegal ID: {}", 
+                monedaExtranjera, tipoCambio, factura.getId());
+        } else {
+            log.debug("Generando DE desde FacturaLegal ID: {}", factura.getId());
+        }
         
         // Grupo A - Identificación del DE
         com.roshka.sifen.core.beans.DocumentoElectronico DE = 
@@ -1343,7 +1377,21 @@ public class SifenService {
         TgOpeCom gOpeCom = new TgOpeCom();
         gOpeCom.setiTipTra(TTipTra.VENTA_MERCADERIA);
         gOpeCom.setiTImp(TTImp.IVA);
-        gOpeCom.setcMoneOpe(CMondT.PYG);
+        
+        // Configurar moneda de operación
+        if (esMonedaExtranjera) {
+            CMondT moneda = convertirStringAMonedT(monedaExtranjera);
+            gOpeCom.setcMoneOpe(moneda);
+            // Configurar tipo de cambio global (operación global, no por item)
+            gOpeCom.setdCondTiCam(TdCondTiCam.GLOBAL);
+            // Tipo de cambio con 4 decimales de precisión
+            BigDecimal tipoCambioBD = BigDecimal.valueOf(tipoCambio.doubleValue()).setScale(4, RoundingMode.HALF_UP);
+            gOpeCom.setdTiCam(tipoCambioBD);
+            log.debug("Moneda extranjera configurada: {} con cambio global: {}", moneda, tipoCambioBD);
+        } else {
+            gOpeCom.setcMoneOpe(CMondT.PYG);
+        }
+        
         dDatGralOpe.setgOpeCom(gOpeCom);
 
         // Datos del Emisor
@@ -1357,7 +1405,7 @@ public class SifenService {
         DE.setgDatGralOpe(dDatGralOpe);
 
         // Grupo E - Items y condiciones
-        TgDtipDE gDtipDE = construirDatosItems(factura, items);
+        TgDtipDE gDtipDE = construirDatosItems(factura, items, monedaExtranjera, tipoCambio);
         DE.setgDtipDE(gDtipDE);
 
         // Grupo F - Totales
@@ -1495,8 +1543,15 @@ public class SifenService {
 
     /**
      * Construye los datos de items y condiciones de pago.
+     * Soporta moneda extranjera cuando se proporcionan monedaExtranjera y tipoCambio.
+     * 
+     * @param factura La factura legal
+     * @param items Los items de la factura
+     * @param monedaExtranjera Código de moneda extranjera (ej: "USD", "EUR") - opcional
+     * @param tipoCambio Tipo de cambio a utilizar - opcional
      */
-    private TgDtipDE construirDatosItems(FacturaLegal factura, List<FacturaLegalItem> items) {
+    private TgDtipDE construirDatosItems(FacturaLegal factura, List<FacturaLegalItem> items, 
+            String monedaExtranjera, Double tipoCambio) {
         TgDtipDE gDtipDE = new TgDtipDE();
 
         // Configuración de factura electrónica (incluyendo compra pública si aplica)
@@ -1507,11 +1562,24 @@ public class SifenService {
         boolean esCredito = factura.getCredito() != null && factura.getCredito();
         gCamCond.setiCondOpe(esCredito ? TiCondOpe.CREDITO : TiCondOpe.CONTADO);
 
+        boolean esMonedaExtranjera = monedaExtranjera != null && tipoCambio != null;
+        
         List<TgPaConEIni> gPaConEIniList = new ArrayList<>();
         TgPaConEIni gPaConEIni = new TgPaConEIni();
         gPaConEIni.setiTiPago(TiTiPago.EFECTIVO);
-        gPaConEIni.setcMoneTiPag(CMondT.PYG);
-        gPaConEIni.setdMonTiPag(BigDecimal.valueOf(factura.getTotalFinal()));
+        
+        // Configurar moneda de pago
+        if (esMonedaExtranjera) {
+            CMondT moneda = convertirStringAMonedT(monedaExtranjera);
+            gPaConEIni.setcMoneTiPag(moneda);
+            // El monto se mantiene en guaraníes según especificación SIFEN
+            // La moneda indica que es operación en moneda extranjera
+            gPaConEIni.setdMonTiPag(BigDecimal.valueOf(factura.getTotalFinal()).setScale(4, RoundingMode.HALF_UP));
+        } else {
+            gPaConEIni.setcMoneTiPag(CMondT.PYG);
+            gPaConEIni.setdMonTiPag(BigDecimal.valueOf(factura.getTotalFinal()));
+        }
+        
         gPaConEIniList.add(gPaConEIni);
         gCamCond.setgPaConEIniList(gPaConEIniList);
         
@@ -1563,6 +1631,38 @@ public class SifenService {
 
         gDtipDE.setgCamItemList(gCamItemList);
         return gDtipDE;
+    }
+
+    /**
+     * Convierte un código de moneda en string a su enum CMondT correspondiente.
+     * 
+     * @param codigoMoneda Código de moneda (ej: "USD", "EUR", "PYG")
+     * @return El enum CMondT correspondiente
+     * @throws IllegalArgumentException Si la moneda no es soportada
+     */
+    private CMondT convertirStringAMonedT(String codigoMoneda) {
+        if (codigoMoneda == null || codigoMoneda.isEmpty()) {
+            throw new IllegalArgumentException("Código de moneda no puede ser null o vacío");
+        }
+        
+        String codigoUpper = codigoMoneda.toUpperCase().trim();
+        
+        switch (codigoUpper) {
+            case "USD":
+                return CMondT.USD;
+            case "EUR":
+                return CMondT.EUR;
+            case "PYG":
+            case "GS":
+                return CMondT.PYG;
+            case "ARS":
+                return CMondT.ARS;
+            case "BRL":
+                return CMondT.BRL;
+            default:
+                throw new IllegalArgumentException("Moneda no soportada: " + codigoMoneda + 
+                    ". Monedas soportadas: USD, EUR, PYG, ARS, BRL");
+        }
     }
 
     /**

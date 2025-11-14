@@ -59,6 +59,8 @@ import javax.print.attribute.standard.OrientationRequested;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -141,6 +143,32 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private MonedaService monedaService;
+
+    // Campos temporales para moneda extranjera (solo para pruebas, no se persisten)
+    private String selectedMoneda = "USD";
+    private Double cambio = 7000.0;
+
+    /**
+     * Establece la moneda extranjera y tipo de cambio para pruebas.
+     * Estos valores solo se usan si ambos están establecidos.
+     * 
+     * @param moneda Código de moneda extranjera (ej: "USD", "EUR")
+     * @param tipoCambio Tipo de cambio a utilizar
+     */
+    public void setMonedaExtranjera(String moneda, Double tipoCambio) {
+        this.selectedMoneda = moneda;
+        this.cambio = tipoCambio;
+        log.info("Moneda extranjera configurada para prueba: {} con cambio: {}", moneda, tipoCambio);
+    }
+
+    /**
+     * Limpia la configuración de moneda extranjera.
+     */
+    public void clearMonedaExtranjera() {
+        this.selectedMoneda = null;
+        this.cambio = null;
+        log.info("Configuración de moneda extranjera limpiada");
+    }
 
     public Optional<FacturaLegal> facturaLegal(Long id, Long sucId) {
         return service.findById(id);
@@ -320,10 +348,22 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             // Generar documento electrónico si el timbrado es electrónico
             if (timbradoDetalle.getTimbrado() != null && Boolean.TRUE.equals(timbradoDetalle.getTimbrado().getIsElectronico())) {
                 try {
-                    log.info("📝 Generando Documento Electrónico para factura ID: {}", facturaLegalGuardada.getId());
+                    // Verificar si es moneda extranjera
+                    boolean esMonedaExtranjera = selectedMoneda != null && cambio != null;
                     
-                    com.franco.dev.domain.financiero.DocumentoElectronico de = 
-                        sifenService.crearDocumentoElectronico(facturaLegalGuardada);
+                    if (esMonedaExtranjera) {
+                        log.info("📝 Generando Documento Electrónico en moneda extranjera {} (cambio: {}) para factura ID: {}", 
+                            selectedMoneda, cambio, facturaLegalGuardada.getId());
+                    } else {
+                        log.info("📝 Generando Documento Electrónico para factura ID: {}", facturaLegalGuardada.getId());
+                    }
+                    
+                    com.franco.dev.domain.financiero.DocumentoElectronico de;
+                    if (esMonedaExtranjera) {
+                        de = sifenService.crearDocumentoElectronico(facturaLegalGuardada, selectedMoneda, cambio);
+                    } else {
+                        de = sifenService.crearDocumentoElectronico(facturaLegalGuardada);
+                    }
                     
                     // Actualizar la factura con el CDC del DE para impresión
                     facturaLegalGuardada.setCdc(de.getCdc());
@@ -788,6 +828,12 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     public void printTicket58mmFactura(Venta venta, FacturaLegal facturaLegal,
             List<FacturaLegalItem> facturaLegalItemList, String printerName) throws Exception {
+
+        // Verificar si es moneda extranjera
+        if (selectedMoneda != null && cambio != null) {
+            printTicket58mmFacturaMonedaExtranjera(venta, facturaLegal, facturaLegalItemList, printerName, selectedMoneda, cambio);
+            return;
+        }
 
         if (facturaLegalItemList == null) {
             facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
@@ -1350,6 +1396,328 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             } catch (IOException ioe) {
                 ioe.printStackTrace();
             }
+        }
+    }
+
+    /**
+     * Imprime un ticket de factura de 58mm en moneda extranjera.
+     * Todos los valores se muestran convertidos a la moneda extranjera seleccionada.
+     * 
+     * @param venta La venta asociada (opcional)
+     * @param facturaLegal La factura legal a imprimir
+     * @param facturaLegalItemList Lista de items de la factura
+     * @param printerName Nombre de la impresora
+     * @param monedaExtranjera Código de moneda extranjera (ej: "USD", "EUR")
+     * @param tipoCambio Tipo de cambio utilizado
+     */
+    public void printTicket58mmFacturaMonedaExtranjera(Venta venta, FacturaLegal facturaLegal,
+            List<FacturaLegalItem> facturaLegalItemList, String printerName, String monedaExtranjera, Double tipoCambio) throws Exception {
+
+        if (facturaLegalItemList == null) {
+            facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
+        }
+
+        printService = PrinterOutputStream.getPrintServiceByName(printerName);
+        Sucursal sucursal = sucursalService.findById(facturaLegal.getSucursalId()).orElse(null);
+        Delivery delivery = null;
+        if (venta != null)
+            delivery = venta.getDelivery();
+        Double descuento = facturaLegal.getDescuento() != null ? facturaLegal.getDescuento() : 0.0;
+        
+        // Convertir todos los valores a moneda extranjera
+        Double totalFinal = facturaLegal.getTotalFinal();
+        Double totalIva10 = facturaLegal.getIvaParcial10();
+        Double totalIva5 = facturaLegal.getIvaParcial5();
+        Double totalIva = totalIva10 + totalIva5;
+        
+        // Convertir valores usando el tipo de cambio
+        // Total parcial = total final + descuento (en guaraníes), luego convertir
+        Double totalParcialGs = totalFinal + descuento;
+        Double totalParcialExtranjera = totalParcialGs / tipoCambio;
+        Double totalFinalExtranjera = totalFinal / tipoCambio;
+        Double descuentoExtranjera = descuento / tipoCambio;
+        Double totalIva10Extranjera = totalIva10 / tipoCambio;
+        Double totalIva5Extranjera = totalIva5 / tipoCambio;
+        Double totalIvaExtranjera = totalIva / tipoCambio;
+        Double totalParcial0Extranjera = (facturaLegal.getTotalParcial0() != null ? facturaLegal.getTotalParcial0() : 0.0) / tipoCambio;
+
+        if (printService != null) {
+            printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream
+                    : new PrinterOutputStream(printService);
+            // Styles
+            Style center = new Style().setJustification(EscPosConst.Justification.Center);
+            Style factura = new Style().setJustification(EscPosConst.Justification.Center)
+                    .setFontSize(Style.FontSize._1, Style.FontSize._1);
+
+            EscPos escpos = new EscPos(printerOutputStream);
+            BitImageWrapper imageWrapper = new BitImageWrapper();
+            Bitonal algorithm = new BitonalThreshold();
+            
+            escpos.writeLF("--------------------------------");
+            escpos.writeLF(factura, facturaLegal.getTimbradoDetalle().getTimbrado().getRazonSocial().toUpperCase());
+            escpos.writeLF(factura, "RUC: " + facturaLegal.getTimbradoDetalle().getTimbrado().getRuc());
+            escpos.writeLF(factura, "Timbrado: " + facturaLegal.getTimbradoDetalle().getTimbrado().getNumero());
+
+            // Si el timbrado es electronico, no se imprime la fecha de inicio y fin
+            if (facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico() != true) {
+                escpos.writeLF(factura, "De "
+                        + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaInicio()
+                                .format(impresionService.shortDate)
+                        + " a "
+                        + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaFin()
+                                .format(impresionService.shortDate));
+            }
+
+            Long numeroFacturaAux = Long.valueOf(facturaLegal.getNumeroFactura());
+            StringBuilder numeroFacturaString = new StringBuilder();
+            for (int i = 7; i > numeroFacturaAux.toString().length(); i--) {
+                numeroFacturaString.append("0");
+            }
+            if (facturaLegal.getNumeroFactura() != null) {
+                numeroFacturaString.append(facturaLegal.getNumeroFactura());
+            } else {
+                numeroFacturaString.append(numeroFacturaAux.toString());
+            }
+            escpos.writeLF(factura, "Nro: " + sucursal.getCodigoEstablecimientoFactura() + "-"
+                    + facturaLegal.getTimbradoDetalle().getPuntoExpedicion() + "-" + numeroFacturaString.toString());
+            escpos.writeLF(center, "Condicion: " + (facturaLegal.getCredito() == false ? "Contado" : "Crédito"));
+            
+            // Mostrar cambio utilizado
+            escpos.writeLF(center.setBold(true), "Cambio: " + 
+                String.format(Locale.GERMAN, "%.2f", tipoCambio) + " Gs/" + monedaExtranjera.toUpperCase());
+
+            if (sucursal != null) {
+                escpos.writeLF(center, "Suc: " + sucursal.getNombre());
+                if (sucursal.getCiudad() != null) {
+                    escpos.writeLF(center, sucursal.getCiudad().getDescripcion());
+                    if (sucursal.getDireccion() != null) {
+                        escpos.writeLF(center, sucursal.getNombre() + " - " + sucursal.getDireccion());
+                    }
+                }
+            }
+            if (delivery != null) {
+                escpos.writeLF(center, "Modo: Delivery");
+            }
+
+            escpos.writeLF("Fecha: " + facturaLegal.getCreadoEn().format(shortDateTime));
+            escpos.writeLF("--------------------------------");
+
+            String nombreCliente = facturaLegal.getNombre().toUpperCase();
+            nombreCliente = nombreCliente.replace("Ñ", "N")
+                    .replace("Á", "A")
+                    .replace("É", "E")
+                    .replace("Í", "I")
+                    .replace("Ó", "O")
+                    .replace("Ú", "U");
+            escpos.writeLF("Cliente: " + nombreCliente);
+
+            if (facturaLegal.getRuc() != null) {
+                if (!facturaLegal.getRuc().contains("-")) {
+                    facturaLegal.setRuc(facturaLegal.getRuc() + getDigitoVerificadorString(facturaLegal.getRuc()));
+                }
+            }
+
+            escpos.writeLF("CI/RUC: " + facturaLegal.getRuc());
+            if (facturaLegal.getDireccion() != null)
+                escpos.writeLF("Dir: " + facturaLegal.getDireccion());
+
+            escpos.writeLF("--------------------------------");
+
+            escpos.writeLF("Producto");
+            escpos.writeLF("Cant  IVA   P.U              P.T");
+            escpos.writeLF("--------------------------------");
+            for (FacturaLegalItem vi : facturaLegalItemList) {
+                Integer iva = null;
+                if (vi.getPresentacion() != null) {
+                    iva = vi.getPresentacion().getProducto().getIva();
+                }
+                if (iva == null) {
+                    iva = 10;
+                }
+                String cantidad = vi.getCantidad().intValue() + " (" + vi.getCantidad() + ") " + iva + "%";
+                escpos.writeLF(vi.getDescripcion());
+                escpos.write(new Style().setBold(true), cantidad);
+                
+                // Convertir precios a moneda extranjera
+                Double precioUnitarioExtranjera = vi.getPrecioUnitario() / tipoCambio;
+                Double totalItemExtranjera = vi.getTotal() / tipoCambio;
+                
+                // Formatear con 2-3 decimales según necesidad
+                String valorUnitario = formatearMonedaExtranjera(precioUnitarioExtranjera);
+                String valorTotal = formatearMonedaExtranjera(totalItemExtranjera);
+                
+                for (int i = 14; i > cantidad.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.write(valorUnitario);
+                for (int i = 16 - valorUnitario.length(); i > valorTotal.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(valorTotal);
+            }
+
+            // Sección de totales en moneda extranjera
+            escpos.writeLF("------------Totales-------------");
+            escpos.write("   "); // 4 espacios para moneda
+            escpos.write("   Parcial"); // 7 chars
+            escpos.write("    "); // 2 espacios = 9 total
+            escpos.write("Desc."); // 5 chars
+            escpos.write("     "); // 4 espacios = 9 total
+            escpos.writeLF("Final"); // 5 chars
+            
+            // Línea de moneda extranjera
+            escpos.write(monedaExtranjera.toUpperCase() + ". ");
+            String parcialExtStr = formatearMonedaExtranjera(totalParcialExtranjera);
+            int espaciosParcialExt = 9 - parcialExtStr.length();
+            for (int i = 0; i < espaciosParcialExt; i++) {
+                escpos.write(" ");
+            }
+            escpos.write(parcialExtStr);
+            
+            String descExtStr = formatearMonedaExtranjera(descuentoExtranjera);
+            int espaciosDescExt = 9 - descExtStr.length();
+            for (int i = 0; i < espaciosDescExt; i++) {
+                escpos.write(" ");
+            }
+            escpos.write(descExtStr);
+            
+            String finalExtStr = formatearMonedaExtranjera(totalFinalExtranjera);
+            int espaciosFinalExt = 10 - finalExtStr.length();
+            for (int i = 0; i < espaciosFinalExt; i++) {
+                escpos.write(" ");
+            }
+            escpos.writeLF(finalExtStr);
+
+            // Sección de liquidación IVA en moneda extranjera
+            escpos.writeLF("--------Liquidacion IVA---------");
+            escpos.write("Gravadas 10%:");
+            String totalIva10ExtS = formatearMonedaExtranjera(totalIva10Extranjera);
+            for (int i = 19; i > totalIva10ExtS.length(); i--) {
+                escpos.write(" ");
+            }
+            escpos.writeLF(totalIva10ExtS);
+            escpos.write("Gravadas 5%: ");
+            String totalIva5ExtS = formatearMonedaExtranjera(totalIva5Extranjera);
+            for (int i = 19; i > totalIva5ExtS.length(); i--) {
+                escpos.write(" ");
+            }
+            escpos.writeLF(totalIva5ExtS);
+            escpos.write("Exentas:     ");
+            String totalIva0ExtS = formatearMonedaExtranjera(totalParcial0Extranjera);
+            for (int i = 19; i > totalIva0ExtS.length(); i--) {
+                escpos.write(" ");
+            }
+            escpos.writeLF(totalIva0ExtS);
+            String totalFinalIvaExtS = formatearMonedaExtranjera(totalIvaExtranjera);
+            escpos.write("Total IVA:   ");
+            for (int i = 19; i > totalFinalIvaExtS.length(); i--) {
+                escpos.write(" ");
+            }
+            escpos.writeLF(totalFinalIvaExtS);
+
+            escpos.writeLF("--------------------------------");
+            
+            // Generar CDC si es documento electrónico
+            if (facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico() != null
+                    && facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico()) {
+
+                DocumentoElectronico documentoElectronico = documentoElectronicoService
+                        .findByFacturaLegalIdAndSucursalId(facturaLegal.getId(), facturaLegal.getSucursalId());
+
+                String cdc = documentoElectronico.getCdc();
+                String urlQr = documentoElectronico.getUrlQr();
+
+                // Imprimir QR como imagen generada por ZXing
+                if (urlQr != null) {
+                    try {
+                        log.info("Generando imagen de QR para URL de {} caracteres.", urlQr.length());
+                        BufferedImage qrImage = QRCodeImageGenerator.generateQRCodeImage(urlQr, 250, 250);
+
+                        imageWrapper.setJustification(EscPosConst.Justification.Center);
+                        EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(qrImage), algorithm);
+
+                        escpos.write(imageWrapper, escposImage);
+                        escpos.feed(1);
+                        log.info("Imagen de QR enviada a la impresora exitosamente.");
+
+                    } catch (Exception e) {
+                        log.error("No se pudo generar o imprimir la imagen del código QR. URL: {}", urlQr, e);
+                        escpos.writeLF(center, "ERROR: No se pudo generar el código QR.");
+                        escpos.writeLF(center, "URL de consulta:");
+                        escpos.writeLF(center, urlQr);
+                        escpos.feed(1);
+                    }
+                }
+
+                escpos.writeLF(center,
+                        "Consulte la validez de esta Factura Electronica con el numero de CDC impreso abajo en:");
+                escpos.writeLF(center, "https://ekuatia.set.gov.py/consultas");
+
+                if (cdc != null) {
+                    String cdcFormateado = cdc.replaceAll("\\s+", "");
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < cdcFormateado.length(); i += 4) {
+                        if (i > 0)
+                            sb.append(" ");
+                        sb.append(cdcFormateado.substring(i, Math.min(i + 4, cdcFormateado.length())));
+                    }
+                    escpos.writeLF(center, sb.toString());
+                }
+
+                escpos.writeLF(center,
+                        "ESTE DOCUMENTO ES UNA REPRESENTACION GRAFICA DE UN DOCUMENTO ELECTRONICO (XML)");
+                escpos.writeLF("--------------------------------");
+            }
+            escpos.feed(1);
+            escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
+            escpos.feed(5);
+
+            try {
+                if (true) {
+                    escpos.close();
+                    printerOutputStream.close();
+                    this.printerOutputStream = null;
+                } else {
+                    this.printerOutputStream = printerOutputStream;
+                }
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Formatea un valor en moneda extranjera con 2 decimales si no tiene más,
+     * o 3 decimales redondeando hacia arriba si tiene más.
+     * 
+     * @param valor El valor a formatear
+     * @return String formateado con 2 o 3 decimales según necesidad
+     */
+    private String formatearMonedaExtranjera(Double valor) {
+        if (valor == null || valor.isNaN() || valor.isInfinite()) {
+            return "0.00";
+        }
+        
+        // Usar BigDecimal para precisión
+        BigDecimal valorBD = BigDecimal.valueOf(valor);
+        
+        // Redondear a 2 decimales
+        BigDecimal valor2Dec = valorBD.setScale(2, RoundingMode.HALF_UP);
+        
+        // Verificar si el valor tiene más de 2 decimales significativos
+        // Si el valor original es diferente al redondeado a 2 decimales por más de 0.005,
+        // significa que tiene decimales significativos más allá de 2
+        BigDecimal diferencia = valorBD.subtract(valor2Dec).abs();
+        BigDecimal umbral = new BigDecimal("0.005"); // Mitad del último decimal de 2 cifras
+        
+        // Si la diferencia es mayor al umbral, usar 3 decimales redondeando hacia arriba
+        if (diferencia.compareTo(umbral) > 0) {
+            // Tiene más decimales significativos, usar 3 decimales redondeando hacia arriba
+            BigDecimal valor3Dec = valorBD.setScale(3, RoundingMode.UP);
+            return String.format(Locale.GERMAN, "%.3f", valor3Dec.doubleValue());
+        } else {
+            // No tiene más decimales significativos, usar 2 decimales
+            return String.format(Locale.GERMAN, "%.2f", valor2Dec.doubleValue());
         }
     }
 
