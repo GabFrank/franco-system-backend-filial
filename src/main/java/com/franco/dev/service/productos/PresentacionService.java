@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
-public class PresentacionService extends CrudService<Presentacion, PresentacionRepository, Long> {
+public class PresentacionService extends CrudService<Presentacion, PresentacionRepository> {
 
     private final PresentacionRepository repository;
 
