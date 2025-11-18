@@ -20,12 +20,6 @@ public class SifenProperties {
     @NotNull
     private Certificado certificado = new Certificado();
 
-    @NotBlank
-    private String csc;
-
-    @NotBlank
-    private String cscId;
-
     private boolean habilitarNotaTecnica13 = false;
 
     @Data

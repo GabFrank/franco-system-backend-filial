@@ -3,6 +3,7 @@ package com.franco.dev.controller;
 import com.franco.dev.dto.factura.CrearFacturaLegalRequestDTO;
 import com.franco.dev.dto.factura.CrearFacturaLegalResponseDTO;
 import com.franco.dev.dto.factura.DisponibilidadTimbradoDetalleResponseDTO;
+import com.franco.dev.dto.factura.ErrorResponseDTO;
 import com.franco.dev.service.financiero.FacturaLegalApiService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,10 +46,10 @@ public class FacturaLegalController {
      * La factura puede ser electrónica o normal dependiendo del timbrado utilizado.
      * 
      * @param request DTO con los datos de la factura
-     * @return DTO con la información de la factura creada
+     * @return DTO con la información de la factura creada o mensaje de error
      */
     @PostMapping
-    public ResponseEntity<CrearFacturaLegalResponseDTO> crearFacturaLegal(
+    public ResponseEntity<?> crearFacturaLegal(
             @Valid @RequestBody CrearFacturaLegalRequestDTO request) {
         log.info("Solicitud de creación de factura legal para cliente: {} (RUC: {})", 
                 request.getNombre(), request.getRuc());
@@ -58,10 +59,20 @@ public class FacturaLegalController {
             return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
         } catch (IllegalStateException e) {
             log.error("Error al crear factura legal: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            ErrorResponseDTO errorResponse = ErrorResponseDTO.builder()
+                    .mensaje(e.getMessage())
+                    .error("BAD_REQUEST")
+                    .codigo(HttpStatus.BAD_REQUEST.value())
+                    .build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         } catch (Exception e) {
             log.error("Error inesperado al crear factura legal", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            ErrorResponseDTO errorResponse = ErrorResponseDTO.builder()
+                    .mensaje(e.getMessage() != null ? e.getMessage() : "Error interno del servidor")
+                    .error("INTERNAL_SERVER_ERROR")
+                    .codigo(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                    .build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 }

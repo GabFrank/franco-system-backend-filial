@@ -77,5 +77,11 @@ public class CrearFacturaLegalRequestDTO {
     // Campos para moneda extranjera (opcionales)
     private String monedaExtranjera;
     private Double tipoCambio;
+
+    // Campo para indicar si se debe imprimir en este servidor
+    private Boolean imprimir = false;
+
+    // Nombre de la impresora (requerido si imprimir es true)
+    private String printerName;
 }
 

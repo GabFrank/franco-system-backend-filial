@@ -47,6 +47,12 @@ public class FacturaLegalItem implements Serializable {
     private Double precioUnitario;
     private Double total;
 
+    @Column(name = "unidad_medida")
+    private String unidadMedida;
+
+    @Column(name = "iva")
+    private Integer iva;
+
     @CreationTimestamp
     private LocalDateTime creadoEn;
 

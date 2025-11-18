@@ -1450,7 +1450,30 @@ public class SifenService {
         TgOpeCom gOpeCom = new TgOpeCom();
         gOpeCom.setiTipTra(TTipTra.VENTA_MERCADERIA);
         gOpeCom.setiTImp(TTImp.IVA);
-        gOpeCom.setcMoneOpe(CMondT.PYG);
+        
+        // Configurar moneda: verificar si es moneda extranjera
+        boolean esMonedaExtranjera = factura.getMonedaExtranjera() != null 
+                && !factura.getMonedaExtranjera().trim().isEmpty()
+                && factura.getTipoCambio() != null;
+        
+        if (esMonedaExtranjera) {
+            // Mapear código de moneda a enum CMondT
+            String monedaUpper = factura.getMonedaExtranjera().trim().toUpperCase();
+            CMondT monedaEnum = mapearMonedaExtranjera(monedaUpper);
+            gOpeCom.setcMoneOpe(monedaEnum);
+            
+            // Configurar tipo de cambio (requerido para moneda extranjera)
+            gOpeCom.setdCondTiCam(TdCondTiCam.GLOBAL);
+            gOpeCom.setdTiCam(BigDecimal.valueOf(factura.getTipoCambio()));
+            
+            log.info("   💱 Configurada moneda extranjera: {} con tipo de cambio: {}", 
+                    monedaUpper, factura.getTipoCambio());
+        } else {
+            // Moneda local (Guaraníes)
+            gOpeCom.setcMoneOpe(CMondT.PYG);
+            log.debug("   Moneda local: PYG");
+        }
+        
         dDatGralOpe.setgOpeCom(gOpeCom);
 
         // Datos del Emisor
@@ -1470,6 +1493,22 @@ public class SifenService {
         // Grupo F - Totales
         DE.setgTotSub(new TgTotSub());
         aplicarFixTotalesIVA(DE.getgTotSub());
+        
+        // Si hay moneda extranjera, corregir dTotalGs: debe ser el valor en guaraníes
+        // La librería lo calcula como dTotGralOpe * tipoCambio, pero dTotGralOpe ya está
+        // en la moneda extranjera (calculado por la librería), entonces dTotalGs es correcto.
+        // Sin embargo, si nuestros valores ya están en guaraníes, necesitamos ajustar.
+        if (esMonedaExtranjera && factura.getTotalFinal() != null && factura.getTipoCambio() != null) {
+            try {
+                BigDecimal totalGs = BigDecimal.valueOf(factura.getTotalFinal()).setScale(4, RoundingMode.HALF_UP);
+                Field field = TgTotSub.class.getDeclaredField("dTotalGs");
+                field.setAccessible(true);
+                field.set(DE.getgTotSub(), totalGs);
+                log.debug("   dTotalGs establecido en: {} (valor en guaraníes)", totalGs);
+            } catch (Exception e) {
+                log.warn("No se pudo establecer dTotalGs: {}", e.getMessage());
+            }
+        }
         
         return DE;
     }
@@ -1658,16 +1697,36 @@ public class SifenService {
             BigDecimal cantidad;
             float cantidadFloat = item.getCantidad() != null ? item.getCantidad() : 0.0f;
 
-            // Determinar unidad de medida basándose en si el producto es pesable
-            if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
+            // Determinar unidad de medida: primero intentar usar la del item, luego la del producto
+            String unidadMedidaItem = item.getUnidadMedida();
+            if (unidadMedidaItem != null && !unidadMedidaItem.trim().isEmpty()) {
+                // Mapear unidad de medida del item a enum de SIFEN
+                String unidadUpper = unidadMedidaItem.trim().toUpperCase();
+                if (unidadUpper.contains("KILO") || unidadUpper.contains("KG")) {
+                    gCamItem.setcUniMed(TcUniMed.kg);
+                    cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(3, RoundingMode.HALF_UP);
+                    log.debug("   Unidad de medida del item: {} - usando kg", unidadMedidaItem);
+                } else if (unidadUpper.contains("LITRO") || unidadUpper.contains("L")) {
+                    // TcUniMed no tiene LITRO, usar UNI como fallback
+                    gCamItem.setcUniMed(TcUniMed.UNI);
+                    cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(0, RoundingMode.HALF_UP);
+                    log.debug("   Unidad de medida del item: {} - LITRO no disponible en SIFEN, usando unidades", unidadMedidaItem);
+                } else {
+                    // Default a UNI para cualquier otra unidad
+                    gCamItem.setcUniMed(TcUniMed.UNI);
+                    cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(0, RoundingMode.HALF_UP);
+                    log.debug("   Unidad de medida del item: {} - usando unidades", unidadMedidaItem);
+                }
+            } else if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
+                // Fallback: usar unidad del producto si no hay unidad en el item
                 gCamItem.setcUniMed(TcUniMed.kg);
                 cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(3, RoundingMode.HALF_UP);
                 log.debug("   Producto {} marcado como pesable - usando kg", producto.getDescripcion());
             } else {
+                // Default a unidades
                 gCamItem.setcUniMed(TcUniMed.UNI);
                 cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(0, RoundingMode.HALF_UP);
-                log.debug("   Producto {} no es pesable - usando unidades", 
-                    producto != null ? producto.getDescripcion() : "N/A");
+                log.debug("   Usando unidades por defecto");
             }
             gCamItem.setdCantProSer(cantidad);
             TgValorItem gValorItem = new TgValorItem();
@@ -1679,14 +1738,17 @@ public class SifenService {
 
             TgCamIVA gCamIVA = new TgCamIVA();
             
-            // Determinar IVA usando la misma prioridad que para el producto
+            // Determinar IVA: primero usar el del item, luego el del producto, luego default
             Integer iva = null;
-            if (producto != null && producto.getIva() != null) {
+            if (item.getIva() != null) {
+                iva = item.getIva();
+                log.debug("   IVA obtenido del item: {}%", iva);
+            } else if (producto != null && producto.getIva() != null) {
                 iva = producto.getIva();
                 log.debug("   IVA obtenido del producto {}: {}%", producto.getDescripcion(), iva);
             } else {
                 iva = 10; // Default to 10%
-                log.debug("   IVA no disponible del producto - usando default: {}%", iva);
+                log.debug("   IVA no disponible - usando default: {}%", iva);
             }
 
             switch (iva) {
@@ -1749,6 +1811,39 @@ public class SifenService {
             }
         } catch (Exception e) {
             log.error("Error al aplicar workaround de totales IVA: {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * Mapea el código de moneda extranjera a su enum CMondT correspondiente.
+     * 
+     * @param codigoMoneda Código de moneda (ej: "USD", "EUR", "BRL")
+     * @return Enum CMondT correspondiente, o PYG como fallback
+     */
+    private CMondT mapearMonedaExtranjera(String codigoMoneda) {
+        if (codigoMoneda == null || codigoMoneda.trim().isEmpty()) {
+            return CMondT.PYG;
+        }
+        
+        String monedaUpper = codigoMoneda.trim().toUpperCase();
+        switch (monedaUpper) {
+            case "USD":
+            case "DOLAR":
+            case "DÓLAR":
+                return CMondT.USD;
+            case "EUR":
+            case "EURO":
+                return CMondT.EUR;
+            case "BRL":
+            case "REAL":
+                return CMondT.BRL;
+            case "ARS":
+            case "PESO":
+            case "PESO ARGENTINO":
+                return CMondT.ARS;
+            default:
+                log.warn("⚠️  Moneda extranjera '{}' no reconocida, usando PYG como fallback", codigoMoneda);
+                return CMondT.PYG;
         }
     }
     

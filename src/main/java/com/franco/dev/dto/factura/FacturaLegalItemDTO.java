@@ -29,5 +29,10 @@ public class FacturaLegalItemDTO {
 
     @Min(value = 0, message = "El total no puede ser negativo")
     private Double total;
+
+    private String unidadMedida;
+
+    @Min(value = 0, message = "El IVA no puede ser negativo")
+    private Integer iva;
 }
 
