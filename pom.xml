@@ -353,6 +353,12 @@
             <version>3.5.3</version> <!-- O la versión más reciente -->
         </dependency>
 
+        <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.1.1</version>
+        </dependency>
+
     </dependencies>
 
     <repositories>

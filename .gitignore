@@ -43,3 +43,7 @@ src/.DS_Store
 
 tokens/
 certificados/
+
+# Firebase Credentials
+bodega-franco-frc-18e8c6ef35cf.json
+*.json

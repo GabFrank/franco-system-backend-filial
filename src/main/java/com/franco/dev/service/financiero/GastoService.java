@@ -4,14 +4,22 @@ import com.franco.dev.domain.financiero.Gasto;
 import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
+import com.franco.dev.domain.personas.Usuario;
+import com.franco.dev.fmc.model.PushNotificationRequest;
+import com.franco.dev.fmc.service.NotificationTemplateService;
+import com.franco.dev.fmc.service.PushNotificationService;
 import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.financiero.GastoRepository;
 import com.franco.dev.service.CrudService;
+import com.franco.dev.service.personas.UsuarioService;
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
+import java.text.DecimalFormat;
+import java.util.Collections;
 import java.util.List;
 
 import static com.franco.dev.utilitarios.DateUtils.toDate;
@@ -27,6 +35,14 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
     private MovimientoCajaService movimientoCajaService;
     @Autowired
     private CambioService cambioService;
+    @Autowired
+    private PushNotificationService pushNotificationService;
+    @Autowired
+    private NotificationTemplateService notificationTemplateService;
+    @Autowired
+    private UsuarioService usuarioService;
+    @Autowired
+    private Environment env;
 
     @Override
     public GastoRepository getRepository() {
@@ -123,6 +139,20 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
                 movimientoCaja.setCreadoEn(e.getCreadoEn());
                 movimientoCajaService.save(movimientoCaja);
             }
+        }
+
+        // Enviar notificación push
+        try {
+            Usuario usuario = usuarioService.findByPersonaId(entity.getResponsable().getPersona().getId());
+            if (usuario != null) {
+                DecimalFormat df = new DecimalFormat("#,###");
+                PushNotificationRequest request = notificationTemplateService.gastoRealizado(entity, null, df);
+                request.setUsuarioIds(Collections.singletonList(usuario.getId()));
+                pushNotificationService.sendPushNotificationToToken(request);
+            }
+        } catch (Exception ex) {
+            // No fallar el guardado si hay error en notificaciones
+            ex.printStackTrace();
         }
 
 //        personaPublisher.publish(p);
