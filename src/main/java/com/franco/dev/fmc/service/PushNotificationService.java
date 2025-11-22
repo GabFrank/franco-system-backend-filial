@@ -1,5 +1,6 @@
 package com.franco.dev.fmc.service;
 
+import com.franco.dev.domain.configuracion.InicioSesion;
 import com.franco.dev.domain.configuracion.Notificacion;
 import com.franco.dev.domain.configuracion.NotificacionUsuario;
 import com.franco.dev.domain.configuracion.enums.EstadoEnvio;
@@ -10,6 +11,7 @@ import com.franco.dev.fmc.model.PushNotificationRequest;
 import com.franco.dev.repository.configuraciones.NotificacionRepository;
 import com.franco.dev.repository.configuraciones.NotificacionUsuarioRepository;
 import com.franco.dev.service.configuracion.InicioSesionService;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -22,6 +24,8 @@ import javax.validation.Valid;
 import javax.validation.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -70,6 +74,9 @@ public class PushNotificationService {
     }
 
     private void enqueue(PushNotificationRequest request) {
+        logger.debug("Encolando notificación: título={}, tipo={}, tieneTopic={}, tieneTokens={}, tieneUsuarios={}",
+            request.getTitle(), request.getType(), request.hasTopic(), request.hasDirectTokens(), request.hasUsuarios());
+
         if (!request.hasTopic() && !request.hasDirectTokens() && !request.hasUsuarios()) {
             throw new ValidationException("Debe proveer al menos un token, tópico o usuario destino");
         }
@@ -80,12 +87,22 @@ public class PushNotificationService {
 
         Notificacion notificacion = buildNotification(request);
         List<Target> targets = resolveTargets(request);
+        logger.debug("Encontrados {} targets para la notificación", targets.size());
 
         if (targets.isEmpty()) {
             notificacion.setEstado(EstadoNotificacion.CANCELADA);
             notificacion.setUltimoError("No existen tokens activos para la solicitud");
             notificacionRepository.save(notificacion);
-            LOGGER.warn("No se encontraron tokens para la notificación {}", request.getTitle());
+            LOGGER.warn("No se encontraron tokens para la notificación '{}' - UsuarioIds: {}, DirectTokens: {}, Topics: {}",
+                request.getTitle(), request.getUsuarioIds(), request.hasDirectTokens(), request.hasTopic());
+
+            // Log adicional para debugging
+            if (request.hasUsuarios()) {
+                for (Long usuarioId : request.getUsuarioIds()) {
+                    LOGGER.info("No se encontraron tokens para usuario ID: {}", usuarioId);
+                }
+            }
+
             return;
         }
 
@@ -130,12 +147,72 @@ public class PushNotificationService {
                     .forEach(token -> targets.add(new Target(null, token)));
         }
 
-        // Para usuarios específicos, por ahora usamos lógica simplificada
-        // En futuras versiones se puede implementar búsqueda de tokens por usuario
-        if (request.hasUsuarios() && !request.hasDirectTokens()) {
-            // TODO: Implementar búsqueda de tokens FCM por usuario ID en servidor filial
-            // Por ahora, esta funcionalidad requiere tokens directos
-            logger.warn("Envío por usuario ID no implementado en servidor filial. Use tokens directos.");
+        // Para usuarios específicos, buscar tokens FCM en sesiones activas
+        if (request.hasUsuarios()) {
+            logger.debug("Buscando tokens FCM para {} usuarios", request.getUsuarioIds().size());
+            for (Long usuarioId : request.getUsuarioIds()) {
+                logger.debug("Buscando sesiones activas para usuario ID: {}", usuarioId);
+                // Buscar sesiones activas del usuario para obtener tokens FCM
+                Page<InicioSesion> pageSesiones = inicioSesionService.findByUsuarioIdAndHoraFinIsNul(
+                    usuarioId, null, PageRequest.of(0, 50));
+
+                if (pageSesiones == null) {
+                    logger.warn("El método findByUsuarioIdAndHoraFinIsNul devolvió null para usuario {}", usuarioId);
+                    continue;
+                }
+
+                List<InicioSesion> sesionesActivas = pageSesiones.getContent();
+                logger.debug("Encontradas {} sesiones activas para usuario {}", sesionesActivas.size(), usuarioId);
+
+                // Si no hay sesiones activas, buscar sesiones recientes (últimas 24 horas)
+                if (sesionesActivas.isEmpty()) {
+                    logger.debug("No hay sesiones activas para usuario {}, buscando sesiones recientes", usuarioId);
+                    try {
+                        // Buscar sesiones recientes (últimas 24 horas) ordenadas por ID descendente
+                        List<InicioSesion> todasSesiones = inicioSesionService.findAll();
+                        logger.debug("Total de sesiones en BD: {}", todasSesiones.size());
+
+                        List<InicioSesion> sesionesRecientes = todasSesiones.stream()
+                            .filter(s -> s.getUsuario() != null && s.getUsuario().getId().equals(usuarioId))
+                            .filter(s -> s.getToken() != null && !s.getToken().isBlank())
+                            .filter(s -> {
+                                // Incluir sesiones activas o sesiones cerradas en las últimas 24 horas
+                                if (s.getHoraFin() == null) return true; // Sesión activa
+                                if (s.getHoraInicio() == null) return false;
+                                long hoursSinceStart = java.time.Duration.between(s.getHoraInicio(), LocalDateTime.now()).toHours();
+                                return hoursSinceStart < 24;
+                            })
+                            .sorted((a, b) -> Long.compare(b.getId(), a.getId())) // Más recientes primero
+                            .limit(5) // Máximo 5 sesiones recientes
+                            .collect(java.util.stream.Collectors.toList());
+
+                        logger.debug("Encontradas {} sesiones recientes para usuario {}", sesionesRecientes.size(), usuarioId);
+
+                        for (InicioSesion sesion : sesionesRecientes) {
+                            String token = sesion.getToken().trim();
+                            if (dedup.add(token)) {
+                                targets.add(new Target(usuarioId, token));
+                                logger.debug("Token FCM de sesión reciente encontrado para usuario {}: {}",
+                                    usuarioId, token.substring(0, Math.min(20, token.length())) + "...");
+                            }
+                        }
+                    } catch (Exception ex) {
+                        logger.warn("Error al buscar sesiones recientes para usuario {}: {}", usuarioId, ex.getMessage());
+                    }
+                }
+
+                for (InicioSesion sesion : sesionesActivas) {
+                    if (sesion.getToken() != null && !sesion.getToken().isBlank()) {
+                        String token = sesion.getToken().trim();
+                        if (dedup.add(token)) {
+                            targets.add(new Target(usuarioId, token));
+                            logger.debug("Token FCM encontrado para usuario {}: {}", usuarioId, token.substring(0, Math.min(20, token.length())) + "...");
+                        }
+                    } else {
+                        logger.debug("Sesión encontrada pero sin token FCM para usuario {}", usuarioId);
+                    }
+                }
+            }
         }
 
         return targets;

@@ -143,15 +143,29 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
 
         // Enviar notificación push
         try {
+            if (entity.getResponsable() == null) {
+                System.out.println("Gasto sin responsable asignado, no se puede enviar notificación");
+                return e;
+            }
+            if (entity.getResponsable().getPersona() == null) {
+                System.out.println("Responsable sin persona asociada, no se puede enviar notificación");
+                return e;
+            }
+
             Usuario usuario = usuarioService.findByPersonaId(entity.getResponsable().getPersona().getId());
             if (usuario != null) {
+                System.out.println("Enviando notificación de gasto a usuario ID: " + usuario.getId());
                 DecimalFormat df = new DecimalFormat("#,###");
                 PushNotificationRequest request = notificationTemplateService.gastoRealizado(entity, null, df);
                 request.setUsuarioIds(Collections.singletonList(usuario.getId()));
                 pushNotificationService.sendPushNotificationToToken(request);
+                System.out.println("Notificación de gasto enviada correctamente");
+            } else {
+                System.out.println("No se encontró usuario para persona ID: " + entity.getResponsable().getPersona().getId());
             }
         } catch (Exception ex) {
             // No fallar el guardado si hay error en notificaciones
+            System.out.println("Error al enviar notificación de gasto: " + ex.getMessage());
             ex.printStackTrace();
         }
 
