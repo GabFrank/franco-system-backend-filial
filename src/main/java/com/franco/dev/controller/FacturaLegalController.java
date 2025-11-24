@@ -5,6 +5,7 @@ import com.franco.dev.dto.factura.CrearFacturaLegalResponseDTO;
 import com.franco.dev.dto.factura.DisponibilidadTimbradoDetalleResponseDTO;
 import com.franco.dev.dto.factura.ErrorResponseDTO;
 import com.franco.dev.service.financiero.FacturaLegalApiService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,7 @@ import javax.validation.Valid;
 public class FacturaLegalController {
 
     private final FacturaLegalApiService facturaLegalApiService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Verifica la disponibilidad de un timbrado detalle para emitir facturas.
@@ -51,6 +53,24 @@ public class FacturaLegalController {
     @PostMapping
     public ResponseEntity<?> crearFacturaLegal(
             @Valid @RequestBody CrearFacturaLegalRequestDTO request) {
+        
+        // Log detallado de todos los datos recibidos del servidor
+        try {
+            String requestJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(request);
+            log.info("═══════════════════════════════════════════════════════════════");
+            log.info("📥 DATOS RECIBIDOS DEL SERVIDOR - CREAR FACTURA LEGAL");
+            log.info("═══════════════════════════════════════════════════════════════");
+            log.info("Request completo:\n{}", requestJson);
+            log.info("═══════════════════════════════════════════════════════════════");
+        } catch (Exception e) {
+            log.warn("⚠️ No se pudo serializar el request a JSON para logging: {}", e.getMessage());
+            log.info("📥 DATOS RECIBIDOS - Cliente: {} (RUC: {}), TimbradoDetalleId: {}, Items: {}", 
+                    request.getNombre(), 
+                    request.getRuc(),
+                    request.getTimbradoDetalleId(),
+                    request.getItems() != null ? request.getItems().size() : 0);
+        }
+        
         log.info("Solicitud de creación de factura legal para cliente: {} (RUC: {})", 
                 request.getNombre(), request.getRuc());
         

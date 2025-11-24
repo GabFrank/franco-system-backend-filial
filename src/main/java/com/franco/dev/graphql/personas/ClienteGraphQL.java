@@ -167,7 +167,8 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         ConsultaRucResponse respuesta = ejecutarConsultaRuc(documento);
         if (respuesta == null) {
             // Si SIFEN está habilitado pero la consulta retorna null, puede ser error de conexión
-            throw new GraphQLException("Error al conectar con el servidor central");
+            log.warn("No se pudo obtener respuesta de SIFEN para documento: {}", documento);
+            return cliente; // Retornar cliente sin actualizar
         }
 
         validarContribuyente(respuesta);
@@ -177,8 +178,31 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
             persona = buscarPersonaPorDocumento(documento);
         }
 
-        persona = sincronizarPersonaDesdeSifen(persona, documento, respuesta);
-        cliente.setPersona(persona);
+        // Intentar sincronizar persona, pero no fallar si no se puede guardar en servidor central
+        try {
+            persona = sincronizarPersonaDesdeSifen(persona, documento, respuesta);
+            cliente.setPersona(persona);
+        } catch (Exception e) {
+            log.warn("No se pudo sincronizar persona con servidor central para documento {}: {}", documento, e.getMessage());
+            // Continuar con la información de SIFEN aunque no se haya guardado
+            // Crear persona en memoria (sin guardar) con información de SIFEN
+            if (persona == null) {
+                persona = new Persona();
+                persona.setDocumento(documento);
+            }
+            // Actualizar datos localmente sin guardar (solo en memoria)
+            String nombreProcesado = formatearRazonSocial(respuesta.getRazonSocial());
+            if (nombreProcesado != null && !nombreProcesado.isEmpty()) {
+                persona.setNombre(nombreProcesado);
+            }
+            if (respuesta.getDireccion() != null && !respuesta.getDireccion().trim().isEmpty()) {
+                persona.setDireccion(respuesta.getDireccion());
+            }
+            cliente.setPersona(persona);
+            // NOTA: La persona no tiene ID porque no se pudo guardar en el servidor central
+            // El cliente se retornará con esta información pero no estará persistido
+        }
+
         cliente.setVerificadoSet(true);
         cliente.setTributa(estadoContribuyenteActivo(respuesta));
 
@@ -187,7 +211,14 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
             cliente.setTipoContribuyente(tipoContribuyente);
         }
 
-        return service.save(cliente);
+        // Intentar guardar cliente, pero no fallar si no se puede guardar en servidor central
+        try {
+            return service.save(cliente);
+        } catch (Exception e) {
+            log.warn("No se pudo guardar cliente en servidor central para documento {}: {}", documento, e.getMessage());
+            // Retornar cliente con información actualizada aunque no se haya guardado
+            return cliente;
+        }
     }
 
     private Cliente crearClienteDesdeSifen(String documento) {
@@ -198,16 +229,39 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         ConsultaRucResponse respuesta = ejecutarConsultaRuc(documento);
         if (respuesta == null) {
             // Si SIFEN está habilitado pero la consulta retorna null, puede ser error de conexión
-            throw new GraphQLException("Error al conectar con el servidor central");
+            log.warn("No se pudo obtener respuesta de SIFEN para documento: {}", documento);
+            return null; // No se puede crear cliente sin información de SIFEN
         }
 
         validarContribuyente(respuesta);
 
         Persona persona = buscarPersonaPorDocumento(documento);
-        persona = sincronizarPersonaDesdeSifen(persona, documento, respuesta);
+        
+        // Intentar sincronizar persona, pero no fallar si no se puede guardar en servidor central
+        try {
+            persona = sincronizarPersonaDesdeSifen(persona, documento, respuesta);
+        } catch (Exception e) {
+            log.warn("No se pudo sincronizar persona con servidor central para documento {}: {}", documento, e.getMessage());
+            // Crear persona en memoria (sin guardar) con información de SIFEN
+            if (persona == null) {
+                persona = new Persona();
+                persona.setDocumento(documento);
+            }
+            // Actualizar datos localmente sin guardar (solo en memoria)
+            String nombreProcesado = formatearRazonSocial(respuesta.getRazonSocial());
+            if (nombreProcesado != null && !nombreProcesado.isEmpty()) {
+                persona.setNombre(nombreProcesado);
+            }
+            if (respuesta.getDireccion() != null && !respuesta.getDireccion().trim().isEmpty()) {
+                persona.setDireccion(respuesta.getDireccion());
+            }
+            // NOTA: La persona no tiene ID porque no se pudo guardar en el servidor central
+        }
 
         Cliente nuevoCliente = new Cliente();
-        nuevoCliente.setId(persona.getId());
+        if (persona.getId() != null) {
+            nuevoCliente.setId(persona.getId());
+        }
         nuevoCliente.setPersona(persona);
         nuevoCliente.setVerificadoSet(true);
         nuevoCliente.setTributa(estadoContribuyenteActivo(respuesta));
@@ -216,7 +270,15 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         Integer tipoContribuyente = parseTipoContribuyente(respuesta.getCodigoEstadoContribuyente());
         nuevoCliente.setTipoContribuyente(tipoContribuyente);
 
-        return service.save(nuevoCliente);
+        // Intentar guardar cliente, pero no fallar si no se puede guardar en servidor central
+        try {
+            return service.save(nuevoCliente);
+        } catch (Exception e) {
+            log.warn("No se pudo guardar cliente en servidor central para documento {}: {}", documento, e.getMessage());
+            // Retornar cliente con información de SIFEN aunque no se haya guardado
+            // NOTA: Este cliente no tendrá ID persistido, pero tiene la información de SIFEN
+            return nuevoCliente;
+        }
     }
 
     private Persona sincronizarPersonaDesdeSifen(Persona persona, String documento, ConsultaRucResponse respuesta) {

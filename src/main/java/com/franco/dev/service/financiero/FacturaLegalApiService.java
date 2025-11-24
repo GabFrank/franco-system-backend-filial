@@ -147,31 +147,21 @@ public class FacturaLegalApiService {
     public com.franco.dev.dto.factura.CrearFacturaLegalResponseDTO crearFacturaLegal(
             CrearFacturaLegalRequestDTO request) {
         
-        // Log detallado del DTO recibido del servidor externo
-        try {
-            String requestJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(request);
-            log.info("=== DTO RECIBIDO DEL SERVIDOR EXTERNO ===\n{}", requestJson);
-        } catch (Exception e) {
-            log.warn("No se pudo serializar el DTO a JSON para logging: {}", e.getMessage());
-            // Log manual como fallback
-            log.info("=== DTO RECIBIDO DEL SERVIDOR EXTERNO (formato manual) ===");
-            log.info("  timbradoDetalleId: {}", request.getTimbradoDetalleId());
-            log.info("  cajaId: {}", request.getCajaId());
-            log.info("  clienteId: {}", request.getClienteId());
-            log.info("  nombre: {}", request.getNombre());
-            log.info("  ruc: {}", request.getRuc());
-            log.info("  direccion: {}", request.getDireccion());
-            log.info("  email: {}", request.getEmail());
-            log.info("  fecha: {}", request.getFecha());
-            log.info("  viaTributaria: {}", request.getViaTributaria());
-            log.info("  credito: {}", request.getCredito());
-            log.info("  monedaExtranjera: {}", request.getMonedaExtranjera());
-            log.info("  tipoCambio: {}", request.getTipoCambio());
-            log.info("  totalFinal: {}", request.getTotalFinal());
-            log.info("  items count: {}", request.getItems() != null ? request.getItems().size() : 0);
-        }
+        log.info("Creando factura legal para cliente: {} (RUC: {}), Timbrado: {}, Items: {}", 
+                request.getNombre(), 
+                request.getRuc(),
+                request.getTimbradoDetalleId(),
+                request.getItems() != null ? request.getItems().size() : 0);
         
-        log.info("Creando factura legal para cliente: {} (RUC: {})", request.getNombre(), request.getRuc());
+        // Log detallado solo en modo debug
+        if (log.isDebugEnabled()) {
+            try {
+                String requestJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(request);
+                log.debug("DTO recibido:\n{}", requestJson);
+            } catch (Exception e) {
+                log.debug("No se pudo serializar el DTO a JSON: {}", e.getMessage());
+            }
+        }
 
         // Verificar disponibilidad del timbrado detalle
         DisponibilidadTimbradoDetalleResponseDTO disponibilidad = 
@@ -222,16 +212,8 @@ public class FacturaLegalApiService {
         facturaLegal.setTotalFinal(request.getTotalFinal());
         facturaLegal.setDescuento(request.getDescuento() != null ? request.getDescuento() : 0.0);
         
-        // Validar y truncar moneda extranjera si es necesario (máximo 3 caracteres)
-        if (request.getMonedaExtranjera() != null && request.getMonedaExtranjera().length() > 3) {
-            log.warn("Moneda extranjera '{}' excede 3 caracteres, truncando a los primeros 3 caracteres", 
-                    request.getMonedaExtranjera());
-            facturaLegal.setMonedaExtranjera(request.getMonedaExtranjera().substring(0, 3).toUpperCase());
-        } else {
-            facturaLegal.setMonedaExtranjera(request.getMonedaExtranjera() != null 
-                    ? request.getMonedaExtranjera().toUpperCase() : null);
-        }
-        facturaLegal.setTipoCambio(request.getTipoCambio());
+        // Validar y configurar moneda extranjera
+        validarYConfigurarMonedaExtranjera(request, facturaLegal);
         facturaLegal.setActivo(true);
 
         // Asignar sucursal desde el timbrado detalle
@@ -248,7 +230,10 @@ public class FacturaLegalApiService {
         }
 
         // Asignar caja si se proporciona
-        // TODO: Implementar asignación de caja si es necesario
+        if (request.getCajaId() != null) {
+            // La caja se puede asignar aquí si es necesario en el futuro
+            log.debug("Caja ID {} proporcionada pero no asignada (funcionalidad pendiente)", request.getCajaId());
+        }
 
         // Incrementar número de factura
         Long numeroFactura = timbradoDetalle.getNumeroActual() != null 
@@ -285,7 +270,9 @@ public class FacturaLegalApiService {
 
             // Asignar producto si se proporciona
             if (itemDTO.getProductoId() != null) {
-                // TODO: Implementar asignación de producto si es necesario
+                // El producto se puede asignar aquí si es necesario en el futuro
+                log.debug("Producto ID {} proporcionado para item pero no asignado (funcionalidad pendiente)", 
+                        itemDTO.getProductoId());
             }
 
             facturaLegalItemService.save(item);
@@ -350,7 +337,17 @@ public class FacturaLegalApiService {
 
         if (esElectronica && sifenService != null && sifenService.isSifenEnabled()) {
             try {
-                log.info("Generando documento electrónico para factura ID: {}", facturaLegalGuardada.getId());
+                boolean esMonedaExt = esMonedaExtranjera(facturaLegalGuardada);
+                if (esMonedaExt) {
+                    log.info("Generando documento electrónico en moneda extranjera {} (cambio: {}) para factura ID: {}", 
+                            facturaLegalGuardada.getMonedaExtranjera(), 
+                            facturaLegalGuardada.getTipoCambio(), 
+                            facturaLegalGuardada.getId());
+                } else {
+                    log.info("Generando documento electrónico para factura ID: {}", facturaLegalGuardada.getId());
+                }
+                
+                // SifenService leerá automáticamente monedaExtranjera y tipoCambio de la factura
                 com.franco.dev.domain.financiero.DocumentoElectronico de = 
                         sifenService.crearDocumentoElectronico(facturaLegalGuardada);
                 
@@ -368,6 +365,7 @@ public class FacturaLegalApiService {
                 log.error("Error al generar documento electrónico para factura ID: {}", 
                         facturaLegalGuardada.getId(), e);
                 mensajeRespuestaSifen = "Error al generar documento electrónico: " + e.getMessage();
+                // No lanzamos excepción para no romper el guardado de la factura
             }
         }
 
@@ -378,9 +376,7 @@ public class FacturaLegalApiService {
                         facturaLegalGuardada.getId(), request.getPrinterName());
                 
                 // Verificar si es moneda extranjera
-                boolean esMonedaExtranjera = facturaLegalGuardada.getMonedaExtranjera() != null 
-                        && !facturaLegalGuardada.getMonedaExtranjera().trim().isEmpty()
-                        && facturaLegalGuardada.getTipoCambio() != null;
+                boolean esMonedaExtranjera = esMonedaExtranjera(facturaLegalGuardada);
                 
                 // Obtener items de la factura
                 List<FacturaLegalItem> items = facturaLegalItemService.findByFacturaLegalId(facturaLegalGuardada.getId());
@@ -429,6 +425,82 @@ public class FacturaLegalApiService {
                 .mensajeRespuestaSifen(mensajeRespuestaSifen)
                 .documentoElectronicoGenerado(documentoElectronicoGenerado)
                 .build();
+    }
+
+    /**
+     * Valida y configura la moneda extranjera en la factura.
+     * 
+     * Validaciones:
+     * - Si hay moneda extranjera, debe haber tipo de cambio
+     * - Si hay tipo de cambio, debe haber moneda extranjera
+     * - El tipo de cambio debe ser positivo
+     * - La moneda debe ser un código ISO válido (máximo 3 caracteres)
+     * 
+     * @param request DTO con los datos de la factura
+     * @param facturaLegal Factura legal a configurar
+     */
+    private void validarYConfigurarMonedaExtranjera(
+            CrearFacturaLegalRequestDTO request, 
+            FacturaLegal facturaLegal) {
+        
+        String monedaExtranjera = request.getMonedaExtranjera();
+        Double tipoCambio = request.getTipoCambio();
+        
+        // Si ambos son null, no hay moneda extranjera
+        if (monedaExtranjera == null && tipoCambio == null) {
+            facturaLegal.setMonedaExtranjera(null);
+            facturaLegal.setTipoCambio(null);
+            return;
+        }
+        
+        // Validar que ambos estén presentes
+        if (monedaExtranjera == null || monedaExtranjera.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                "Si se proporciona tipo de cambio, debe proporcionarse también la moneda extranjera");
+        }
+        
+        if (tipoCambio == null) {
+            throw new IllegalArgumentException(
+                "Si se proporciona moneda extranjera, debe proporcionarse también el tipo de cambio");
+        }
+        
+        // Validar que el tipo de cambio sea positivo
+        if (tipoCambio <= 0) {
+            throw new IllegalArgumentException(
+                "El tipo de cambio debe ser un valor positivo. Valor recibido: " + tipoCambio);
+        }
+        
+        // Validar y normalizar código de moneda (máximo 3 caracteres, ISO 4217)
+        String monedaNormalizada = monedaExtranjera.trim().toUpperCase();
+        if (monedaNormalizada.length() > 3) {
+            log.warn("Moneda extranjera '{}' excede 3 caracteres, truncando a los primeros 3 caracteres", 
+                    monedaExtranjera);
+            monedaNormalizada = monedaNormalizada.substring(0, 3);
+        }
+        
+        // Validar que no sea PYG (guaraníes es la moneda local)
+        if ("PYG".equals(monedaNormalizada)) {
+            throw new IllegalArgumentException(
+                "PYG (Guaraníes) es la moneda local. No se puede usar como moneda extranjera");
+        }
+        
+        facturaLegal.setMonedaExtranjera(monedaNormalizada);
+        facturaLegal.setTipoCambio(tipoCambio);
+        
+        log.debug("Moneda extranjera configurada: {} con tipo de cambio: {}", monedaNormalizada, tipoCambio);
+    }
+
+    /**
+     * Determina si una factura usa moneda extranjera.
+     * 
+     * @param facturaLegal La factura a verificar
+     * @return true si la factura usa moneda extranjera
+     */
+    private boolean esMonedaExtranjera(FacturaLegal facturaLegal) {
+        return facturaLegal.getMonedaExtranjera() != null 
+                && !facturaLegal.getMonedaExtranjera().trim().isEmpty()
+                && facturaLegal.getTipoCambio() != null
+                && facturaLegal.getTipoCambio() > 0;
     }
 }
 

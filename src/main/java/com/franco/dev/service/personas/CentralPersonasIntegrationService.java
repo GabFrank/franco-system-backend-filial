@@ -102,18 +102,28 @@ public class CentralPersonasIntegrationService {
         if (baseUrl.endsWith("/")) {
             baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
         }
-        return baseUrl + endpoint;
+        String fullUrl = baseUrl + endpoint;
+        // Log para debugging
+        org.slf4j.LoggerFactory.getLogger(CentralPersonasIntegrationService.class)
+            .debug("Construyendo URL para servidor central: {}", fullUrl);
+        return fullUrl;
     }
 
     private <T, R> R executePost(String url, T body, Class<R> responseType) {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CentralPersonasIntegrationService.class);
+        log.debug("Intentando sincronizar con servidor central. URL: {}, Tipo: {}", url, responseType.getSimpleName());
+        
         try {
             ResponseEntity<R> response = restTemplate.postForEntity(url, body, responseType);
             if (response.getBody() == null) {
+                log.error("Respuesta vacía del servidor central. URL: {}", url);
                 throw new IllegalStateException("Respuesta vacia al sincronizar con el servidor central");
             }
+            log.debug("Sincronización exitosa con servidor central. URL: {}", url);
             return response.getBody();
         } catch (RestClientException e) {
-            throw new IllegalStateException("Error la conectar con el servidor central", e);
+            log.error("Error al conectar con el servidor central. URL: {}, Error: {}", url, e.getMessage(), e);
+            throw new IllegalStateException("Error la conectar con el servidor central: " + e.getMessage(), e);
         }
     }
 }
