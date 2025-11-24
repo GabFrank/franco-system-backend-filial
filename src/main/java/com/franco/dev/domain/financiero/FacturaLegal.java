@@ -77,6 +77,12 @@ public class FacturaLegal implements Serializable {
     private Double totalFinal;
     private Double descuento;
 
+    @Column(name = "moneda_extranjera")
+    private String monedaExtranjera;
+
+    @Column(name = "tipo_cambio")
+    private Double tipoCambio;
+
     private Boolean activo;
 
     @CreationTimestamp

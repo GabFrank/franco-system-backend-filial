@@ -39,18 +39,20 @@ import com.franco.dev.service.financiero.FacturaLegalItemService;
 import com.franco.dev.service.financiero.FacturaLegalService;
 import com.franco.dev.service.financiero.LoteDEService;
 import com.franco.dev.service.personas.ClienteService;
+import com.franco.dev.service.sifen.dto.response.ConsultaRucResponse;
 import com.franco.dev.service.sifen.util.SifenEventoParser;
+import com.franco.dev.utilitarios.CalcularVerificadorRuc;
 import com.franco.dev.service.sifen.util.SifenReceptorHelper;
 import com.roshka.sifen.Sifen;
 import com.roshka.sifen.core.beans.response.RespuestaConsultaDE;
 import com.roshka.sifen.core.beans.response.RespuestaConsultaLoteDE;
+import com.roshka.sifen.core.beans.response.RespuestaConsultaRUC;
 import com.roshka.sifen.core.beans.response.RespuestaRecepcionLoteDE;
 import com.roshka.sifen.core.exceptions.SifenException;
 import com.roshka.sifen.core.fields.request.de.*;
 import com.roshka.sifen.core.types.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -88,8 +90,58 @@ public class SifenService {
     private final com.roshka.sifen.core.SifenConfig sifenConfig;
     private final boolean sifenEnabled;
 
-    @Value("${tipoContribuyenteEmisor:2}")
-    private Integer tipoContribuyenteEmisor;
+    public boolean isSifenEnabled() {
+        return sifenEnabled;
+    }
+
+    public ConsultaRucResponse consultaRuc(String ruc) {
+        verificarSifenHabilitado();
+        try {
+            RespuestaConsultaRUC respuesta = Sifen.consultaRUC(ruc, sifenConfig);
+            return mapearConsultaRuc(respuesta);
+        } catch (SifenException e) {
+            log.warn("⚠️ Error de SIFEN al consultar RUC {}: {}", ruc, e.getMessage());
+            return null;
+        } catch (Exception e) {
+            log.error("❌ Error inesperado al consultar RUC {}: {}", ruc, e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private ConsultaRucResponse mapearConsultaRuc(RespuestaConsultaRUC respuesta) {
+        if (respuesta == null) {
+            return null;
+        }
+
+        ConsultaRucResponse dto = new ConsultaRucResponse();
+        dto.setCodigoRespuesta(respuesta.getdCodRes());
+        dto.setMensajeRespuesta(respuesta.getdMsgRes());
+        dto.setMensajeProcesamiento(respuesta.getdMsgRes());
+        dto.setMensajeValidacion(respuesta.getdMsgRes());
+        boolean exito = "0300".equals(respuesta.getdCodRes());
+        dto.setProcesamientoCorrecto(exito);
+        dto.setValidacionCorrecta(exito);
+
+        com.roshka.sifen.core.fields.response.ruc.TxContRuc datos = respuesta.getxContRUC();
+        if (datos != null) {
+            String rucRespuesta = datos.getdRUCCons();
+            dto.setRuc(rucRespuesta);
+            dto.setRazonSocial(datos.getdRazCons());
+            dto.setEstadoContribuyente(datos.getdDesEstCons());
+            dto.setEstado(datos.getdDesEstCons());
+            dto.setCodigoEstadoContribuyente(datos.getdCodEstCons());
+            dto.setEsFacturadorElectronico(datos.getdRUCFactElec());
+            if (rucRespuesta != null) {
+                Integer dv = CalcularVerificadorRuc.getDigitoVerificador(rucRespuesta);
+                if (dv != null) {
+                    dto.setDv(String.valueOf(dv));
+                }
+            }
+            dto.setNombre(datos.getdRazCons());
+        }
+
+        return dto;
+    }
 
     public SifenService(
             DocumentoElectronicoService documentoElectronicoService,
@@ -1091,29 +1143,82 @@ public class SifenService {
     // ===================== MÉTODOS AUXILIARES PRIVADOS =====================
 
     /**
-     * Normaliza un BigDecimal para cumplir con el esquema SIFEN que requiere máximo 4 dígitos decimales.
+     * Normaliza un monto de pago a máximo 4 decimales según esquema SIFEN.
+     * Solo se usa para campos de tipo "monto de pago" que requieren máximo 4 decimales.
      * 
-     * @param valor El valor BigDecimal a normalizar (puede ser null)
-     * @return BigDecimal normalizado con máximo 4 decimales, o BigDecimal.ZERO si el valor es null
+     * @param valor El valor a normalizar
+     * @return BigDecimal normalizado a 4 decimales
      */
-    private BigDecimal normalizarDecimalesMonetarios(BigDecimal valor) {
+    private BigDecimal normalizarMontoPago(Double valor) {
         if (valor == null) {
-            return BigDecimal.ZERO;
+            throw new IllegalArgumentException("El monto de pago no puede ser null");
         }
-        return valor.setScale(4, RoundingMode.HALF_UP);
+        return BigDecimal.valueOf(valor).setScale(4, RoundingMode.HALF_UP);
     }
 
     /**
-     * Normaliza un Double para cumplir con el esquema SIFEN que requiere máximo 4 dígitos decimales.
+     * Determina si la factura usa moneda extranjera.
      * 
-     * @param valor El valor Double a normalizar (puede ser null)
-     * @return BigDecimal normalizado con máximo 4 decimales, o BigDecimal.ZERO si el valor es null
+     * @param factura La factura a verificar
+     * @return true si tiene moneda extranjera configurada
      */
-    private BigDecimal normalizarDecimalesMonetarios(Double valor) {
-        if (valor == null) {
-            return BigDecimal.ZERO;
+    private boolean esMonedaExtranjera(FacturaLegal factura) {
+        return factura.getMonedaExtranjera() != null && 
+               !factura.getMonedaExtranjera().trim().isEmpty() &&
+               !factura.getMonedaExtranjera().equalsIgnoreCase("PYG");
+    }
+
+    /**
+     * Obtiene la descripción de la moneda en español según el código ISO.
+     * 
+     * @param codigoMoneda Código ISO 4217 (ej: "USD", "BRL", "EUR")
+     * @return Descripción en español de la moneda
+     */
+    private String obtenerDescripcionMoneda(String codigoMoneda) {
+        if (codigoMoneda == null) {
+            return null;
         }
-        return BigDecimal.valueOf(valor).setScale(4, RoundingMode.HALF_UP);
+        
+        switch (codigoMoneda.toUpperCase()) {
+            case "USD":
+                return "Dólares Americanos";
+            case "BRL":
+                return "Reales Brasileños";
+            case "EUR":
+                return "Euros";
+            case "ARS":
+                return "Pesos Argentinos";
+            case "CLP":
+                return "Pesos Chilenos";
+            case "PYG":
+                return "Guaraníes";
+            default:
+                // Si no se reconoce, retornar el código como descripción
+                log.warn("Código de moneda no reconocido: {}. Usando código como descripción.", codigoMoneda);
+                return codigoMoneda;
+        }
+    }
+
+    /**
+     * Obtiene el código de moneda CMondT desde el código ISO.
+     * Si el código no es reconocido, intenta usar el valor directamente.
+     * 
+     * @param codigoMoneda Código ISO 4217 (ej: "USD", "BRL")
+     * @return CMondT correspondiente o null si no se puede mapear
+     */
+    private CMondT obtenerCMondT(String codigoMoneda) {
+        if (codigoMoneda == null || codigoMoneda.trim().isEmpty()) {
+            return CMondT.PYG;
+        }
+        
+        try {
+            // Intentar obtener el enum directamente por nombre
+            return CMondT.valueOf(codigoMoneda.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            // Si no existe en el enum, usar PYG como fallback
+            log.warn("Código de moneda {} no encontrado en enum CMondT. Usando PYG como fallback.", codigoMoneda);
+            return CMondT.PYG;
+        }
     }
 
     /**
@@ -1406,7 +1511,47 @@ public class SifenService {
         TgOpeCom gOpeCom = new TgOpeCom();
         gOpeCom.setiTipTra(TTipTra.VENTA_MERCADERIA);
         gOpeCom.setiTImp(TTImp.IVA);
-        gOpeCom.setcMoneOpe(CMondT.PYG);
+        
+        // Configurar moneda de operación (PYG o extranjera)
+        boolean esMonedaExt = esMonedaExtranjera(factura);
+        if (esMonedaExt) {
+            String codigoMoneda = factura.getMonedaExtranjera().toUpperCase();
+            CMondT moneda = obtenerCMondT(codigoMoneda);
+            gOpeCom.setcMoneOpe(moneda);
+            
+            // Configurar condición de tipo de cambio (Global por defecto)
+            // Intentar usar TdCondTiCam enum, si no está disponible usar reflexión
+            try {
+                // Intentar usar enum TdCondTiCam directamente
+                com.roshka.sifen.core.types.TdCondTiCam condTiCam = 
+                    com.roshka.sifen.core.types.TdCondTiCam.GLOBAL;
+                gOpeCom.setdCondTiCam(condTiCam);
+            } catch (Exception e) {
+                // Fallback: usar reflexión para llamar al método
+                try {
+                    java.lang.reflect.Method method = gOpeCom.getClass().getMethod("setdCondTiCam", 
+                        com.roshka.sifen.core.types.TdCondTiCam.class);
+                    com.roshka.sifen.core.types.TdCondTiCam condTiCam = 
+                        com.roshka.sifen.core.types.TdCondTiCam.GLOBAL;
+                    method.invoke(gOpeCom, condTiCam);
+                } catch (Exception e2) {
+                    log.warn("No se pudo configurar condición de tipo de cambio: {}", e2.getMessage());
+                }
+            }
+            
+            // Configurar tipo de cambio global
+            if (factura.getTipoCambio() != null && factura.getTipoCambio() > 0) {
+                gOpeCom.setdTiCam(BigDecimal.valueOf(factura.getTipoCambio()).setScale(4, RoundingMode.HALF_UP));
+                String descripcionMoneda = obtenerDescripcionMoneda(codigoMoneda);
+                log.debug("   Moneda extranjera configurada: {} ({}), Tipo de cambio: {}", 
+                    codigoMoneda, descripcionMoneda, factura.getTipoCambio());
+            } else {
+                log.warn("   ⚠️ Moneda extranjera {} configurada pero tipo de cambio no válido", codigoMoneda);
+            }
+        } else {
+            gOpeCom.setcMoneOpe(CMondT.PYG);
+        }
+        
         dDatGralOpe.setgOpeCom(gOpeCom);
 
         // Datos del Emisor
@@ -1427,6 +1572,32 @@ public class SifenService {
         DE.setgTotSub(new TgTotSub());
         aplicarFixTotalesIVA(DE.getgTotSub());
         
+        // Configurar total en guaraníes si es moneda extranjera
+        // IMPORTANTE: 
+        // - Los precios de los items se convierten de guaraníes a moneda extranjera antes de pasarlos a SIFEN
+        // - La librería SIFEN calcula automáticamente dTotGralOpe basándose en los items (ya en moneda extranjera)
+        // - Según el manual: dTotalGs = dTotGralOpe × dTiCam (si iCondTiCam = 1)
+        // - Como los items ya están convertidos, la librería debería calcular dTotalGs automáticamente
+        // - Pero si no lo hace, lo calculamos manualmente usando la fórmula del manual
+        if (esMonedaExt && factura.getTipoCambio() != null && factura.getTipoCambio() > 0) {
+            // El totalFinal de la factura está en guaraníes
+            // Como los items ya están convertidos a moneda extranjera, la librería calculará dTotGralOpe en moneda extranjera
+            // Y según el manual: dTotalGs = dTotGralOpe × dTiCam
+            // Pero como totalFinal ya está en guaraníes, podemos usarlo directamente
+            BigDecimal totalFinalGs = BigDecimal.valueOf(factura.getTotalFinal());
+            BigDecimal totalGs = totalFinalGs.setScale(2, RoundingMode.HALF_UP);
+            
+            // Intentar configurar dTotalGs usando reflexión
+            // NOTA: La librería debería calcularlo automáticamente, pero lo configuramos por si acaso
+            try {
+                java.lang.reflect.Method method = DE.getgTotSub().getClass().getMethod("setdTotalGs", BigDecimal.class);
+                method.invoke(DE.getgTotSub(), totalGs);
+                log.debug("   Total en guaraníes configurado: {} (totalFinal de factura en Gs)", totalGs);
+            } catch (Exception e) {
+                log.warn("   ⚠️ No se pudo configurar dTotalGs (método no disponible en esta versión de la librería): {}", e.getMessage());
+            }
+        }
+        
         return DE;
     }
 
@@ -1440,7 +1611,10 @@ public class SifenService {
         String[] rucPartes = rucCompleto.split("-");
         gEmis.setdRucEm(rucPartes[0]);
         gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
-        gEmis.setiTipCont(tipoContribuyenteEmisor == 1 ? TiTipCont.PERSONA_FISICA : TiTipCont.PERSONA_JURIDICA);
+        
+        // Obtener tipo de contribuyente desde el timbrado
+        Integer tipoContribuyente = obtenerTipoContribuyenteDesdeTimbrado(factura);
+        gEmis.setiTipCont(tipoContribuyente == 1 ? TiTipCont.PERSONA_FISICA : TiTipCont.PERSONA_JURIDICA);
         gEmis.setdNomEmi(factura.getTimbradoDetalle().getTimbrado().getRazonSocial());
         gEmis.setdDirEmi(factura.getTimbradoDetalle().getDireccion());
         gEmis.setdNumCas("0");
@@ -1511,16 +1685,45 @@ public class SifenService {
         gActEcoList.add(gActEco);
         
         // Actividades secundarias
-        String[] codigosSecundarios = factura.getTimbradoDetalle().getTimbrado()
-            .getListCodigoActividadEconomicaSecundaria().split(",");
-        String[] descripcionesSecundarias = factura.getTimbradoDetalle().getTimbrado()
-            .getListDescripcionActividadEconomicaSecundaria().split(",");
+        String listCodigosSec = factura.getTimbradoDetalle().getTimbrado().getListCodigoActividadEconomicaSecundaria();
+        String listDescripcionesSec = factura.getTimbradoDetalle().getTimbrado().getListDescripcionActividadEconomicaSecundaria();
         
-        for (int i = 0; i < codigosSecundarios.length && i < descripcionesSecundarias.length; i++) {
+        // Validar que ambos campos existan y no estén vacíos
+        if (listCodigosSec == null || listCodigosSec.trim().isEmpty() ||
+            listDescripcionesSec == null || listDescripcionesSec.trim().isEmpty()) {
+            log.debug("   No hay actividades económicas secundarias configuradas");
+            return gActEcoList;
+        }
+        
+        // Hacer split y limpiar elementos vacíos
+        String[] codigosSecundarios = listCodigosSec.split(",");
+        String[] descripcionesSecundarias = listDescripcionesSec.split(",");
+        
+        // Validar que ambos arrays tengan la misma longitud
+        if (codigosSecundarios.length != descripcionesSecundarias.length) {
+            log.warn("   ⚠️ Número de códigos secundarios ({}) no coincide con número de descripciones ({}). " +
+                    "Se procesarán solo los que tengan ambos datos.", 
+                codigosSecundarios.length, descripcionesSecundarias.length);
+        }
+        
+        // Procesar actividades secundarias
+        int maxLength = Math.min(codigosSecundarios.length, descripcionesSecundarias.length);
+        for (int i = 0; i < maxLength; i++) {
+            String codigo = codigosSecundarios[i].trim();
+            String descripcion = descripcionesSecundarias[i].trim();
+            
+            // Validar que ambos valores no estén vacíos
+            if (codigo.isEmpty() || descripcion.isEmpty()) {
+                log.warn("   ⚠️ Actividad secundaria en índice {} tiene código o descripción vacío - omitiendo", i);
+                continue;
+            }
+            
             TgActEco gActEcoSec = new TgActEco();
-            gActEcoSec.setcActEco(codigosSecundarios[i].trim());
-            gActEcoSec.setdDesActEco(descripcionesSecundarias[i].trim());
+            gActEcoSec.setcActEco(codigo);
+            gActEcoSec.setdDesActEco(descripcion);
             gActEcoList.add(gActEcoSec);
+            
+            log.debug("   Actividad secundaria agregada: {} - {}", codigo, descripcion);
         }
         
         return gActEcoList;
@@ -1580,9 +1783,50 @@ public class SifenService {
         List<TgPaConEIni> gPaConEIniList = new ArrayList<>();
         TgPaConEIni gPaConEIni = new TgPaConEIni();
         gPaConEIni.setiTiPago(TiTiPago.EFECTIVO);
-        gPaConEIni.setcMoneTiPag(CMondT.PYG);
-        // Limitar decimales a 4 dígitos según esquema SIFEN (cvc-fractionDigits-valid)
-        gPaConEIni.setdMonTiPag(normalizarDecimalesMonetarios(factura.getTotalFinal()));
+        
+        // Configurar moneda de pago (PYG o extranjera)
+        boolean esMonedaExt = esMonedaExtranjera(factura);
+        if (esMonedaExt) {
+            String codigoMoneda = factura.getMonedaExtranjera().toUpperCase();
+            CMondT monedaPago = obtenerCMondT(codigoMoneda);
+            gPaConEIni.setcMoneTiPag(monedaPago);
+            
+            // Configurar descripción de moneda de pago usando reflexión (puede no estar disponible en todas las versiones)
+            try {
+                String descripcionMoneda = obtenerDescripcionMoneda(codigoMoneda);
+                java.lang.reflect.Method method = gPaConEIni.getClass().getMethod("setdDMoneTiPag", String.class);
+                method.invoke(gPaConEIni, descripcionMoneda);
+            } catch (Exception e) {
+                log.debug("   Método setdDMoneTiPag no disponible: {}", e.getMessage());
+            }
+            
+            // Configurar tipo de cambio del pago usando reflexión (puede no estar disponible en todas las versiones)
+            if (factura.getTipoCambio() != null && factura.getTipoCambio() > 0) {
+                try {
+                    java.lang.reflect.Method method = gPaConEIni.getClass().getMethod("setdTiCamTiPag", BigDecimal.class);
+                    method.invoke(gPaConEIni, BigDecimal.valueOf(factura.getTipoCambio()).setScale(4, RoundingMode.HALF_UP));
+                } catch (Exception e) {
+                    log.debug("   Método setdTiCamTiPag no disponible: {}", e.getMessage());
+                }
+            }
+        } else {
+            gPaConEIni.setcMoneTiPag(CMondT.PYG);
+        }
+        
+        // dMonTiPag requiere máximo 4 decimales según esquema SIFEN (montos de pago)
+        // IMPORTANTE: Si la factura tiene moneda extranjera, el totalFinal está en guaraníes
+        // pero el monto del pago debe estar en la moneda extranjera
+        BigDecimal montoPago;
+        if (esMonedaExt && factura.getTipoCambio() != null && factura.getTipoCambio() > 0) {
+            // Convertir monto de guaraníes a moneda extranjera
+            BigDecimal montoGs = BigDecimal.valueOf(factura.getTotalFinal());
+            BigDecimal tipoCambio = BigDecimal.valueOf(factura.getTipoCambio());
+            montoPago = montoGs.divide(tipoCambio, 4, RoundingMode.HALF_UP);
+            log.debug("   Monto de pago convertido: {} Gs → {} {}", montoGs, montoPago, factura.getMonedaExtranjera());
+        } else {
+            montoPago = normalizarMontoPago(factura.getTotalFinal());
+        }
+        gPaConEIni.setdMonTiPag(montoPago);
         gPaConEIniList.add(gPaConEIni);
         gCamCond.setgPaConEIniList(gPaConEIniList);
         
@@ -1590,6 +1834,23 @@ public class SifenService {
             TgPagCred gPagCred = new TgPagCred();
             gPagCred.setiCondCred(TiCondCred.PLAZO);
             gPagCred.setdPlazoCre("30 días");
+            
+            // Configurar moneda de cuota si es moneda extranjera usando reflexión (puede no estar disponible en todas las versiones)
+            if (esMonedaExt) {
+                try {
+                    String codigoMoneda = factura.getMonedaExtranjera().toUpperCase();
+                    CMondT monedaCuota = obtenerCMondT(codigoMoneda);
+                    java.lang.reflect.Method methodC = gPagCred.getClass().getMethod("setcMoneCuo", CMondT.class);
+                    methodC.invoke(gPagCred, monedaCuota);
+                    
+                    String descripcionMoneda = obtenerDescripcionMoneda(codigoMoneda);
+                    java.lang.reflect.Method methodD = gPagCred.getClass().getMethod("setdDMoneCuo", String.class);
+                    methodD.invoke(gPagCred, descripcionMoneda);
+                } catch (Exception e) {
+                    log.debug("   Métodos de moneda de cuota no disponibles: {}", e.getMessage());
+                }
+            }
+            
             gCamCond.setgPagCred(gPagCred);
         }
         
@@ -1627,8 +1888,22 @@ public class SifenService {
             }
             gCamItem.setdCantProSer(cantidad);
             TgValorItem gValorItem = new TgValorItem();
-            // Limitar decimales a 4 dígitos según esquema SIFEN (cvc-fractionDigits-valid)
-            gValorItem.setdPUniProSer(normalizarDecimalesMonetarios(item.getPrecioUnitario()));
+            
+            // IMPORTANTE: Si la factura tiene moneda extranjera, los precios de los items están en guaraníes
+            // pero deben convertirse a la moneda extranjera antes de pasarlos a SIFEN
+            BigDecimal precioUnitario;
+            if (esMonedaExtranjera(factura) && factura.getTipoCambio() != null && factura.getTipoCambio() > 0) {
+                // Convertir precio de guaraníes a moneda extranjera
+                BigDecimal precioGs = BigDecimal.valueOf(item.getPrecioUnitario().doubleValue());
+                BigDecimal tipoCambio = BigDecimal.valueOf(factura.getTipoCambio());
+                precioUnitario = precioGs.divide(tipoCambio, 4, RoundingMode.HALF_UP);
+                log.debug("   Precio convertido: {} Gs → {} {} (tipo cambio: {})", 
+                    precioGs, precioUnitario, factura.getMonedaExtranjera(), tipoCambio);
+            } else {
+                precioUnitario = BigDecimal.valueOf(item.getPrecioUnitario().doubleValue());
+            }
+            
+            gValorItem.setdPUniProSer(precioUnitario);
 
             TgValorRestaItem gValorRestaItem = new TgValorRestaItem();
             gValorItem.setgValorRestaItem(gValorRestaItem);
@@ -1636,22 +1911,36 @@ public class SifenService {
 
             TgCamIVA gCamIVA = new TgCamIVA();
             
-            // Determinar IVA usando la misma prioridad que para el producto
+            // Determinar IVA con la siguiente prioridad:
+            // 1. IVA del FacturaLegalItem directamente (PRIORIDAD MÁXIMA)
+            // 2. IVA del producto vinculado directamente
+            // 3. IVA del producto a través de VentaItem
+            // 4. Default 10%
             Integer iva = null;
-            if (producto != null && producto.getIva() != null) {
+            
+            // Prioridad 1: IVA del item directamente
+            if (item.getIva() != null) {
+                iva = item.getIva();
+                log.debug("   IVA obtenido del FacturaLegalItem directamente: {}%", iva);
+            }
+            // Prioridad 2: IVA del producto vinculado directamente
+            else if (producto != null && producto.getIva() != null) {
                 iva = producto.getIva();
                 log.debug("   IVA obtenido del producto {}: {}%", producto.getDescripcion(), iva);
-            } else {
+            }
+            // Prioridad 3: IVA del producto a través de VentaItem (ya se obtuvo arriba si existe)
+            // Default: 10%
+            else {
                 iva = 10; // Default to 10%
-                log.debug("   IVA no disponible del producto - usando default: {}%", iva);
+                log.debug("   IVA no disponible - usando default: {}%", iva);
             }
 
             switch (iva) {
                 case 5:
                     gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
-                    gCamIVA.setdPropIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(100)));
-                    gCamIVA.setdTasaIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(5)));
-                    gCamIVA.setdBasExe(normalizarDecimalesMonetarios(BigDecimal.ZERO));
+                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
+                    gCamIVA.setdTasaIVA(BigDecimal.valueOf(5));
+                    // dBasExe no se setea - la librería lo maneja automáticamente (como en versión anterior)
                     log.debug("   Configurado IVA 5% para producto");
                     break;
                 case 0:
@@ -1661,9 +1950,9 @@ public class SifenService {
                 case 10:
                 default:
                     gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
-                    gCamIVA.setdPropIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(100)));
-                    gCamIVA.setdTasaIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(10)));
-                    gCamIVA.setdBasExe(normalizarDecimalesMonetarios(BigDecimal.ZERO));
+                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
+                    gCamIVA.setdTasaIVA(BigDecimal.valueOf(10));
+                    // dBasExe no se setea - la librería lo maneja automáticamente (como en versión anterior)
                     log.debug("   Configurado IVA 10% para producto");
                     break;
             }
@@ -1678,13 +1967,12 @@ public class SifenService {
 
     /**
      * Aplica fix para bug de totales IVA en la librería SIFEN.
-     * También normaliza los valores a 4 decimales según esquema SIFEN.
      */
     private void aplicarFixTotalesIVA(TgTotSub totales) {
         try {
             // Fix para IVA 10%
             if (totales.getdIVA10() != null && totales.getdIVA10().compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal valorIVA10 = normalizarDecimalesMonetarios(totales.getdIVA10());
+                BigDecimal valorIVA10 = totales.getdIVA10();
                 BigDecimal valorActualLiq10 = totales.getdLiqTotIVA10();
                 
                 if (valorActualLiq10 == null || valorActualLiq10.compareTo(BigDecimal.ZERO) == 0) {
@@ -1696,7 +1984,7 @@ public class SifenService {
             
             // Fix para IVA 5%
             if (totales.getdIVA5() != null && totales.getdIVA5().compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal valorIVA5 = normalizarDecimalesMonetarios(totales.getdIVA5());
+                BigDecimal valorIVA5 = totales.getdIVA5();
                 BigDecimal valorActualLiq5 = totales.getdLiqTotIVA5();
                 
                 if (valorActualLiq5 == null || valorActualLiq5.compareTo(BigDecimal.ZERO) == 0) {
@@ -1707,6 +1995,48 @@ public class SifenService {
             }
         } catch (Exception e) {
             log.error("Error al aplicar workaround de totales IVA: {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * Obtiene el tipo de contribuyente desde el timbrado.
+     * Convierte el campo tipoSociedad (String) a Integer.
+     * 
+     * @param factura La factura de la cual obtener el timbrado
+     * @return 1 para PERSONA_FISICA, 2 para PERSONA_JURIDICA (por defecto)
+     */
+    private Integer obtenerTipoContribuyenteDesdeTimbrado(FacturaLegal factura) {
+        try {
+            String tipoSociedad = factura.getTimbradoDetalle().getTimbrado().getTipoSociedad();
+            
+            if (tipoSociedad == null || tipoSociedad.trim().isEmpty()) {
+                log.warn("⚠️ tipoSociedad no está configurado en el timbrado - usando PERSONA_JURIDICA por defecto");
+                return 2; // PERSONA_JURIDICA por defecto
+            }
+            
+            // Convertir String a Integer
+            Integer tipoContribuyente = Integer.parseInt(tipoSociedad.trim());
+            
+            // Validar que sea 1 o 2
+            if (tipoContribuyente != 1 && tipoContribuyente != 2) {
+                log.warn("⚠️ tipoSociedad tiene valor inválido: {} - usando PERSONA_JURIDICA por defecto", tipoContribuyente);
+                return 2; // PERSONA_JURIDICA por defecto
+            }
+            
+            log.debug("   Tipo de contribuyente obtenido del timbrado: {} ({})", 
+                tipoContribuyente, 
+                tipoContribuyente == 1 ? "PERSONA_FISICA" : "PERSONA_JURIDICA");
+            
+            return tipoContribuyente;
+            
+        } catch (NumberFormatException e) {
+            log.warn("⚠️ Error al convertir tipoSociedad '{}' a Integer - usando PERSONA_JURIDICA por defecto: {}", 
+                factura.getTimbradoDetalle().getTimbrado().getTipoSociedad(), 
+                e.getMessage());
+            return 2; // PERSONA_JURIDICA por defecto
+        } catch (Exception e) {
+            log.error("❌ Error inesperado al obtener tipo de contribuyente desde timbrado: {}", e.getMessage(), e);
+            return 2; // PERSONA_JURIDICA por defecto
         }
     }
     

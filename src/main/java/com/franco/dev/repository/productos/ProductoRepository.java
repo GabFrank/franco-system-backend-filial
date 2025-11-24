@@ -3,6 +3,7 @@ package com.franco.dev.repository.productos;
 import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -14,15 +15,29 @@ public interface ProductoRepository extends HelperRepository<Producto, Long> {
 
     public Producto findByDescripcion(String texto);
 
-    @Query(value = "select distinct on (p.id, p.descripcion) p.*  \n" +
-            "from productos.producto p \n" +
-            "left outer join productos.presentacion p2 on p2.producto_id = p.id \n" +
-            "left outer join productos.codigo c on c.presentacion_id = p2.id \n" +
-            "where (CAST(p.id as text) like %?1% or UPPER(p.descripcion) like %?1% or UPPER(p.descripcion_factura) like %?1% or c.codigo like %?1%) and p.activo = true " +
-            "ORDER BY p.descripcion asc \n" +
-            "limit 10 " +
-            "offset ?2", nativeQuery = true)
-    public List<Producto> findbyAll(String texto, int offset);
+    @Query(value = "select distinct on (p.id, p.descripcion) p.* " +
+    "from productos.producto p " +
+    "left outer join productos.presentacion p2 on p2.producto_id = p.id " +
+    "left outer join productos.codigo c on c.presentacion_id = p2.id " +
+    "left join ( " +
+    "   select m.producto_id, sum(m.cantidad) as stock_actual " +
+    "   from operaciones.movimiento_stock m " +
+    "   where m.sucursal_id = CAST(:sucursalId AS bigint) and m.estado = true " +
+    "   group by m.producto_id " +
+    ") st on st.producto_id = p.id " +
+    "where (CAST(p.id as text) like CONCAT('%', :texto, '%') or UPPER(p.descripcion) like CONCAT('%', UPPER(:texto), '%') " +
+    "or UPPER(p.descripcion_factura) like CONCAT('%', UPPER(:texto), '%') or c.codigo like CONCAT('%', :texto, '%')) " +
+    "and p.activo = true " +
+    "and (:conStock = false OR (COALESCE(st.stock_actual, 0) > 0)) " +
+    "ORDER BY p.descripcion asc " +
+    "limit 10 " +
+    "offset :offset", nativeQuery = true)
+    public List<Producto> findbyAll(
+        @Param("texto") String texto,
+        @Param("offset") int offset,
+        @Param("sucursalId") String sucursalId, // <--- CAMBIO: Recibe String
+        @Param("conStock") Boolean conStock
+    );
 
     @Query(value = "select distinct on (p.id, p.descripcion) p.*  \n" +
             "from productos.producto p \n" +

@@ -41,4 +41,13 @@ public class TimbradoDetalleService extends CrudService<TimbradoDetalle, Timbrad
     public TimbradoDetalle getTimbradoDetalleActual(Long id) {
         return repository.findFirstByPuntoDeVentaIdOrderByIdDesc(id);
     }
+
+    public TimbradoDetalle getTimbradoDetalleActual(Long id, Boolean requiereElectronico) {
+        if (requiereElectronico == null) {
+            return getTimbradoDetalleActual(id);
+        }
+        return repository
+                .findFirstByPuntoDeVentaIdAndActivoTrueAndTimbrado_ActivoTrueAndTimbrado_IsElectronicoOrderByIdDesc(id,
+                        requiereElectronico);
+    }
 }

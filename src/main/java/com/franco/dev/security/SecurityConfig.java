@@ -10,7 +10,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.util.Collections;
 
@@ -41,6 +40,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         http.cors().and().csrf().disable()
                 .authorizeRequests()
                 .antMatchers("/public/**").permitAll()  // Public endpoints
+                .antMatchers("/api/facturas-legales/**").permitAll()  // API endpoints for facturas legales
                 .antMatchers("**/graphql/**", "**/subscriptions/**", "graphiql").authenticated()  // Protected endpoints
                 .and()
                 .exceptionHandling().authenticationEntryPoint(entryPoint)

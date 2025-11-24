@@ -62,7 +62,10 @@ type LoteDE {
 input FacturaLegalInput {
     id: ID
     cajaId: Int
+    timbradoDetalleId: Int
+    autoimpreso: Boolean
     viaTributaria: Boolean
+    numeroFactura: Int
     clienteId: Int
     ventaId: Int
     fecha: String
@@ -70,6 +73,7 @@ input FacturaLegalInput {
     nombre: String
     ruc: String
     direccion: String
+    email: String
     cdc: String
     ivaParcial0: Float
     ivaParcial5: Float
@@ -81,6 +85,7 @@ input FacturaLegalInput {
     usuarioId: Int
     sucursalId: Int
     descuento: Float
+    activo: Boolean
 }
 
 extend type Query {

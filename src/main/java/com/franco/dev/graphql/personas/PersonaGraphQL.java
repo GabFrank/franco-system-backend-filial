@@ -26,7 +26,9 @@ public class PersonaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
     public Optional<Persona> persona(Long id) {return service.findById(id);}
 
-    public List<Persona> personaSearch(String texto) {return service.findByAll(texto);}
+    public List<Persona> personaSearch(String texto) {
+        return service.findByAll(texto);
+    }
 
     public List<Persona> personas(int page, int size){
         Pageable pageable = PageRequest.of(page,size);

@@ -32,6 +32,8 @@ public class Timbrado implements Serializable {
 
     private String csc;
 
+    private String cscId;
+
     private LocalDateTime fechaInicio;
     private LocalDateTime fechaFin;
 
