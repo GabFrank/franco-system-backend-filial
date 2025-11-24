@@ -61,7 +61,9 @@ public class ProductoService extends CrudService<Producto, ProductoRepository> {
     }
 
 
-    public List<Producto> findByAll(String texto, Integer offset, Boolean isEnvase, Boolean activo) {
+    public List<Producto> findByAll(String texto, Integer offset, Long sucursalId, Boolean conStock, Boolean isEnvase, Boolean activo) {
+        String sucursalIdStr = (sucursalId != null) ? String.valueOf(sucursalId) : "0";
+
         if (texto.length() > 0) {
             texto = texto.replace(' ', '%').toUpperCase();
             if (offset == null) {
@@ -70,7 +72,7 @@ public class ProductoService extends CrudService<Producto, ProductoRepository> {
             if (isEnvase != null && isEnvase == true) {
                 return repository.findEnvases(texto, offset, true);
             } else {
-                return repository.findbyAll(texto, offset);
+                return repository.findbyAll(texto, offset, sucursalIdStr, conStock);
             }
         }
         return new ArrayList<>();
@@ -136,7 +138,7 @@ public class ProductoService extends CrudService<Producto, ProductoRepository> {
     }
 
     public String exportarReporte(String texto) throws FileNotFoundException {
-        List<Producto> productoList = findByAll(texto, 0, false, true);
+        List<Producto> productoList = findByAll(texto, 0, 0L, false, false, true);
         List<ProductoReportDto> productosDtoList = new ArrayList<>();
         PrecioPorSucursal precioVenta = null;
         PrecioPorSucursal precioCosto = null;
