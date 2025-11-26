@@ -1,7 +1,6 @@
 package com.franco.dev.service.configuracion;
 
 import com.franco.dev.domain.configuracion.InicioSesion;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.configuraciones.InicioSesionRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

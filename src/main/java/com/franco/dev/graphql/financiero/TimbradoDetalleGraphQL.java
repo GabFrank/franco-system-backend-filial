@@ -5,7 +5,6 @@ import com.franco.dev.service.financiero.TimbradoDetalleService;
 import com.franco.dev.service.financiero.TimbradoService;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,9 +29,6 @@ public class TimbradoDetalleGraphQL implements GraphQLQueryResolver, GraphQLMuta
 
     @Autowired
     private PaisService paisService;
-
-    @Autowired
-    private PropagacionService propagacionService;
 
     public Optional<TimbradoDetalle> timbradoDetalle(Long id) {
         return service.findById(id);

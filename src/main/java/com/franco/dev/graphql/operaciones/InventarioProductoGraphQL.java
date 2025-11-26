@@ -3,13 +3,11 @@ package com.franco.dev.graphql.operaciones;
 import com.franco.dev.domain.operaciones.Inventario;
 import com.franco.dev.domain.operaciones.InventarioProducto;
 import com.franco.dev.graphql.operaciones.input.InventarioProductoInput;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.empresarial.ZonaService;
 import com.franco.dev.service.operaciones.InventarioProductoService;
 import com.franco.dev.service.operaciones.InventarioService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.ProductoService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -39,10 +37,6 @@ public class InventarioProductoGraphQL implements GraphQLQueryResolver, GraphQLM
     @Autowired
     private InventarioService inventarioService;
 
-    @Autowired
-    private PropagacionService propagacionService;
-
-
     public Optional<InventarioProducto> inventarioProducto(Long id) {
         return service.findById(id);
     }
@@ -68,7 +62,6 @@ public class InventarioProductoGraphQL implements GraphQLQueryResolver, GraphQLM
         InventarioProducto i = service.findById(id).orElse(null);
         if(i!=null) {
             ok = service.deleteById(id);
-//            propagacionService.deleteEntidad(i, TipoEntidad.INVENTARIO_PRODUCTO);
         }
         return ok;
     }

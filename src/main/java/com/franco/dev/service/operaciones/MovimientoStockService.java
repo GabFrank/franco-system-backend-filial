@@ -7,7 +7,6 @@ import com.franco.dev.domain.operaciones.TransferenciaItem;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.dto.MovimientoStockCantidadAndIdDto;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.MovimientoStockRepository;
 import com.franco.dev.repository.operaciones.VentaItemRepository;
 import com.franco.dev.service.CrudService;

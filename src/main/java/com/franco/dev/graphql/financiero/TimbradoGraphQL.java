@@ -3,7 +3,6 @@ package com.franco.dev.graphql.financiero;
 import com.franco.dev.domain.financiero.Timbrado;
 import com.franco.dev.service.financiero.TimbradoService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,9 +21,6 @@ public class TimbradoGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
     @Autowired
     private UsuarioService usuarioService;
-
-    @Autowired
-    private PropagacionService propagacionService;
 
     public Optional<Timbrado> timbrado(Long id) {
         return service.findById(id);

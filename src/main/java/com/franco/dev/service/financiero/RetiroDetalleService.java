@@ -3,7 +3,6 @@ package com.franco.dev.service.financiero;
 import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.RetiroDetalle;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.financiero.RetiroDetalleRepository;
 import com.franco.dev.service.CrudService;
 import graphql.GraphQLException;

@@ -5,7 +5,6 @@ import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.VentaItemRepository;
 import com.franco.dev.service.CrudService;
 import com.franco.dev.service.personas.UsuarioService;

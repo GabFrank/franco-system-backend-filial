@@ -8,8 +8,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-import static com.franco.dev.rabbit.enums.TipoEntidad.RETIRO;
-
 @Service
 @AllArgsConstructor
 public class RetiroService extends CrudService<Retiro, RetiroRepository> {

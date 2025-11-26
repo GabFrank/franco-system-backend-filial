@@ -2,11 +2,9 @@ package com.franco.dev.graphql.operaciones;
 
 import com.franco.dev.domain.operaciones.SesionInventario;
 import com.franco.dev.graphql.operaciones.input.SesionInventarioInput;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.operaciones.SesionInventarioService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -29,10 +27,6 @@ public class SesionInventarioGraphQL implements GraphQLQueryResolver, GraphQLMut
 
     @Autowired
     private SucursalService sucursalService;
-
-    @Autowired
-    private PropagacionService propagacionService;
-
 
     public Optional<SesionInventario> sesionInventario(Long id) {
         return service.findById(id);

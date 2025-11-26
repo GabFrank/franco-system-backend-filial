@@ -2,11 +2,9 @@ package com.franco.dev.graphql.personas;
 
 import com.franco.dev.domain.personas.UsuarioRole;
 import com.franco.dev.graphql.personas.input.UsuarioRoleInput;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.personas.RoleService;
 import com.franco.dev.service.personas.UsuarioRoleService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -27,9 +25,6 @@ public class UsuarioRoleGraphQL implements GraphQLQueryResolver, GraphQLMutation
 
     @Autowired
     private RoleService roleService;
-
-    @Autowired
-    private PropagacionService propagacionService;
 
     public List<UsuarioRole> usuarioRolePorUsuarioId(Long id) {return service.findByUserId(id);}
 

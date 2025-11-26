@@ -13,7 +13,6 @@ import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
 import com.franco.dev.graphql.financiero.input.FacturaLegalItemInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
-import com.franco.dev.rabbit.dto.SaveFacturaDto;
 import com.franco.dev.service.empresarial.PuntoDeVentaService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.*;
@@ -24,7 +23,6 @@ import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.PersonaService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.ProductoService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.sifen.service.SifenService;
 import com.franco.dev.utilitarios.NumeroALetrasService;
@@ -124,9 +122,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private FacturaService facturaService;
-
-    @Autowired
-    private PropagacionService propagacionService;
 
     @Autowired
     private FacturaLegalItemService facturaLegalItemService;

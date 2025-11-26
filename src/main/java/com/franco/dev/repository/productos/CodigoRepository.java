@@ -2,7 +2,6 @@ package com.franco.dev.repository.productos;
 
 import com.franco.dev.domain.productos.Codigo;
 import com.franco.dev.repository.HelperRepository;
-import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;

@@ -9,7 +9,6 @@ import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.dto.VentaPorPeriodoV1Dto;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.VentaRepository;
 import com.franco.dev.service.CrudService;
 import com.franco.dev.service.financiero.MovimientoCajaService;

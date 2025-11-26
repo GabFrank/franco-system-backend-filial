@@ -2,12 +2,10 @@ package com.franco.dev.graphql.personas;
 
 import com.franco.dev.domain.personas.ClienteAdicional;
 import com.franco.dev.graphql.personas.input.ClienteAdicionalInput;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.personas.ClienteAdicionalService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.PersonaService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -31,9 +29,6 @@ public class ClienteAdicionalGraphQL implements GraphQLQueryResolver, GraphQLMut
 
     @Autowired
     private ClienteService clienteService;
-
-    @Autowired
-    private PropagacionService propagacionService;
     
     public Optional<ClienteAdicional> clienteAdicional(Long id) {
         return service.findById(id);
@@ -46,13 +41,11 @@ public class ClienteAdicionalGraphQL implements GraphQLQueryResolver, GraphQLMut
         e.setPersona(personaService.findById(input.getPersonaId()).orElse(null));
         e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
         e = service.save(e);
-//        propagacionService.propagarEntidad(e, TipoEntidad.CLIENTE_ADICIONAL);
         return e;
     }
 
     public Boolean deleteClienteAdicional(Long id) {
 //        Boolean ok = service.deleteById(id);
-//        if (ok) propagacionService.eliminarEntidad(id, TipoEntidad.CLIENTE_ADICIONAL);
         return false;
     }
 

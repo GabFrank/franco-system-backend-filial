@@ -6,7 +6,6 @@ import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.security.Unsecured;
 import com.franco.dev.service.configuracion.LocalService;
 import com.franco.dev.service.empresarial.SucursalService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,9 +34,6 @@ public class ConfigController {
 
     @Autowired
     private Environment env;
-
-    @Autowired
-    private PropagacionService propagacionService;
 
     @Autowired
     private LocalService localService;

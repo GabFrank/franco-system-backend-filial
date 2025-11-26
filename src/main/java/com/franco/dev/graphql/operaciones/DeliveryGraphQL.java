@@ -15,7 +15,6 @@ import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.operaciones.VueltoService;
 import com.franco.dev.service.personas.FuncionarioService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.financiero.FacturaService;
 import com.franco.dev.service.financiero.FacturaLegalService;
 import graphql.GraphQLException;
@@ -69,9 +68,6 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
     @Autowired
     private VueltoItemGraphQL vueltoItemGraphQL;
-
-    @Autowired
-    private PropagacionService propagacionService;
 
     @Autowired
     private CobroGraphQL cobroGraphQL;

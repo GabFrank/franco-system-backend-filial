@@ -2,7 +2,6 @@ package com.franco.dev.domain.productos;
 
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.enums.TipoConservacion;
-import com.franco.dev.rabbit.RabbitEntity;
 import com.franco.dev.utilitarios.PostgreSQLEnumType;
 import lombok.AllArgsConstructor;
 import lombok.Data;

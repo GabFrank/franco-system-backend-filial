@@ -3,13 +3,11 @@ package com.franco.dev.graphql.operaciones;
 import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.domain.operaciones.TransferenciaItem;
 import com.franco.dev.graphql.operaciones.input.TransferenciaItemInput;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.operaciones.TransferenciaItemService;
 import com.franco.dev.service.operaciones.TransferenciaService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.productos.ProductoService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -39,9 +37,6 @@ public class TransferenciaItemGraphQL implements GraphQLQueryResolver, GraphQLMu
     @Autowired
     private PresentacionService presentacionService;
 
-    @Autowired
-    private PropagacionService propagacionService;
-
     public Optional<TransferenciaItem> transferenciaItem(Long id) {return service.findById(id);}
 
     public List<TransferenciaItem> transferenciaItems(int page, int size){
@@ -67,7 +62,6 @@ public class TransferenciaItemGraphQL implements GraphQLQueryResolver, GraphQLMu
         if(input.getPresentacionTransporteId()!=null)e.setPresentacionTransporte(presentacionService.findById(input.getPresentacionTransporteId()).orElse(null));
         if(input.getPresentacionRecepcionId()!=null)e.setPresentacionRecepcion(presentacionService.findById(input.getPresentacionRecepcionId()).orElse(null));
         e = service.save(e);
-//        propagacionService.propagarEntidad(e, TipoEntidad.TRANSFERENCIA_ITEM);
         return e;
     }
 

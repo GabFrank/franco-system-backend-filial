@@ -1,7 +1,6 @@
 package com.franco.dev.service.operaciones;
 
 import com.franco.dev.domain.operaciones.Vuelto;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.VueltoRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

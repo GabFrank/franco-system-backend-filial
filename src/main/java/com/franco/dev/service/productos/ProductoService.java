@@ -9,7 +9,6 @@ import com.franco.dev.repository.productos.ProductoRepository;
 import com.franco.dev.service.CrudService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.utils.ImageService;
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
@@ -17,7 +16,6 @@ import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.convention.MatchingStrategies;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -53,7 +51,6 @@ public class ProductoService extends CrudService<Producto, ProductoRepository> {
     private final ImageService imageService;
     @Autowired
     private Environment env;
-    private RabbitTemplate rabbitTemplate;
 
     @Override
     public ProductoRepository getRepository() {

@@ -3,7 +3,6 @@ package com.franco.dev.service.configuracion;
 import com.franco.dev.domain.configuracion.Actualizacion;
 import com.franco.dev.domain.configuracion.enums.TipoActualizacion;
 import com.franco.dev.domain.operaciones.Venta;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.configuraciones.ActualizacionRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

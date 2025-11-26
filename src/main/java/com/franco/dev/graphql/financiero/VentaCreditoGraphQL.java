@@ -13,7 +13,6 @@ import com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput;
 import com.franco.dev.graphql.financiero.input.VentaCreditoInput;
 import com.franco.dev.graphql.operaciones.VentaGraphQL;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.CambioService;
 import com.franco.dev.service.financiero.MovimientoPersonasService;
@@ -25,7 +24,6 @@ import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
@@ -77,9 +75,6 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private SucursalService sucursalService;
-
-    @Autowired
-    private PropagacionService propagacionService;
 
     @Autowired
     private VentaCreditoCuotasGraphQL ventaCreditoCuotasGraphQL;
@@ -158,7 +153,6 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     movimientoPersonas.setReferenciaId(ventaCreditoCuota.getId());
                     movimientoPersonas.setTipo(TipoMovimientoPersonas.VENTA_CREDITO);
                     movimientoPersonas.setValorTotal(vc.getValor() * -1);
-//                    propagacionService.propagarEntidad(movimientoPersonas, TipoEntidad.MOVIMIENTO_PERSONA, false);
                 }
             }
         }

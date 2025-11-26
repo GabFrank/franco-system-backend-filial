@@ -1,7 +1,6 @@
 package com.franco.dev.service;
 
 import com.franco.dev.repository.HelperRepository;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
@@ -22,14 +21,6 @@ public abstract class CrudService<T, Repository extends HelperRepository<T, Long
     public static final Logger log = Logger.getLogger(String.valueOf(CrudService.class));
     @Autowired
     public Environment env;
-
-    public PropagacionService propagacionService;
-
-    @Autowired
-    @Lazy
-    public void setpropagacionService(PropagacionService propagacionService) {
-        this.propagacionService = propagacionService;
-    }
 
     public List<T> findAll(Pageable pageable) {
         return (List<T>) getRepository().findAll(pageable).getContent();

@@ -1,7 +1,6 @@
 package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.TimbradoDetalle;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.financiero.TimbradoDetalleRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

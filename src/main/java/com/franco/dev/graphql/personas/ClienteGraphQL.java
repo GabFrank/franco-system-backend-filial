@@ -9,7 +9,6 @@ import com.franco.dev.service.general.ContactoService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.PersonaService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.sifen.dto.response.ConsultaRucResponse;
 import com.franco.dev.service.sifen.service.SifenService;
 
@@ -48,9 +47,6 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
     @Autowired
     private ContactoService contactoService;
-
-    @Autowired
-    private PropagacionService propagacionService;
 
     @Autowired
     private SifenService sifenService;

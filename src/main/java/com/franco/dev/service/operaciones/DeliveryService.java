@@ -4,7 +4,6 @@ import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.graphql.operaciones.publisher.DeliveryPublisher;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.operaciones.DeliveryRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;

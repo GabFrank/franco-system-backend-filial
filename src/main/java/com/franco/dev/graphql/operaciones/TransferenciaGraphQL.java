@@ -6,12 +6,10 @@ import com.franco.dev.domain.operaciones.enums.EtapaTransferencia;
 import com.franco.dev.domain.operaciones.enums.TransferenciaEstado;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.graphql.operaciones.input.TransferenciaInput;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
 import com.franco.dev.service.operaciones.TransferenciaService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -34,9 +32,6 @@ public class TransferenciaGraphQL implements GraphQLQueryResolver, GraphQLMutati
 
     @Autowired
     private SucursalService sucursalService;
-
-    @Autowired
-    private PropagacionService propagacionService;
 
     @Autowired
     private MovimientoStockService movimientoStockService;
@@ -107,7 +102,6 @@ public class TransferenciaGraphQL implements GraphQLQueryResolver, GraphQLMutati
                     break;
             }
             transferencia.setEtapa(etapa);
-//            propagacionService.propagarEntidad(transferencia, TipoEntidad.TRANSFERENCIA);
             ok = true;
         }
         return ok;

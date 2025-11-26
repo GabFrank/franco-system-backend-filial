@@ -3,7 +3,6 @@ package com.franco.dev.graphql.productos.input;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.enums.TipoConservacion;
-import com.franco.dev.rabbit.RabbitEntity;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -13,7 +12,7 @@ import javax.persistence.ManyToOne;
 import java.util.Date;
 
 @Data
-public class ProductoInput extends RabbitEntity {
+public class ProductoInput {
 
     private Long id;
     private Boolean propagado;

@@ -1,7 +1,6 @@
 package com.franco.dev.domain.productos;
 
 import com.franco.dev.domain.personas.Usuario;
-import com.franco.dev.rabbit.RabbitEntity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

@@ -9,7 +9,6 @@ import com.franco.dev.service.configuracion.UpdateService;
 import com.franco.dev.service.utils.biometric.BiometricService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -31,7 +30,6 @@ import javax.servlet.Filter;
 import java.io.IOException;
 import java.util.Collections;
 
-@EnableRabbit
 @EnableRetry
 @SpringBootApplication
 @EnableScheduling

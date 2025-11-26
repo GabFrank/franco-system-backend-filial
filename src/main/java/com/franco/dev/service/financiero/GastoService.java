@@ -4,7 +4,6 @@ import com.franco.dev.domain.financiero.Gasto;
 import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.financiero.GastoRepository;
 import com.franco.dev.service.CrudService;
 import graphql.GraphQLException;

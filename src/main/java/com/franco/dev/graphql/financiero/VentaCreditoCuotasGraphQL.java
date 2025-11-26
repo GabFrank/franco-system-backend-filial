@@ -7,7 +7,6 @@ import com.franco.dev.service.financiero.VentaCreditoCuotaService;
 import com.franco.dev.service.financiero.VentaCreditoService;
 import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -36,9 +35,6 @@ public class VentaCreditoCuotasGraphQL implements GraphQLQueryResolver, GraphQLM
     @Autowired
     private CobroService cobroService;
 
-    @Autowired
-    private PropagacionService propagacionService;
-
     public Optional<VentaCreditoCuota> ventaCreditoCuota(Long id) {
         return service.findById(id);
     }
@@ -61,7 +57,6 @@ public class VentaCreditoCuotasGraphQL implements GraphQLQueryResolver, GraphQLM
             e.setVentaCredito(ventaCreditoService.findById(input.getVentaCreditoId()).orElse(null));
         if (input.getCobroId() != null) e.setCobro(cobroService.findById(input.getCobroId()).orElse(null));
         e = service.saveAndSend(e, false);
-//        propagacionService.propagarEntidad(e, TipoEntidad.BANCO);
         return e;
     }
 

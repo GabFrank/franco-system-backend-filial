@@ -7,16 +7,12 @@ import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.enums.InventarioEstado;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.graphql.operaciones.input.InventarioInput;
-import com.franco.dev.rabbit.dto.RabbitDto;
-import com.franco.dev.rabbit.enums.TipoAccion;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.operaciones.InventarioProductoItemService;
 import com.franco.dev.service.operaciones.InventarioProductoService;
 import com.franco.dev.service.operaciones.InventarioService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
 import com.franco.dev.service.personas.UsuarioService;
-import com.franco.dev.service.rabbitmq.PropagacionService;
 import com.franco.dev.service.reports.TicketReportService;
 import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
@@ -49,9 +45,6 @@ public class InventarioGraphQL implements GraphQLQueryResolver, GraphQLMutationR
 
     @Autowired
     private TicketReportService ticketReportService;
-
-    @Autowired
-    private PropagacionService propagacionService;
 
     @Autowired
     private Environment env;
@@ -91,7 +84,6 @@ public class InventarioGraphQL implements GraphQLQueryResolver, GraphQLMutationR
         Inventario i = service.findById(id).orElse(null);
         if(i!=null) {
             ok = service.deleteById(id);
-//            propagacionService.deleteEntidad(i, TipoEntidad.INVENTARIO);
         }
         return ok;
     }

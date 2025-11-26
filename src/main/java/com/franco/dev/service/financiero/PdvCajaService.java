@@ -10,7 +10,6 @@ import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto;
-import com.franco.dev.rabbit.enums.TipoEntidad;
 import com.franco.dev.repository.financiero.PdvCajaRepository;
 import com.franco.dev.service.CrudService;
 import com.franco.dev.service.empresarial.SucursalService;
