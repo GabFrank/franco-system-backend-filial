@@ -104,10 +104,10 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private DeliveryService deliveryService;
-    
+
     @Autowired
     private org.springframework.web.client.RestTemplate restTemplate;
-    
+
     @Autowired
     private org.springframework.core.env.Environment env;
 
@@ -120,38 +120,48 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.findAll(pageable);
     }
 
-    public Boolean cobrarVentaCredito(List<VentaCreditoInput> ventaCreditoInputList, List<CobroDetalleInput> cobroList) {
+    public Boolean cobrarVentaCredito(List<VentaCreditoInput> ventaCreditoInputList,
+            List<CobroDetalleInput> cobroList) {
         Double total = 0.0;
-        if(ventaCreditoInputList!=null && ventaCreditoInputList.size() > 0) { //cobrar todo
-           for(VentaCreditoInput ventaCreditoInput: ventaCreditoInputList){
-               total += ventaCreditoInput.getSaldoTotal() != null ? ventaCreditoInput.getSaldoTotal() : ventaCreditoInput.getValorTotal();
-               ventaCreditoInput.setEstado(EstadoVentaCredito.FINALIZADO);
+        if (ventaCreditoInputList != null && ventaCreditoInputList.size() > 0) { // cobrar todo
+            for (VentaCreditoInput ventaCreditoInput : ventaCreditoInputList) {
+                total += ventaCreditoInput.getSaldoTotal() != null ? ventaCreditoInput.getSaldoTotal()
+                        : ventaCreditoInput.getValorTotal();
+                ventaCreditoInput.setEstado(EstadoVentaCredito.FINALIZADO);
 
-           }
+            }
         }
         return null;
     }
 
-    public VentaCredito saveVentaCredito(VentaCreditoInput input){
+    public VentaCredito saveVentaCredito(VentaCreditoInput input) {
         ModelMapper m = new ModelMapper();
         VentaCredito e = m.map(input, VentaCredito.class);
-        if (input.getUsuarioId() != null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
-        if (input.getClienteId() != null) e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
-        if (input.getSucursalId() != null) e.setSucursalId(input.getSucursalId());
-        if (input.getFechaCobro() != null) e.setFechaCobro(toDate(input.getFechaCobro()));
+        if (input.getUsuarioId() != null)
+            e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
+        if (input.getClienteId() != null)
+            e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
+        if (input.getSucursalId() != null)
+            e.setSucursalId(input.getSucursalId());
+        if (input.getFechaCobro() != null)
+            e.setFechaCobro(toDate(input.getFechaCobro()));
         e = service.saveAndSend(e, false);
         enviarNotificacionVentaCredito(e);
-        
+
         return e;
     }
 
     @Transactional
-    public VentaCredito saveVentaCredito(VentaCreditoInput input, List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) {
+    public VentaCredito saveVentaCredito(VentaCreditoInput input,
+            List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) {
         ModelMapper m = new ModelMapper();
         VentaCredito e = m.map(input, VentaCredito.class);
-        if (input.getUsuarioId() != null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
-        if (input.getClienteId() != null) e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
-        if (input.getSucursalId() != null) e.setSucursalId(input.getSucursalId());
+        if (input.getUsuarioId() != null)
+            e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
+        if (input.getClienteId() != null)
+            e.setCliente(clienteService.findById(input.getClienteId()).orElse(null));
+        if (input.getSucursalId() != null)
+            e.setSucursalId(input.getSucursalId());
         e = service.saveAndSend(e, false);
         if (e.getId() != null) {
             for (VentaCreditoCuotaInput vc : ventaCreditoCuotaInputList) {
@@ -170,52 +180,58 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
         }
         enviarNotificacionVentaCredito(e);
-        
+
         return e;
     }
-    
+
     private void enviarNotificacionVentaCredito(VentaCredito ventaCredito) {
         if (ventaCredito != null && ventaCredito.getId() != null && ventaCredito.getSucursalId() != null) {
             new Thread(() -> {
-                enviarNotificacionConReintentos("venta-credito", ventaCredito.getId(), ventaCredito.getSucursalId(), () -> {
-                    Long personaId = ventaCredito.getCliente() != null && ventaCredito.getCliente().getPersona() != null 
-                        ? ventaCredito.getCliente().getPersona().getId() 
-                        : null;
-                    
-                    if (personaId == null) {
-                        System.err.println("VentaCredito sin cliente o persona asociada, no se puede enviar notificación");
-                        return false;
-                    }
-                    
-                    Double valorTotal = ventaCredito.getValorTotal() != null ? ventaCredito.getValorTotal() : 0.0;
-                    
-                    String servidorUrl = env.getProperty("servidor.url", "http://159.203.86.103:8081");
-                    String url = servidorUrl + "/notification/venta-credito/" 
-                        + ventaCredito.getId() + "/" 
-                        + ventaCredito.getSucursalId() + "/"
-                        + personaId + "/"
-                        + valorTotal;
-                    
-                    restTemplate.postForEntity(url, null, String.class);
-                    return true;
-                });
+                enviarNotificacionConReintentos("venta-credito", ventaCredito.getId(), ventaCredito.getSucursalId(),
+                        () -> {
+                            Long personaId = ventaCredito.getCliente() != null
+                                    && ventaCredito.getCliente().getPersona() != null
+                                            ? ventaCredito.getCliente().getPersona().getId()
+                                            : null;
+
+                            if (personaId == null) {
+                                System.err.println(
+                                        "VentaCredito sin cliente o persona asociada, no se puede enviar notificación");
+                                return false;
+                            }
+
+                            Double valorTotal = ventaCredito.getValorTotal() != null ? ventaCredito.getValorTotal()
+                                    : 0.0;
+
+                            String servidorUrl = env.getProperty("servidor.url", "http://159.203.86.103:8081");
+                            String url = servidorUrl + "/notification/venta-credito/"
+                                    + ventaCredito.getId() + "/"
+                                    + ventaCredito.getSucursalId() + "/"
+                                    + personaId + "/"
+                                    + valorTotal;
+
+                            restTemplate.postForEntity(url, null, String.class);
+                            return true;
+                        });
             }).start();
         }
     }
-    
+
     /**
      * Envía una notificación al servidor con reintentos y prevención de duplicados
-     * @param tipo Tipo de notificación (para logging)
-     * @param id ID de la entidad
-     * @param sucursalId ID de la sucursal
+     * 
+     * @param tipo             Tipo de notificación (para logging)
+     * @param id               ID de la entidad
+     * @param sucursalId       ID de la sucursal
      * @param notificationTask Tarea que envía la notificación
      */
-    private void enviarNotificacionConReintentos(String tipo, Long id, Long sucursalId, java.util.function.Supplier<Boolean> notificationTask) {
+    private void enviarNotificacionConReintentos(String tipo, Long id, Long sucursalId,
+            java.util.function.Supplier<Boolean> notificationTask) {
         String idempotencyKey = tipo + "-" + id + "-" + sucursalId + "-" + System.currentTimeMillis();
-        
+
         int maxRetries = 3;
-        int retryDelay = 1000; 
-        
+        int retryDelay = 1000;
+
         for (int intento = 1; intento <= maxRetries; intento++) {
             try {
                 boolean exito = notificationTask.get();
@@ -227,18 +243,18 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     if (intento < maxRetries) {
                         try {
                             Thread.sleep(retryDelay);
-                        try {
-                            Thread.sleep(retryDelay);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                             return;
                         }
                     } else {
-                        System.err.println("Error " + e.getStatusCode().value() + " al enviar notificación " + tipo + " después de " + maxRetries + " intentos");
+                        System.err.println("Error " + e.getStatusCode().value() + " al enviar notificación " + tipo
+                                + " después de " + maxRetries + " intentos");
                         return;
                     }
                 } else {
-                    System.err.println("Error HTTP " + e.getStatusCode().value() + " al enviar notificación " + tipo + ": " + e.getMessage());
+                    System.err.println("Error HTTP " + e.getStatusCode().value() + " al enviar notificación " + tipo
+                            + ": " + e.getMessage());
                     return;
                 }
             } catch (org.springframework.web.client.HttpServerErrorException e) {
@@ -250,7 +266,8 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                         return;
                     }
                 } else {
-                    System.err.println("Error del servidor al enviar notificación " + tipo + " después de " + maxRetries + " intentos: " + e.getMessage());
+                    System.err.println("Error del servidor al enviar notificación " + tipo + " después de " + maxRetries
+                            + " intentos: " + e.getMessage());
                     return;
                 }
             } catch (Exception e) {
@@ -262,7 +279,8 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                         return;
                     }
                 } else {
-                    System.err.println("Error al enviar notificación " + tipo + " después de " + maxRetries + " intentos: " + e.getMessage());
+                    System.err.println("Error al enviar notificación " + tipo + " después de " + maxRetries
+                            + " intentos: " + e.getMessage());
                     return;
                 }
             }
@@ -271,9 +289,11 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     public Boolean imprimirVentaCredito(Long id, Long sucId, String printerName) throws GraphQLException {
         VentaCredito ventaCredito = service.findById(id).orElse(null);
-        List<VentaCreditoCuota> ventaCreditoCuotaList = ventaCreditoCuotaService.findByVentaCreditoId(ventaCredito.getId());
+        List<VentaCreditoCuota> ventaCreditoCuotaList = ventaCreditoCuotaService
+                .findByVentaCreditoId(ventaCredito.getId());
         Delivery delivery = ventaCredito.getVenta().getDelivery();
-        if (ventaCredito == null) throw new GraphQLException("Venta credito no encontrada");
+        if (ventaCredito == null)
+            throw new GraphQLException("Venta credito no encontrada");
         try {
             printTicket58mm(ventaCredito, ventaCredito.getVenta(), null, printerName, ventaCreditoCuotaList, delivery);
             return true;
@@ -282,7 +302,8 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
     }
 
-    public Boolean printTicket58mm(VentaCredito ventaCredito, Venta venta, List<VentaItem> ventaItemList, String printerName, List<VentaCreditoCuota> itens, Delivery delivery) throws Exception {
+    public Boolean printTicket58mm(VentaCredito ventaCredito, Venta venta, List<VentaItem> ventaItemList,
+            String printerName, List<VentaCreditoCuota> itens, Delivery delivery) throws Exception {
         Boolean ok = null;
         PrintService selectedPrintService = PrinterOutputStream.getPrintServiceByName(printerName);
         Sucursal sucursal = sucursalService.findById(ventaCredito.getSucursalId()).orElse(null);
@@ -307,14 +328,14 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             precioDeliveryDs = precioDeliveryGs / cambioDs;
         }
 
-
         if (selectedPrintService != null) {
             PrinterOutputStream printerOutputStream = new PrinterOutputStream(selectedPrintService);
             // creating the EscPosImage, need buffered image and algorithm.
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
-            //Styles
+            // Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
-            Style factura = new Style().setJustification(EscPosConst.Justification.Center).setFontSize(Style.FontSize._1, Style.FontSize._1);
+            Style factura = new Style().setJustification(EscPosConst.Justification.Center)
+                    .setFontSize(Style.FontSize._1, Style.FontSize._1);
             // QRCode qrCode = new QRCode();
 
             BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
@@ -322,8 +343,8 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             BitImageWrapper imageWrapper = new BitImageWrapper();
             EscPos escpos = null;
             escpos = new EscPos(printerOutputStream);
-//            escpos.setPrinterCharacterTable(EscPos.CharacterCodeTable.WPC1252.value);
-//            escpos.setCharsetName("UTF-8");
+            // escpos.setPrinterCharacterTable(EscPos.CharacterCodeTable.WPC1252.value);
+            // escpos.setCharsetName("UTF-8");
             Bitonal algorithm = new BitonalThreshold();
             EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
             imageWrapper.setJustification(EscPosConst.Justification.Center);
@@ -339,8 +360,10 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             if (delivery != null) {
                 escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "Modo: Delivery");
-                if (delivery.getTelefono() != null) escpos.writeLF("Telefono: " + delivery.getTelefono());
-                if (delivery.getDireccion() != null) escpos.writeLF("Direccion: " + delivery.getDireccion());
+                if (delivery.getTelefono() != null)
+                    escpos.writeLF("Telefono: " + delivery.getTelefono());
+                if (delivery.getDireccion() != null)
+                    escpos.writeLF("Direccion: " + delivery.getDireccion());
                 escpos.writeLF("--------------------------------");
             }
             escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
@@ -361,11 +384,15 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 ventaItemList = ventaItemService.findByVentaId(venta.getId());
             }
             for (VentaItem vi : ventaItemList) {
-                String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad().intValue() + ") " + "10%";
+                String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad().intValue()
+                        + ") " + "10%";
                 escpos.writeLF(vi.getProducto().getDescripcion());
                 escpos.write(new Style().setBold(true), cantidad);
-                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue());
-                String valorTotal = String.valueOf((vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue()) * vi.getCantidad().intValue());
+                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN)
+                        .format(vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue());
+                String valorTotal = String
+                        .valueOf((vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue())
+                                * vi.getCantidad().intValue());
                 for (int i = 14; i > cantidad.length(); i--) {
                     escpos.write(" ");
                 }
@@ -373,7 +400,8 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 for (int i = 16 - valorUnitario.length(); i > valorTotal.length(); i--) {
                     escpos.write(" ");
                 }
-                escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
+                escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN)
+                        .format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
             }
             if (delivery != null) {
                 escpos.writeLF("--------------------------------");
@@ -385,14 +413,16 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 escpos.writeLF(deliveryGs);
             }
             escpos.writeLF("--------------------------------");
-//            escpos.write("Descuento Gs: ");
-//            String valorDescuentoGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(descuento.intValue());
-//            for (int i = 22; i > valorDescuentoGs.length(); i--) {
-//                escpos.write(" ");
-//            }
-//            escpos.writeLF("--------------------------------");
+            // escpos.write("Descuento Gs: ");
+            // String valorDescuentoGs =
+            // NumberFormat.getNumberInstance(Locale.GERMAN).format(descuento.intValue());
+            // for (int i = 22; i > valorDescuentoGs.length(); i--) {
+            // escpos.write(" ");
+            // }
+            // escpos.writeLF("--------------------------------");
             escpos.write("Total Gs: ");
-            String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(venta.getTotalGs().intValue() + precioDeliveryGs.intValue());
+            String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN)
+                    .format(venta.getTotalGs().intValue() + precioDeliveryGs.intValue());
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
@@ -404,7 +434,8 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
             escpos.writeLF(valorRs);
             escpos.write("Total Ds: ");
-//      String valorDs = NumberFormat.getNumberInstance(new Locale("sk", "SK")).format(venta.getTotalDs());
+            // String valorDs = NumberFormat.getNumberInstance(new Locale("sk",
+            // "SK")).format(venta.getTotalDs());
             String valorDs = String.format("%.2f", venta.getTotalDs() + precioDeliveryDs);
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
@@ -415,7 +446,8 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 escpos.writeLF(center, "PAGARE A LA ORDEN " + x + 1 + "/" + itens.size());
                 escpos.feed(1);
                 escpos.write("Total Gs: ");
-                String valorPagare = NumberFormat.getNumberInstance(Locale.GERMAN).format(itens.get(x).getValor().intValue());
+                String valorPagare = NumberFormat.getNumberInstance(Locale.GERMAN)
+                        .format(itens.get(x).getValor().intValue());
                 for (int i = 22; i > valorPagare.length(); i--) {
                     escpos.write(" ");
                 }
@@ -434,13 +466,15 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 sb.append(itens.get(x).getVencimiento().format(formatter));
                 sb.append(" pagare solidariamente al Sr. FRANCO AREVALOS S.A. la suma de G$ ");
                 sb.append(valorPagare);
-                sb.append("por el valor recibido a mi/nuestro entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara contituida la MORA automatica, sin necesidad de interpelacion alguna.");
+                sb.append(
+                        "por el valor recibido a mi/nuestro entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara contituida la MORA automatica, sin necesidad de interpelacion alguna.");
                 escpos.write(sb.toString());
                 escpos.feed(4);
                 escpos.writeLF("   --------------------------   ");
                 escpos.writeLF(center, "FIRMA");
                 escpos.writeLF(center, "Deudor: " + venta.getCliente().getPersona().getNombre().toUpperCase());
-                escpos.writeLF(center, "RUC: " + venta.getCliente().getPersona().getDocumento() + getDigitoVerificadorString(venta.getCliente().getPersona().getDocumento()));
+                escpos.writeLF(center, "RUC: " + venta.getCliente().getPersona().getDocumento()
+                        + getDigitoVerificadorString(venta.getCliente().getPersona().getDocumento()));
             }
 
             escpos.feed(1);
@@ -458,5 +492,4 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
         return ok;
     }
-}
 }
