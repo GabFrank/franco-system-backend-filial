@@ -183,13 +183,13 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                         : null;
                     
                     if (personaId == null) {
-                        System.err.println("⚠️ VentaCredito sin cliente o persona asociada, no se puede enviar notificación");
+                        System.err.println("VentaCredito sin cliente o persona asociada, no se puede enviar notificación");
                         return false;
                     }
                     
                     Double valorTotal = ventaCredito.getValorTotal() != null ? ventaCredito.getValorTotal() : 0.0;
                     
-                    String servidorUrl = env.getProperty("servidor.url", "http://localhost:8081");
+                    String servidorUrl = env.getProperty("servidor.url", "http://159.203.86.103:8081");
                     String url = servidorUrl + "/notification/venta-credito/" 
                         + ventaCredito.getId() + "/" 
                         + ventaCredito.getSucursalId() + "/"
@@ -458,4 +458,5 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
         return ok;
     }
+}
 }

@@ -1924,7 +1924,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     
                     Double valorTotal = factura.getTotalFinal() != null ? factura.getTotalFinal() : 0.0;
                     
-                    String servidorUrl = env.getProperty("servidor.url", "http://localhost:8081");
+                    String servidorUrl = env.getProperty("servidor.url", "http://159.203.86.103:8081");
                     String url = servidorUrl + "/notification/factura-alto-valor/" 
                         + factura.getId() + "/" 
                         + factura.getSucursalId() + "/"
