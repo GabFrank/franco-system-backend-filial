@@ -148,6 +148,12 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private ProductoService productoService;
+    
+    @Autowired
+    private org.springframework.web.client.RestTemplate restTemplate;
+    
+    @Autowired
+    private org.springframework.core.env.Environment env;
 
     public Optional<FacturaLegal> facturaLegal(Long id, Long sucId) {
         return service.findById(id);
@@ -439,6 +445,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     log.error("   Detalle del error: {}", e.getMessage());
                     // No lanzamos excepción para no romper el guardado de la factura
                 }
+            }
+
+            // Enviar notificación si la factura es de alto valor (>= 3.000.000 Gs)
+            if (facturaLegalGuardada.getTotalFinal() != null && facturaLegalGuardada.getTotalFinal() >= 3000000) {
+                enviarNotificacionFacturaAltoValor(facturaLegalGuardada);
             }
 
             // Imprimir si se solicita
@@ -1859,8 +1870,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     Integer getTipoContribuyente(Cliente cliente) {
         return cliente.getTipoContribuyente();
     }
-
-    // Resolvers para campos de documento electrónico
     public DocumentoElectronico documentoElectronico(FacturaLegal facturaLegal) {
         if (facturaLegal != null && facturaLegal.getId() != null && facturaLegal.getSucursalId() != null) {
             return documentoElectronicoService.findByFacturaLegalIdAndSucursalId(facturaLegal.getId(),
@@ -1885,25 +1894,47 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     public FacturaLegal generarDocumentoElectronico(Long facturaLegalId, Long sucId) {
         try {
-
-            // Verificar que la factura legal existe y pertenece a la sucursal
             FacturaLegal facturaLegal = service.findById(facturaLegalId)
                     .orElseThrow(() -> new RuntimeException("Factura legal no encontrada con ID: " + facturaLegalId));
 
             if (!facturaLegal.getSucursalId().equals(sucId)) {
                 throw new RuntimeException("La factura legal no pertenece a la sucursal especificada");
             }
-
-            // Generar el documento electrónico
-            // FacturaLegal facturaActualizada = service.generarDocumentoElectronico(facturaLegal);
-
-            // TODO: Implementar la lógica para generar el documento electrónico
             FacturaLegal facturaActualizada = null;
             return facturaActualizada;
 
         } catch (Exception e) {
             log.error("Error al generar documento electrónico para factura legal ID: {}", facturaLegalId, e);
             throw new RuntimeException("Error al generar documento electrónico: " + e.getMessage(), e);
+        }
+    }
+
+    private void enviarNotificacionFacturaAltoValor(FacturaLegal factura) {
+        if (factura != null && factura.getId() != null && factura.getSucursalId() != null) {
+            new Thread(() -> {
+                try {
+                    String clienteNombre = "N/A";
+                    if (factura.getCliente() != null && factura.getCliente().getPersona() != null) {
+                        clienteNombre = factura.getCliente().getPersona().getNombre();
+                    } else if (factura.getNombre() != null && !factura.getNombre().trim().isEmpty()) {
+                        clienteNombre = factura.getNombre();
+                    }
+                    
+                    String clienteNombreEncoded = java.net.URLEncoder.encode(clienteNombre, "UTF-8");
+                    
+                    Double valorTotal = factura.getTotalFinal() != null ? factura.getTotalFinal() : 0.0;
+                    
+                    String servidorUrl = env.getProperty("servidor.url", "http://localhost:8081");
+                    String url = servidorUrl + "/notification/factura-alto-valor/" 
+                        + factura.getId() + "/" 
+                        + factura.getSucursalId() + "/"
+                        + valorTotal + "/"
+                        + clienteNombreEncoded;
+                    
+                    restTemplate.postForEntity(url, null, String.class);
+                } catch (Exception e) {
+                }
+            }).start();
         }
     }
 

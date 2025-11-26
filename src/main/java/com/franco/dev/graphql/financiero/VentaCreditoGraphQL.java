@@ -104,6 +104,12 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private DeliveryService deliveryService;
+    
+    @Autowired
+    private org.springframework.web.client.RestTemplate restTemplate;
+    
+    @Autowired
+    private org.springframework.core.env.Environment env;
 
     public Optional<VentaCredito> ventaCredito(Long id) {
         return service.findById(id);
@@ -134,6 +140,8 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (input.getSucursalId() != null) e.setSucursalId(input.getSucursalId());
         if (input.getFechaCobro() != null) e.setFechaCobro(toDate(input.getFechaCobro()));
         e = service.saveAndSend(e, false);
+        enviarNotificacionVentaCredito(e);
+        
         return e;
     }
 
@@ -158,11 +166,107 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     movimientoPersonas.setReferenciaId(ventaCreditoCuota.getId());
                     movimientoPersonas.setTipo(TipoMovimientoPersonas.VENTA_CREDITO);
                     movimientoPersonas.setValorTotal(vc.getValor() * -1);
-//                    propagacionService.propagarEntidad(movimientoPersonas, TipoEntidad.MOVIMIENTO_PERSONA, false);
                 }
             }
         }
+        enviarNotificacionVentaCredito(e);
+        
         return e;
+    }
+    
+    private void enviarNotificacionVentaCredito(VentaCredito ventaCredito) {
+        if (ventaCredito != null && ventaCredito.getId() != null && ventaCredito.getSucursalId() != null) {
+            new Thread(() -> {
+                enviarNotificacionConReintentos("venta-credito", ventaCredito.getId(), ventaCredito.getSucursalId(), () -> {
+                    Long personaId = ventaCredito.getCliente() != null && ventaCredito.getCliente().getPersona() != null 
+                        ? ventaCredito.getCliente().getPersona().getId() 
+                        : null;
+                    
+                    if (personaId == null) {
+                        System.err.println("⚠️ VentaCredito sin cliente o persona asociada, no se puede enviar notificación");
+                        return false;
+                    }
+                    
+                    Double valorTotal = ventaCredito.getValorTotal() != null ? ventaCredito.getValorTotal() : 0.0;
+                    
+                    String servidorUrl = env.getProperty("servidor.url", "http://localhost:8081");
+                    String url = servidorUrl + "/notification/venta-credito/" 
+                        + ventaCredito.getId() + "/" 
+                        + ventaCredito.getSucursalId() + "/"
+                        + personaId + "/"
+                        + valorTotal;
+                    
+                    restTemplate.postForEntity(url, null, String.class);
+                    return true;
+                });
+            }).start();
+        }
+    }
+    
+    /**
+     * Envía una notificación al servidor con reintentos y prevención de duplicados
+     * @param tipo Tipo de notificación (para logging)
+     * @param id ID de la entidad
+     * @param sucursalId ID de la sucursal
+     * @param notificationTask Tarea que envía la notificación
+     */
+    private void enviarNotificacionConReintentos(String tipo, Long id, Long sucursalId, java.util.function.Supplier<Boolean> notificationTask) {
+        String idempotencyKey = tipo + "-" + id + "-" + sucursalId + "-" + System.currentTimeMillis();
+        
+        int maxRetries = 3;
+        int retryDelay = 1000; 
+        
+        for (int intento = 1; intento <= maxRetries; intento++) {
+            try {
+                boolean exito = notificationTask.get();
+                if (exito) {
+                    return;
+                }
+            } catch (org.springframework.web.client.HttpClientErrorException e) {
+                if (e.getStatusCode().value() == 404 || e.getStatusCode().value() == 408) {
+                    if (intento < maxRetries) {
+                        try {
+                            Thread.sleep(retryDelay);
+                        try {
+                            Thread.sleep(retryDelay);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
+                    } else {
+                        System.err.println("Error " + e.getStatusCode().value() + " al enviar notificación " + tipo + " después de " + maxRetries + " intentos");
+                        return;
+                    }
+                } else {
+                    System.err.println("Error HTTP " + e.getStatusCode().value() + " al enviar notificación " + tipo + ": " + e.getMessage());
+                    return;
+                }
+            } catch (org.springframework.web.client.HttpServerErrorException e) {
+                if (intento < maxRetries) {
+                    try {
+                        Thread.sleep(retryDelay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                } else {
+                    System.err.println("Error del servidor al enviar notificación " + tipo + " después de " + maxRetries + " intentos: " + e.getMessage());
+                    return;
+                }
+            } catch (Exception e) {
+                if (intento < maxRetries) {
+                    try {
+                        Thread.sleep(retryDelay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                } else {
+                    System.err.println("Error al enviar notificación " + tipo + " después de " + maxRetries + " intentos: " + e.getMessage());
+                    return;
+                }
+            }
+        }
     }
 
     public Boolean imprimirVentaCredito(Long id, Long sucId, String printerName) throws GraphQLException {
