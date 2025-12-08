@@ -203,7 +203,11 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                             Double valorTotal = ventaCredito.getValorTotal() != null ? ventaCredito.getValorTotal()
                                     : 0.0;
 
-                            String servidorUrl = env.getProperty("servidor.url", "http://159.203.86.103:8081");
+                            String servidorUrl = env.getProperty("servidor.url");
+                            if (servidorUrl == null || servidorUrl.isEmpty()) {
+                                System.err.println("La propiedad 'servidor.url' no está configurada en application.properties");
+                                return false;
+                            }
                             String url = servidorUrl + "/notification/venta-credito/"
                                     + ventaCredito.getId() + "/"
                                     + ventaCredito.getSucursalId() + "/"
