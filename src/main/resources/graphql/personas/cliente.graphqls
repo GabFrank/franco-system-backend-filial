@@ -49,11 +49,33 @@ type ConsultaRucResponse {
     mensajeValidacion: String
 }
 
+type ClienteDatosBasicos {
+    ruc: String
+    razonSocial: String
+    direccion: String
+    estado: String
+    estadoContribuyente: String
+    tributa: Boolean
+    tipoContribuyente: Int
+    telefono: String
+    nombreFantasia: String
+    dv: String
+}
+
+type ClienteResponse {
+    cliente: Cliente
+    datosBasicos: ClienteDatosBasicos
+    warnings: [String]!
+    errores: [String]!
+    exito: Boolean
+}
+
 extend type Query {
     cliente(id:ID!):Cliente
     clientePorPersonaId(id:ID): Cliente
     clientePorPersona(texto:String): [Cliente]
     clientePorPersonaDocumento(texto:String): Cliente
+    clientePorPersonaDocumentoDetallado(texto:String): ClienteResponse
     clientePorTelefono(texto:String): [Cliente]
     clientes(page:Int = 0, size:Int = 10):[Cliente]!
     countCliente: Int
