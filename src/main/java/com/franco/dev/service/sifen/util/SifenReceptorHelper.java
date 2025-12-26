@@ -112,12 +112,6 @@ public class SifenReceptorHelper {
             configurarNoContribuyente(config, cliente, persona, documento, montoTotal);
         }
         
-        logger.info("📋 Configuración del receptor determinada:");
-        logger.info("   Escenario: {}", config.escenarioDetectado);
-        logger.info("   iNatRec: {}", config.iNatRec);
-        logger.info("   iTiOpe: {}", config.iTiOpe);
-        logger.info("   Nombre: {}", config.dNomRec);
-        
         return config;
     }
     
@@ -265,8 +259,6 @@ public class SifenReceptorHelper {
         config.cPaisRec = PaisType.PRY;
         
         config.escenarioDetectado = "9) Innominado (B2C de bajo monto)";
-        
-        logger.info("✅ Configuración INNOMINADA: Monto={}", montoTotal);
     }
     
     /**

@@ -399,8 +399,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 
                 // Guardar factura con totales calculados
                 facturaLegalGuardada = service.save(facturaLegalGuardada);
-                
-                log.info("✅ Totales calculados - Total Final: {}", facturaLegalGuardada.getTotalFinal());
             }
 
             // Generar documento electrónico si el timbrado es electrónico
@@ -411,13 +409,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                             && !facturaLegalGuardada.getMonedaExtranjera().trim().isEmpty()
                             && facturaLegalGuardada.getTipoCambio() != null;
                     
-                    if (esMonedaExtranjera) {
-                        log.info("📝 Generando Documento Electrónico en moneda extranjera {} (cambio: {}) para factura ID: {}", 
-                            facturaLegalGuardada.getMonedaExtranjera(), facturaLegalGuardada.getTipoCambio(), facturaLegalGuardada.getId());
-                    } else {
-                        log.info("📝 Generando Documento Electrónico para factura ID: {}", facturaLegalGuardada.getId());
-                    }
-                    
                     // El método crearDocumentoElectronico usará los campos monedaExtranjera y tipoCambio
                     // de la factura si están presentes
                     com.franco.dev.domain.financiero.DocumentoElectronico de = 
@@ -426,8 +417,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     // Actualizar la factura con el CDC del DE para impresión
                     facturaLegalGuardada.setCdc(de.getCdc());
                     facturaLegalGuardada = service.save(facturaLegalGuardada);
-                    
-                    log.info("✅ Documento Electrónico generado exitosamente - CDC: {}", de.getCdc());
                     
                 } catch (Exception e) {
                     log.error("❌ Error al generar documento electrónico para factura ID: {}", facturaLegalGuardada.getId(), e);
@@ -1408,7 +1397,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 // Imprimir QR como imagen generada por ZXing
                 if (urlQr != null) {
                     try {
-                        log.info("Generando imagen de QR para URL de {} caracteres.", urlQr.length());
                         BufferedImage qrImage = QRCodeImageGenerator.generateQRCodeImage(urlQr, 250, 250);
 
                         // Preparar la imagen para la impresión ESC/POS, reutilizando las variables
@@ -1419,7 +1407,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                         // Enviar la imagen a la impresora
                         escpos.write(imageWrapper, escposImage);
                         escpos.feed(1);
-                        log.info("Imagen de QR enviada a la impresora exitosamente.");
 
                     } catch (Exception e) {
                         log.error("No se pudo generar o imprimir la imagen del código QR. URL: {}", urlQr, e);
@@ -1743,7 +1730,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 // Imprimir QR como imagen generada por ZXing
                 if (urlQr != null) {
                     try {
-                        log.info("Generando imagen de QR para URL de {} caracteres.", urlQr.length());
                         BufferedImage qrImage = QRCodeImageGenerator.generateQRCodeImage(urlQr, 250, 250);
 
                         imageWrapper.setJustification(EscPosConst.Justification.Center);
@@ -1751,7 +1737,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
                         escpos.write(imageWrapper, escposImage);
                         escpos.feed(1);
-                        log.info("Imagen de QR enviada a la impresora exitosamente.");
 
                     } catch (Exception e) {
                         log.error("No se pudo generar o imprimir la imagen del código QR. URL: {}", urlQr, e);

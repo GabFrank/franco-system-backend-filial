@@ -188,7 +188,6 @@ public class SifenService {
     public com.franco.dev.domain.financiero.DocumentoElectronico crearDocumentoElectronico(
             FacturaLegal factura) throws Exception {
         verificarSifenHabilitado();
-        log.info("📝 Creando Documento Electrónico para factura ID: {}", factura.getId());
         
         // 1. Crear el objeto DE de la BD
         com.franco.dev.domain.financiero.DocumentoElectronico de = 
@@ -207,7 +206,6 @@ public class SifenService {
         // 4. Asignar CDC
         String cdc = deSifen.obtenerCDC();
         de.setCdc(cdc);
-        log.info("   CDC generado: {}", cdc);
         
         // 5. Generar y guardar XML original (CRÍTICO para reconstrucción exacta)
         try {
@@ -215,13 +213,11 @@ public class SifenService {
                 com.roshka.sifen.internal.ctx.GenerationCtx.getDefaultFromConfig(sifenConfig);
             String xmlOriginal = deSifen.generarXml(ctx);
             de.setXmlOriginal(xmlOriginal);
-            log.info("   XML original generado ({} caracteres)", xmlOriginal.length());
             
             // 6. Extraer URL QR del XML
             String urlQr = com.franco.dev.service.sifen.util.SifenXmlParser.extractUrlQr(xmlOriginal);
             if (urlQr != null) {
                 de.setUrlQr(urlQr);
-                log.info("   URL QR extraída del XML");
             } else {
                 log.warn("   URL QR no encontrada en XML - continuando sin URL QR");
             }
@@ -237,7 +233,6 @@ public class SifenService {
         com.franco.dev.domain.financiero.DocumentoElectronico deGuardado = 
             documentoElectronicoService.save(de);
         
-        log.info("✅ DE creado exitosamente - ID: {}, CDC: {}", deGuardado.getId(), deGuardado.getCdc());
         return deGuardado;
     }
 
@@ -250,8 +245,6 @@ public class SifenService {
      */
     @Transactional
     public LoteDE crearLote() {
-        log.info("📦 Creando lote vacío...");
-        
         LoteDE lote = new LoteDE();
         lote.setEstado(EstadoLoteDE.PENDIENTE_ENVIO);
         lote.setFechaUltimoIntento(LocalDateTime.now());
@@ -262,13 +255,11 @@ public class SifenService {
         Sucursal sucursalActual = sucursalService.sucursalActual();
         if (sucursalActual != null) {
             lote.setSucursal(sucursalActual);
-            log.info("   Sucursal asignada: {} (ID: {})", sucursalActual.getNombre(), sucursalActual.getId());
         } else {
             log.warn("   No se pudo obtener la sucursal actual");
         }
         
         LoteDE loteGuardado = loteDEService.save(lote);
-        log.info("✅ Lote creado - ID: {}", loteGuardado.getId());
         
         return loteGuardado;
     }
@@ -282,16 +273,11 @@ public class SifenService {
     @Transactional
     public void vincularDocumentosALote(LoteDE lote, 
             List<com.franco.dev.domain.financiero.DocumentoElectronico> documentos) {
-        log.info("🔗 Vinculando {} documentos al lote ID: {}", documentos.size(), lote.getId());
-        
         for (com.franco.dev.domain.financiero.DocumentoElectronico documento : documentos) {
             documento.setLoteDe(lote);
             documento.setEstado(EstadoDE.EN_LOTE);
             documentoElectronicoService.save(documento);
-            log.debug("   ✓ Documento ID {} vinculado", documento.getId());
         }
-        
-        log.info("✅ {} documentos vinculados exitosamente", documentos.size());
     }
 
     /**
@@ -304,7 +290,6 @@ public class SifenService {
     @Transactional
     public void enviarLote(LoteDE lote) throws SifenException {
         verificarSifenHabilitado();
-        log.info("📤 Enviando lote ID: {} a SIFEN...", lote.getId());
         
         // 1. Obtener documentos del lote
         List<com.franco.dev.domain.financiero.DocumentoElectronico> documentos = 
@@ -314,21 +299,16 @@ public class SifenService {
             throw new IllegalArgumentException("El lote " + lote.getId() + " no tiene documentos asociados");
         }
         
-        log.info("   Lote contiene {} documentos", documentos.size());
-        
         // 2. Reconstruir DEs de SIFEN desde XML original
         List<com.roshka.sifen.core.beans.DocumentoElectronico> deSifenLote = new ArrayList<>();
         
         for (com.franco.dev.domain.financiero.DocumentoElectronico de : documentos) {
-            log.debug("   Procesando DE ID: {}, CDC: {}", de.getId(), de.getCdc());
-            
             com.roshka.sifen.core.beans.DocumentoElectronico deSifen;
             
             // ESTRATEGIA ÓPTIMA: Reconstruir desde XML guardado
             if (de.getXmlOriginal() != null && !de.getXmlOriginal().isEmpty()) {
                 try {
                     deSifen = new com.roshka.sifen.core.beans.DocumentoElectronico(de.getXmlOriginal());
-                    log.debug("      ✓ DE reconstruido desde XML original");
                     
                     // Verificar CDC
                     if (!de.getCdc().equals(deSifen.obtenerCDC())) {
@@ -353,7 +333,6 @@ public class SifenService {
         }
         
         // 3. Enviar lote a SIFEN
-        log.info("   ⏳ Enviando {} DEs a SIFEN...", deSifenLote.size());
         RespuestaRecepcionLoteDE respuesta = Sifen.recepcionLoteDE(deSifenLote);
         
         // 4. Actualizar lote con respuesta
@@ -362,15 +341,12 @@ public class SifenService {
         lote.setIntentos(lote.getIntentos() + 1);
         
         String codigoRespuesta = respuesta.getdCodRes();
-        log.info("   📥 Respuesta recibida - Código: {}, Mensaje: {}", 
-            codigoRespuesta, respuesta.getdMsgRes());
         
         // 5. Determinar estado del lote según respuesta
         if ("0300".equals(codigoRespuesta)) {
                 lote.setEstado(EstadoLoteDE.EN_PROCESO);
             String protocolo = extraerProtocoloDeRespuesta(respuesta.getRespuestaBruta());
             lote.setProtocolo(protocolo);
-            log.info("✅ Lote {} enviado exitosamente. Protocolo: {}", lote.getId(), protocolo);
         } else {
             lote.setEstado(EstadoLoteDE.ERROR_ENVIO);
             log.error("❌ Error al enviar lote {}: {} - {}", 
@@ -389,7 +365,6 @@ public class SifenService {
     @Transactional
     public void consultarLote(LoteDE lote) throws SifenException {
         verificarSifenHabilitado();
-        log.info("🔍 Consultando lote ID: {} con protocolo: {}", lote.getId(), lote.getProtocolo());
         
             if (lote.getProtocolo() == null || lote.getProtocolo().isEmpty()) {
             throw new IllegalArgumentException("El lote " + lote.getId() + " no tiene protocolo para consultar");
@@ -397,9 +372,6 @@ public class SifenService {
             
         // 1. Consultar estado en SIFEN
             RespuestaConsultaLoteDE respuesta = Sifen.consultaLoteDE(lote.getProtocolo());
-            
-        log.info("   📥 Respuesta recibida - Código: {}, Mensaje: {}", 
-            respuesta.getdCodResLot(), respuesta.getdMsgResLot());
         
         // 2. Actualizar lote con respuesta
         lote.setFechaUltimoIntento(LocalDateTime.now());
@@ -421,7 +393,6 @@ public class SifenService {
                 break;
                 
             case "0362": // Procesamiento concluido
-                log.info("✅ Lote {} procesamiento concluido", lote.getId());
                 procesarRespuestaLoteConcluido(lote, respuesta);
                 break;
                 
@@ -502,9 +473,6 @@ public class SifenService {
                 if (respuesta.getdCodRes() == null && respuesta.getdMsgRes() == null) {
                     throw new RuntimeException("Respuesta SOAP inválida - probablemente HTML en lugar de XML");
                 }
-                
-                log.info("   📥 Respuesta recibida - Código: {}, Mensaje: {}", 
-                    respuesta.getdCodRes(), respuesta.getdMsgRes());
                 
                 // Procesar respuesta según código
                 String codigoRespuesta = respuesta.getdCodRes();
@@ -1226,8 +1194,6 @@ public class SifenService {
      * Analiza individualmente cada documento en la respuesta.
      */
     private void procesarRespuestaLoteConcluido(LoteDE lote, RespuestaConsultaLoteDE respuesta) {
-        log.info("   🔍 Analizando detalles individuales de documentos...");
-        
         // 1. Determinar si el lote fue aprobado o rechazado
         boolean loteAprobado = determinarAprobacionLoteDesdeXML(respuesta.getRespuestaBruta());
         
@@ -1235,8 +1201,6 @@ public class SifenService {
         EstadoLoteDE nuevoEstadoLote = loteAprobado ? EstadoLoteDE.PROCESADO : EstadoLoteDE.RECHAZADO;
         lote.setEstado(nuevoEstadoLote);
         lote.setFechaProcesado(LocalDateTime.now());
-        
-        log.info("   📊 Estado del lote: {}", nuevoEstadoLote);
         
         // 3. Extraer detalles individuales de cada documento
         List<DetalleDocumentoEnLote> detallesDocumentos = 
@@ -1249,8 +1213,6 @@ public class SifenService {
             actualizarDocumentosLote(lote, estadoGeneral, respuesta.getdCodResLot(), respuesta.getdMsgResLot());
             return;
         }
-        
-        log.info("   📄 {} documentos con detalles individuales", detallesDocumentos.size());
         
         // 4. Actualizar cada documento individualmente
         List<com.franco.dev.domain.financiero.DocumentoElectronico> documentos = 
@@ -1292,9 +1254,6 @@ public class SifenService {
             documento.setFechaRecepcionSifen(LocalDateTime.now());
             documentoElectronicoService.save(documento);
         }
-        
-        log.info("   📊 Resumen: {} aprobados, {} rechazados de {} totales", 
-            aprobados, rechazados, documentos.size());
         
         // 5. Ajustar estado final del lote si hay errores mixtos
         if (aprobados > 0 && rechazados > 0) {
@@ -1875,23 +1834,56 @@ public class SifenService {
             BigDecimal cantidad;
             float cantidadFloat = item.getCantidad() != null ? item.getCantidad() : 0.0f;
 
+            // Validar que la cantidad no sea cero para evitar división por cero en la librería SIFEN
+            if (cantidadFloat <= 0.0f) {
+                throw new IllegalArgumentException(
+                    String.format("La cantidad del item '%s' debe ser mayor a cero. Cantidad actual: %s", 
+                        item.getDescripcion(), cantidadFloat));
+            }
+
             // Determinar unidad de medida basándose en si el producto es pesable
+            // Si el producto no está disponible, detectar si es pesable basándose en la cantidad decimal
+            boolean esPesable = false;
             if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
+                esPesable = true;
+            } else if (producto == null && cantidadFloat < 1.0f && cantidadFloat > 0.0f) {
+                // Si no hay producto pero la cantidad es menor a 1 y mayor a 0, probablemente es pesable
+                // (ej: 0.230 kg de algo)
+                esPesable = true;
+                log.debug("   Producto no disponible pero cantidad decimal detectada ({}), asumiendo pesable", cantidadFloat);
+            }
+            
+            if (esPesable) {
                 gCamItem.setcUniMed(TcUniMed.kg);
                 cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(3, RoundingMode.HALF_UP);
-                log.debug("   Producto {} marcado como pesable - usando kg", producto.getDescripcion());
+                log.debug("   Producto {} marcado como pesable - usando kg", 
+                    producto != null ? producto.getDescripcion() : item.getDescripcion());
             } else {
                 gCamItem.setcUniMed(TcUniMed.UNI);
                 cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(0, RoundingMode.HALF_UP);
                 log.debug("   Producto {} no es pesable - usando unidades", 
-                    producto != null ? producto.getDescripcion() : "N/A");
+                    producto != null ? producto.getDescripcion() : item.getDescripcion());
             }
+            
+            // Validar que la cantidad BigDecimal no sea cero después del redondeo
+            if (cantidad.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException(
+                    String.format("La cantidad del item '%s' no puede ser cero después del redondeo. Cantidad original: %s, Cantidad redondeada: %s. " +
+                        "Si es un producto pesable, asegúrese de que el producto tenga balanza=true o que la cantidad sea mayor a 1.", 
+                        item.getDescripcion(), cantidadFloat, cantidad));
+            }
+            
             gCamItem.setdCantProSer(cantidad);
             TgValorItem gValorItem = new TgValorItem();
             
             // IMPORTANTE: Si la factura tiene moneda extranjera, los precios de los items están en guaraníes
             // pero deben convertirse a la moneda extranjera antes de pasarlos a SIFEN
             BigDecimal precioUnitario;
+            if (item.getPrecioUnitario() == null) {
+                throw new IllegalArgumentException(
+                    String.format("El precio unitario del item '%s' no puede ser null", item.getDescripcion()));
+            }
+            
             if (esMonedaExtranjera(factura) && factura.getTipoCambio() != null && factura.getTipoCambio() > 0) {
                 // Convertir precio de guaraníes a moneda extranjera
                 BigDecimal precioGs = BigDecimal.valueOf(item.getPrecioUnitario().doubleValue());
@@ -1901,6 +1893,13 @@ public class SifenService {
                     precioGs, precioUnitario, factura.getMonedaExtranjera(), tipoCambio);
             } else {
                 precioUnitario = BigDecimal.valueOf(item.getPrecioUnitario().doubleValue());
+            }
+            
+            // Validar que el precio unitario no sea cero para evitar división por cero en la librería SIFEN
+            if (precioUnitario.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException(
+                    String.format("El precio unitario del item '%s' debe ser mayor a cero. Precio actual: %s", 
+                        item.getDescripcion(), precioUnitario));
             }
             
             gValorItem.setdPUniProSer(precioUnitario);

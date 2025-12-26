@@ -95,30 +95,18 @@ public class SifenSchedulerService {
         
         try {
             procesandoLotes = true;
-            log.info("=================================================================");
-            log.info("🤖 INICIANDO PROCESAMIENTO AUTOMÁTICO DE LOTES DE SIFEN");
-            log.info("   Fecha/Hora: {}", LocalDateTime.now());
-            log.info("=================================================================");
             
             // PASO 0: Procesar lotes atrasados en PENDIENTE_ENVIO, ERROR_ENVIO o ERROR_RED (MEJORA: recuperación de lotes huérfanos)
-            log.info("\n🔧 PASO 0: Procesar lotes atrasados (PENDIENTE_ENVIO, ERROR_ENVIO y ERROR_RED)");
             procesarLotesAtrasados();
             
             // PASO 1: Crear y enviar lotes con DEs pendientes
-            log.info("\n📦 PASO 1: Crear y enviar lotes con DEs pendientes");
             crearYEnviarLotes();
             
             // PASO 2: Esperar 5 segundos para que SIFEN procese los lotes
-            log.info("\n⏳ PASO 2: Esperando 5 segundos para que SIFEN procese los lotes...");
             Thread.sleep(5000);
             
             // PASO 3: Consultar lotes en proceso
-            log.info("\n🔍 PASO 3: Consultar lotes en proceso");
             consultarLotesPendientes();
-            
-            log.info("\n=================================================================");
-            log.info("✅ PROCESAMIENTO AUTOMÁTICO COMPLETADO");
-            log.info("=================================================================");
             
         } catch (InterruptedException e) {
             log.error("❌ Procesamiento interrumpido", e);
@@ -149,17 +137,12 @@ public class SifenSchedulerService {
                 documentoElectronicoService.findByEstado(EstadoDE.PENDIENTE);
             
             if (desPendientes.isEmpty()) {
-                log.info("ℹ️  No hay DEs pendientes para procesar");
                 return;
             }
-            
-            log.info("📋 Encontrados {} DEs pendientes para procesar", desPendientes.size());
             
             // 2. Agrupar DEs en lotes (máximo según configuración, default 50)
             List<List<com.franco.dev.domain.financiero.DocumentoElectronico>> lotes = 
                 dividirEnLotes(desPendientes, maxDocumentosPorLote);
-            
-            log.info("📦 Se crearán {} lotes", lotes.size());
             
             // 3. Procesar cada lote
             int lotesEnviados = 0;
@@ -167,17 +150,14 @@ public class SifenSchedulerService {
             
             for (int i = 0; i < lotes.size(); i++) {
                 List<com.franco.dev.domain.financiero.DocumentoElectronico> loteDEs = lotes.get(i);
-                log.info("\n--- Procesando lote {} de {} ({} DEs) ---", i + 1, lotes.size(), loteDEs.size());
                 
                 LoteDE lote = null;
                 try {
                     // 3.1. Crear lote en BD
                     lote = sifenService.crearLote();
-                    log.info("✅ Lote creado con ID: {}", lote.getId());
                     
                     // 3.2. Vincular DEs al lote
                     sifenService.vincularDocumentosALote(lote, loteDEs);
-                    log.info("✅ {} DEs vinculados al lote", loteDEs.size());
                     
                     // 3.3. Enviar lote a SIFEN
                     sifenService.enviarLote(lote);
@@ -186,8 +166,6 @@ public class SifenSchedulerService {
                     LoteDE loteActualizado = loteDEService.findById(lote.getId()).orElse(null);
                     if (loteActualizado != null) {
                         if (loteActualizado.getEstado() == EstadoLoteDE.EN_PROCESO) {
-                            log.info("✅ Lote {} enviado exitosamente - Protocolo: {}", 
-                                lote.getId(), loteActualizado.getProtocolo());
                             lotesEnviados++;
                         } else {
                             log.error("❌ Lote {} con error al enviar - Estado: {}", 
@@ -237,12 +215,6 @@ public class SifenSchedulerService {
                 }
             }
             
-            // 4. Resumen de procesamiento
-            log.info("\n📊 RESUMEN DE ENVÍO DE LOTES:");
-            log.info("   ✅ Lotes enviados exitosamente: {}", lotesEnviados);
-            log.info("   ❌ Lotes con error: {}", lotesConError);
-            log.info("   📋 Total procesados: {}", lotes.size());
-            
         } catch (Exception e) {
             log.error("❌ Error al crear y enviar lotes", e);
         }
@@ -263,11 +235,8 @@ public class SifenSchedulerService {
             List<LoteDE> lotesEnProceso = loteDEService.findByEstado(EstadoLoteDE.EN_PROCESO);
             
             if (lotesEnProceso.isEmpty()) {
-                log.info("ℹ️  No hay lotes en proceso para consultar");
                 return;
             }
-            
-            log.info("📋 Encontrados {} lotes en proceso", lotesEnProceso.size());
             
             int lotesConsultados = 0;
             int lotesCompletados = 0;
@@ -276,9 +245,6 @@ public class SifenSchedulerService {
             
             // 2. Procesar cada lote
             for (LoteDE lote : lotesEnProceso) {
-                log.info("\n--- Consultando lote {} (Protocolo: {}, Intentos: {}) ---", 
-                    lote.getId(), lote.getProtocolo(), lote.getIntentos());
-                
                 try {
                     // MEJORA: Eliminada restricción de máximo de reintentos
                     // Se seguirá intentando consultar el lote independientemente del número de intentos
@@ -293,12 +259,9 @@ public class SifenSchedulerService {
                         switch (loteActualizado.getEstado()) {
                             case PROCESADO:
                             case PROCESADO_CON_ERRORES:
-                                log.info("✅ Lote {} completado - Estado: {}", 
-                                    lote.getId(), loteActualizado.getEstado());
                                 lotesCompletados++;
                                 break;
                             case EN_PROCESO:
-                                log.info("⏳ Lote {} aún en procesamiento", lote.getId());
                                 lotesAunEnProceso++;
                                 break;
                             case ERROR_PERMANENTE:
@@ -345,13 +308,6 @@ public class SifenSchedulerService {
                     lotesConError++;
                 }
             }
-            
-            // 3. Resumen de consultas
-            log.info("\n📊 RESUMEN DE CONSULTA DE LOTES:");
-            log.info("   ✅ Lotes completados: {}", lotesCompletados);
-            log.info("   ⏳ Lotes aún en proceso: {}", lotesAunEnProceso);
-            log.info("   ❌ Lotes con error: {}", lotesConError);
-            log.info("   🔍 Total consultados: {}", lotesConsultados);
             
         } catch (Exception e) {
             log.error("❌ Error al consultar lotes pendientes", e);
@@ -409,11 +365,8 @@ public class SifenSchedulerService {
             List<LoteDE> lotesAtrasados = loteDEService.findByEstados(estadosParaProcesar);
             
             if (lotesAtrasados.isEmpty()) {
-                log.info("ℹ️  No hay lotes atrasados para procesar");
                 return;
             }
-            
-            log.info("📋 Encontrados {} lotes atrasados (PENDIENTE_ENVIO, ERROR_ENVIO o ERROR_RED)", lotesAtrasados.size());
             
             int lotesReenviados = 0;
             int lotesConError = 0;
@@ -438,13 +391,8 @@ public class SifenSchedulerService {
                         continue;
                     }
                     
-                    log.info("   📄 Lote contiene {} documentos", documentos.size());
-                    
                     // 2.2. MEJORA: Eliminada restricción de máximo de reintentos
                     // Se seguirá intentando enviar el lote independientemente del número de intentos
-                    if (lote.getIntentos() != null) {
-                        log.info("   🔄 Lote tiene {} intentos previos - reintentando envío", lote.getIntentos());
-                    }
                     
                     // 2.3. Verificar edad del lote (opcional: solo procesar lotes con más de X tiempo)
                     // Si el lote fue creado hace menos de 1 minuto, podría estar en proceso, lo saltamos

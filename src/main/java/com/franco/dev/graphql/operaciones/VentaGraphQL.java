@@ -31,6 +31,7 @@ import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.operaciones.CobroDetalleService;
 import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.DeliveryService;
+import com.franco.dev.service.operaciones.VentaDuplicadaCacheService;
 import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
@@ -142,6 +143,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     private CobroDetalleService cobroDetalleService;
     @Autowired
     private MonedaService monedaService;
+    @Autowired
+    private VentaDuplicadaCacheService ventaDuplicadaCacheService;
     private Sucursal sucursal;
 
     public Optional<Venta> venta(Long id, Long sucId) {
@@ -186,6 +189,25 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         if (ventaItemList == null && cobroDetalleList == null && cobroDetalleList == null) {
             return this.saveVenta2(ventaInput);
         }
+        
+        // Validar duplicados ANTES de crear la venta (usando cache en memoria)
+        if (ventaInput.getUsuarioId() != null && ventaItemList != null && !ventaItemList.isEmpty()) {
+            log.debug("🔍 Verificando venta duplicada para usuario {} con {} items", ventaInput.getUsuarioId(), ventaItemList.size());
+            Long ventaDuplicadaId = ventaDuplicadaCacheService.verificarVentaDuplicada(
+                ventaInput.getUsuarioId(), 
+                ventaItemList
+            );
+            if (ventaDuplicadaId != null) {
+                log.warn("❌ INTENTO DE VENTA DUPLICADA BLOQUEADO: Usuario {} intentó crear venta duplicada de la venta ID: {}", 
+                    ventaInput.getUsuarioId(), ventaDuplicadaId);
+                throw new GraphQLException(
+                    String.format("Ya existe una venta similar creada recientemente (ID: %d). " +
+                        "Debe esperar al menos 5 segundos entre ventas.", ventaDuplicadaId)
+                );
+            }
+            log.debug("✅ Validación venta duplicada pasada para usuario {}", ventaInput.getUsuarioId());
+        }
+        
         Venta venta = null;
         Cobro cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
         List<VentaItem> ventaItemList1 = new ArrayList<>();
@@ -210,6 +232,17 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             venta = service.saveAndSend(e, false);
             if (venta != null) {
                 ventaItemList1 = ventaItemGraphQL.saveVentaItemList(ventaItemList, venta.getId());
+                
+                // Agregar venta al cache después de crearla exitosamente (para prevenir duplicados)
+                if (venta.getId() != null && venta.getUsuario() != null && !ventaItemList1.isEmpty()) {
+                    ventaDuplicadaCacheService.agregarVentaAlCache(
+                        venta.getUsuario().getId(),
+                        venta.getId(),
+                        venta.getCreadoEn() != null ? venta.getCreadoEn() : LocalDateTime.now(),
+                        ventaItemList1
+                    );
+                }
+                
                 if (venta.getDelivery() != null && venta.getEstado() == VentaEstado.CONCLUIDA
                         && venta.getDelivery().getEstado() != DeliveryEstado.CONCLUIDO) {
                     venta.getDelivery().setEstado(DeliveryEstado.CONCLUIDO);
@@ -249,8 +282,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     return venta;
                 } else if (facturaCountDown == 0) {
                     if (pdvId != null) {
-                        log.info("📋 Facturación silenciosa activada (facturaCountDown == 0) - Generando factura legal con DE sin imprimir");
-                        
                         FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
                         if (venta.getCliente() == null) {
                             facturaLegalInput.setNombre("SIN NOMBRE");
@@ -284,7 +315,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         try {
                             facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, 
                                 facturaLegalItemInputList, printerName, pdvId.intValue(), false);
-                            log.info("✅ Factura legal con DE generada exitosamente (sin impresión)");
                         } catch (Exception fe) {
                             log.error("❌ Error en facturación silenciosa: {}", fe.getMessage(), fe);
                             // No lanzamos excepción para no romper el flujo de venta
@@ -931,11 +961,12 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
      }
 
     public Page<Venta> ventasPorCajaId(Long idVenta, Long idCaja, Integer page, Integer size, Boolean asc, Long sucId,
-            Long formaPago, VentaEstado estado, Boolean isDelivery, Long monedaId, Boolean conDescuento) {
+            Long formaPago, VentaEstado estado, Boolean isDelivery, Long monedaId, Boolean conDescuento, Boolean conAumento) {
         if (idVenta != null) {
             Venta venta = service.findById(idVenta).orElse(null);
             return new PageImpl<>(Arrays.asList(venta), PageRequest.of(0, 1), 1);
         }
+        // TODO: Implementar filtro por conAumento cuando sea necesario
         return service.findByCajaId(new EmbebedPrimaryKey(idCaja, sucId), page, size, asc, formaPago, estado,
                 isDelivery, monedaId);
     }

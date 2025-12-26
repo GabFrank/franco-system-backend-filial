@@ -390,7 +390,6 @@ public class FacturaService {
             // El delivery se considera gravado al 10% IVA
             totalParcial10 += precioDelivery;
             ivaParcial10 += precioDelivery / 11;
-            log.info("💰 Delivery incluido en factura legal - Precio: {}", precioDelivery);
         }
 
         // Aplicar ajuste (descuento o aumento) proporcionalmente a cada categoría de IVA
@@ -459,7 +458,6 @@ public class FacturaService {
                 deliveryItem.setTotal(precioDelivery);
                 deliveryItem.setSucursalId(facturaLegalGuardada.getSucursalId());
                 facturaLegalItemService.save(deliveryItem);
-                log.info("✅ Item de delivery agregado a factura legal - Descripción: SERVICIO DE DELIVERY, Total: {}", precioDelivery);
             }
 
             timbradoDetalle.setNumeroActual(numeroFactura);

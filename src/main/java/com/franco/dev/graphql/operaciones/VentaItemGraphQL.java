@@ -1,10 +1,13 @@
 package com.franco.dev.graphql.operaciones;
 
 import com.franco.dev.domain.financiero.Cambio;
+import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
+import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
 import com.franco.dev.service.financiero.CambioService;
+import com.franco.dev.service.operaciones.MovimientoStockService;
 import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -46,6 +49,9 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
 
     @Autowired
     private PrecioPorSucursalService precioPorSucursalService;
+
+    @Autowired
+    private MovimientoStockService movimientoStockService;
 
     public Optional<VentaItem> ventaItem(Long id, Long sucId) {
         return service.findById(id);
@@ -99,6 +105,19 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         Venta venta = null;
         if (ventaItem != null) {
             venta = ventaItem.getVenta();
+            
+            // Antes de eliminar el VentaItem, desactivar todos los movimientos de stock asociados
+            // para evitar que queden movimientos huérfanos
+            List<MovimientoStock> movimientosStock = movimientoStockService.findByReferencia(id);
+            
+            for (MovimientoStock ms : movimientosStock) {
+                // Solo desactivar movimientos de tipo VENTA para este venta_item
+                if (ms.getTipoMovimiento() == TipoMovimiento.VENTA 
+                    && ms.getEstado() != null && ms.getEstado()) {
+                    ms.setEstado(false);
+                    movimientoStockService.saveAndSend(ms, false);
+                }
+            }
         }
         Boolean ok = service.deleteById(id);
         if (venta != null)

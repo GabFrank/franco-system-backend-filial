@@ -64,7 +64,6 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         ModelMapper m = new ModelMapper();
         Cobro e = m.map(input, Cobro.class);
         if(e.getUsuario()!=null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
-        log.info("Entrando en el save and send");
         Cobro cobro = service.saveAndSend(e, false);
         if(cobro!=null){
             for(CobroDetalleInput c : cobroDetalleList){

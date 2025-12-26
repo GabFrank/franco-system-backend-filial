@@ -158,20 +158,28 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                 ventaInput.setDeliveryId(delivery.getId());
             }
             Venta venta = null;
-            if (ventaInput.getId() != null) {
+            boolean isVentaNueva = ventaInput.getId() == null;
+            if (!isVentaNueva) {
                 venta = ventaService.findById(ventaInput.getId()).orElse(null);
-                ventaInput.setEstado(venta.getEstado());
-                ventaInput.setCajaId(venta.getCaja().getId());
-                ventaInput.setTotalGs(venta.getTotalGs());
-                ventaInput.setTotalRs(venta.getTotalRs());
-                ventaInput.setTotalDs(venta.getTotalDs());
-                ventaInput.setDeliveryId(venta.getDelivery().getId());
+                if (venta != null) {
+                    ventaInput.setEstado(venta.getEstado());
+                    ventaInput.setCajaId(venta.getCaja().getId());
+                    ventaInput.setTotalGs(venta.getTotalGs());
+                    ventaInput.setTotalRs(venta.getTotalRs());
+                    ventaInput.setTotalDs(venta.getTotalDs());
+                    ventaInput.setDeliveryId(venta.getDelivery().getId());
+                }
             }
             venta = ventaGraphQL.saveVenta2(ventaInput);
             if (venta != null) {
-                List<VentaItem> ventaItemList = ventaItemInputList.size() > 0
-                        ? ventaItemGraphQL.saveVentaItemList(ventaItemInputList, venta.getId())
-                        : null;
+                // Solo guardar items si la venta es nueva
+                // Esto evita re-guardar items existentes que causan duplicación de movimientos de stock
+                if (isVentaNueva && ventaItemInputList != null && ventaItemInputList.size() > 0) {
+                    ventaItemGraphQL.saveVentaItemList(ventaItemInputList, venta.getId());
+                }
+                // Si la venta ya existe, no re-guardamos los items para evitar duplicados
+                // Si en el futuro se necesita actualizar items existentes, se debe hacer de forma explícita
+                // y verificando cambios antes de guardar
             }
 
             if (delivery != null) {
