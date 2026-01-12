@@ -908,6 +908,25 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (venta != null)
             delivery = venta.getDelivery();
         Double descuento = facturaLegal.getDescuento() != null ? facturaLegal.getDescuento() : 0.0;
+        
+        // Si el descuento es NULL o 0, intentar calcularlo desde el cobro_detalle
+        if ((descuento == null || descuento == 0.0) && venta != null && venta.getCobro() != null) {
+            List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(venta.getCobro().getId());
+            Double descuentoTotal = 0.0;
+            Double aumentoTotal = 0.0;
+            for (CobroDetalle cd : cobroDetalleList) {
+                Double valorCalculado = cd.getValor() * cd.getCambio();
+                if (cd.getDescuento() != null && cd.getDescuento()) {
+                    descuentoTotal += valorCalculado;
+                }
+                if (cd.getAumento() != null && cd.getAumento()) {
+                    aumentoTotal += valorCalculado;
+                }
+            }
+            descuento = descuentoTotal - aumentoTotal;
+            log.warn("⚠️ Descuento calculado desde cobro_detalle para factura legal ID: {} = {}", facturaLegal.getId(), descuento);
+        }
+        
         Double aumento = 0.0; // Los aumentos se manejan como descuentos negativos
         Double vueltoGs = 0.0;
         Double vueltoRs = 0.0;
@@ -1107,8 +1126,25 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.write("     "); // 4 espacios = 9 total
             escpos.writeLF("Final"); // 5 chars
             
-            // Calcular totales por moneda
-            Double totalParcialGs = totalFinal + descuento;
+            // Calcular total parcial sin descuento sumando los totales de los items
+            // Los items en FacturaLegalItem tienen los precios originales sin descuento aplicado
+            Double totalParcialGs = 0.0;
+            for (FacturaLegalItem item : facturaLegalItemList) {
+                totalParcialGs += item.getTotal();
+            }
+            
+            // Si hay delivery, sumarlo también
+            if (delivery != null && delivery.getPrecio() != null) {
+                totalParcialGs += delivery.getPrecio().getValor();
+            }
+            
+            // Si no hay items o el cálculo da 0, usar totalFinal + descuento como fallback
+            if (totalParcialGs == 0.0 || Math.abs(totalParcialGs - (totalFinal + descuento)) > 1.0) {
+                // Si hay descuento, el totalFinal ya tiene el descuento aplicado proporcionalmente
+                // Entonces totalParcial = totalFinal + descuento solo si el descuento fue aplicado proporcionalmente
+                // Como fallback, usamos esta lógica
+                totalParcialGs = totalFinal + descuento;
+            }
             Double totalParcialRs = totalParcialGs / cambioRs;
             Double totalParcialDs = totalParcialGs / cambioDs;
             
@@ -1502,15 +1538,49 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             delivery = venta.getDelivery();
         Double descuento = facturaLegal.getDescuento() != null ? facturaLegal.getDescuento() : 0.0;
         
+        // Si el descuento es NULL o 0, intentar calcularlo desde el cobro_detalle
+        if ((descuento == null || descuento == 0.0) && venta != null && venta.getCobro() != null) {
+            List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(venta.getCobro().getId());
+            Double descuentoTotal = 0.0;
+            Double aumentoTotal = 0.0;
+            for (CobroDetalle cd : cobroDetalleList) {
+                Double valorCalculado = cd.getValor() * cd.getCambio();
+                if (cd.getDescuento() != null && cd.getDescuento()) {
+                    descuentoTotal += valorCalculado;
+                }
+                if (cd.getAumento() != null && cd.getAumento()) {
+                    aumentoTotal += valorCalculado;
+                }
+            }
+            descuento = descuentoTotal - aumentoTotal;
+            log.warn("⚠️ Descuento calculado desde cobro_detalle para factura legal ID: {} (moneda extranjera) = {}", facturaLegal.getId(), descuento);
+        }
+        
         // Convertir todos los valores a moneda extranjera
         Double totalFinal = facturaLegal.getTotalFinal();
         Double totalIva10 = facturaLegal.getIvaParcial10();
         Double totalIva5 = facturaLegal.getIvaParcial5();
         Double totalIva = totalIva10 + totalIva5;
         
-        // Convertir valores usando el tipo de cambio
-        // Total parcial = total final + descuento (en guaraníes), luego convertir
-        Double totalParcialGs = totalFinal + descuento;
+        // Calcular total parcial sin descuento sumando los totales de los items
+        // Los items en FacturaLegalItem tienen los precios originales sin descuento aplicado
+        Double totalParcialGs = 0.0;
+        for (FacturaLegalItem item : facturaLegalItemList) {
+            totalParcialGs += item.getTotal();
+        }
+        
+        // Si hay delivery, sumarlo también
+        if (delivery != null && delivery.getPrecio() != null) {
+            totalParcialGs += delivery.getPrecio().getValor();
+        }
+        
+        // Si no hay items o el cálculo da 0, usar totalFinal + descuento como fallback
+        if (totalParcialGs == 0.0 || Math.abs(totalParcialGs - (totalFinal + descuento)) > 1.0) {
+            // Si hay descuento, el totalFinal ya tiene el descuento aplicado proporcionalmente
+            // Entonces totalParcial = totalFinal + descuento solo si el descuento fue aplicado proporcionalmente
+            // Como fallback, usamos esta lógica
+            totalParcialGs = totalFinal + descuento;
+        }
         Double totalParcialExtranjera = totalParcialGs / tipoCambio;
         Double totalFinalExtranjera = totalFinal / tipoCambio;
         Double descuentoExtranjera = descuento / tipoCambio;
