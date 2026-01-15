@@ -28,4 +28,6 @@ public class RetiroInput {
     private Double retiroDs;
 
     private String observacion;
+
+    private Long sucursalId;
 }
