@@ -1,0 +1,64 @@
+scalar DateTime
+
+type Marcacion {
+    id: ID!
+    usuario: Usuario
+    tipo: TipoMarcacion
+    
+    latitud: Float
+    longitud: Float
+    precisionGps: Float
+    distanciaSucursalMetros: Int
+    
+    deviceId: String
+    deviceInfo: String
+    
+    sucursalEntrada: Sucursal
+    fechaEntrada: String
+    
+    sucursalSalida: Sucursal
+    fechaSalida: String
+    
+    presencial: Boolean
+    autorizacion: Int
+    codigo: String
+}
+
+input MarcacionInput {
+    id: ID
+    usuarioId: ID
+    tipo: TipoMarcacion
+    
+    latitud: Float
+    longitud: Float
+    precisionGps: Float
+    distanciaSucursalMetros: Int
+    
+    deviceId: String
+    deviceInfo: String
+    
+    sucursalEntradaId: ID
+    fechaEntrada: String
+    
+    sucursalSalidaId: ID
+    fechaSalida: String
+    
+    presencial: Boolean
+    codigo: String
+}
+
+enum TipoMarcacion {
+    ENTRADA
+    SALIDA
+}
+
+extend type Query {
+    marcacion(id: ID!): Marcacion
+    marcacionesPorUsuario(usuarioId: ID!, fechaInicio: String, fechaFin: String): [Marcacion]
+    marcaciones(page: Int, size: Int): [Marcacion]
+}
+
+extend type Mutation {
+    saveMarcacion(marcacion: MarcacionInput!): Marcacion
+    deleteMarcacion(id: ID!): Boolean
+}

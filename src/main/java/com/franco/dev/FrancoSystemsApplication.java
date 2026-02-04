@@ -6,7 +6,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
 import com.franco.dev.service.configuracion.UpdateService;
-import com.franco.dev.service.utils.biometric.BiometricService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,7 +62,6 @@ public class FrancoSystemsApplication {
     public SincronizacionStatusPublisher getSinPublisher() {
         return new SincronizacionStatusPublisher();
     }
-
 
     /**
      * Register the {@link OpenEntityManagerInViewFilter} so that the

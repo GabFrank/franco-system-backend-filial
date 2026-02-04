@@ -1,0 +1,28 @@
+type Jornada {
+    id: ID!
+    usuario: Usuario
+    fecha: String
+    
+    marcacionEntrada: Marcacion
+    marcacionSalida: Marcacion
+    
+    minutosTrabajados: Int
+    minutosExtras: Int
+    minutosLlegadaTardia: Int
+    
+    estado: EstadoJornada
+    observacion: String
+    actualizadoEn: String
+}
+
+enum EstadoJornada {
+    NORMAL
+    INCOMPLETO
+    AUSENTE
+}
+
+extend type Query {
+    jornada(id: ID!): Jornada
+    jornadasPorUsuario(usuarioId: ID!, fechaInicio: String, fechaFin: String): [Jornada]
+    jornadas(page: Int, size: Int): [Jornada]
+}
