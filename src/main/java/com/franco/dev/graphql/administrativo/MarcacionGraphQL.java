@@ -52,7 +52,17 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
 
     public Marcacion saveMarcacion(MarcacionInput input) {
         ModelMapper m = new ModelMapper();
-        Marcacion e = m.map(input, Marcacion.class);
+        m.getConfiguration().setSkipNullEnabled(true);
+        Marcacion e = new Marcacion();
+
+        if (input.getId() != null) {
+            Optional<Marcacion> existing = service.findById(input.getId());
+            if (existing.isPresent()) {
+                e = existing.get();
+            }
+        }
+
+        m.map(input, e);
 
         if (input.getUsuarioId() != null) {
             e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -66,7 +76,6 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
             e.setSucursalSalida(sucursalService.findById(input.getSucursalSalidaId()).orElse(null));
         }
 
-        // Parsear fechas si vienen como String
         DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
         if (input.getFechaEntrada() != null) {
             e.setFechaEntrada(LocalDateTime.parse(input.getFechaEntrada(), formatter));
