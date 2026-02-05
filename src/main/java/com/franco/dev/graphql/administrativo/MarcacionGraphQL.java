@@ -87,7 +87,4 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         return service.save(e);
     }
 
-    public Boolean deleteMarcacion(Long id) {
-        return service.deleteById(id);
-    }
 }

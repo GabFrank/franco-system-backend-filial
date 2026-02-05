@@ -60,5 +60,4 @@ extend type Query {
 
 extend type Mutation {
     saveMarcacion(marcacion: MarcacionInput!): Marcacion
-    deleteMarcacion(id: ID!): Boolean
 }

@@ -26,6 +26,7 @@ extend type Query {
     usuarios(page:Int = 0, size:Int = 10):[Usuario]!
     countUsuario:Int
     usuarioSearch(texto:String):[Usuario]
+    getUsuarioImages(id:ID!, type:String!):[String]
 }
 
 extend type Mutation {
