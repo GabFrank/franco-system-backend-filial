@@ -45,6 +45,7 @@ input MarcacionInput {
     
     presencial: Boolean
     codigo: String
+    embedding: [Float]
 }
 
 enum TipoMarcacion {
@@ -54,7 +55,7 @@ enum TipoMarcacion {
 
 extend type Query {
     marcacion(id: ID!): Marcacion
-    marcacionesPorUsuario(usuarioId: ID!, fechaInicio: String, fechaFin: String): [Marcacion]
+    marcacionesPorUsuario(usuarioId: ID!, fechaInicio: String, fechaFin: String, page: Int, size: Int): [Marcacion]
     marcaciones(page: Int, size: Int): [Marcacion]
 }
 
