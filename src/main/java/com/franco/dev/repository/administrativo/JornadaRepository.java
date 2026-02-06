@@ -22,4 +22,6 @@ public interface JornadaRepository extends HelperRepository<Jornada, Long> {
     @Query("SELECT j FROM Jornada j WHERE j.usuario.id = ?1 AND cast(j.fecha as date) = cast(?2 as date)")
     Optional<Jornada> findByUsuarioIdAndFecha(Long usuarioId, String fecha);
 
+    Optional<Jornada> findByMarcacionEntradaId(Long id);
+
 }

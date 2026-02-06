@@ -32,6 +32,10 @@ public class JornadaService extends CrudService<Jornada, JornadaRepository> {
         return repository.findByUsuarioIdAndFecha(usuarioId, fecha);
     }
 
+    public Optional<Jornada> findByMarcacionEntradaId(Long id) {
+        return repository.findByMarcacionEntradaId(id);
+    }
+
     @Override
     public Jornada save(Jornada entity) {
         Jornada e = super.save(entity);

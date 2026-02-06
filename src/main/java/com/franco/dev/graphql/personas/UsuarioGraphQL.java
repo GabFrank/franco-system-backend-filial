@@ -38,6 +38,9 @@ public class UsuarioGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     @Autowired
     private ImageService imageService;
 
+    @Autowired
+    private com.franco.dev.service.personas.CentralPersonasIntegrationService centralPersonasIntegrationService;
+
     public Optional<Usuario> usuario(Long id) {
         return service.findById(id);
     }
@@ -82,7 +85,23 @@ public class UsuarioGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
                 if (!img.trim().isEmpty()) {
                     String path = imageService.storageDirectoryPath + java.io.File.separator + "personas"
                             + java.io.File.separator + "perfil" + java.io.File.separator;
+
                     String base64 = imageService.getImageWithMediaType(img.trim(), path);
+                    if (base64 == null) {
+                        try {
+                            byte[] dlBytes = centralPersonasIntegrationService
+                                    .downloadImage(usuario.getPersona().getId());
+                            if (dlBytes != null && dlBytes.length > 0) {
+                                java.nio.file.Path filePath = java.nio.file.Paths.get(path, img.trim());
+                                java.nio.file.Files.createDirectories(filePath.getParent());
+                                java.nio.file.Files.write(filePath, dlBytes);
+                                base64 = imageService.getImageWithMediaType(img.trim(), path);
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+
                     if (base64 != null)
                         images.add(base64);
                 }
