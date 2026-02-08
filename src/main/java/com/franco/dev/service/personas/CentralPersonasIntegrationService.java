@@ -44,6 +44,30 @@ public class CentralPersonasIntegrationService {
         return executeGet(url, byte[].class);
     }
 
+    /**
+     * Sincroniza solo el nombre de archivo de imagen con el servidor central.
+     * NO transfiere el archivo físico, solo actualiza la referencia en la BD del
+     * servidor central.
+     * 
+     * @param personaId    ID de la persona
+     * @param nombreImagen Nombre del archivo de imagen
+     * @return true si la sincronización fue exitosa, false si falló
+     */
+    public boolean syncImageMetadata(Long personaId, String nombreImagen) {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CentralPersonasIntegrationService.class);
+
+        try {
+            String url = buildUrl(PERSONA_ENDPOINT + "/" + personaId + "/imagen-metadata");
+            com.franco.dev.service.personas.dto.ImagenMetadataRequest request = new com.franco.dev.service.personas.dto.ImagenMetadataRequest();
+            request.setNombreImagen(nombreImagen);
+
+            restTemplate.postForEntity(url, request, Void.class);
+            return true;
+        } catch (RestClientException e) {
+            return false;
+        }
+    }
+
     private PersonaSyncRequest buildPersonaRequest(Persona persona) {
         PersonaSyncRequest request = new PersonaSyncRequest();
         request.setId(persona.getId());
@@ -108,7 +132,6 @@ public class CentralPersonasIntegrationService {
             baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
         }
         String fullUrl = baseUrl + endpoint;
-        // Log para debugging
         org.slf4j.LoggerFactory.getLogger(CentralPersonasIntegrationService.class)
                 .debug("Construyendo URL para servidor central: {}", fullUrl);
         return fullUrl;
@@ -144,7 +167,7 @@ public class CentralPersonasIntegrationService {
             log.debug("Descarga exitosa de servidor central. URL: {}", url);
             return response.getBody();
         } catch (RestClientException e) {
-            log.error("Error al descargar de servidor central. URL: {}, Error: {}", url, e.getMessage());
+            // Servidor central no disponible es una situación esperada en modo offline
             return null;
         }
     }

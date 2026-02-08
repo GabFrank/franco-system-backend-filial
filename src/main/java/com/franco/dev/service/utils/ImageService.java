@@ -25,7 +25,8 @@ public class ImageService {
     String userDirectory = System.getProperty("user.home");
     public String storageDirectoryPath = userDirectory + "/FRC/resources/images";
     public String imagePresentaciones = userDirectory + "/FRC/resources/images/productos/presentaciones";
-    public String imagePresentacionesThumbPath = userDirectory + "/FRC/resources/images/productos/presentaciones/thumbnails";
+    public String imagePresentacionesThumbPath = userDirectory
+            + "/FRC/resources/images/productos/presentaciones/thumbnails";
     public String storageDirectoryPathReports = userDirectory + "/FRC/resources/reports";
     public String serverPath = userDirectory + "/FRC/frc-server";
     public String appPath = userDirectory + File.separator + "FRC";
@@ -36,8 +37,6 @@ public class ImageService {
     public ImageService() throws IOException {
 
         String osName = System.getProperty("os.name");
-
-        log.warn(osName);
 
         isWindows = osName.contains("Windows");
         isMac = osName.contains("Mac");
@@ -59,15 +58,15 @@ public class ImageService {
         }
     }
 
-    public BufferedImage getLogo(){
+    public BufferedImage getLogo() {
         return imageBufferedImage;
     }
 
-    public String getImagePresentaciones(){
+    public String getImagePresentaciones() {
         return imagePresentaciones;
     }
 
-    public String getImagePresentacionesThumbPath(){
+    public String getImagePresentacionesThumbPath() {
         return imagePresentacionesThumbPath;
     }
 
@@ -106,12 +105,24 @@ public class ImageService {
         }
     }
 
-    public Boolean saveImageToPath(String imageBase64, String fileName, String imagePath, String imageThumbPath, Boolean thumbnail) throws IOException {
+    public Boolean saveImageToPath(String imageBase64, String fileName, String imagePath, String imageThumbPath,
+            Boolean thumbnail) throws IOException {
         Boolean res = false;
+
+        // Crear directorios si no existen
+        java.io.File imageDir = new java.io.File(imagePath);
+        if (!imageDir.exists()) {
+            imageDir.mkdirs();
+        }
+
+        java.io.File thumbDir = new java.io.File(imageThumbPath);
+        if (!thumbDir.exists()) {
+            thumbDir.mkdirs();
+        }
+
         String filePath;
         filePath = imagePath + fileName;
         Path path = Paths.get(filePath);
-        log.warn("borrando " + path);
         deleteFile(path.toString());
         try {
             Files.copy(converter(imageBase64).getInputStream(), path);
@@ -127,11 +138,6 @@ public class ImageService {
         FileUtils.touch(new File(path));
         File fileToDelete = FileUtils.getFile(path);
         boolean success = FileUtils.deleteQuietly(fileToDelete);
-        if (success) {
-            log.warn("borrado conn exito");
-        } else {
-            log.warn("falla al borrar");
-        }
         return success;
     }
 
@@ -165,7 +171,8 @@ public class ImageService {
                     .forEach(f -> {
                         if (f.toString().contains(".jpg")) {
                             System.out.println("convirtiendo imagen: " + f.getFileName().toString());
-                            Boolean res = saveScaledImage(f.toString(), imagePresentacionesThumbPath, f.getFileName().toString(), 100);
+                            Boolean res = saveScaledImage(f.toString(), imagePresentacionesThumbPath,
+                                    f.getFileName().toString(), 100);
                             System.out.println(res);
                         }
 

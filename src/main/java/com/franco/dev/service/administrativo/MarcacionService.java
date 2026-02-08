@@ -61,8 +61,19 @@ public class MarcacionService extends CrudService<Marcacion, MarcacionRepository
     private void procesarJornada(Marcacion marcacion) {
         try {
             if (marcacion.getFechaEntrada() != null && marcacion.getFechaSalida() == null) {
-                Optional<Jornada> existingJornada = jornadaService.findByMarcacionEntradaId(marcacion.getId());
-                if (!existingJornada.isPresent()) {
+                String fecha = marcacion.getFechaEntrada().toLocalDate().toString();
+                Optional<Jornada> jornadaExistente = jornadaService.findByUsuarioIdAndFecha(
+                        marcacion.getUsuario().getId(),
+                        fecha);
+
+                if (jornadaExistente.isPresent()) {
+                    Jornada jornada = jornadaExistente.get();
+                    if (jornada.getMarcacionEntrada() == null ||
+                            !jornada.getMarcacionEntrada().getId().equals(marcacion.getId())) {
+                        jornada.setMarcacionEntrada(marcacion);
+                        jornadaService.save(jornada);
+                    }
+                } else {
                     Jornada jornada = new Jornada();
                     jornada.setUsuario(marcacion.getUsuario());
                     jornada.setFecha(marcacion.getFechaEntrada().toLocalDate());
@@ -85,7 +96,9 @@ public class MarcacionService extends CrudService<Marcacion, MarcacionRepository
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            org.slf4j.LoggerFactory.getLogger(MarcacionService.class)
+                    .error("Error al procesar jornada para marcación {}: {}",
+                            marcacion.getId(), e.getMessage(), e);
         }
     }
 }

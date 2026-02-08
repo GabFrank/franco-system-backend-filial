@@ -98,7 +98,9 @@ public class UsuarioGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
                                 base64 = imageService.getImageWithMediaType(img.trim(), path);
                             }
                         } catch (Exception e) {
-                            e.printStackTrace();
+                            org.slf4j.LoggerFactory.getLogger(UsuarioGraphQL.class)
+                                    .debug("No se pudo descargar imagen del servidor central para persona {}: {}",
+                                            usuario.getPersona().getId(), e.getMessage());
                         }
                     }
 
@@ -108,5 +110,49 @@ public class UsuarioGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
             }
         }
         return images;
+    }
+
+    public Boolean saveUserImage(Long id, String type, String image) throws java.io.IOException {
+        System.out.println("Saving user image for id: " + id + ", type: " + type);
+        try {
+            String directoryPath = imageService.storageDirectoryPath + java.io.File.separator + "personas"
+                    + java.io.File.separator + type + java.io.File.separator;
+            java.io.File dir = new java.io.File(directoryPath);
+            if (dir.exists() && dir.isDirectory()) {
+                java.io.File[] existingFiles = dir.listFiles((d, name) -> name.startsWith(id + "_" + type));
+                if (existingFiles != null) {
+                    for (java.io.File file : existingFiles) {
+                        System.out.println("Deleting old image: " + file.getName());
+                        file.delete();
+                    }
+                }
+            } else {
+                dir.mkdirs();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        String fileName = id + "_" + type + System.currentTimeMillis() + ".png";
+        Boolean saved = imageService.saveImageToPath(image, fileName,
+                imageService.storageDirectoryPath + java.io.File.separator + "personas" + java.io.File.separator + type
+                        + java.io.File.separator,
+                imageService.storageDirectoryPath + java.io.File.separator + "personas" + java.io.File.separator + type
+                        + java.io.File.separator + "thumb",
+                true);
+
+        if (saved) {
+            Usuario usuario = service.findById(id).orElse(null);
+            if (usuario != null && usuario.getPersona() != null) {
+                com.franco.dev.domain.personas.Persona persona = usuario.getPersona();
+                persona.setImagenes(fileName);
+                personaService.saveLocal(persona);
+
+                centralPersonasIntegrationService.syncImageMetadata(
+                        persona.getId(),
+                        fileName);
+            }
+        }
+        return saved;
     }
 }

@@ -34,5 +34,8 @@ extend type Mutation {
     saveUsuario(usuario:UsuarioInput!):Usuario!
 
     deleteUsuario(id:ID!):Boolean!
+    
+    saveUserImage(id:ID!, type:String!, image:String!):Boolean!
 }
+
 
