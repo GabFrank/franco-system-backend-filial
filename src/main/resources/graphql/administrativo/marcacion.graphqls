@@ -19,7 +19,6 @@ type Marcacion {
     sucursalSalida: Sucursal
     fechaSalida: String
     
-    presencial: Boolean
     autorizacion: Int
     codigo: String
 }
@@ -43,7 +42,6 @@ input MarcacionInput {
     sucursalSalidaId: ID
     fechaSalida: String
     
-    presencial: Boolean
     codigo: String
     embedding: [Float]
 }

@@ -24,7 +24,6 @@ public class MarcacionInput {
     private Long sucursalSalidaId;
     private String fechaSalida;
 
-    private Boolean presencial;
     private String codigo;
     private java.util.List<Double> embedding;
 }
