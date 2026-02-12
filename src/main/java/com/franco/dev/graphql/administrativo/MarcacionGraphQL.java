@@ -4,6 +4,7 @@ import com.franco.dev.domain.administrativo.Marcacion;
 import com.franco.dev.graphql.administrativo.input.MarcacionInput;
 import com.franco.dev.service.administrativo.MarcacionService;
 import com.franco.dev.service.empresarial.SucursalService;
+import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -35,6 +36,9 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
 
     @Autowired(required = false)
     private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+    @Autowired
+    private ImpresionService impresionService;
 
     public Optional<Marcacion> marcacion(Long id) {
         return service.findById(id);
@@ -105,6 +109,9 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
             Optional<Marcacion> existing = service.findById(input.getId());
             if (existing.isPresent()) {
                 e = existing.get();
+            } else {
+                throw new graphql.GraphQLException(
+                        "No se encontró la marcación con ID " + input.getId() + ".");
             }
         }
 
@@ -152,6 +159,27 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
             return 0.0;
 
         return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    public String imprimirReporteMarcaciones(Long usuarioId, String fechaInicio, String fechaFin,
+            Long usuarioResponsableId) {
+        com.franco.dev.domain.personas.Usuario usuarioReporte = null;
+
+        if (usuarioResponsableId != null) {
+            usuarioReporte = usuarioService.findById(usuarioResponsableId).orElse(null);
+        }
+
+        List<Marcacion> marcacionList;
+        if (usuarioId != null && fechaInicio != null && fechaFin != null) {
+            marcacionList = service.findByUsuarioIdAndFechaRange(usuarioId, fechaInicio, fechaFin, 0,
+                    Integer.MAX_VALUE);
+        } else if (usuarioId != null) {
+            marcacionList = service.findByUsuarioId(usuarioId, 0, Integer.MAX_VALUE);
+        } else {
+            marcacionList = service.findAll2();
+        }
+
+        return impresionService.imprimirMarcaciones(marcacionList, fechaInicio, fechaFin, usuarioReporte);
     }
 
 }

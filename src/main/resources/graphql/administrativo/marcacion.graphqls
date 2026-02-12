@@ -55,6 +55,7 @@ extend type Query {
     marcacion(id: ID!): Marcacion
     marcacionesPorUsuario(usuarioId: ID!, fechaInicio: String, fechaFin: String, page: Int, size: Int): [Marcacion]
     marcaciones(page: Int, size: Int): [Marcacion]
+    imprimirReporteMarcaciones(usuarioId: ID, fechaInicio: String, fechaFin: String, usuarioResponsableId: ID): String
 }
 
 extend type Mutation {

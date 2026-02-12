@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="marcaciones" pageWidth="595" pageHeight="842" columnWidth="535" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="4eedbb89-b4f6-4469-9ab6-f642a1688cf7">
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+	<parameter name="logo" class="java.lang.String"/>
+	<parameter name="fechaReporte" class="java.lang.String"/>
+	<parameter name="usuario" class="java.lang.String"/>
+	<parameter name="fechaInicio" class="java.lang.String"/>
+	<parameter name="fechaFin" class="java.lang.String"/>
+	<field name="id" class="java.lang.Long"/>
+	<field name="usuario" class="java.lang.String"/>
+	<field name="sucursalEntrada" class="java.lang.String"/>
+	<field name="fechaEntrada" class="java.lang.String"/>
+	<field name="sucursalSalida" class="java.lang.String"/>
+	<field name="fechaSalida" class="java.lang.String"/>
+	<title>
+		<band height="90" splitType="Stretch">
+			<image hAlign="Center">
+				<reportElement x="0" y="0" width="120" height="69" uuid="94883631-a913-43e2-b182-ab8d77d0181e"/>
+				<imageExpression><![CDATA[$P{logo}]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="150" y="10" width="300" height="20" uuid="c0c9f5b8-f0b7-4503-9428-2d7be98aa4e6"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="16" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Reporte de Marcaciones]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="150" y="40" width="70" height="12" uuid="4c91f639-4e4b-4bb2-965f-156eaed3a91c"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Fecha Inicio:]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="220" y="40" width="90" height="12" uuid="7e8c778b-0e6c-4e04-a4c7-de5b9f3403f6"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{fechaInicio}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="320" y="40" width="60" height="12" uuid="186428af-f5d4-4389-8c9b-cadb45c47034"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Fecha Fin:]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="380" y="40" width="90" height="12" uuid="09ce4efd-2860-4013-b158-a83a2fdcc811"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{fechaFin}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="150" y="55" width="70" height="12" uuid="b61efa33-0ea0-4fed-9d78-a768de817cb3"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Generado en:]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="220" y="55" width="90" height="12" uuid="379411ab-dcc4-4b01-8c84-9d828909f10a"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{fechaReporte}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="320" y="55" width="60" height="12" uuid="a1b2c3d4-e5f6-7890-1234-567890abcdef"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Responsable:]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="380" y="55" width="175" height="12" uuid="b2c3d4e5-f6a7-8901-2345-678901bcdef0"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{usuario}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="20">
+			<rectangle>
+				<reportElement x="0" y="0" width="555" height="18" forecolor="#9E9E9E" backcolor="#EDEDED" uuid="3006dae7-3228-4979-bda4-adc9f14e4ac7"/>
+			</rectangle>
+			<staticText>
+				<reportElement x="5" y="2" width="30" height="15" uuid="08dc1fb0-906c-4084-8135-fb291fb2a7c4"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[ID]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="40" y="2" width="110" height="15" uuid="61b9db21-b68f-456d-a027-5b8a5fa7752a"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Funcionario]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="155" y="2" width="80" height="15" uuid="4ca7cd51-a227-419c-9ba8-9f7386c52e03"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Suc. Entrada]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="240" y="2" width="85" height="15" uuid="8d7bc123-4567-8901-2345-6789abcdef01"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Entrada]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="330" y="2" width="80" height="15" uuid="ae2f5ab0-6c66-490d-849d-3d1e68574946"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Suc. Salida]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="415" y="2" width="85" height="15" uuid="418ff70c-c807-4714-b37f-c153978430c1"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Salida]]></text>
+			</staticText>
+
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="18">
+			<textField>
+				<reportElement x="5" y="1" width="30" height="15" uuid="b1abaa13-7b48-4130-859a-eeeaacbc0cf6"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{id}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="40" y="1" width="110" height="15" uuid="1edb9846-46a2-4dc9-9a9d-9d3be5113abd"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{usuario}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="155" y="1" width="80" height="15" uuid="2f9144d6-83b8-4f1f-acf7-24d09ab3ce73"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{sucursalEntrada}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="240" y="1" width="85" height="15" uuid="9a8b7c6d-5e4f-3210-9876-543210fedcba"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fechaEntrada}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="330" y="1" width="80" height="15" uuid="8fb71000-51f6-46e1-bb3f-48fa3024a081"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{sucursalSalida}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="415" y="1" width="85" height="15" uuid="16091ed4-b9c8-4869-94d0-c0732c680193"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fechaSalida}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="16" width="555" height="1" forecolor="#E0E0E0" uuid="4ec0e0b5-8031-4e33-8c82-3efd769d8371"/>
+			</line>
+		</band>
+	</detail>
+</jasperReport>

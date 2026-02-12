@@ -1,6 +1,8 @@
 package com.franco.dev.service.impresion;
 
+import com.franco.dev.domain.administrativo.Marcacion;
 import com.franco.dev.domain.empresarial.Sucursal;
+import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.TimbradoDetalleService;
@@ -14,17 +16,27 @@ import com.franco.dev.utilitarios.print.escpos.Style;
 import com.franco.dev.utilitarios.print.escpos.barcode.QRCode;
 import com.franco.dev.utilitarios.print.escpos.image.*;
 import com.franco.dev.utilitarios.print.output.PrinterOutputStream;
+import com.franco.dev.utilitarios.DateUtils;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import net.sf.jasperreports.engine.*;
+import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.NumberFormat;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Locale;
+import java.util.*;
 
 import static com.franco.dev.service.utils.PrintingService.resize;
 
@@ -746,4 +758,70 @@ public class ImpresionService {
 //        }
 //        return ok;
 //    }
+
+    public String imprimirMarcaciones(List<Marcacion> marcacionList, String fechaInicio, String fechaFin,
+            Usuario usuario) {
+        try {
+            List<MarcacionItemDto> marcacionItemDtoList = new ArrayList<>();
+            for (Marcacion marcacion : marcacionList) {
+                MarcacionItemDto dto = new MarcacionItemDto();
+                dto.setId(marcacion.getId());
+                String nickname = marcacion.getUsuario() != null && marcacion.getUsuario().getNickname() != null
+                        ? marcacion.getUsuario().getNickname()
+                        : "";
+                dto.setUsuario(nickname);
+
+                dto.setSucursalEntrada(marcacion.getSucursalEntrada() != null
+                        ? marcacion.getSucursalEntrada().getNombre()
+                        : "");
+                dto.setFechaEntrada(marcacion.getFechaEntrada() != null
+                        ? DateUtils.toString(marcacion.getFechaEntrada())
+                        : "");
+                dto.setSucursalSalida(marcacion.getSucursalSalida() != null
+                        ? marcacion.getSucursalSalida().getNombre()
+                        : null);
+                dto.setFechaSalida(marcacion.getFechaSalida() != null
+                        ? DateUtils.toString(marcacion.getFechaSalida())
+                        : null);
+                marcacionItemDtoList.add(dto);
+            }
+
+            ClassPathResource resource = new ClassPathResource("reports/marcaciones.jrxml");
+            InputStream inputStream = resource.getInputStream();
+            JasperReport jasperReport = JasperCompileManager.compileReport(inputStream);
+            JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(marcacionItemDtoList);
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put("fechaInicio", fechaInicio != null ? fechaInicio : "");
+            parameters.put("fechaFin", fechaFin != null ? fechaFin : "");
+            parameters.put("fechaReporte", DateUtils.toString(LocalDateTime.now()));
+            parameters.put("usuario",
+                    usuario != null && usuario.getPersona() != null ? usuario.getPersona().getNombre() : "");
+            parameters.put("logo", imageService.storageDirectoryPath + File.separator + "logo.png");
+            JasperPrint jasperPrint1 = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+            byte[] pdfBytes = JasperExportManager.exportReportToPdf(jasperPrint1);
+            String base64String = java.util.Base64.getEncoder().encodeToString(pdfBytes);
+            return base64String;
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            return null;
+        } catch (JRException e) {
+            e.printStackTrace();
+            return null;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class MarcacionItemDto {
+        private Long id;
+        private String usuario;
+        private String sucursalEntrada;
+        private String fechaEntrada;
+        private String sucursalSalida;
+        private String fechaSalida;
+    }
 }

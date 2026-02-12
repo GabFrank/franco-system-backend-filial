@@ -76,6 +76,18 @@ public class UsuarioGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         return service.count();
     }
 
+    public Boolean verificarUsuario(String nickname) {
+        return service.existsByNickname(nickname);
+    }
+
+    public List<Usuario> usuariosActivos() {
+        return service.findAllActivos();
+    }
+
+    public UsuarioSimilitudResult usuarioPorEmbedding(List<Double> embedding, List<Integer> excludeIds) {
+        return service.findUsuarioByEmbedding(embedding, excludeIds);
+    }
+
     public List<String> getUsuarioImages(Long id, String type) {
         List<String> images = new java.util.ArrayList<>();
         Usuario usuario = service.findById(id).orElse(null);

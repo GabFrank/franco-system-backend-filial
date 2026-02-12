@@ -11,6 +11,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.franco.dev.graphql.personas.UsuarioSimilitudResult;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -100,5 +101,77 @@ public class UsuarioService extends CrudService<Usuario, UsuarioRepository> {
             usuarioList.add(save(u));
         }
         return usuarioList;
+    }
+
+    /**
+     * Obtiene todos los usuarios activos ordenados por nombre
+     */
+    public List<Usuario> findAllActivos() {
+        return repository.findAllActivos();
+    }
+
+    /**
+     * Busca un usuario por similitud de embedding facial (reconocimiento facial).
+     * Retorna el usuario con mayor similitud si supera el umbral de 0.75.
+     */
+    public UsuarioSimilitudResult findUsuarioByEmbedding(List<Double> embeddingInfo,
+            List<Integer> excludeIds) {
+        List<Usuario> usuarios = repository.findAllActivos();
+        Usuario bestMatch = null;
+        Double maxSimilarity = -1.0;
+
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+        for (Usuario usuario : usuarios) {
+            if (excludeIds != null && !excludeIds.isEmpty() && excludeIds.contains(usuario.getId().intValue())) {
+                continue;
+            }
+
+            if (usuario.getPersona() != null && usuario.getPersona().getEmbedding() != null) {
+                try {
+                    List<Double> storedEmbedding = mapper.readValue(usuario.getPersona().getEmbedding(),
+                            new com.fasterxml.jackson.core.type.TypeReference<List<Double>>() {
+                            });
+
+                    Double similarity = cosineSimilarity(embeddingInfo, storedEmbedding);
+
+                    if (similarity > maxSimilarity) {
+                        maxSimilarity = similarity;
+                        bestMatch = usuario;
+                    }
+                } catch (Exception e) {
+                    org.slf4j.LoggerFactory.getLogger(UsuarioService.class)
+                            .warn("Error parsing embedding for user {}: {}", usuario.getId(), e.getMessage());
+                }
+            }
+        }
+
+        if (bestMatch != null) {
+            if (maxSimilarity > 0.75) {
+                return new UsuarioSimilitudResult(bestMatch, maxSimilarity);
+            }
+        }
+        return null;
+    }
+
+    private Double cosineSimilarity(List<Double> v1, List<Double> v2) {
+        if (v1 == null || v2 == null || v1.size() != v2.size()) {
+            return 0.0;
+        }
+
+        double dotProduct = 0.0;
+        double normA = 0.0;
+        double normB = 0.0;
+
+        for (int i = 0; i < v1.size(); i++) {
+            dotProduct += v1.get(i) * v2.get(i);
+            normA += Math.pow(v1.get(i), 2);
+            normB += Math.pow(v2.get(i), 2);
+        }
+
+        if (normA == 0 || normB == 0)
+            return 0.0;
+
+        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 }

@@ -10,6 +10,11 @@ type Usuario {
     inicioSesion: InicioSesion
 }
 
+type UsuarioSimilitud {
+    usuario: Usuario
+    similitud: Float
+}
+
 input UsuarioInput {
     id:ID
     personaId: Int
@@ -26,7 +31,10 @@ extend type Query {
     usuarios(page:Int = 0, size:Int = 10):[Usuario]!
     countUsuario:Int
     usuarioSearch(texto:String):[Usuario]
+    verificarUsuario(texto:String): Boolean
     getUsuarioImages(id:ID!, type:String!):[String]
+    usuariosActivos:[Usuario]
+    usuarioPorEmbedding(embedding: [Float], excludeIds: [Int]): UsuarioSimilitud
 }
 
 extend type Mutation {
