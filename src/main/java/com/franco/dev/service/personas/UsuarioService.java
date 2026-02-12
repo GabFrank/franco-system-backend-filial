@@ -47,8 +47,23 @@ public class UsuarioService extends CrudService<Usuario, UsuarioRepository> {
 
 
     public List<Usuario> findbyIdOrPersona(String texto) {
-        texto = texto.replace(' ', '%');
-        return repository.findbyIdOrPersona(texto.toUpperCase());
+      texto = texto != null ? texto.trim() : "";
+
+      if (!texto.isEmpty() && texto.chars().allMatch(Character::isDigit)) {
+          try {
+              Long personaId = Long.valueOf(texto);
+              Usuario usuario = repository.findByPersonaId(personaId);
+              if (usuario != null) {
+                  List<Usuario> resultado = new ArrayList<>();
+                  resultado.add(usuario);
+                  return resultado;
+              }
+          } catch (NumberFormatException ignored) {
+          }
+      }
+
+      texto = texto.replace(' ', '%');
+      return repository.findbyIdOrPersona(texto.toUpperCase());
     }
 
     public List<Role> getRoles(Long id) {
