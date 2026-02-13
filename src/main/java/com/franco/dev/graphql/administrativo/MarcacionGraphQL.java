@@ -44,11 +44,14 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         return service.findById(id);
     }
 
-    public List<Marcacion> marcaciones(Integer page, Integer size) {
+    public List<Marcacion> marcaciones(String fechaInicio, String fechaFin, Integer page, Integer size) {
         if (page == null)
             page = 0;
         if (size == null)
             size = 10;
+        if (fechaInicio != null && fechaFin != null) {
+            return service.findByFechaRange(fechaInicio, fechaFin, page, size);
+        }
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }

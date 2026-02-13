@@ -38,6 +38,11 @@ public class MarcacionService extends CrudService<Marcacion, MarcacionRepository
         return repository.findByUsuarioIdAndFechaRange(usuarioId, fechaInicio, fechaFin, pageable);
     }
 
+    public List<Marcacion> findByFechaRange(String fechaInicio, String fechaFin, Integer page, Integer size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return repository.findByFechaRange(fechaInicio, fechaFin, pageable);
+    }
+
     public List<Marcacion> findBySucursalEntradaId(Long sucursalId) {
         return repository.findBySucursalEntradaId(sucursalId);
     }
