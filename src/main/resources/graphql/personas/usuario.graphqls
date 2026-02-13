@@ -43,7 +43,7 @@ extend type Mutation {
 
     deleteUsuario(id:ID!):Boolean!
     
-    saveUserImage(id:ID!, type:String!, image:String!):Boolean!
+    saveUsuarioImage(id:ID!, type:String!, image:String!, embedding: [Float]):Boolean
 }
 
 
