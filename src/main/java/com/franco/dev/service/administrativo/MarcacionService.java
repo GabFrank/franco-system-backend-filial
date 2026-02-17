@@ -12,6 +12,7 @@ import com.franco.dev.domain.administrativo.Jornada;
 import com.franco.dev.domain.administrativo.enums.EstadoJornada;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
@@ -27,18 +28,23 @@ public class MarcacionService extends CrudService<Marcacion, MarcacionRepository
         return repository;
     }
 
-    public List<Marcacion> findByUsuarioId(Long usuarioId, Integer page, Integer size) {
+    public Page<Marcacion> findAllPaged(Integer page, Integer size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return repository.findAll(pageable);
+    }
+
+    public Page<Marcacion> findByUsuarioId(Long usuarioId, Integer page, Integer size) {
         Pageable pageable = PageRequest.of(page, size);
         return repository.findByUsuarioId(usuarioId, pageable);
     }
 
-    public List<Marcacion> findByUsuarioIdAndFechaRange(Long usuarioId, String fechaInicio, String fechaFin,
+    public Page<Marcacion> findByUsuarioIdAndFechaRange(Long usuarioId, String fechaInicio, String fechaFin,
             Integer page, Integer size) {
         Pageable pageable = PageRequest.of(page, size);
         return repository.findByUsuarioIdAndFechaRange(usuarioId, fechaInicio, fechaFin, pageable);
     }
 
-    public List<Marcacion> findByFechaRange(String fechaInicio, String fechaFin, Integer page, Integer size) {
+    public Page<Marcacion> findByFechaRange(String fechaInicio, String fechaFin, Integer page, Integer size) {
         Pageable pageable = PageRequest.of(page, size);
         return repository.findByFechaRange(fechaInicio, fechaFin, pageable);
     }

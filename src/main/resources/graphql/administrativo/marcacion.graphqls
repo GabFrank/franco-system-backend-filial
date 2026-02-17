@@ -23,6 +23,17 @@ type Marcacion {
     codigo: String
 }
 
+type MarcacionPage {
+    getTotalPages: Int
+    getTotalElements: Int
+    getNumberOfElements: Int
+    isFirst: Boolean
+    isLast: Boolean
+    hasNext: Boolean
+    hasPrevious: Boolean
+    getContent: [Marcacion]
+}
+
 input MarcacionInput {
     id: ID
     usuarioId: ID
@@ -53,8 +64,8 @@ enum TipoMarcacion {
 
 extend type Query {
     marcacion(id: ID!): Marcacion
-    marcacionesPorUsuario(usuarioId: ID!, fechaInicio: String, fechaFin: String, page: Int, size: Int): [Marcacion]
-    marcaciones(fechaInicio: String, fechaFin: String, page: Int, size: Int): [Marcacion]
+    marcacionesPorUsuario(usuarioId: ID!, fechaInicio: String, fechaFin: String, page: Int, size: Int): MarcacionPage
+    marcaciones(fechaInicio: String, fechaFin: String, page: Int, size: Int): MarcacionPage
     imprimirReporteMarcaciones(usuarioId: ID, fechaInicio: String, fechaFin: String, usuarioResponsableId: ID): String
 }
 

@@ -10,8 +10,7 @@ import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -44,7 +43,7 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         return service.findById(id);
     }
 
-    public List<Marcacion> marcaciones(String fechaInicio, String fechaFin, Integer page, Integer size) {
+    public Page<Marcacion> marcaciones(String fechaInicio, String fechaFin, Integer page, Integer size) {
         if (page == null)
             page = 0;
         if (size == null)
@@ -52,11 +51,10 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         if (fechaInicio != null && fechaFin != null) {
             return service.findByFechaRange(fechaInicio, fechaFin, page, size);
         }
-        Pageable pageable = PageRequest.of(page, size);
-        return service.findAll(pageable);
+        return service.findAllPaged(page, size);
     }
 
-    public List<Marcacion> marcacionesPorUsuario(Long usuarioId, String fechaInicio, String fechaFin, Integer page,
+    public Page<Marcacion> marcacionesPorUsuario(Long usuarioId, String fechaInicio, String fechaFin, Integer page,
             Integer size) {
         if (page == null)
             page = 0;
@@ -175,9 +173,9 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         List<Marcacion> marcacionList;
         if (usuarioId != null && fechaInicio != null && fechaFin != null) {
             marcacionList = service.findByUsuarioIdAndFechaRange(usuarioId, fechaInicio, fechaFin, 0,
-                    Integer.MAX_VALUE);
+                    Integer.MAX_VALUE).getContent();
         } else if (usuarioId != null) {
-            marcacionList = service.findByUsuarioId(usuarioId, 0, Integer.MAX_VALUE);
+            marcacionList = service.findByUsuarioId(usuarioId, 0, Integer.MAX_VALUE).getContent();
         } else {
             marcacionList = service.findAll2();
         }
