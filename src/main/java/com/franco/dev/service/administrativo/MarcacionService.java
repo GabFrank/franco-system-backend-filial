@@ -170,10 +170,6 @@ public class MarcacionService extends CrudService<Marcacion, MarcacionRepository
                     if (ultimaAyer.getEstado() == EstadoJornada.INCOMPLETO) {
                         if (ultimaAyer.getTurno() == com.franco.dev.domain.administrativo.enums.Turno.MADRUGADA) {
                             fechaJornada = ayer;
-                        } else if (fechaReferencia.toLocalTime().isBefore(java.time.LocalTime.of(7, 0))) {
-                            // Si marca salida antes de las 7am y tiene jornada abierta ayer, probablemente
-                            // es de ayer
-                            fechaJornada = ayer;
                         }
                     }
                 }
@@ -189,16 +185,11 @@ public class MarcacionService extends CrudService<Marcacion, MarcacionRepository
                 boolean crearNueva = false;
 
                 if (lastJornada.getEstado() == EstadoJornada.NORMAL || lastJornada.getMarcacionSalida() != null) {
-                    // Si la última jornada ya está cerrada, creamos una nueva solo si es una marca
-                    // de ENTRADA
-                    // O si es una marca que viene con fecha de entrada (nueva sesion)
+
                     if (marcacion.getTipo() == com.franco.dev.domain.administrativo.enums.TipoMarcacion.ENTRADA
                             || marcacion.getFechaEntrada() != null) {
                         crearNueva = true;
                     } else {
-                        // Es una SALIDA pero la jornada ya está cerrada. Podria ser una correccion de
-                        // la cerrada?
-                        // Por ahora usamos la última para evitar crear jornadas vacias
                         jornada = lastJornada;
                     }
                 } else {
