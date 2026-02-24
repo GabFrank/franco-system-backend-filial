@@ -1,10 +1,12 @@
 package com.franco.dev.domain.personas;
 
+import com.franco.dev.config.Identifiable;
 import com.franco.dev.domain.empresarial.Cargo;
 import com.franco.dev.domain.empresarial.Sucursal;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -29,11 +31,13 @@ import java.util.List;
 @NoArgsConstructor
 @Entity
 @Table(name = "funcionario", schema = "personas")
-public class Funcionario implements Serializable {
+public class Funcionario implements Identifiable<Long> {
 
     private static final long serialVersionUID = 1L;
 
     @Id
+    @GenericGenerator(name = "assigned-identity", strategy = "com.franco.dev.config.AssignedIdentityGenerator")
+    @GeneratedValue(generator = "assigned-identity", strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -73,7 +77,8 @@ public class Funcionario implements Serializable {
 
     @Column(name = "creado_en")
     private LocalDateTime creadoEn;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "horario_id", nullable = true)
+    private com.franco.dev.domain.administrativo.Horario horario;
 }
-
-
-

@@ -74,4 +74,7 @@ public class Marcacion implements Serializable {
     private Long autorizacion;
 
     private String codigo;
+
+    @Transient
+    private Boolean esSalidaAlmuerzo;
 }

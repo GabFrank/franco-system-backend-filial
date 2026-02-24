@@ -55,6 +55,7 @@ input MarcacionInput {
     
     codigo: String
     embedding: [Float]
+    esSalidaAlmuerzo: Boolean
 }
 
 enum TipoMarcacion {

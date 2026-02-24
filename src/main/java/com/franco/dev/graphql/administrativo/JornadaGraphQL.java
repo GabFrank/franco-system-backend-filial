@@ -25,7 +25,10 @@ public class JornadaGraphQL implements GraphQLQueryResolver {
         return service.findById(id);
     }
 
-    public List<Jornada> jornadas(Integer page, Integer size) {
+    public List<Jornada> jornadas(String fechaInicio, String fechaFin, Integer page, Integer size) {
+        if (fechaInicio != null && fechaFin != null) {
+            return service.findByFechaRange(fechaInicio, fechaFin);
+        }
         if (page == null)
             page = 0;
         if (size == null)

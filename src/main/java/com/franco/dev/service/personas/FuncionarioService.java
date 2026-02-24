@@ -15,14 +15,17 @@ public class FuncionarioService extends CrudService<Funcionario, FuncionarioRepo
 
     private final FuncionarioRepository repository;
 
-
     @Override
     public FuncionarioRepository getRepository() {
         return repository;
     }
 
-    public Funcionario findByPersonaId(Long id){
+    public Funcionario findByPersonaId(Long id) {
         return repository.findByPersonaId(id);
+    }
+
+    public Funcionario findByUsuarioId(Long id) {
+        return repository.findByUsuarioId(id);
     }
 
     public List<Funcionario> findByPersonaNombre(String texto) {
@@ -33,7 +36,7 @@ public class FuncionarioService extends CrudService<Funcionario, FuncionarioRepo
 
     @Override
     public Funcionario save(Funcionario entity) {
-        if(entity.getId()==null){
+        if (entity.getId() == null) {
             entity.setCreadoEn(LocalDateTime.now());
             entity.setActivo(true);
         }

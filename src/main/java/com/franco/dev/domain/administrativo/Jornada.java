@@ -10,6 +10,7 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Data
 @Entity
@@ -39,6 +40,14 @@ public class Jornada implements Serializable {
     @JoinColumn(name = "salida_id")
     private Marcacion marcacionSalida;
 
+    @OneToOne
+    @JoinColumn(name = "marcacion_salida_almuerzo_id")
+    private Marcacion marcacionSalidaAlmuerzo;
+
+    @OneToOne
+    @JoinColumn(name = "marcacion_entrada_almuerzo_id")
+    private Marcacion marcacionEntradaAlmuerzo;
+
     @Column(name = "minutos_trabajados")
     private Long minutosTrabajados = 0L;
 
@@ -47,6 +56,28 @@ public class Jornada implements Serializable {
 
     @Column(name = "minutos_llegada_tardia")
     private Long minutosLlegadaTardia = 0L;
+
+    @Column(name = "minutos_llegada_tardia_almuerzo")
+    private Long minutosLlegadaTardiaAlmuerzo = 0L;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "turno")
+    private com.franco.dev.domain.administrativo.enums.Turno turno;
+
+    @Column(name = "hora_entrada_horario")
+    private LocalTime horaEntradaHorario;
+
+    @Column(name = "hora_salida_horario")
+    private LocalTime horaSalidaHorario;
+
+    @Column(name = "inicio_descanso_horario")
+    private LocalTime inicioDescansoHorario;
+
+    @Column(name = "fin_descanso_horario")
+    private LocalTime finDescansoHorario;
+
+    @Column(name = "tolerancia_minutos_horario")
+    private Integer toleranciaMinutosHorario;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 30)

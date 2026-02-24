@@ -26,4 +26,5 @@ public class MarcacionInput {
 
     private String codigo;
     private java.util.List<Double> embedding;
+    private Boolean esSalidaAlmuerzo;
 }

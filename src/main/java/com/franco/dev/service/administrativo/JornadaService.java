@@ -28,7 +28,11 @@ public class JornadaService extends CrudService<Jornada, JornadaRepository> {
         return repository.findByUsuarioIdAndFechaRange(usuarioId, fechaInicio, fechaFin);
     }
 
-    public Optional<Jornada> findByUsuarioIdAndFecha(Long usuarioId, String fecha) {
+    public List<Jornada> findByFechaRange(String fechaInicio, String fechaFin) {
+        return repository.findByFechaRange(fechaInicio, fechaFin);
+    }
+
+    public List<Jornada> findByUsuarioIdAndFecha(Long usuarioId, String fecha) {
         return repository.findByUsuarioIdAndFecha(usuarioId, fecha);
     }
 

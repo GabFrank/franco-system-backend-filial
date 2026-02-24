@@ -138,6 +138,8 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
             e.setFechaSalida(LocalDateTime.parse(input.getFechaSalida(), formatter));
         }
 
+        e.setEsSalidaAlmuerzo(input.getEsSalidaAlmuerzo());
+
         return service.save(e);
     }
 
