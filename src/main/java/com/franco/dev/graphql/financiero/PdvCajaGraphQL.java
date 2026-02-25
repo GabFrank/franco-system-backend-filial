@@ -99,14 +99,19 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
             e.setConteoApertura(conteoService.findById(input.getConteoAperturaId()).orElse(null));
         if (input.getConteoCierreId() != null)
             e.setConteoCierre(conteoService.findById(input.getConteoCierreId()).orElse(null));
-        if (input.getMaletinId() != null) e.setMaletin(maletinService.findById(input.getMaletinId()).orElse(null));
+        if (input.getMaletinId() != null)
+            e.setMaletin(maletinService.findById(input.getMaletinId()).orElse(null));
         PdvCaja pdvCaja = service.saveAndSend(e, false);
         return pdvCaja;
     }
 
-    //    public List<PdvCaja> pdvCajasSearch(String texto){
-    //        return service.findByAll(texto);
-    //    }
+    public PdvCaja transferirCaja(Long cajaId, Long usuarioId) {
+        return service.transferirCaja(cajaId, usuarioId);
+    }
+
+    // public List<PdvCaja> pdvCajasSearch(String texto){
+    // return service.findByAll(texto);
+    // }
 
     public Boolean deletePdvCaja(Long id, Long sucId) {
         return service.deleteById(id);
@@ -124,11 +129,12 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         return service.imprimirBalance(id, printerName, local);
     }
 
-
-    public Page<PdvCaja> cajasWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId, String fechaInicio, String fechaFin, Long sucId, Boolean verificado, int page, int size) {
+    public Page<PdvCaja> cajasWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId,
+            String fechaInicio, String fechaFin, Long sucId, Boolean verificado, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        //store result in variable and then return it
-        Page<PdvCaja> pdvCajaPage = service.findAllWithFilters(cajaId, estado, maletinId, cajeroId, fechaInicio, fechaFin, sucId, verificado, pageable);
+        // store result in variable and then return it
+        Page<PdvCaja> pdvCajaPage = service.findAllWithFilters(cajaId, estado, maletinId, cajeroId, fechaInicio,
+                fechaFin, sucId, verificado, pageable);
         return pdvCajaPage;
     }
 }
