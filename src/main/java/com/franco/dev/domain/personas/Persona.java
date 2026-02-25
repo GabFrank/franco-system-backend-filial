@@ -37,6 +37,9 @@ public class Persona implements Serializable {
     private String imagenes;
     private String email;
 
+    @Column(name = "embedding", columnDefinition = "text")
+    private String embedding;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ciudad_id", nullable = true)
     @JsonIgnore
@@ -50,6 +53,3 @@ public class Persona implements Serializable {
     @Column(name = "creado_en")
     private LocalDateTime creadoEn;
 }
-
-
-

@@ -13,6 +13,7 @@ type Funcionario {
     usuario: Usuario
     activo: Boolean
     nickname: String
+    horario: Horario
 }
 
 input FuncionarioInput {
@@ -29,6 +30,7 @@ input FuncionarioInput {
     sucursalId: Int
     usuarioId: Int
     activo: Boolean
+    horarioId: Int
 }
 
 extend type Query {

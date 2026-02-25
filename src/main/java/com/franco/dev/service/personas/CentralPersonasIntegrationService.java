@@ -39,6 +39,35 @@ public class CentralPersonasIntegrationService {
         return executePost(url, request, Cliente.class);
     }
 
+    public byte[] downloadImage(Long personaId) {
+        String url = buildUrl(PERSONA_ENDPOINT + "/" + personaId + "/imagen");
+        return executeGet(url, byte[].class);
+    }
+
+    /**
+     * Sincroniza solo el nombre de archivo de imagen con el servidor central.
+     * NO transfiere el archivo físico, solo actualiza la referencia en la BD del
+     * servidor central.
+     * 
+     * @param personaId    ID de la persona
+     * @param nombreImagen Nombre del archivo de imagen
+     * @return true si la sincronización fue exitosa, false si falló
+     */
+    public boolean syncImageMetadata(Long personaId, String nombreImagen) {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CentralPersonasIntegrationService.class);
+
+        try {
+            String url = buildUrl(PERSONA_ENDPOINT + "/" + personaId + "/imagen-metadata");
+            com.franco.dev.service.personas.dto.ImagenMetadataRequest request = new com.franco.dev.service.personas.dto.ImagenMetadataRequest();
+            request.setNombreImagen(nombreImagen);
+
+            restTemplate.postForEntity(url, request, Void.class);
+            return true;
+        } catch (RestClientException e) {
+            return false;
+        }
+    }
+
     private PersonaSyncRequest buildPersonaRequest(Persona persona) {
         PersonaSyncRequest request = new PersonaSyncRequest();
         request.setId(persona.getId());
@@ -103,16 +132,15 @@ public class CentralPersonasIntegrationService {
             baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
         }
         String fullUrl = baseUrl + endpoint;
-        // Log para debugging
         org.slf4j.LoggerFactory.getLogger(CentralPersonasIntegrationService.class)
-            .debug("Construyendo URL para servidor central: {}", fullUrl);
+                .debug("Construyendo URL para servidor central: {}", fullUrl);
         return fullUrl;
     }
 
     private <T, R> R executePost(String url, T body, Class<R> responseType) {
         org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CentralPersonasIntegrationService.class);
         log.debug("Intentando sincronizar con servidor central. URL: {}, Tipo: {}", url, responseType.getSimpleName());
-        
+
         try {
             ResponseEntity<R> response = restTemplate.postForEntity(url, body, responseType);
             if (response.getBody() == null) {
@@ -122,9 +150,25 @@ public class CentralPersonasIntegrationService {
             log.debug("Sincronización exitosa con servidor central. URL: {}", url);
             return response.getBody();
         } catch (RestClientException e) {
-            log.error("Error al conectar con el servidor central. URL: {}, Error: {}", url, e.getMessage(), e);
             throw new IllegalStateException("Error la conectar con el servidor central: " + e.getMessage(), e);
         }
     }
-}
 
+    private <R> R executeGet(String url, Class<R> responseType) {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CentralPersonasIntegrationService.class);
+        log.debug("Intentando descargar de servidor central. URL: {}", url);
+
+        try {
+            ResponseEntity<R> response = restTemplate.getForEntity(url, responseType);
+            if (response.getBody() == null) {
+                log.warn("Respuesta vacía al descargar imagen. URL: {}", url);
+                return null;
+            }
+            log.debug("Descarga exitosa de servidor central. URL: {}", url);
+            return response.getBody();
+        } catch (RestClientException e) {
+            // Servidor central no disponible es una situación esperada en modo offline
+            return null;
+        }
+    }
+}

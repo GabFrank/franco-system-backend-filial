@@ -128,7 +128,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         if (input.getVueltoId() != null) {
             e.setVuelto(vueltoService.findById(input.getVueltoId()).orElse(null));
         }
-        if(input.getFechaConcluido() != null) {
+        if (input.getFechaConcluido() != null) {
             e.setFechaConcluido(stringToDate(input.getFechaConcluido()));
         }
         return service.saveAndSend(e, false);
@@ -173,12 +173,14 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
             venta = ventaGraphQL.saveVenta2(ventaInput);
             if (venta != null) {
                 // Solo guardar items si la venta es nueva
-                // Esto evita re-guardar items existentes que causan duplicación de movimientos de stock
+                // Esto evita re-guardar items existentes que causan duplicación de movimientos
+                // de stock
                 if (isVentaNueva && ventaItemInputList != null && ventaItemInputList.size() > 0) {
                     ventaItemGraphQL.saveVentaItemList(ventaItemInputList, venta.getId());
                 }
                 // Si la venta ya existe, no re-guardamos los items para evitar duplicados
-                // Si en el futuro se necesita actualizar items existentes, se debe hacer de forma explícita
+                // Si en el futuro se necesita actualizar items existentes, se debe hacer de
+                // forma explícita
                 // y verificando cambios antes de guardar
             }
 
@@ -213,16 +215,16 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                         try {
                             // Crear factura legal con documento electrónico integrado
                             // Para delivery no hay CobroDetalle, por lo que se pasa null (sin descuentos)
-                            com.franco.dev.domain.financiero.FacturaLegal facturaLegalConDE = 
-                                facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, null);
-                            
+                            com.franco.dev.domain.financiero.FacturaLegal facturaLegalConDE = facturaService
+                                    .crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, null);
+
                             if (facturaLegalConDE == null) {
                                 throw new GraphQLException("Problema al crear factura legal");
                             }
-                            
+
                             // Imprimir el ticket/factura con los datos del DE
                             facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName);
-                            
+
                         } catch (Exception e) {
                             e.printStackTrace();
                             throw new GraphQLException("Problema al generar factura electrónica: " + e.getMessage());
