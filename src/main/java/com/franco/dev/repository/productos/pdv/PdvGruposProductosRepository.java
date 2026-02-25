@@ -1,6 +1,5 @@
 package com.franco.dev.repository.productos.pdv;
 
-import com.franco.dev.domain.productos.pdv.PdvGrupo;
 import com.franco.dev.domain.productos.pdv.PdvGruposProductos;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +18,10 @@ public interface PdvGruposProductosRepository extends HelperRepository<PdvGrupos
             "where CAST(pg.id as text) like %?1% or UPPER(g.descripcion) like %?1% or UPPER(p.descripcion) like %?1%")
     public List<PdvGruposProductos> findByAll(String texto);
 
+    @Query(value = "select pg.* from productos.pdv_grupos_productos pg " +
+            "join productos.producto p on p.id = pg.producto_id " +
+            "where pg.grupo_id = ?1 " +
+            "and EXISTS (SELECT 1 FROM productos.presentacion pres WHERE pres.producto_id = p.id AND pres.activo = true)", nativeQuery = true)
     public List<PdvGruposProductos> findByPdvGrupoId(Long id);
 
     public List<PdvGruposProductos> findByProductoId(Long id);
