@@ -1,0 +1,27 @@
+type Zona {
+    id:ID!
+    sector: Sector
+    descripcion: String
+    activo: Boolean
+    usuario: Usuario
+}
+
+input ZonaInput {
+    id:ID
+    sectorId: Int
+    descripcion: String
+    activo: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    zona(id:ID!):Zona
+    zonas(page:Int = 0, size:Int = 10):[Zona]!
+    countZona: Int
+}
+
+extend type Mutation {
+    saveZona(zona:ZonaInput!):Zona!
+    deleteZona(id:ID!):Boolean!
+}
+

@@ -1,0 +1,35 @@
+#type ProductoProveedor {
+#    id:ID!
+#    producto: Producto
+#    proveedor: Proveedor
+#    pedido: Pedido
+#    usuario: Usuario
+#}
+#
+#input ProductoProveedorInput {
+#    id:ID
+#    productoId: Int
+#    proveedorId: Int
+#    pedidoId: Int
+#    usuarioId: Int
+#}
+#
+#extend type Query {
+#    productoProveedor(id:ID!):ProductoProveedor
+#    productoProveedores(page:Int = 0, size:Int = 10):[ProductoProveedor]!
+#    countProductoProveedor: Int
+#}
+#
+#extend type Mutation {
+#    saveProductoProveedor(productoProveedor:ProductoProveedorInput!):ProductoProveedor!
+#    deleteProductoProveedor(id:ID!):Boolean!
+#}
+#
+#enum TipoConservacion {
+#    ENFRIABLE,
+#    NO_ENFRIABLE,
+#    REFRIGERABLE,
+#    CONGELABLE
+#}
+#
+

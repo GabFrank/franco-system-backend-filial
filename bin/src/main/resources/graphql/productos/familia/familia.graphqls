@@ -1,0 +1,36 @@
+type Familia {
+    id:ID!
+    nombre: String
+    descripcion: String
+    activo: Boolean
+    subfamilias: [Subfamilia]
+    creadoEn: Date
+    usuario: Usuario
+    icono: String
+    posicion: Int
+}
+
+input FamiliaInput {
+    id: ID
+    nombre: String
+    descripcion: String
+    activo: Boolean
+    creadoEn: Date
+    usuarioId: ID
+    icono: String
+    posicion: Int
+
+}
+
+extend type Query {
+    familia(id:ID!):Familia
+    familias(page:Int = 0, size:Int = 10):[Familia]!
+    countFamilia: Int
+    familiaSearch(texto:String):[Familia]
+}
+
+extend type Mutation {
+    saveFamilia(familia:FamiliaInput!):Familia!
+    deleteFamilia(id:ID!):Boolean!
+}
+

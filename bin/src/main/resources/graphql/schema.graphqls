@@ -1,0 +1,24 @@
+scalar Date
+
+schema {
+    query: Query
+    mutation: Mutation
+    subscription: Subscription
+}
+
+type Query {
+
+}
+
+type Mutation {
+
+}
+
+type Subscription {
+
+}
+
+type Pageable {
+    getPageNumber: Int
+    getPageSize: Int
+}

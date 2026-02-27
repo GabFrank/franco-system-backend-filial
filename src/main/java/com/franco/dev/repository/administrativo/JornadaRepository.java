@@ -1,17 +1,22 @@
 package com.franco.dev.repository.administrativo;
 
 import com.franco.dev.domain.administrativo.Jornada;
+import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface JornadaRepository extends HelperRepository<Jornada, Long> {
+public interface JornadaRepository extends HelperRepository<Jornada, EmbebedPrimaryKey> {
 
     default Class<Jornada> getEntityClass() {
         return Jornada.class;
     }
+
+    @Query("SELECT MAX(m.id) FROM Jornada m WHERE m.sucursalId = :sucursalId")
+    Long findMaxId(@Param("sucursalId") Long sucursalId);
 
     List<Jornada> findByUsuarioId(Long usuarioId);
 

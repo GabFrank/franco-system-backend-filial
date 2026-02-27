@@ -1,0 +1,33 @@
+type NotaRecepcionItem {
+    id:ID!,
+    notaRecepcion: NotaRecepcion
+    pedidoItem: PedidoItem
+    creadoEn: Date,
+    usuario: Usuario
+}
+
+input NotaRecepcionItemInput {
+    id:ID
+    notaRecepcionId: Int
+    pedidoItemId: Int
+    creadoEn: Date,
+    usuarioId: Int
+}
+
+extend type Query {
+    notaRecepcionItem(id:ID!):NotaRecepcionItem
+    notaRecepcionItemList(page:Int = 0, size:Int = 10):[NotaRecepcionItem]!
+    notaRecepcionItemListPorNotaRecepcionId(id:ID!):[NotaRecepcionItem]
+    countNotaRecepcionItem: Int
+
+    buscarSobrantes(id:ID): [NotaRecepcionItem]
+}
+
+extend type Mutation {
+    saveNotaRecepcionItem(NotaRecepcionItem:NotaRecepcionItemInput!):NotaRecepcionItem!
+    deleteNotaRecepcionItem(id:ID!):Boolean!
+    adicionarItens(id:ID, notaRecepcionItemInputList: [NotaRecepcionItemInput]): [NotaRecepcionItem]
+    removerItens(id:ID, notaRecepcionItemInputList: [NotaRecepcionItemInput]): Boolean
+}
+
+

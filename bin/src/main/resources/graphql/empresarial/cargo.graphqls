@@ -1,0 +1,33 @@
+type Cargo {
+    id:ID!
+    nombre: String
+    descripcion: String
+    supervisadoPor: Cargo
+    sueldoBase: Float
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input CargoInput {
+    id:ID
+    nombre: String
+    descripcion: String
+    supervisadoPorId: Int
+    sueldoBase: Float
+    usuarioId: Int
+}
+
+extend type Query {
+    cargo(id:ID!):Cargo
+    cargos(page:Int = 0, size:Int = 10):[Cargo]!
+    countCargo: Int
+    cargosSearch(texto:String):[Cargo]
+
+}
+
+extend type Mutation {
+
+    saveCargo(cargo:CargoInput!):Cargo!
+    deleteCargo(id:ID!):Boolean!
+}
+

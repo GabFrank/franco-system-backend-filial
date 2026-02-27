@@ -1,0 +1,37 @@
+type ProductoIngrediente {
+    id: ID!
+    ingrediente: Ingrediente
+    producto: Producto
+    cantidad: Float
+    extra: Boolean
+    precio: Float
+    adicional: Boolean
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input ProductoIngredienteInput {
+    id: ID
+    ingredienteId: Int
+    productoId: Int
+    cantidad: Float
+    costo: Boolean
+    adicional: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    productoIngrediente(id:ID!):ProductoIngrediente
+    productoIngredientes(page:Int = 0, size:Int = 10):[ProductoIngrediente]!
+    countProductoIngrediente: Int
+    productoIngredientePorProductoId(id:ID!):[ProductoIngrediente]
+    productoIngredientePorIngredienteId(id:ID!):[ProductoIngrediente]
+    productoIngredienteSearch(texto:String):[ProductoIngrediente]
+}
+
+extend type Mutation {
+    saveProductoIngrediente(productoIngrediente:ProductoIngredienteInput!):ProductoIngrediente!
+    deleteProductoIngrediente(id:ID!):Boolean!
+}
+
+

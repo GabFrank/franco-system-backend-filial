@@ -1,0 +1,34 @@
+type SencilloDetalle {
+    id:ID!
+    sencillo: Sencillo
+    moneda: Moneda
+    cambio: Cambio
+    cantidad: Float
+    creadoEn: Date
+    usuario: Usuario
+    sucursalId: Int
+}
+
+input SencilloDetalleInput {
+    id:ID
+    sencilloId: Int
+    monedaId: Int
+    cambioId: Int
+    cantidad: Float
+    creadoEn: Date
+    usuarioId: Int
+    sucursalId: Int
+}
+
+extend type Query {
+    sencilloDetalle(id:ID!, sucId: ID):SencilloDetalle
+    sencilloDetalles(page:Int = 0, size:Int = 10, sucId: ID):[SencilloDetalle]!
+    countSencilloDetalle: Int
+    sencilloDetalleListPorSencilloId(id:ID!, sucId: ID):[SencilloDetalle]
+}
+
+extend type Mutation {
+    saveSencilloDetalle(sencilloDetalle:SencilloDetalleInput!):SencilloDetalle!
+    deleteSencilloDetalle(id:ID!, sucId: ID):Boolean!
+}
+

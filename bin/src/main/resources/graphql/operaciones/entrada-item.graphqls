@@ -1,0 +1,35 @@
+type EntradaItem {
+    id:ID!
+    entrada: Entrada
+    producto: Producto
+    presentacion: Presentacion
+    observacion: String
+    cantidad: Float
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input EntradaItemInput {
+    id:ID
+    entradaId: Int
+    productoId: Int
+    presentacionId: Int
+    observacion: String
+    cantidad: Float
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    entradaItem(id:ID!):EntradaItem
+    entradaItems(page:Int = 0, size:Int = 10):[EntradaItem]!
+    entradaItemsPorEntradaId(id:ID!):[EntradaItem]
+    countEntradaItem: Int
+}
+
+extend type Mutation {
+    saveEntradaItem(entradaItem:EntradaItemInput!):EntradaItem!
+    deleteEntradaItem(id:ID!):Boolean!
+}
+
+

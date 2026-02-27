@@ -1,0 +1,32 @@
+type Sencillo {
+    id:ID!
+    responsable: Funcionario
+    entrada: Boolean
+    autorizadoPor: Funcionario
+    observacion: String
+    creadoEn: Date
+    usuario: Usuario
+    sucursalId: Int
+}
+
+input SencilloInput {
+    id:ID
+    reponsableId: Int
+    entrada: Boolean
+    autorizadoPorId: Int
+    observacion: String
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    sencillo(id:ID!, sucId: ID):Sencillo
+    sencillos(page:Int = 0, size:Int = 10, sucId: ID):[Sencillo]!
+    countSencillo: Int
+}
+
+extend type Mutation {
+    saveSencillo(sencillo:SencilloInput!):Sencillo!
+    deleteSencillo(id:ID!, sucId: ID):Boolean!
+}
+

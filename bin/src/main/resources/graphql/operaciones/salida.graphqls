@@ -1,0 +1,44 @@
+type Salida {
+    id:ID!
+    responsableCarga: Usuario
+    sucursal: Sucursal
+    tipoSalida: TipoSalida
+    observacion: String
+    creadoEn: Date
+    usuario: Usuario
+    activo: Boolean
+    salidaItemList: [SalidaItem]
+}
+
+input SalidaInput {
+    id:Int
+    responsableCargaId: Int
+    sucursalId: Int
+    tipoSalida: TipoSalida
+    observacion: String
+    creadoEn: Date
+    activo: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    salida(id:ID!):Salida
+    salidas(page:Int = 0, size:Int = 10):[Salida]!
+    countSalida: Int
+    salidaByFecha(inicio: String, fin: String):[Salida]
+}
+
+extend type Mutation {
+    saveSalida(salida:SalidaInput!):Salida!
+    deleteSalida(id:ID!):Boolean!
+    finalizarSalida(id:ID!):Boolean!
+}
+
+enum TipoSalida {
+    SUCURSAL, # LA SALIDA PROVIENE DE UNA TRANSFERENCIA DE SUCURSAL
+    VENCIDO, # LA SALIDA DE PRODUCTOS VENCIDOS
+    DETERIORADO, # LA SALIDA DE PRODUCTOS DETERIORADOS
+    AJUSTE, # LA ENTRADA ES UN AJUSTE DE STOCK
+}
+
+

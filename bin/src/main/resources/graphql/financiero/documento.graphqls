@@ -1,0 +1,27 @@
+type Documento {
+    id:ID!
+    descripcion: String
+    activo: Boolean
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input DocumentoInput {
+    id:ID
+    descipcion: String
+    activo: Boolean
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    documento(id:ID!):Documento
+    documentos(page:Int = 0, size:Int = 10):[Documento]!
+    countDocumento: Int
+}
+
+extend type Mutation {
+    saveDocumento(documento:DocumentoInput!):Documento!
+    deleteDocumento(id:ID!):Boolean!
+}
+

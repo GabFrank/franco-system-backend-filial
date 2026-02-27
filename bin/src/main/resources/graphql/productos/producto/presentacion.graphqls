@@ -1,0 +1,43 @@
+type Presentacion {
+    id:ID!
+    descripcion: String
+    activo: Boolean
+    principal: Boolean
+    producto: Producto
+    tipoPresentacion: TipoPresentacion
+    cantidad: Float
+    creadoEn: Date
+    imagenPrincipal: String
+    usuario: Usuario
+    codigos: [Codigo]
+    precios: [PrecioPorSucursal]
+    codigoPrincipal: Codigo
+    precioPrincipal: PrecioPorSucursal
+}
+
+input PresentacionInput {
+    id:Int
+    descripcion: String
+    activo: Boolean
+    principal: Boolean
+    productoId: Int
+    tipoPresentacionId: Int
+    cantidad: Float
+    usuarioId: Int
+}
+
+extend type Query {
+    presentacion(id:ID!):Presentacion
+    presentaciones(page:Int = 0, size:Int = 10):[Presentacion]!
+    countPresentacion: Int
+    presentacionSearch(texto:String):[Presentacion]
+    presentacionesPorProductoId(id:Int):[Presentacion]
+}
+
+extend type Mutation {
+    savePresentacion(presentacion:PresentacionInput!):Presentacion!
+    deletePresentacion(id:ID!):Boolean!
+    saveImagenPresentacion(image: String!, filename: String!): Boolean!
+
+}
+

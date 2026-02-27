@@ -1,0 +1,62 @@
+type Pedido {
+    id:ID
+    proveedor: Proveedor
+    vendedor: Vendedor
+    fechaDeEntrega: Date
+    formaPago: FormaPago
+    estado: PedidoEstado
+    moneda: Moneda
+    plazoCredito: Int
+    creadoEn: Date
+    usuario: Usuario
+    descuento: Float
+    pedidoItens: [PedidoItem]
+    valorTotal: Float
+    notaRecepcionList: [NotaRecepcion]
+    compra: Compra
+}
+
+input PedidoInput {
+    id:ID
+    proveedorId: Int
+    vendedorId: Int
+    fechaDeEntrega: Date
+    formaPagoId: Int
+    estado: PedidoEstado
+    monedaId: Int
+    plazoCredito: Int
+    creadoEn: Date
+    usuarioId: Int
+    descuento: Int
+    valorTotal: Float
+    pedidoItemInputList: [PedidoItemInput]
+}
+
+extend type Query {
+    pedido(id:ID!):Pedido
+    pedidos(page:Int = 0, size:Int = 10):[Pedido]!
+    filterPedidos(estado: PedidoEstado, sucursalId: Int, inicio: String, fin: String, proveedorId: Int, vendedorId: Int, formaPagoId: Int, productoId: Int):[Pedido]
+    countPedido: Int
+}
+
+extend type Mutation {
+    savePedido(pedido:PedidoInput!):Pedido!
+    deletePedido(id:ID!):Boolean!
+}
+
+enum PedidoEstado {
+    ABIERTO,
+    ACTIVO,
+    MODIFICADO,
+    CANCELADO,
+    REPROGRAMADO,
+    EN_RECEPCION_NOTA,
+    EN_RECEPCION_MERCADERIA,
+    EN_VERIFICACION,
+    EN_VERIFICACION_SOLICITUD_AUTORIZACION,
+    VERFICADO_SIN_MODIFICACION,
+    VERFICADO_CON_MODIFICACION,
+    CONCLUIDO
+}
+
+

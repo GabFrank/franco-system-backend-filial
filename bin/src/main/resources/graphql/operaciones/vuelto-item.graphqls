@@ -1,0 +1,31 @@
+type VueltoItem {
+    id:ID!
+    vuelto: Vuelto
+    moneda: Moneda
+    valor: Float
+    creadoEn: Date
+    usuario: Usuario
+    sucursalId: Int
+}
+
+input VueltoItemInput {
+    id:ID
+    vueltoId: Int
+    valor: Float
+    monedaId: Int
+    usuarioId: Int
+    sucursalId: Int
+}
+
+extend type Query {
+    vueltoItem(id:ID!, sucId: ID):VueltoItem
+    vueltoItems(page:Int = 0, size:Int = 10, sucId: ID):[VueltoItem]!
+    countVueltoItem: Int
+}
+
+extend type Mutation {
+    saveVueltoItem(vueltoItem:VueltoItemInput!):VueltoItem!
+    deleteVueltoItem(id:ID!, sucId: ID):Boolean!
+}
+
+

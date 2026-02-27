@@ -1,0 +1,45 @@
+type Necesidad {
+    id:ID!
+    sucursal: Sucursal
+    nombreSucursal: String
+    fecha: Date
+    estado: NecesidadEstado
+    creadoEn: Date
+    usuario: Usuario
+    nombreUsuario: String
+    necesidadItens: [NecesidadItem]
+}
+
+input NecesidadInput {
+    id:ID
+    sucursalId: Int
+    fecha: Date
+    estado: NecesidadEstado
+    usuarioId: Int
+}
+
+extend type Query {
+    necesidad(id:ID!):Necesidad
+    necesidades(page:Int = 0, size:Int = 10):[Necesidad]!
+    necesidadesSearch(texto:String):[Necesidad]
+    necesidadesPorFecha(start:String, end:String):[Necesidad]!
+    countNecesidad: Int
+}
+
+extend type Mutation {
+    saveNecesidad(necesidad:NecesidadInput!):Necesidad!
+    deleteNecesidad(id:ID!):Boolean!
+}
+
+enum NecesidadEstado {
+    ACTIVO,
+    MODIFICADO,
+    CANCELADO,
+    EN_VERIFICACION,
+    EN_VERIFICACION_SOLICITUD_AUTORIZACION,
+    VERFICADO_SIN_MODIFICACION,
+    VERFICADO_CON_MODIFICACION,
+    CONCLUIDO
+}
+
+

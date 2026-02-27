@@ -1,0 +1,80 @@
+type Transferencia {
+    id:ID!
+    sucursalOrigen: Sucursal
+    sucursalDestino: Sucursal
+    estado: TransferenciaEstado
+    tipo: TipoTransferencia
+    observacion: String
+    usuarioPreTransferencia: Usuario
+    usuarioPreparacion: Usuario
+    usuarioTransporte: Usuario
+    usuarioRecepcion: Usuario    isOrigen: Boolean
+    isDestino: Boolean
+    etapa: EtapaTransferencia
+    creadoEn: Date
+    transferenciaItemList: [TransferenciaItem]
+}
+
+input TransferenciaInput {
+    id:ID
+    sucursalOrigenId: Int
+    sucursalDestinoId: Int
+    estado: TransferenciaEstado
+    tipo: TipoTransferencia
+    observacion: String
+    isOrigen: Boolean
+    isDestino: Boolean
+    etapa: EtapaTransferencia
+    usuarioPreTransferenciaId: Int
+    usuarioPreparacionId: Int
+    usuarioTransporteId: Int
+    usuarioId: Int
+    usuarioRecepcionId: Int
+    creadoEn: Date
+}
+
+extend type Query {
+    transferencia(id:ID!):Transferencia
+    transferencias(page:Int = 0, size:Int = 10):[Transferencia]!
+    transferenciaPorFecha(inicio:String, fin:String):[Transferencia]!
+    countTransferencia: Int
+}
+
+extend type Mutation {
+    saveTransferencia(transferencia:TransferenciaInput!):Transferencia!
+    deleteTransferencia(id:ID!):Boolean!
+    avanzarEtapaTransferencia(id:ID!, etapa: EtapaTransferencia!, usuarioId:ID!):Boolean!
+}
+
+enum TransferenciaEstado {
+    ABIERTA,
+    EN_ORIGEN,
+    EN_TRANSITO,
+    EN_DESTINO,
+    FALTA_REVISION_EN_ORIGEN,
+    FALTA_REVISION_EN_DESTINO,
+    CONLCUIDA,
+    CANCELADA
+}
+
+enum TipoTransferencia {
+    MANUAL,
+    AUTOMATICA,
+    MIXTA
+}
+
+enum EtapaTransferencia {
+    PRE_TRANSFERENCIA_CREACION,
+    PRE_TRANSFERENCIA_ORIGEN,
+    PREPARACION_MERCADERIA,
+    PREPARACION_MERCADERIA_CONCLUIDA,
+    TRANSPORTE_VERIFICACION,
+    TRANSPORTE_EN_CAMINO,
+    TRANSPORTE_EN_DESTINO,
+    RECEPCION_EN_VERIFICACION,
+    RECEPCION_CONCLUIDA
+}
+
+
+
+

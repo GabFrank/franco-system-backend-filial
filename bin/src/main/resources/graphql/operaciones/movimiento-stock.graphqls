@@ -1,0 +1,65 @@
+type MovimientoStock {
+    id:ID!
+    producto: Producto
+    tipoMovimiento: TipoMovimiento
+    referencia: Int
+    creadoEn: Date
+    usuario: Usuario
+    cantidad: Float
+    estado: Boolean
+    sucursalId: Int
+    sucursal: Sucursal
+    proveedor: Proveedor
+}
+
+input MovimientoStockInput {
+    id:ID!
+    productoId: Int
+    tipoMovimiento: TipoMovimiento
+    referencia: Int
+    usuarioId: Int
+    cantidad: Float
+    estado: Boolean
+    sucursalId: Int
+}
+
+type MovimientoStockPage {
+    getTotalPages: Int
+    getTotalElements: Int
+    getNumberOfElements: Int
+    isFirst: Boolean
+    isLast: Boolean
+    hasNext: Boolean
+    hasPrevious: Boolean
+    getContent: [MovimientoStock]
+    getPageable: Pageable
+}
+
+type StockPorTipoMovimientoDto {
+    tipoMovimiento: TipoMovimiento
+    stock: Float
+}
+
+extend type Query {
+    movimientoStock(id:ID!, sucId: ID):MovimientoStock
+    movimientosStock(page:Int = 0, size:Int = 10, sucId: ID):[MovimientoStock]!
+    countMovimientoStock: Int
+    movimientoStockByFecha(inicio: String, fin: String, sucId: ID):[MovimientoStock]
+    stockPorProducto(id:ID!, sucId: ID):Float
+    stockByProductoIdExeptMovimientoId(productoId: ID!, movimientoId: ID!, sucursalId: ID!): Float
+    stockByProductoIdAntesDeFecha(productoId: ID!, sucursalId: ID!, fecha: String!): Float
+    findMovimientoStockByFilters(inicio: String, fin: String, sucursalList: [Int], productoId: Int,tipoMovimientoList: [TipoMovimiento],usuarioId: Int, page: Int, size: Int): MovimientoStockPage
+    findStockWithFilters(inicio: String, fin: String, sucursalList: [Int], productoId: Int,tipoMovimientoList: [TipoMovimiento],usuarioId: Int): Float
+    findStockPorTipoMovimiento(inicio: String, fin: String, sucursalList: [Int], productoId: Int,tipoMovimientoList: [TipoMovimiento],usuarioId: Int): [StockPorTipoMovimientoDto]
+}
+
+extend type Mutation {
+    saveMovimientoStock(movimientoStock:MovimientoStockInput!):MovimientoStock!
+    deleteMovimientoStock(id:ID!, sucId: ID):Boolean!
+}
+
+enum TipoMovimiento {
+    COMPRA, VENTA, DEVOLUCION, DESCARTE, AJUSTE, TRANSFERENCIA, CALCULO, ENTRADA, SALIDA
+}
+
+

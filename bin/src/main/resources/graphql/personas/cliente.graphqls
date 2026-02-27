@@ -1,0 +1,97 @@
+type Cliente {
+    id:ID!
+    tipo: TipoCliente
+    persona: Persona
+    nombre: String
+    documento: String
+    credito: Float
+    creadoEn: Date
+    contactos: [Contacto]
+    usuario: Usuario
+    sucursal: Sucursal
+    codigo: String
+    saldo: Float
+    tributa: Boolean
+    verificadoSet: Boolean
+    tipoContribuyente: Int
+}
+
+input ClienteInput {
+    id:ID
+    tipo: TipoCliente
+    personaId: Int
+    nombre: String
+    credito: Float
+    direccion: String
+    creadoEn: Date
+    documento: String
+    usuarioId: Int
+    saldo: Float
+    codigo: String
+    sucursalId: Int
+    tributa: Boolean
+    verificadoSet: Boolean
+    tipoContribuyente: Int
+}
+
+type ConsultaRucResponse {
+    procesamientoCorrecto: Boolean
+    mensajeProcesamiento: String
+    ruc: String
+    dv: String
+    estado: String
+    nombre: String
+    nombreFantasia: String
+    telefono: String
+    direccion: String
+    codigoEstablecimiento: Int
+    validacionCorrecta: Boolean
+    mensajeValidacion: String
+}
+
+type ClienteDatosBasicos {
+    ruc: String
+    razonSocial: String
+    direccion: String
+    estado: String
+    estadoContribuyente: String
+    tributa: Boolean
+    tipoContribuyente: Int
+    telefono: String
+    nombreFantasia: String
+    dv: String
+}
+
+type ClienteResponse {
+    cliente: Cliente
+    datosBasicos: ClienteDatosBasicos
+    warnings: [String]!
+    errores: [String]!
+    exito: Boolean
+}
+
+extend type Query {
+    cliente(id:ID!):Cliente
+    clientePorPersonaId(id:ID): Cliente
+    clientePorPersona(texto:String): [Cliente]
+    clientePorPersonaDocumento(texto:String): Cliente
+    clientePorPersonaDocumentoDetallado(texto:String): ClienteResponse
+    clientePorTelefono(texto:String): [Cliente]
+    clientes(page:Int = 0, size:Int = 10):[Cliente]!
+    countCliente: Int
+    consultaRuc(ruc: String): ConsultaRucResponse
+}
+
+extend type Mutation {
+    saveCliente(cliente:ClienteInput!):Cliente!
+    deleteCliente(id:ID!):Boolean!
+}
+
+enum TipoCliente {
+    NORMAL,
+    ASOCIADO,
+    CONVENIADO,
+    FUNCIONARIO,
+    VIP
+}
+

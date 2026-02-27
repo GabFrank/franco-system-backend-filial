@@ -1,0 +1,89 @@
+type TransferenciaItem {
+    id:ID!
+    transferencia: Transferencia
+    presentacionPreTransferencia: Presentacion
+    presentacionPreparacion: Presentacion
+    presentacionTransporte: Presentacion
+    presentacionRecepcion: Presentacion
+    cantidadPreTransferencia: Float
+    cantidadPreparacion: Float
+    cantidadTransporte: Float
+    cantidadRecepcion: Float
+    observacionPreTransferencia: String
+    observacionPreparacion: String
+    observacionTransporte: String
+    observacionRecepcion: String
+    vencimientoPreTransferencia: Date
+    vencimientoPreparacion: Date
+    vencimientoTransporte: Date
+    vencimientoRecepcion: Date
+    motivoModificacionPreTransferencia: TransferenciaItemMotivoModificacion
+    motivoModificacionPreparacion: TransferenciaItemMotivoModificacion
+    motivoModificacionTransporte: TransferenciaItemMotivoModificacion
+    motivoModificacionRecepcion: TransferenciaItemMotivoModificacion
+    motivoRechazoPreTransferencia: TransferenciaItemMotivoRechazo
+    motivoRechazoPreparacion: TransferenciaItemMotivoRechazo
+    motivoRechazoTransporte: TransferenciaItemMotivoRechazo
+    motivoRechazoRecepcion: TransferenciaItemMotivoRechazo
+    activo: Boolean
+    poseeVencimiento: Boolean
+    usuario: Usuario
+    creadoEn: Date
+}
+
+input TransferenciaItemInput {
+    id:ID
+    transferenciaId: Int
+    presentacionPreTransferenciaId: Int
+    presentacionPreparacionId: Int
+    presentacionTransporteId: Int
+    presentacionRecepcionId: Int
+    cantidadPreTransferencia: Float
+    cantidadPreparacion: Float
+    cantidadTransporte: Float
+    cantidadRecepcion: Float
+    observacionPreTransferencia: String
+    observacionPreparacion: String
+    observacionTransporte: String
+    observacionRecepcion: String
+    vencimientoPreTransferencia: String
+    vencimientoPreparacion: String
+    vencimientoTransporte: String
+    vencimientoRecepcion: String
+    motivoModificacionPreTransferencia: TransferenciaItemMotivoModificacion
+    motivoModificacionPreparacion: TransferenciaItemMotivoModificacion
+    motivoModificacionTransporte: TransferenciaItemMotivoModificacion
+    motivoModificacionRecepcion: TransferenciaItemMotivoModificacion
+    motivoRechazoPreTransferencia: TransferenciaItemMotivoRechazo
+    motivoRechazoPreparacion: TransferenciaItemMotivoRechazo
+    motivoRechazoTransporte: TransferenciaItemMotivoRechazo
+    motivoRechazoRecepcion: TransferenciaItemMotivoRechazo
+    activo: Boolean
+    poseeVencimiento: Boolean
+    usuarioId: Int
+    creadoEn: Date
+}
+
+extend type Query {
+    transferenciaItem(id:ID!):TransferenciaItem
+    transferenciaItems(page:Int = 0, size:Int = 10):[TransferenciaItem]!
+#   transferenciaItemPorFecha(start:String, end:String):[TransferenciaItem]!
+}
+
+extend type Mutation {
+    saveTransferenciaItem(transferenciaItem:TransferenciaItemInput!):TransferenciaItem!
+    deleteTransferenciaItem(id:ID!):Boolean!
+}
+
+enum TransferenciaItemMotivoRechazo {
+    FALTA_PRODUCTO,
+    PRODUCTO_AVERIADO,
+    PRODUCTO_VENCIDO,
+    PRODUCTO_EQUIVOCADO
+}
+
+enum TransferenciaItemMotivoModificacion {
+    CANTIDAD_INCORRECTA,
+    VENCIMIENTO_INCORRECTO,
+    PRESENTACION_INCORRECTA
+}

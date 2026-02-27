@@ -1,0 +1,57 @@
+type Gasto {
+    id:ID!
+    caja: PdvCaja
+    responsable: Funcionario
+    tipoGasto: TipoGasto
+    autorizadoPor: Funcionario
+    observacion: String
+    creadoEn: Date
+    usuario: Usuario
+    gastoDetalleList: [GastoDetalle]
+    activo: Boolean
+    finalizado: Boolean
+    retiroGs: Float
+    retiroRs: Float
+    retiroDs: Float
+    vueltoGs: Float
+    vueltoRs: Float
+    vueltoDs: Float
+    sucursalVuelto: Sucursal
+    sucursalId: Int
+}
+
+input GastoInput {
+    id:ID
+    cajaId: Int
+    responsableId: Int
+    tipoGastoId: Int
+    autorizadoPorId: Int
+    observacion: String
+    creadoEn: Date
+    usuarioId: Int
+    retiroGs: Float
+    retiroRs: Float
+    retiroDs: Float
+    vueltoGs: Float
+    vueltoRs: Float
+    vueltoDs: Float
+    activo: Boolean
+    finalizado: Boolean
+    sucursalId: Int
+}
+
+extend type Query {
+    gasto(id:ID!, sucId: ID):Gasto
+    gastos(page:Int = 0, size:Int = 10, sucId: ID):[Gasto]!
+    countGasto: Int
+    gastosPorFecha(inicio:String, fin:String, sucId: ID):[Gasto]
+    gastosPorCajaId(id:ID!, sucId: ID):[Gasto]
+    reimprimirGasto(id:ID!, printerName: String, sucId: ID):Boolean
+}
+
+extend type Mutation {
+    saveGasto(entity:GastoInput!, printerName: String, local: String):Gasto!
+    saveVueltoGasto(id:ID!, valorGs:Float, valorRs:Float, valorDs:Float, sucId: ID):Gasto!
+    deleteGasto(id:ID!, sucId: ID):Boolean!
+}
+

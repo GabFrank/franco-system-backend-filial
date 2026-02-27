@@ -1,0 +1,32 @@
+type FormaPago {
+    id:ID!
+    descripcion: String
+    movimientoCaja: Boolean
+    activo: Boolean
+    autorizacion: Boolean
+    creadoEn: Date
+    cuentaBancaria: CuentaBancaria
+    usuario: Usuario
+}
+
+input FormaPagoInput {
+    id:Int
+    descripcion: String
+    movimientaCaja: Boolean
+    activo: Boolean
+    autorizacion: Boolean
+    cuentaBancariaId: Int
+    usuarioId: Int
+}
+
+extend type Query {
+    formaPago(id:ID!):FormaPago
+    formasPago(page:Int = 0, size:Int = 10):[FormaPago]!
+    countFormaPago: Int
+}
+
+extend type Mutation {
+    saveFormaPago(formaPago:FormaPagoInput!):FormaPago!
+    deleteFormaPago(id:ID!):Boolean!
+}
+

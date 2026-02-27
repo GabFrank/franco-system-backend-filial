@@ -1,0 +1,31 @@
+type Cobro {
+    id:ID
+    sucursalId: Int
+    creadoEn: Date,
+    usuario: Usuario,
+    totalGs: Float
+    cobroDetalleList: [CobroDetalle]
+    sucursalId: Int
+}
+
+input CobroInput {
+    id:ID
+    creadoEn: Date,
+    usuarioId: Int,
+    totalGs: Float
+    sucursalId: Int
+}
+
+extend type Query {
+    cobro(id:ID!, sucId: ID):Cobro
+    cobros(page:Int = 0, size:Int = 10, sucId: ID):[Cobro]!
+    countCobro: Int
+}
+
+extend type Mutation {
+#    saveCobro(cobro:CobroInput!):Cobro!
+    deleteCobro(id:ID!, sucId: ID):Boolean!
+}
+
+
+

@@ -1,0 +1,34 @@
+type Vendedor {
+    id:ID!
+    nombrePersona: String
+    persona: Persona
+    observacion: String
+    activo: Boolean
+    usuario: Usuario
+    proveedores: [Proveedor]
+}
+
+input VendedorInput {
+    id:ID,
+    proveedorId: Int
+    personaId: Int
+    activo: Boolean
+    observacion: String
+    usuarioId: Int
+}
+
+extend type Query {
+    vendedor(id:ID!):Vendedor
+    vendedoresSearchByPersona(texto:String):[Vendedor]
+    vendedores(page:Int = 0, size:Int = 10):[Vendedor]!
+    countVendedor:Int
+}
+
+extend type Mutation {
+    saveVendedor(vendedor:VendedorInput!):Vendedor!
+    deleteVendedor(id:ID!):Boolean!
+}
+
+
+
+

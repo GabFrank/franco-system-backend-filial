@@ -1,0 +1,28 @@
+type PrecioDelivery {
+    id: ID!
+    descripcion: String
+    valor: Float
+    activo: Boolean
+    usuario: Usuario
+}
+
+input PrecioDeliveryInput {
+    id: ID
+    valor: Float
+    descripcion: String
+    activo: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    deliveryPrecio(id:ID!):PrecioDelivery
+    deliveryPrecios(page:Int = 0, size:Int = 10):[PrecioDelivery]!
+    countPrecioDelivery: Int
+}
+
+extend type Mutation {
+    savePrecioDelivery(deliveryPrecio:PrecioDeliveryInput!):PrecioDelivery!
+    deletePrecioDelivery(id:ID!):Boolean!
+}
+
+

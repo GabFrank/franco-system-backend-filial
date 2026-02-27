@@ -1,0 +1,44 @@
+type Entrada {
+    id:ID!
+    responsableCarga: Usuario
+    sucursal: Sucursal
+    tipoEntrada: TipoEntrada
+    observacion: String
+    creadoEn: Date
+    usuario: Usuario
+    activo: Boolean
+    entradaItemList: [EntradaItem]
+}
+
+input EntradaInput {
+    id:Int
+    responsableCargaId: Int
+    sucursalId: Int
+    tipoEntrada: TipoEntrada
+    observacion: String
+    creadoEn: Date
+    activo: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    entrada(id:ID!):Entrada
+    entradas(page:Int = 0, size:Int = 10):[Entrada]!
+    countEntrada: Int
+    entradaByFecha(inicio: String, fin: String):[Entrada]
+    imprimirEntrada(id: ID!):Boolean
+}
+
+extend type Mutation {
+    saveEntrada(entrada:EntradaInput!):Entrada!
+    deleteEntrada(id:ID!):Boolean!
+    finalizarEntrada(id:ID!):Boolean!
+}
+
+enum TipoEntrada {
+    COMPRA, #LA ENTRADA PROVIENE DE UNA COMPRA
+    SUCURSAL, # LA ENTRADA PROVIENE DE UNA TRANSFERENCIA DE SUCURSAL
+    AJUSTE, # LA ENTRADA ES UN AJUSTE DE STOCK
+}
+
+

@@ -1,0 +1,7 @@
+# Spring Boot EnvironmentPostProcessor registration
+# This file registers custom EnvironmentPostProcessor implementations
+# that run early in the Spring Boot startup process
+
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.franco.dev.config.UserDevPropertiesEnvironmentPostProcessor
+

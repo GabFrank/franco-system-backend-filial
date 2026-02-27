@@ -1,0 +1,30 @@
+type Pais {
+    id:ID!
+    descripcion: String
+    codigo: String
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input PaisInput {
+    id:ID
+    descripcion: String
+    codigo: String
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    pais(id:ID!):Pais
+    paises(page:Int = 0, size:Int = 10):[Pais]!
+    countPais: Int
+    paisesSearch(texto:String):[Pais]
+
+}
+
+extend type Mutation {
+
+    savePais(pais:PaisInput!):Pais!
+    deletePais(id:ID!):Boolean!
+}
+

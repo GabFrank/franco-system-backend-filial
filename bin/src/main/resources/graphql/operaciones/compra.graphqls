@@ -1,0 +1,55 @@
+type Compra {
+    id:ID!
+    proveedor: Proveedor
+    pedido: Pedido
+    fecha: Date
+    estado: CompraEstado
+    formaPago: FormaPago
+    descuento: Float
+    creadoEn: Date
+    usuario: Usuario
+    compraItens: [CompraItem]
+}
+
+input CompraInput {
+    id:ID
+    proveedorId: Int
+    pedidoId: Int
+    fecha: Date
+    estado: CompraEstado
+    tipoBoleta: TipoBoleta
+    nroNota: String
+    formaPagoId: Int
+    valorParcial: Float
+    descuento: Float
+    valorTotal: Float
+    usuarioId: Int
+}
+
+extend type Query {
+    compra(id:ID!):Compra
+    compras(page:Int = 0, size:Int = 10):[Compra]!
+    countCompra: Int
+    comprasPorProducto(id:ID):[Compra]
+}
+
+extend type Mutation {
+    saveCompra(compra:CompraInput!):Compra!
+    deleteCompra(id:ID!):Boolean!
+}
+
+enum TipoBoleta {
+    LEGAL,
+    COMUN
+}
+
+enum CompraEstado {
+    ACTIVO, #// LA COMPRA FUE GUARDADA CON EXITO E INTERFIERE EN EL STOCK
+    CANCELADO, #// LA COMPRA FUE CANCELADA Y NO INTERFIERE EN EL STOCK
+    DEVOLVIDO, #// LA COMPRA FUE DEVOLVIDA Y NO INTERFIERE EN EL STOCK
+    EN_OBSERVACION, #// LA COMPRA FUE ENVIADA A OBSERVACION POR SOSPECHA DE ALGUNA IRREGULARIDAD
+    IRREGULAR, #// FUE DETECTADO ALGUNA IRREGULARIDAD EN LA COMPRA
+    PRE_COMPRA
+}
+
+

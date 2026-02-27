@@ -1,0 +1,36 @@
+type SalidaItem {
+    id:ID!
+    salida: Salida
+    producto: Producto
+    presentacion: Presentacion
+    observacion: String
+    cantidad: Float
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input SalidaItemInput {
+    id:ID
+    salidaId: Int
+    productoId: Int
+    presentacionId: Int
+    observacion: String
+    cantidad: Float
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    salidaItem(id:ID!):SalidaItem
+    salidaItems(page:Int = 0, size:Int = 10):[SalidaItem]!
+    countSalidaItem: Int
+    salidaItemsPorSalidaId(id:ID!):[SalidaItem]
+
+}
+
+extend type Mutation {
+    saveSalidaItem(salidaItem:SalidaItemInput!):SalidaItem!
+    deleteSalidaItem(id:ID!):Boolean!
+}
+
+

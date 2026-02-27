@@ -1,0 +1,66 @@
+type PedidoItem {
+    id:ID!
+    pedido: Pedido
+    producto: Producto
+    precioUnitario: Float
+    notaPedido: NotaPedido
+    descuentoUnitario: Float
+    bonificacion: Boolean
+    bonificacionDetalle: String
+    observacion: String
+    frio: Boolean
+    estado: PedidoItemEstado
+    vencimiento: Date
+    creadoEn: Date
+    usuario: Usuario
+    presentacion: Presentacion
+    cantidad: Float
+    valorTotal: Float
+    notaRecepcion: NotaRecepcion
+    compraItem: CompraItem
+}
+
+input PedidoItemInput {
+    id:ID
+    pedidoId: Int
+    productoId: Int
+    notaPedidoId: Int
+    cantidad: Float
+    precioUnitario: Float
+    descuentoUnitario: Float
+    bonificacion: Boolean
+    bonificacionDetalle: String
+    observacion: String
+    frio: Boolean
+    vencimiento: Date
+    estado: PedidoItemEstado
+    usuarioId: Int
+    presentacionId: Int
+    creadoEn: Date
+    valorTotal: Float
+    notaRecepcionId: Int
+}
+
+extend type Query {
+    pedidoItem(id:ID!):PedidoItem
+    pedidoItens(page:Int = 0, size:Int = 10):[PedidoItem]!
+    pedidoItensPorPedido(id:Int!):[PedidoItem]!
+    countPedidoItem: Int
+    pedidoItemPorPedidoIdSobrante(id:ID): [PedidoItem]
+}
+
+extend type Mutation {
+    savePedidoItem(pedidoItem:PedidoItemInput!):PedidoItem!
+    deletePedidoItem(id:ID!):Boolean!
+    updateNotaRecepcion(pedidoItemId: ID!, notaRecepcionId: ID): PedidoItem
+}
+
+enum PedidoItemEstado {
+    ACTIVO,
+    CANCELADO,
+    DEVOLUCION,
+    CONCLUIDO,
+    EN_FALTA
+}
+
+

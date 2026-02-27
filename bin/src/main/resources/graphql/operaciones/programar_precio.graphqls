@@ -1,0 +1,39 @@
+type ProgramarPrecio {
+    id:ID
+    precio: PrecioPorSucursal
+    momentoCambio: MomentoCambio
+    nuevoPrecio: Float
+    fechaCambio: Date
+    cantidad: Float
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input ProgramarPrecioInput {
+    id:ID
+    precioId: Int
+    momentoCambio: MomentoCambio
+    nuevoPrecio: Float
+    fechaCambio: Date
+    cantidad: Float
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    programarPrecio(id:ID!):ProgramarPrecio
+    programarPrecios(page:Int = 0, size:Int = 10):[ProgramarPrecio]!
+    countProgramarPrecio: Int
+}
+
+extend type Mutation {
+    saveProgramarPrecio(entity:ProgramarPrecioInput!):ProgramarPrecio!
+    deleteProgramarPrecio(id:ID!):Boolean!
+}
+
+enum MomentoCambio {
+INMEDIATO,EN_FECHA_INDICADA, AL_RECIBIR_COMPRA, AL_AUTORIZAR, AL_ALCANZAR_CANTIDAD
+}
+
+
+

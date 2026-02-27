@@ -1,0 +1,34 @@
+type Conteo {
+    id:ID!
+    sucursalId: Int
+    observacion: String
+    creadoEn: Date
+    usuario: Usuario
+    conteoMonedaList: [ConteoMoneda]
+    totalGs: Float
+    totalRs: Float
+    totalDs: Float
+}
+
+input ConteoInput {
+    id:ID
+    observacion: String
+    creadoEn: Date
+    usuarioId: Int
+    totalGs: Float
+    totalRs: Float
+    totalDs: Float
+    sucursalId: Int
+}
+
+extend type Query {
+    conteo(id:ID!, sucId: ID):Conteo
+    countConteo: Int
+    conteos(page:Int = 0, size:Int = 10, sucId: ID):[Conteo]!
+}
+
+extend type Mutation {
+    saveConteo(conteo:ConteoInput!, conteoMonedaInputList: [ConteoMonedaInput], cajaId: Int, apertura: Boolean):Conteo!
+    deleteConteo(id:ID!, sucId: ID):Boolean!
+}
+

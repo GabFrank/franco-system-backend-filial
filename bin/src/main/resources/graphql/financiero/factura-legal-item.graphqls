@@ -1,0 +1,40 @@
+type FacturaLegalItem {
+    id:ID!
+    presentacion: Presentacion
+    producto: Producto
+    facturaLegal:FacturaLegal
+    ventaItem:VentaItem
+    cantidad:Float
+    descripcion:String
+    precioUnitario:Float
+    total:Float
+    creadoEn: Date
+    usuario: Usuario
+    sucursalId: Int
+}
+
+input FacturaLegalItemInput {
+    id:ID
+    presentacionId: Int
+    productoId: Int
+    facturaLegalId:Int
+    ventaItemId:Int
+    cantidad:Float
+    descripcion:String
+    precioUnitario:Float
+    total:Float
+    usuarioId: Int
+    sucursalId: Int
+}
+
+extend type Query {
+    facturaLegalItem(id:ID!, sucId: ID):FacturaLegalItem
+    facturaLegalItens(page:Int = 0, size:Int = 10, sucId: ID):[FacturaLegalItem]!
+    countFacturaLegalItem: Int
+}
+
+extend type Mutation {
+    saveFacturaLegalItem(facturaLegalItem:FacturaLegalItemInput!):FacturaLegalItem!
+    deleteFacturaLegalItem(id:ID!, sucId: ID):Boolean!
+}
+

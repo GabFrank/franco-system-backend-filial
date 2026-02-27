@@ -39,8 +39,8 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
     @Autowired
     private ImpresionService impresionService;
 
-    public Optional<Marcacion> marcacion(Long id) {
-        return service.findById(id);
+    public Optional<Marcacion> marcacion(Long id, Long sucursalId) {
+        return service.findByIdAndSucursalId(id, sucursalId);
     }
 
     public Page<Marcacion> marcaciones(String fechaInicio, String fechaFin, Integer page, Integer size) {
@@ -106,8 +106,8 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         m.getConfiguration().setSkipNullEnabled(true);
         Marcacion e = new Marcacion();
 
-        if (input.getId() != null) {
-            Optional<Marcacion> existing = service.findById(input.getId());
+        if (input.getId() != null && input.getSucursalId() != null) {
+            Optional<Marcacion> existing = service.findByIdAndSucursalId(input.getId(), input.getSucursalId());
             if (existing.isPresent()) {
                 e = existing.get();
             } else {

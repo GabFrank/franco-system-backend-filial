@@ -1,0 +1,59 @@
+type VentaCredito {
+    id:ID!
+    sucursal: Sucursal
+    ventaId: Int
+    cliente: Cliente
+    tipoConfirmacion: TipoConfirmacion
+    cantidadCuotas: Int
+    valorTotal: Float
+    saldoTotal: Float
+    plazoEnDias: Int
+    interesPorDia: Float
+    interesMoraDia: Float
+    estado: EstadoVentaCredito
+    creadoEn: Date
+    usuario: Usuario
+    fechaCobro: Date
+}
+
+input VentaCreditoInput {
+    id:ID
+    sucursalId: Int
+    ventaId: Int
+    clienteId: Int
+    tipoConfirmacion: TipoConfirmacion
+    cantidadCuotas: Int
+    valorTotal: Float
+    saldoTotal: Float
+    plazoEnDias: Int
+    interesPorDia: Float
+    interesMoraDia: Float
+    estado: EstadoVentaCredito
+    usuarioId: Int
+    fechaCobro: String
+}
+
+enum TipoConfirmacion {
+    CONTRASENA,
+    PASSWORD,
+    QR,
+    LECTOR_HUELLAS,
+    FIRMA,
+    APP
+}
+
+extend type Query {
+    imprimirVentaCredito(id:ID!, sucId:ID!, printerName:String):Boolean
+}
+
+extend type Mutation {
+    cobrarVentaCredito(ventaCreditoInputList: [VentaCreditoInput], cobroList: [CobroDetalleInput]): Boolean
+}
+
+enum EstadoVentaCredito {
+    ABIERTO,
+    FINALIZADO,
+    EN_MORA,
+    INCOBRABLE
+}
+

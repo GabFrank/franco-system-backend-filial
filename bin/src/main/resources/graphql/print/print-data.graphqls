@@ -1,0 +1,15 @@
+type PrintData {
+    image: String
+}
+
+input ValeInput {
+    cantidad: Int
+    vale: Int
+    nombre: Int
+}
+
+extend type Query {
+    print(image: String):Boolean
+    printVale(entity: ValeInput): Boolean
+}
+

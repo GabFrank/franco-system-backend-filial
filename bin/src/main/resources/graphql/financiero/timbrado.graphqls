@@ -1,0 +1,18 @@
+type Timbrado {
+    id:ID!
+    razonSocial: String
+    ruc: String
+    numero: String
+    fechaInicio: Date
+    fechaFin: Date
+    activo: Boolean
+    creadoEn: Date
+    usuario: Usuario
+}
+
+extend type Query {
+    timbrado(id:ID!):Timbrado
+    timbrados(page:Int = 0, size:Int = 10):[Timbrado]!
+    countTimbrado: Int
+}
+

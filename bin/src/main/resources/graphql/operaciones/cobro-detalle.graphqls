@@ -1,0 +1,47 @@
+type CobroDetalle {
+    id:ID!
+    cobro: Cobro
+    moneda: Moneda
+    cambio: Float
+    formaPago: FormaPago
+    valor: Float
+    descuento: Boolean
+    aumento: Boolean
+    vuelto: Boolean
+    pago: Boolean
+    creadoEn: Date
+    usuario: Usuario
+    sucursalId: Int
+    identificadorTransaccion: String
+}
+
+input CobroDetalleInput {
+    id:ID
+    cobroId: Int
+    monedaId: Int
+    cambio: Float
+    formaPagoId: Int
+    valor: Float
+    descuento: Boolean
+    aumento: Boolean
+    vuelto: Boolean
+    pago: Boolean
+    creadoEn: Date
+    usuarioId: Int
+    sucursalId: Int
+    identificadorTransaccion: String
+}
+
+extend type Query {
+    cobroDetalle(id:ID!, sucId: ID):CobroDetalle
+    cobroDetalleList(page:Int = 0, size:Int = 10, sucId: ID):[CobroDetalle]!
+    countCobroDetalle: Int
+}
+
+extend type Mutation {
+    saveCobroDetalle(entity:CobroDetalleInput!):CobroDetalle!
+    saveCobroDetalleList(cobroDetalleList:[CobroDetalleInput]!):[CobroDetalle]!
+    deleteCobroDetalle(id:ID!, sucId: ID):Boolean!
+}
+
+

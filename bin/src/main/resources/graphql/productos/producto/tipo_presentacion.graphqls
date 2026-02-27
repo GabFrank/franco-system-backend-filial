@@ -1,0 +1,27 @@
+type TipoPresentacion {
+    id:ID!
+    descripcion: String
+    unico: Boolean
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input TipoPresentacionInput {
+    id:Int
+    descripcion: String
+    unico: Boolean
+    usuarioId: Int
+}
+
+extend type Query {
+    tipoPresentacion(id:ID!):TipoPresentacion
+    tiposPresentacion(page:Int = 0, size:Int = 10):[TipoPresentacion]!
+    countTipoPresentacion: Int
+    tipoPresentacionSearch(texto:String):[TipoPresentacion]
+}
+
+extend type Mutation {
+    saveTipoPresentacion(tipoPresentacion:TipoPresentacionInput!):TipoPresentacion!
+    deleteTipoPresentacion(id:ID!):Boolean!
+}
+

@@ -1,0 +1,1266 @@
+{
+	"Envelope": {
+		"Header": {
+			"__prefix": "env"
+		},
+		"Body": {
+			"rEnviConsDeResponse": {
+				"dFecProc": {
+					"__prefix": "ns2",
+					"__text": "2025-10-16T12:17:44-03:00"
+				},
+				"dCodRes": {
+					"__prefix": "ns2",
+					"__text": "0422"
+				},
+				"dMsgRes": {
+					"__prefix": "ns2",
+					"__text": "CDC encontrado"
+				},
+				"xContenDE": {
+					"rDE": {
+						"dVerFor": "150",
+						"DE": {
+							"dDVId": "7",
+							"dFecFirma": "2025-09-16T12:50:24",
+							"dSisFact": "1",
+							"gOpeDE": {
+								"iTipEmi": "1",
+								"dDesTipEmi": "Normal",
+								"dCodSeg": "264345451"
+							},
+							"gTimb": {
+								"iTiDE": "1",
+								"dDesTiDE": "Factura electrónica",
+								"dNumTim": "18270044",
+								"dEst": "001",
+								"dPunExp": "001",
+								"dNumDoc": "0000078",
+								"dFeIniT": "2025-08-29"
+							},
+							"gDatGralOpe": {
+								"dFeEmiDE": "2025-09-16T12:50:23",
+								"gOpeCom": {
+									"iTipTra": "1",
+									"dDesTipTra": "Venta de mercadería",
+									"iTImp": "1",
+									"dDesTImp": "IVA",
+									"cMoneOpe": "PYG",
+									"dDesMoneOpe": "Guarani"
+								},
+								"gEmis": {
+									"dRucEm": "80099482",
+									"dDVEmi": "5",
+									"iTipCont": "2",
+									"dNomEmi": "FRANCO AREVALOS S.A.",
+									"dDirEmi": "CALLE, PY 03 GENERAL ELIZARDO AQUINO",
+									"dNumCas": "0",
+									"cDepEmi": "18",
+									"dDesDepEmi": "CANINDEYU",
+									"cCiuEmi": "4738",
+									"dDesCiuEmi": "SALTO DEL GUAIRA",
+									"dTelEmi": "0982700027",
+									"dEmailE": "francoarevalos05@gmail.com",
+									"gActEco": [
+										{
+											"cActEco": "46304",
+											"dDesActEco": "COMERCIO AL POR MAYOR DE BEBIDAS"
+										},
+										{
+											"cActEco": "47112",
+											"dDesActEco": "COMERCIO AL POR MENOR EN MINI MERCADOS Y DESPENSAS"
+										}
+									]
+								},
+								"gDatRec": {
+									"iNatRec": "2",
+									"iTiOpe": "2",
+									"cPaisRec": "PRY",
+									"dDesPaisRe": "Paraguay",
+									"iTipIDRec": "5",
+									"dDTipIDRec": "Innominado",
+									"dNumIDRec": "0",
+									"dNomRec": "Sin Nombre"
+								}
+							},
+							"gDtipDE": {
+								"gCamFE": {
+									"iIndPres": "1",
+									"dDesIndPres": "Operación presencial"
+								},
+								"gCamCond": {
+									"iCondOpe": "1",
+									"dDCondOpe": "Contado",
+									"gPaConEIni": {
+										"iTiPago": "1",
+										"dDesTiPag": "Efectivo",
+										"dMonTiPag": "22000.0",
+										"cMoneTiPag": "PYG",
+										"dDMoneTiPag": "Guarani"
+									}
+								},
+								"gCamItem": [
+									{
+										"dCodInt": "001",
+										"dDesProSer": "HEINEKEN BOT 250 ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "43000.0",
+											"dTotBruOpeItem": "43000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "43000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "39091",
+											"dLiqIVAItem": "3909",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "002",
+										"dDesProSer": "Delivery",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "7000.0",
+											"dTotBruOpeItem": "7000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "7000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "6364",
+											"dLiqIVAItem": "636",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "003",
+										"dDesProSer": "HIELO MEDIANO",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "5000.0",
+											"dTotBruOpeItem": "5000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "5000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "4545",
+											"dLiqIVAItem": "455",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "004",
+										"dDesProSer": "CONTI ZERO GRAU BOT 600ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "39000.0",
+											"dTotBruOpeItem": "39000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "39000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "35455",
+											"dLiqIVAItem": "3545",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "005",
+										"dDesProSer": "HEINEKEN BOT 250 ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "2",
+										"gValorItem": {
+											"dPUniProSer": "8000.0",
+											"dTotBruOpeItem": "16000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "16000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "14545",
+											"dLiqIVAItem": "1455",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "006",
+										"dDesProSer": "COPAZA VASO PLASTICO 770 ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "2",
+										"gValorItem": {
+											"dPUniProSer": "1000.0",
+											"dTotBruOpeItem": "2000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "2000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "1818",
+											"dLiqIVAItem": "182",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "007",
+										"dDesProSer": "PLATINVM TV MAGIC PINK 750 ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "70000.0",
+											"dTotBruOpeItem": "70000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "70000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "63636",
+											"dLiqIVAItem": "6364",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "008",
+										"dDesProSer": "HIELO MEDIANO",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "7000.0",
+											"dTotBruOpeItem": "7000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "7000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "6364",
+											"dLiqIVAItem": "636",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "009",
+										"dDesProSer": "Delivery",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "7000.0",
+											"dTotBruOpeItem": "7000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "7000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "6364",
+											"dLiqIVAItem": "636",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "010",
+										"dDesProSer": "BAUDUCCO WAFER FRUTILLA 140G",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "5500.0",
+											"dTotBruOpeItem": "5500",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "5500"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "5000",
+											"dLiqIVAItem": "500",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "011",
+										"dDesProSer": "FRUGOS MANZANA 1LT",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "10000.0",
+											"dTotBruOpeItem": "10000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "10000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "9091",
+											"dLiqIVAItem": "909",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "012",
+										"dDesProSer": "SNACKS 100G",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "13000.0",
+											"dTotBruOpeItem": "13000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "13000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "11818",
+											"dLiqIVAItem": "1182",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "013",
+										"dDesProSer": "OCHSI CHORIZO PARRILLERO",
+										"cUniMed": "83",
+										"dDesUniMed": "kg",
+										"dCantProSer": "0.588",
+										"gValorItem": {
+											"dPUniProSer": "38000.0",
+											"dTotBruOpeItem": "22344",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "22344"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "20313",
+											"dLiqIVAItem": "2031",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "014",
+										"dDesProSer": "MILLER HIGH LIFE BOT 650 ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "10",
+										"gValorItem": {
+											"dPUniProSer": "200000.0",
+											"dTotBruOpeItem": "2000000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "2000000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "1818182",
+											"dLiqIVAItem": "181818",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "015",
+										"dDesProSer": "MILLER HIGH LIFE BOT 355ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "10",
+										"gValorItem": {
+											"dPUniProSer": "210000.0",
+											"dTotBruOpeItem": "2100000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "2100000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "1909091",
+											"dLiqIVAItem": "190909",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "016",
+										"dDesProSer": "MILLER BOT 355 ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "4",
+										"gValorItem": {
+											"dPUniProSer": "200000.0",
+											"dTotBruOpeItem": "800000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "800000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "727273",
+											"dLiqIVAItem": "72727",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "017",
+										"dDesProSer": "MILLER BOT 355 ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "2",
+										"gValorItem": {
+											"dPUniProSer": "50000.0",
+											"dTotBruOpeItem": "100000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "100000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "90909",
+											"dLiqIVAItem": "9091",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "018",
+										"dDesProSer": "CORONITA EXTRA 7FL. OZ. 210 ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "2",
+										"gValorItem": {
+											"dPUniProSer": "35000.0",
+											"dTotBruOpeItem": "70000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "70000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "63636",
+											"dLiqIVAItem": "6364",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "019",
+										"dDesProSer": "HIELO CHICO",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "3000.0",
+											"dTotBruOpeItem": "3000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "3000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "2727",
+											"dLiqIVAItem": "273",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "020",
+										"dDesProSer": "FRUGOS MANZANA 200ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "4000.0",
+											"dTotBruOpeItem": "4000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "4000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "3636",
+											"dLiqIVAItem": "364",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "021",
+										"dDesProSer": "TIC TAC MIX DE FRUTAS",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "4000.0",
+											"dTotBruOpeItem": "4000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "4000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "3636",
+											"dLiqIVAItem": "364",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "022",
+										"dDesProSer": "CONTI ZERO GRAU LATA 269ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "35000.0",
+											"dTotBruOpeItem": "35000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "35000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "31818",
+											"dLiqIVAItem": "3182",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "023",
+										"dDesProSer": "ARCOR CARAMELO MIEL 5 G",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "16",
+										"gValorItem": {
+											"dPUniProSer": "250.0",
+											"dTotBruOpeItem": "4000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "4000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "3636",
+											"dLiqIVAItem": "364",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "024",
+										"dDesProSer": "ARCOR CHOCOMANI 6.5G",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "500.0",
+											"dTotBruOpeItem": "500",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "500"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "455",
+											"dLiqIVAItem": "45",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "025",
+										"dDesProSer": "DE LA COSTA AGUA MINERAL CON PICO SPORT 500 ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "2500.0",
+											"dTotBruOpeItem": "2500",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "2500"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "2273",
+											"dLiqIVAItem": "227",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "026",
+										"dDesProSer": "CERVEZA LATA 269 ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "32000.0",
+											"dTotBruOpeItem": "32000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "32000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "29091",
+											"dLiqIVAItem": "2909",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "027",
+										"dDesProSer": "HIELO CHICO",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "3000.0",
+											"dTotBruOpeItem": "3000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "3000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "2727",
+											"dLiqIVAItem": "273",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "028",
+										"dDesProSer": "DEL VALLE FRESH NARANJA 500 ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "5000.0",
+											"dTotBruOpeItem": "5000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "5000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "4545",
+											"dLiqIVAItem": "455",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "029",
+										"dDesProSer": "SIEGRIED YERON BLISTER X4 UNIDAD",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "5000.0",
+											"dTotBruOpeItem": "5000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "5000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "4545",
+											"dLiqIVAItem": "455",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "030",
+										"dDesProSer": "PULP NARANJA 2 L",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "12000.0",
+											"dTotBruOpeItem": "12000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "12000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "10909",
+											"dLiqIVAItem": "1091",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "031",
+										"dDesProSer": "KAISER ULTRA CERO LATA 269ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "28000.0",
+											"dTotBruOpeItem": "28000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "28000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "25455",
+											"dLiqIVAItem": "2545",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "032",
+										"dDesProSer": "CONTI ZERO GRAU LATA 269ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "3",
+										"gValorItem": {
+											"dPUniProSer": "3000.0",
+											"dTotBruOpeItem": "9000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "9000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "8182",
+											"dLiqIVAItem": "818",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "033",
+										"dDesProSer": "FANTA GUARANA 250ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "2500.0",
+											"dTotBruOpeItem": "2500",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "2500"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "2273",
+											"dLiqIVAItem": "227",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "034",
+										"dDesProSer": "IO JABON TOCADOR MANZANA VERDE Y PERA 3X80 G",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "8000.0",
+											"dTotBruOpeItem": "8000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "8000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "7273",
+											"dLiqIVAItem": "727",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "035",
+										"dDesProSer": "EIGHT CONVERTIBLE 20",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "4000.0",
+											"dTotBruOpeItem": "4000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "4000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "3636",
+											"dLiqIVAItem": "364",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "036",
+										"dDesProSer": "COCA COLA 250ML",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "2500.0",
+											"dTotBruOpeItem": "2500",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "2500"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "2273",
+											"dLiqIVAItem": "227",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "037",
+										"dDesProSer": "TOPLINE SEVEN 14.7G X-PLOSIVE MINT",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "4000.0",
+											"dTotBruOpeItem": "4000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "4000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "3636",
+											"dLiqIVAItem": "364",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "038",
+										"dDesProSer": "EIGHT CONVERTIBLE 20",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "4000.0",
+											"dTotBruOpeItem": "4000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "4000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "3636",
+											"dLiqIVAItem": "364",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "039",
+										"dDesProSer": "COCA COLA ZERO 2LTS",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "1",
+										"gValorItem": {
+											"dPUniProSer": "15000.0",
+											"dTotBruOpeItem": "15000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "15000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "13636",
+											"dLiqIVAItem": "1364",
+											"dBasExe": "0"
+										}
+									},
+									{
+										"dCodInt": "040",
+										"dDesProSer": "TRENTO MASS. CHOC. BLANCO COOKIES 25 G",
+										"cUniMed": "77",
+										"dDesUniMed": "UNI",
+										"dCantProSer": "2",
+										"gValorItem": {
+											"dPUniProSer": "3500.0",
+											"dTotBruOpeItem": "7000",
+											"gValorRestaItem": {
+												"dDescItem": "0",
+												"dPorcDesIt": "0.00",
+												"dAntPreUniIt": "0",
+												"dAntGloPreUniIt": "0",
+												"dTotOpeItem": "7000"
+											}
+										},
+										"gCamIVA": {
+											"iAfecIVA": "1",
+											"dDesAfecIVA": "Gravado IVA",
+											"dPropIVA": "100",
+											"dTasaIVA": "10",
+											"dBasGravIVA": "6364",
+											"dLiqIVAItem": "636",
+											"dBasExe": "0"
+										}
+									}
+								]
+							},
+							"gTotSub": {
+								"dSubExe": "0",
+								"dSubExo": "0",
+								"dSub5": "0",
+								"dSub10": "5510844",
+								"dTotOpe": "5510844",
+								"dTotDesc": "0.000",
+								"dTotDescGlotem": "0",
+								"dTotAntItem": "0",
+								"dTotAnt": "0",
+								"dPorcDescTotal": "0.00",
+								"dDescTotal": "0.000",
+								"dAnticipo": "0",
+								"dRedon": "44",
+								"dComi": "0",
+								"dTotGralOpe": "5510800",
+								"dIVA5": "0",
+								"dIVA10": "500987",
+								"dLiqTotIVA5": "0",
+								"dLiqTotIVA10": "0",
+								"dIVAComi": "0",
+								"dTotIVA": "500987",
+								"dBaseGrav5": "0",
+								"dBaseGrav10": "5009857",
+								"dTBasGraIVA": "5009857"
+							},
+							"_Id": "01800994825001001000007822025091612643454517"
+						},
+						"Signature": {
+							"SignedInfo": {
+								"CanonicalizationMethod": {
+									"_Algorithm": "http://www.w3.org/2001/10/xml-exc-c14n#"
+								},
+								"SignatureMethod": {
+									"_Algorithm": "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+								},
+								"Reference": {
+									"Transforms": {
+										"Transform": [
+											{
+												"_Algorithm": "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
+											},
+											{
+												"_Algorithm": "http://www.w3.org/2001/10/xml-exc-c14n#"
+											}
+										]
+									},
+									"DigestMethod": {
+										"_Algorithm": "http://www.w3.org/2001/04/xmlenc#sha256"
+									},
+									"DigestValue": "L7t3Jwh4TAavWr7ADuSaRIG5nmEy0DVK2/fj7TIz4iw=",
+									"_URI": "#01800994825001001000007822025091612643454517"
+								}
+							},
+							"SignatureValue": "ULg5hKuRnePl1sJOttQz+ZAaQ4Ai0kBEaC+jjBxvOe+O242YdKmXLoU8gdNrMDoE0uhbdgY8qUvD\r\n+eC28Uyh3abiI+LOVq/T58ngwrBwFPjV9uPf/u0ks9UBoDs5ugoND0X2Ibh3E7nca3B+sSsRsIY4\r\n7CvHoAgUpIktVr/ADFTZz7I3pVAb6rzwExV59f8NQmAiriEb8WJ88M3UOl2RU02we7yHyHj3dGEQ\r\nXkxVT8tahWkgCnD/8RPEBZB3DdS3QA4omP7wXdS2H9molj96vbPUQlurWQaqjngucU0699GZVIql\r\nZYEFop1+W59613YWvL4StKhrgIVs/rBOcGXl3A==",
+							"KeyInfo": {
+								"X509Data": {
+									"X509Certificate": "MIIIEDCCBfigAwIBAgIRAPdmqMI0j5WSS+6qirOz9powDQYJKoZIhvcNAQELBQAwgYUxCzAJBgNV\r\nBAYTAlBZMQ0wCwYDVQQKEwRJQ1BQMTgwNgYDVQQLEy9QcmVzdGFkb3IgQ3VhbGlmaWNhZG8gZGUg\r\nU2VydmljaW9zIGRlIENvbmZpYW56YTEVMBMGA1UEAxMMQ09ERTEwMCBTLkEuMRYwFAYDVQQFEw1S\r\nVUM4MDA4MDYxMC03MB4XDTI1MDgyMDE0NTM0MVoXDTI2MDgyMDE0NTM0MVowga0xCzAJBgNVBAYT\r\nAlBZMSswKQYDVQQKEyJDRVJUSUZJQ0FETyBDVUFMSUZJQ0FETyBUUklCVVRBUklPMQswCQYDVQQL\r\nEwJGMTEYMBYGA1UEBBMPRlJBTkNPIEFSRVZBTE9TMRIwEAYDVQQqEwlHVUlMTEVSTU8xIjAgBgNV\r\nBAMTGUdVSUxMRVJNTyBGUkFOQ08gQVJFVkFMT1MxEjAQBgNVBAUTCUNJMzQ5OTkxNzCCASIwDQYJ\r\nKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOgtYrO0ZYGFgS8qlCWbrFyyH4iu0xHrl3DE2G8cT47i\r\n68efq23BV2ijojZU5NeXUhr+2YlDYxumU9CR9PbVSzcbZBhcC4bz8KgPIxnYEAK/FnDE/noFmzCg\r\nQlcDTmsoHzNrYYUElW237aM3HWz0e0M7jWXdHXbKHAI8HHJv8Pk2IAaMwT4r2oDamjQ09EjTd6+n\r\nj5hNYkD761cBz08LFypEz2cug0nw+yvDSAXcKa75IHapv5H0rKfeZoVjtJ/qaHeWkdWfXl1JplbQ\r\n5wIMrStrPQaZ3gTh/MoP0DtJkZ14/jR7IhiEY6jksa3H74L6bUgHrxvAjF8kTf1Mi4atF3kCAwEA\r\nAaOCA08wggNLMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFDzKVu9Va8AxsP2t2CQ8FIaWSZnkMB8G\r\nA1UdIwQYMBaAFL41VGJoYOcm0zHBX5ex4vZkzgf1MA4GA1UdDwEB/wQEAwIF4DCBxQYDVR0RBIG9\r\nMIG6gRVHVUlNRU1PODFASE9UTUFJTC5DT02kgaAwgZ0xKTAnBgNVBAoTIEZSQU5DTyBBUkVWQUxP\r\nUyBTT0NJRURBRCBBTk9OSU1BMRMwEQYDVQQLEwpESVJFQ1RPUklPMRcwFQYDVQQMEw5WSUNFUFJF\r\nU0lERU5URTEqMCgGA1UEDQwhRklSTUEgRUxFQ1RSw5NOSUNBIGRlIG5pdmVsIG1lZGlvMRYwFAYD\r\nVQQFEw1SVUM4MDA5OTQ4Mi01MIH3BgNVHSAEge8wgewwgekGCysGAQQBg65wAQEEMIHZMEYGCCsG\r\nAQUFBwIBFjpodHRwczovL2NvZGUxMDAuY29tLnB5L3JlcG9zaXRvcmlvLWRlLWRvY3VtZW50b3Mt\r\ncHVibGljb3MvMIGOBggrBgEFBQcCAjCBgQx/Y2VydGlmaWNhZG8gY3VhbGlmaWNhZG8gZGUgZmly\r\nbWEgZWxlY3Ryw7NuaWNhIHRpcG8gRjEgc3VqZXRhIGEgbGFzIGNvbmRpY2lvbmVzIGRlIHVzbyBl\r\neHB1ZXN0YXMgZW4gbGEgRFBDIGRlbCBQQ1NDIENPREUxMDAgUy5BLjB7BgNVHR8EdDByMDegNaAz\r\nhjFodHRwOi8vcGNhMS5jb2RlMTAwLmNvbS5weS9jcmxzL2NhLWNvZGUxMDAtc2EuY3JsMDegNaAz\r\nhjFodHRwOi8vcGNhMi5jb2RlMTAwLmNvbS5weS9jcmxzL2NhLWNvZGUxMDAtc2EuY3JsMCAGA1Ud\r\nJQEB/wQWMBQGCCsGAQUFBwMCBggrBgEFBQcDATCBiQYIKwYBBQUHAQEEfTB7MDkGCCsGAQUFBzAB\r\nhi1odHRwOi8vb2NzcC5jb2RlMTAwLmNvbS5weS9vY3NwL2NhLWNvZGUxMDAtc2EwPgYIKwYBBQUH\r\nMAKGMmh0dHA6Ly9wY2ExLmNvZGUxMDAuY29tLnB5L2NlcnRzL2NhLWNvZGUxMDAtc2EuY2VyMA0G\r\nCSqGSIb3DQEBCwUAA4ICAQAeb6SDm3hZVNA6T4lvgY4PmVYYgmXon9VDLJzy3/lM7prW0S5X6Nw8\r\nt5WQkZ+GSZv35/XlLuIXmkS0C8ZxQbf6EGmp+sV+S6qVL7MVSN8nNx/bZfeO6yz8k+n1+v8Yq0mR\r\nmblqTNL5FZuRkvs/c36pV2BMK2kNRYDnNCEhicwcGB/ay4zDirLDo5f0EYPdG2Xp2iTiFPWzNySc\r\nKJMP1sQWOPaiPNo5Y1+d7hldCPgsNIWDlMt5ahkcow5qF/br4dLb1gilI5kZ0Ugg3b9rUus3LArE\r\nOXtrRqlxrnqWcwmAe+uD6pSkX4p5uNtIfn7MbjTUqv4vLZWkwjVCZHCbnJG++g4RhHeLNg3psIWC\r\njSi96nQmvIySy/pRlqMRDknEA7ln0Br6IM+xAzf8AUPcg31E3/thSx5yW1WhgvEhIhLei4DKCxdm\r\nEpFdHRR1bwC/CSe+GWZBSA1NgkrEu8przJyeGYoM9WhmZJRa6r5g1qhsiBrx0PB9lw+qZcT8NyXC\r\nUCuV6KtmGiPYrdxiMGdZXy5a08lI2DBLz/u2DWqlFDuK+bQmCF1C9pGNvBBZFO90gP0UmtLg3UPr\r\nhBY2tdSpKg/gmrp5NcyIqcmXDaLroAfj1EvShlQNmL2EL7IZRvVcZlNPSzHaLeHHt/jmOytcFbMv\r\nvF+bxU5T2qevcukilvkdFw=="
+								}
+							},
+							"_xmlns": "http://www.w3.org/2000/09/xmldsig#"
+						},
+						"gCamFuFD": {
+							"dCarQR": "https://ekuatia.set.gov.py/consultas/qr?nVersion=150&Id=01800994825001001000007822025091612643454517&dFeEmiDE=323032352d30392d31365431323a35303a3233&dNumIDRec=0&dTotGralOpe=5510800&dTotIVA=500987&cItems=40&DigestValue=4c3774334a776834544161765772374144755361524947356e6d45793044564b322f666a3754497a3469773d&IdCSC=0001&cHashQR=053a53e1775995d1b091a927903e678c44442b5e3d1b0a15e61df90d2334aee2"
+						},
+						"_xmlns": "http://ekuatia.set.gov.py/sifen/xsd",
+						"_xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+						"_xsi:schemaLocation": "http://ekuatia.set.gov.py/sifen/xsd siRecepDE_v150.xsd"
+					},
+					"dProtAut": "2676071471",
+					"xContEv": "",
+					"__prefix": "ns2"
+				},
+				"_xmlns:ns2": "http://ekuatia.set.gov.py/sifen/xsd",
+				"__prefix": "ns2"
+			},
+			"__prefix": "env"
+		},
+		"_xmlns:env": "http://www.w3.org/2003/05/soap-envelope",
+		"__prefix": "env"
+	}
+}

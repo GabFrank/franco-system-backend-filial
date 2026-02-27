@@ -1,0 +1,36 @@
+type CostoPorProducto {
+    id:ID!
+    sucursal: Sucursal
+    producto: Producto
+    movimientoStock: MovimientoStock
+    ultimoPrecioCompra: Float
+    ultimoPrecioVenta: Float
+    costoMedio: Float
+    moneda: Moneda
+    cotizacion: Float
+    existencia: Float
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input CostoPorProductoInput {
+    id:ID
+    sucursalId: Int
+    productoId: Int
+    movimientoStockId: Int
+    ultimoPrecioCompra: Float
+    ultimoPrecioVenta: Float
+    costoMedio: Float
+    monedaId: Int
+    cotizacion: Float
+    existencia: Float
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Mutation {
+    saveCostoPorProducto(costoPorProducto:CostoPorProductoInput!):CostoPorProducto!
+    deleteCostoPorProducto(id:ID!):Boolean!
+}
+
+

@@ -1,0 +1,5 @@
+ALTER TABLE financiero.documento_electronico
+DROP CONSTRAINT IF EXISTS uk_documento_electronico_factura_legal_id;
+
+ALTER TABLE financiero.documento_electronico
+ADD CONSTRAINT uk_documento_electronico_factura_sucursal UNIQUE (factura_legal_id, sucursal_id);

@@ -1,0 +1,54 @@
+type InicioSesion {
+    id: Int
+    usuario: Usuario
+    sucursal: Sucursal
+    tipoDespositivo: TipoDispositivo
+    idDispositivo: String
+    token: String
+    horaInicio: Date
+    horaFin: Date
+    creadoEn: Date
+}
+
+input InicioSesionInput {
+    id: Int
+    usuarioId: Int
+    sucursalId: Int
+    tipoDespositivo: TipoDispositivo
+    idDispositivo: String
+    token: String
+    horaInicio: String
+    horaFin: String
+    creadoEn: String
+}
+
+type InicioSesionPage {
+    getTotalPages: Int
+    getTotalElements: Int
+    getNumberOfElements: Int
+    isFirst: Boolean
+    isLast: Boolean
+    hasNext: Boolean
+    hasPrevious: Boolean
+    getContent: [InicioSesion]
+    getPageable: Pageable
+}
+
+extend type Query {
+    inicioSesionListPorUsuarioIdAndAbierto(id: Int!, sucId: Int, page: Int, size: Int):InicioSesionPage
+}
+
+extend type Mutation {
+    saveInicioSesion(entity:InicioSesionInput!):InicioSesion
+}
+
+enum TipoDispositivo {
+    ANDROID,
+    IOS,
+    DESKTOP_WIN,
+    DESKTOP_LIN,
+    DESKTOP_MAC,
+    WEB,
+    WEB_MOBILE
+}
+

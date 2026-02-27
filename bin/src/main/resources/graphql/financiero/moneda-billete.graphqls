@@ -1,0 +1,34 @@
+type MonedaBilletes {
+    id:ID!
+    moneda: Moneda
+    flotante: Boolean
+    papel: Boolean
+    activo: Boolean
+    valor: Float
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input MonedaBilleteInput {
+    id:ID
+    monedaId: Int
+    flotante: Boolean
+    paple: Boolean
+    activo: Boolean
+    valor: Float
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    monedaBillete(id:ID!):MonedaBilletes
+    monedaBilletePorMonedaId(id:ID!):[MonedaBilletes]
+    monedaBilleteList(page:Int = 0, size:Int = 10):[MonedaBilletes]!
+    countMonedaBillete: Int
+}
+
+extend type Mutation {
+    saveMonedaBillete(monedaBillete:MonedaBilleteInput!):MonedaBilletes!
+    deleteMonedaBillete(id:ID!):Boolean!
+}
+

@@ -1,0 +1,28 @@
+type Ingrediente {
+    id:ID!
+    descripcion: String
+    producto: Producto
+    unidadMedida: String
+    usuario: Usuario
+}
+
+input IngredienteInput {
+    id:ID
+    descripcion: String
+    productoId: Int
+    unidadMedida: String
+    usuarioId: Int
+}
+
+extend type Query {
+    ingrediente(id:ID!):Ingrediente
+    ingredientes(page:Int = 0, size:Int = 10):[Ingrediente]!
+    countIngrediente: Int
+    ingredientesSearch(texto:String):[Ingrediente]
+}
+
+extend type Mutation {
+    saveIngrediente(ingredientes:IngredienteInput!):Ingrediente!
+    deleteIngrediente(id:ID!):Boolean!
+}
+

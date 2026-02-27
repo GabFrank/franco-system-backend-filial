@@ -1,0 +1,50 @@
+type MovimientoCaja {
+    id:ID!
+    pdvCaja: PdvCaja
+    moneda: Moneda
+    referencia: Int
+    cambio: Cambio
+    cantidad: Float
+    tipoMovimiento: PdvCajaTipoMovimiento
+    creadoEn: Date
+    usuario: Usuario
+    sucursalId: Int
+}
+
+input MovimientoCajaInput {
+    id:ID
+    pdvCajaId: Int
+    monedaId: Int
+    referencia: Int
+    cambioId: Int
+    cantidad: Float
+    tipoMovimiento: PdvCajaTipoMovimiento
+    creadoEn: Date
+    usuarioId: Int
+    sucursalId: Int
+}
+
+extend type Query {
+    movimientoCaja(id:ID!, sucId: ID):MovimientoCaja
+    movimientoCajas(page:Int = 0, size:Int = 10, sucId: ID):[MovimientoCaja]!
+    countMovimientoCaja: Int
+}
+
+extend type Mutation {
+    saveMovimientoCaja(movimientoCaja:MovimientoCajaInput!):MovimientoCaja!
+    deleteMovimientoCaja(id:ID!, sucId: ID):Boolean!
+}
+
+enum PdvCajaTipoMovimiento {
+    CAJA_INICIAL,
+    VENTA,
+    GASTO,
+    VALE,
+    RETIRO,
+    DEVOLUCION,
+    SALIDA_SENCILLO,
+    CAMBIO,
+    AJUSTE,
+    ENTRADA_SENCILLO
+}
+

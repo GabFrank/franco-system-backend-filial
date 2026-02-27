@@ -1,0 +1,103 @@
+type FacturaLegal {
+    id: ID!
+    caja: PdvCaja
+    timbradoDetalle: TimbradoDetalle
+    numeroFactura: String
+    cliente: Cliente
+    venta: Venta
+    fecha: Date
+    credito: Boolean
+    nombre: String
+    ruc: String
+    direccion: String
+    cdc: String
+    documentoElectronico: DocumentoElectronico
+    urlQr: String
+    xmlFirmado: String
+    estadoDocumentoElectronico: String
+    codigoRespuestaSifen: String
+    mensajeRespuestaSifen: String
+    tieneDocumentoElectronico: Boolean
+    ivaParcial0: Float
+    ivaParcial5: Float
+    ivaParcial10: Float
+    totalParcial0: Float
+    totalParcial5: Float
+    totalParcial10: Float
+    totalFinal: Float
+    usuario: Usuario
+    creadoEn: Date
+    sucursalId: Int
+    descuento: Float
+    viaTributaria: Boolean
+    autoimpreso: Boolean
+    activo: Boolean
+}
+
+enum EstadoLoteDE {
+    PENDIENTE_ENVIO
+    EN_PROCESO
+    PROCESADO
+    PROCESADO_CON_ERRORES
+    ERROR_ENVIO
+    ERROR_RED
+    ERROR_PERMANENTE
+    RECHAZADO
+}
+
+type LoteDE {
+    id: ID!
+    estado: EstadoLoteDE
+    fechaProcesado: Date
+    fechaUltimoIntento: Date
+    intentos: Int
+    respuestaSifen: String
+    protocolo: String
+    creadoEn: Date
+    actualizadoEn: Date
+    usuario: Usuario
+    sucursal: Sucursal
+}
+
+input FacturaLegalInput {
+    id: ID
+    cajaId: Int
+    timbradoDetalleId: Int
+    autoimpreso: Boolean
+    viaTributaria: Boolean
+    numeroFactura: Int
+    clienteId: Int
+    ventaId: Int
+    fecha: String
+    credito: Boolean
+    nombre: String
+    ruc: String
+    direccion: String
+    email: String
+    cdc: String
+    ivaParcial0: Float
+    ivaParcial5: Float
+    ivaParcial10: Float
+    totalParcial0: Float
+    totalParcial5: Float
+    totalParcial10: Float
+    totalFinal: Float
+    usuarioId: Int
+    sucursalId: Int
+    descuento: Float
+    activo: Boolean
+}
+
+extend type Query {
+    facturaLegal(id: ID!, sucId: ID): FacturaLegal
+    facturaLegales(page: Int = 0, size: Int = 10, sucId: ID): [FacturaLegal]!
+    countFacturaLegal: Int
+    imprimirFacturasPorCaja(id: Int, printerName: String, sucId: ID): Boolean
+}
+
+extend type Mutation {
+    saveFacturaLegal(entity: FacturaLegalInput!, detalleList: [FacturaLegalItemInput], printerName: String, pdvId: Int!, print: Boolean): TimbradoDetalle!
+    deleteFacturaLegal(id: ID!, sucId: ID): Boolean!
+    generarDocumentoElectronico(facturaLegalId: ID!, sucId: ID): FacturaLegal!
+}
+

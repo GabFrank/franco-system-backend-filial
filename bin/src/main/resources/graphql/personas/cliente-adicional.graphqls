@@ -1,0 +1,30 @@
+type ClienteAdicional {
+    id:ID!
+    persona: Persona
+    cliente: Cliente
+    credito: Float
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input ClienteAdicionalInput {
+    id:ID
+    personaId: ID!
+    clienteId: ID!
+    credito: Float!
+    creadoEn: Date
+    usuarioId: ID
+}
+
+extend type Query {
+    clienteAdicional(id:ID!):ClienteAdicional
+    clienteAdicionalPorPersonaId(id:ID): [ClienteAdicional]
+    clienteAdicionalPorClienteId(id:ID): [ClienteAdicional]
+    countClienteAdicional: Int
+}
+
+extend type Mutation {
+    saveClienteAdicional(clienteAdicional:ClienteAdicionalInput!):ClienteAdicional!
+    deleteClienteAdicional(id:ID!):Boolean!
+}
+

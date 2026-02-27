@@ -1,0 +1,44 @@
+type InventarioProductoItem {
+    id:ID!
+    idOrigen: Int
+    inventarioProducto: InventarioProducto
+    zona: Zona
+    presentacion: Presentacion
+    cantidad: Float
+    cantidadFisica: Float
+    vencimiento: Date
+    estado: InventarioProductoEstado
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input InventarioProductoItemInput {
+    id:Int
+    idOrigen: Int
+    inventarioProductoId: Int
+    zonaId: Int
+    presentacionId: Int
+    cantidad: Float
+    cantidadFisica: Float
+    vencimiento: String
+    estado: InventarioProductoEstado
+    usuarioId: Int
+}
+
+extend type Query {
+    inventarioProductoItem(id:ID!):InventarioProductoItem
+    inventarioProductosItem(page:Int = 0, size:Int = 10):[InventarioProductoItem]!
+}
+
+extend type Mutation {
+    saveInventarioProductoItem(inventarioProductoItem:InventarioProductoItemInput!):InventarioProductoItem!
+    deleteInventarioProductoItem(id:ID!):Boolean!
+}
+
+enum InventarioProductoEstado {
+  BUENO,
+  AVERIADO,
+  VENCIDO
+}
+
+

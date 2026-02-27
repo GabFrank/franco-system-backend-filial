@@ -1,0 +1,33 @@
+type Codigo {
+    id: ID
+    codigo: String
+    principal: Boolean
+    usuario: Usuario
+    activo: Boolean
+    presentacion: Presentacion
+    creadoEn: Date
+}
+
+input CodigoInput {
+    id: ID
+    codigo: String
+    principal: Boolean
+    usuarioId: Int
+    activo: Boolean
+    presentacionId: Int
+}
+
+extend type Query {
+    codigo(id:ID!):Codigo
+    codigos(page:Int = 0, size:Int = 10):[Codigo]!
+    countCodigo: Int
+    codigoPorCodigo(texto:String):[Codigo]
+    codigosPorPresentacionId(id:Int):[Codigo]
+}
+
+extend type Mutation {
+    saveCodigo(codigo:CodigoInput!):Codigo!
+    deleteCodigo(id:ID!):Boolean!
+}
+
+

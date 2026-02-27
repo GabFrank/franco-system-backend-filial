@@ -1,0 +1,27 @@
+type Sucursal {
+    id:ID!
+    nombre: String
+    localizacion: String
+    ciudad: Ciudad
+    deposito: Boolean
+    depositoPredeterminado: Boolean
+    creadoEn: Date
+    usuario: Usuario
+    direccion: String
+    nroDelivery: String
+    isConfigured: Boolean
+    sectorList: [Sector]
+    codigoEstablecimientoFactura: String
+    ip: String
+    puerto: Int
+    activo: Boolean
+}
+
+extend type Query {
+    sucursal(id:ID!):Sucursal
+    sucursales(page:Int = 0, size:Int = 10):[Sucursal]!
+    countSucursal: Int
+    sucursalesSearch(texto:String):[Sucursal]
+    sucursalActual:Sucursal
+}
+

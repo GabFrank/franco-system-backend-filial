@@ -1,0 +1,329 @@
+================================================================================
+MANUAL DE IMPLEMENTACION: MANEJO DE ERRORES API FACTURAS LEGALES
+================================================================================
+
+Este manual explica cómo implementar el manejo de errores mejorado en el
+servidor cliente (Spring Boot Java) que consume la API de Facturas Legales
+del servidor filial.
+
+================================================================================
+CONTEXTO
+================================================================================
+
+El servidor filial ahora retorna mensajes de error estructurados en el cuerpo
+de la respuesta HTTP cuando ocurre un error al crear una factura legal.
+
+Antes, las respuestas de error no incluían el mensaje en el cuerpo, solo el
+código de estado HTTP. Ahora, todas las respuestas de error incluyen un objeto
+JSON con el mensaje de error, el tipo de error y el código HTTP.
+
+================================================================================
+ESTRUCTURA DE RESPUESTA DE ERROR
+================================================================================
+
+Cuando ocurre un error, el servidor filial retorna un objeto JSON con la
+siguiente estructura:
+
+{
+  "mensaje": "El timbrado detalle no está disponible: El timbrado asociado no está activo",
+  "error": "BAD_REQUEST",
+  "codigo": 400
+}
+
+Campos:
+- mensaje: String con el mensaje descriptivo del error
+- error: String con el tipo de error (BAD_REQUEST, INTERNAL_SERVER_ERROR, etc.)
+- codigo: Integer con el código de estado HTTP (400, 500, etc.)
+
+Códigos de estado posibles:
+- 400 (BAD_REQUEST): Error en los datos proporcionados o timbrado no disponible
+- 500 (INTERNAL_SERVER_ERROR): Error interno del servidor
+
+================================================================================
+PASO 1: CREAR EL DTO DE ERROR
+================================================================================
+
+Crea el siguiente DTO en tu proyecto cliente para mapear las respuestas de error:
+
+Ubicación sugerida: src/main/java/com/tu/paquete/dto/factura/ErrorResponseDTO.java
+
+package com.tu.paquete.dto.factura;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ErrorResponseDTO {
+    private String mensaje;
+    private String error;
+    private Integer codigo;
+}
+
+Nota: Ajusta el paquete según la estructura de tu proyecto.
+
+================================================================================
+PASO 2: MODIFICAR EL SERVICIO QUE HACE LA LLAMADA
+================================================================================
+
+Modifica tu servicio que hace la llamada POST a /api/facturas-legales para
+capturar y procesar los errores.
+
+Ejemplo de implementación usando RestTemplate:
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tu.paquete.dto.factura.CrearFacturaLegalRequestDTO;
+import com.tu.paquete.dto.factura.CrearFacturaLegalResponseDTO;
+import com.tu.paquete.dto.factura.ErrorResponseDTO;
+
+@Service
+public class FacturaLegalClienteService {
+    
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
+    private final String filialBaseUrl; // URL base del servidor filial
+    
+    public FacturaLegalClienteService(RestTemplate restTemplate, 
+                                      ObjectMapper objectMapper,
+                                      @Value("${filial.base.url}") String filialBaseUrl) {
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+        this.filialBaseUrl = filialBaseUrl;
+    }
+    
+    public CrearFacturaLegalResponseDTO crearFacturaLegal(
+            CrearFacturaLegalRequestDTO request) {
+        
+        String url = filialBaseUrl + "/api/facturas-legales";
+        
+        try {
+            ResponseEntity<CrearFacturaLegalResponseDTO> response = 
+                restTemplate.postForEntity(url, request, CrearFacturaLegalResponseDTO.class);
+            
+            if (response.getStatusCode() == HttpStatus.CREATED && response.getBody() != null) {
+                return response.getBody();
+            } else {
+                throw new IllegalStateException("Respuesta inesperada del servidor filial");
+            }
+            
+        } catch (HttpClientErrorException e) {
+            // Error 4xx (400, 404, etc.)
+            ErrorResponseDTO errorResponse = parseErrorResponse(e.getResponseBodyAsString());
+            String mensajeError = errorResponse != null ? errorResponse.getMensaje() : e.getMessage();
+            throw new IllegalStateException("Error al crear factura legal: " + mensajeError, e);
+            
+        } catch (HttpServerErrorException e) {
+            // Error 5xx (500, 503, etc.)
+            ErrorResponseDTO errorResponse = parseErrorResponse(e.getResponseBodyAsString());
+            String mensajeError = errorResponse != null ? errorResponse.getMensaje() : e.getMessage();
+            throw new IllegalStateException("Error del servidor filial: " + mensajeError, e);
+            
+        } catch (RestClientException e) {
+            // Error de conexión u otro error de RestTemplate
+            throw new IllegalStateException("Error al conectar con el servidor filial: " + e.getMessage(), e);
+        }
+    }
+    
+    private ErrorResponseDTO parseErrorResponse(String responseBody) {
+        if (responseBody == null || responseBody.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            return objectMapper.readValue(responseBody, ErrorResponseDTO.class);
+        } catch (Exception e) {
+            // Si no se puede parsear, retornar null y usar el mensaje por defecto
+            return null;
+        }
+    }
+}
+
+================================================================================
+PASO 3: ALTERNATIVA USANDO ResponseEntity CON MANEJO EXPLICITO
+================================================================================
+
+Si prefieres un manejo más explícito, puedes usar ResponseEntity directamente:
+
+public CrearFacturaLegalResponseDTO crearFacturaLegal(
+        CrearFacturaLegalRequestDTO request) {
+    
+    String url = filialBaseUrl + "/api/facturas-legales";
+    
+    try {
+        ResponseEntity<CrearFacturaLegalResponseDTO> response = 
+            restTemplate.postForEntity(url, request, CrearFacturaLegalResponseDTO.class);
+        
+        HttpStatus statusCode = response.getStatusCode();
+        
+        if (statusCode == HttpStatus.CREATED) {
+            CrearFacturaLegalResponseDTO body = response.getBody();
+            if (body != null) {
+                return body;
+            } else {
+                throw new IllegalStateException("El servidor filial retornó una respuesta vacía");
+            }
+        } else {
+            throw new IllegalStateException("Código de estado inesperado: " + statusCode);
+        }
+        
+    } catch (HttpClientErrorException.BadRequest e) {
+        // 400 Bad Request
+        ErrorResponseDTO errorResponse = parseErrorResponse(e.getResponseBodyAsString());
+        String mensaje = errorResponse != null ? errorResponse.getMensaje() : "Error en la solicitud";
+        throw new IllegalStateException(mensaje, e);
+        
+    } catch (HttpClientErrorException e) {
+        // Otros errores 4xx
+        ErrorResponseDTO errorResponse = parseErrorResponse(e.getResponseBodyAsString());
+        String mensaje = errorResponse != null ? errorResponse.getMensaje() : e.getMessage();
+        throw new IllegalStateException("Error del cliente: " + mensaje, e);
+        
+    } catch (HttpServerErrorException e) {
+        // Errores 5xx
+        ErrorResponseDTO errorResponse = parseErrorResponse(e.getResponseBodyAsString());
+        String mensaje = errorResponse != null ? errorResponse.getMensaje() : "Error interno del servidor";
+        throw new IllegalStateException("Error del servidor: " + mensaje, e);
+        
+    } catch (RestClientException e) {
+        throw new IllegalStateException("Error de conexión: " + e.getMessage(), e);
+    }
+}
+
+================================================================================
+PASO 4: CONFIGURAR ObjectMapper (SI NO ESTÁ CONFIGURADO)
+================================================================================
+
+Asegúrate de tener un bean ObjectMapper configurado en tu aplicación Spring Boot.
+Si usas Spring Boot con Jackson (por defecto), ya deberías tenerlo disponible.
+
+Si necesitas configurarlo manualmente:
+
+@Configuration
+public class JacksonConfig {
+    
+    @Bean
+    @Primary
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.findAndRegisterModules(); // Para soportar LocalDateTime, etc.
+        return mapper;
+    }
+}
+
+================================================================================
+PASO 5: CONFIGURAR LA URL DEL SERVIDOR FILIAL
+================================================================================
+
+Agrega la configuración en tu application.properties o application.yml:
+
+application.properties:
+filial.base.url=http://localhost:8082
+
+application.yml:
+filial:
+  base:
+    url: http://localhost:8082
+
+Ajusta la URL según tu entorno (desarrollo, producción, etc.).
+
+================================================================================
+EJEMPLO DE USO COMPLETO
+================================================================================
+
+@RestController
+@RequestMapping("/api/facturas")
+public class FacturaController {
+    
+    private final FacturaLegalClienteService facturaLegalClienteService;
+    
+    public FacturaController(FacturaLegalClienteService facturaLegalClienteService) {
+        this.facturaLegalClienteService = facturaLegalClienteService;
+    }
+    
+    @PostMapping("/crear")
+    public ResponseEntity<?> crearFactura(@RequestBody CrearFacturaLegalRequestDTO request) {
+        try {
+            CrearFacturaLegalResponseDTO respuesta = 
+                facturaLegalClienteService.crearFacturaLegal(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
+            
+        } catch (IllegalStateException e) {
+            // El mensaje de error ya incluye el mensaje del servidor filial
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", e.getMessage()));
+        }
+    }
+}
+
+================================================================================
+MENSAJES DE ERROR COMUNES
+================================================================================
+
+Los siguientes son ejemplos de mensajes de error que puedes recibir:
+
+1. "El timbrado detalle no está disponible: El timbrado asociado no está activo"
+   - Causa: El timbrado asociado al timbrado detalle no está activo
+   - Solución: Activar el timbrado en el servidor filial
+
+2. "El timbrado detalle no está disponible: El timbrado detalle no está activo"
+   - Causa: El timbrado detalle no está activo
+   - Solución: Activar el timbrado detalle en el servidor filial
+
+3. "El timbrado detalle no tiene una sucursal asignada"
+   - Causa: El timbrado detalle no tiene una sucursal configurada
+   - Solución: Asignar una sucursal al timbrado detalle
+
+4. "Timbrado detalle no encontrado"
+   - Causa: El ID del timbrado detalle no existe
+   - Solución: Verificar que el ID del timbrado detalle sea correcto
+
+================================================================================
+PRUEBAS
+================================================================================
+
+Para probar el manejo de errores, puedes simular diferentes escenarios:
+
+1. Enviar un timbradoDetalleId que no existe
+2. Enviar un timbradoDetalleId con timbrado inactivo
+3. Enviar datos inválidos (validación fallida)
+4. Simular un error del servidor (si es posible)
+
+Verifica que:
+- El mensaje de error se extrae correctamente del cuerpo de la respuesta
+- El mensaje se propaga correctamente a través de tu aplicación
+- Los logs muestran el mensaje de error completo
+
+================================================================================
+NOTAS IMPORTANTES
+================================================================================
+
+1. El método parseErrorResponse() maneja el caso en que el cuerpo de la
+   respuesta no pueda ser parseado (por ejemplo, si el servidor filial
+   retorna un error HTML en lugar de JSON). En ese caso, se usa el mensaje
+   por defecto de la excepción.
+
+2. Siempre verifica que response.getBody() no sea null antes de usarlo.
+
+3. Considera agregar logging para facilitar el debugging:
+   log.error("Error al crear factura legal en servidor filial: {}", mensajeError);
+
+4. Si necesitas más información del error (como el código HTTP), puedes
+   acceder a errorResponse.getCodigo() y errorResponse.getError().
+
+5. Asegúrate de que tu RestTemplate esté configurado correctamente con
+   los timeouts apropiados y manejo de errores.
+
+================================================================================
+FIN DEL MANUAL
+================================================================================
+

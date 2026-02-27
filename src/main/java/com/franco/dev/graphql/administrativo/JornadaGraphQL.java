@@ -21,8 +21,8 @@ public class JornadaGraphQL implements GraphQLQueryResolver {
     @Autowired
     private UsuarioService usuarioService;
 
-    public Optional<Jornada> jornada(Long id) {
-        return service.findById(id);
+    public Optional<Jornada> jornada(Long id, Long sucursalId) {
+        return service.findByIdAndSucursalId(id, sucursalId);
     }
 
     public List<Jornada> jornadas(String fechaInicio, String fechaFin, Integer page, Integer size) {

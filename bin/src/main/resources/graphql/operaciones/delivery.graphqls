@@ -1,0 +1,87 @@
+type Delivery {
+    id: ID!
+    venta: Venta
+    entregador: Funcionario
+    vehiculo: Int
+    direccion: String
+    telefono: String
+    creadoEn: Date
+    usuario: Usuario
+    estado: DeliveryEstado
+    precio: PrecioDelivery
+    valor: Float
+    barrio: Barrio
+    vuelto: Vuelto
+    formaPago: FormaPago
+    sucursalId: Int
+    fechaConcluido: Date
+}
+
+type DeliveryUpdate {
+    id: ID!
+    venta: Venta
+    entregador: Funcionario
+    vehiculo: Int
+    direccion: String
+    telefono: String
+    creadoEn: Date
+    usuario: Usuario
+    estado: DeliveryEstado
+    precio: PrecioDelivery
+    valor: Float
+    barrio: Barrio
+    vuelto: Vuelto
+    formaPago: FormaPago
+    sucursalId: Int
+    fechaConcluido: String
+}
+
+input DeliveryInput {
+    id: ID
+    ventaId: Int
+    entregadorId: Int
+    vehiculoId: Int
+    direccion: String
+    telefono: String
+    estado: DeliveryEstado
+    precioId: Int
+    usuarioId: Int
+    valor: Float
+    barrioId: Int
+    vueltoId: Int
+    formaPagoId: Int
+    sucursalId: Int
+    fechaConcluido: String
+}
+
+extend type Query {
+    delivery(id:ID!, sucId: ID):Delivery
+    deliverys(page:Int = 0, size:Int = 10, sucId: ID):[Delivery]!
+    deliverysByEstado(estado: DeliveryEstado, sucId: ID):[Delivery]
+    deliverysByEstadoList(estadoList: [DeliveryEstado], sucId: ID):[Delivery]
+    deliverysByEstadoNotIn(estado: DeliveryEstado, sucId: ID):[Delivery]
+    deliverysUltimos10(sucId: ID):[Delivery]
+    countDelivery: Int
+    reimprimirDelivery(id: Int!, printerName: String, local: String): Boolean
+    deliveryPorCajaIdAndEstados(id: ID!, estadoList: [DeliveryEstado]!, sucId:Int):[Delivery]
+}
+
+extend type Mutation {
+    saveDelivery(delivery:DeliveryInput!):Delivery!
+    saveDeliveryAndVenta(deliveryInput:DeliveryInput!, ventaInput:VentaInput, ventaItemInputList:[VentaItemInput], vueltoInput:VueltoInput, vueltoItemInputList:[VueltoItemInput], cobroInput: CobroInput, cobroDetalleInputList: [CobroDetalleInput]):Delivery
+    deleteDelivery(id:ID!, sucId: ID):Boolean!
+    saveDeliveryEstado(deliveryId: Int!, deliveryEstado: DeliveryEstado!, printerName: String, local: String, pdvId: Int): Delivery
+}
+
+enum DeliveryEstado {
+    ABIERTO, EN_CAMINO, ENTREGADO, CANCELADO, DEVOLVIDO, PARA_ENTREGA, CONCLUIDO
+}
+
+extend type Subscription {
+    deliverys: Delivery!
+}
+
+
+
+
+

@@ -1,0 +1,24 @@
+type VentaCreditoCuota {
+    id:ID!
+    ventaCredito: VentaCredito
+    cobro: Cobro
+    valor: Float
+    parcial: Boolean
+    activo: Boolean
+    vencimiento: Date
+    creadoEn: Date
+    usuario: Usuario
+    sucursalCobroId: Int
+}
+
+input VentaCreditoCuotaInput {
+    id:ID
+    ventaCreditoId: Int
+    cobroId: Int
+    valor: Float
+    parcial: Boolean
+    activo: Boolean
+    vencimiento: String
+    usuarioId: Int
+    sucursalCobroId: Int
+}

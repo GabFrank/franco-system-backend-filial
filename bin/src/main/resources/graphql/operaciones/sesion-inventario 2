@@ -1,0 +1,26 @@
+type SesionInventario {
+    id:ID!
+    sucursal: Sucursal
+    creadoEn: Date
+    usuario: Usuario
+}
+
+input SesionInventarioInput {
+    id:Int
+    sucursalId: Int
+    creadoEn: String
+    usuarioId: Int
+}
+
+extend type Query {
+    sesionInventario(id:ID!):SesionInventario
+    sesionInventarioList(page:Int = 0, size:Int = 10):[SesionInventario]!
+    countSesionInventario: Int
+}
+
+extend type Mutation {
+    saveSesionInventario(sesionInventario:SesionInventarioInput!):SesionInventario!
+    deleteSesionInventario(id:ID!):Boolean!
+}
+
+
