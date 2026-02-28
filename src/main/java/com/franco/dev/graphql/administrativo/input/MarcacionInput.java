@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 @Data
 public class MarcacionInput {
     private Long id;
+    private Long sucursalId;
     private Long usuarioId;
     private TipoMarcacion tipo;
 

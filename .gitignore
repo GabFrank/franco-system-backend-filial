@@ -46,3 +46,4 @@ certificados/
 
 # Archivos de configuración personal de desarrolladores
 **/application-user-*.properties
+bin/

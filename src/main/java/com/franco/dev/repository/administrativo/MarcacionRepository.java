@@ -4,16 +4,21 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import com.franco.dev.domain.administrativo.Marcacion;
+import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface MarcacionRepository extends HelperRepository<Marcacion, Long> {
+public interface MarcacionRepository extends HelperRepository<Marcacion, EmbebedPrimaryKey> {
 
         default Class<Marcacion> getEntityClass() {
                 return Marcacion.class;
         }
+
+        @Query("SELECT MAX(m.id) FROM Marcacion m WHERE m.sucursalId = :sucursalId")
+        Long findMaxId(@Param("sucursalId") Long sucursalId);
 
         Page<Marcacion> findByUsuarioId(Long usuarioId, Pageable pageable);
 

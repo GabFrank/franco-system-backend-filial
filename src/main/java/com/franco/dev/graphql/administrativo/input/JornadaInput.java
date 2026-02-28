@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class JornadaInput {
     private Long id;
+    private Long sucursalId;
     private Long usuarioId;
     private String fechaInicio;
     private String fechaFin;

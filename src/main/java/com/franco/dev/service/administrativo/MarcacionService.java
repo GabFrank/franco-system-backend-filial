@@ -3,12 +3,12 @@ package com.franco.dev.service.administrativo;
 import com.franco.dev.domain.administrativo.Marcacion;
 import com.franco.dev.repository.administrativo.MarcacionRepository;
 import com.franco.dev.repository.administrativo.HorarioRepository;
-import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import com.franco.dev.domain.administrativo.Jornada;
 import com.franco.dev.domain.administrativo.Horario;
 import com.franco.dev.domain.administrativo.enums.EstadoJornada;
@@ -20,21 +20,41 @@ import org.springframework.data.domain.Pageable;
 
 @Service
 @AllArgsConstructor
-public class MarcacionService extends CrudService<Marcacion, MarcacionRepository> {
+public class MarcacionService {
 
     private final MarcacionRepository repository;
     private final JornadaService jornadaService;
     private final com.franco.dev.service.personas.FuncionarioService funcionarioService;
     private final HorarioRepository horarioRepository;
 
-    @Override
     public MarcacionRepository getRepository() {
         return repository;
+    }
+
+    public List<Marcacion> findAll2() {
+        return repository.findAllByOrderByIdAsc();
     }
 
     public Page<Marcacion> findAllPaged(Integer page, Integer size) {
         Pageable pageable = PageRequest.of(page, size);
         return repository.findAll(pageable);
+    }
+
+    public Optional<Marcacion> findById(com.franco.dev.domain.EmbebedPrimaryKey id) {
+        if (id == null)
+            return Optional.empty();
+        return repository.findById(id);
+    }
+
+    public Optional<Marcacion> findByIdAndSucursalId(Long id, Long sucursalId) {
+        return findById(new com.franco.dev.domain.EmbebedPrimaryKey(id, sucursalId));
+    }
+
+    public Optional<Marcacion> findById(Long id) {
+        if (id == null)
+            return Optional.empty();
+        throw new UnsupportedOperationException(
+                "findById with Long is no longer supported due to composite key EmbebedPrimaryKey. Use the correct method instead.");
     }
 
     public Page<Marcacion> findByUsuarioId(Long usuarioId, Integer page, Integer size) {
@@ -61,9 +81,16 @@ public class MarcacionService extends CrudService<Marcacion, MarcacionRepository
         return repository.findBySucursalSalidaId(sucursalId);
     }
 
-    @Override
+    @org.springframework.transaction.annotation.Transactional(isolation = org.springframework.transaction.annotation.Isolation.SERIALIZABLE)
     public Marcacion save(Marcacion entity) {
         if (entity.getId() == null) {
+            Long lastId = repository.findMaxId(entity.getSucursalId());
+            long newId = (lastId == null ? 0L : lastId) + 1L;
+            if (newId % 2 != 0) {
+                newId++;
+            }
+            entity.setId(newId);
+
             if (entity.getFechaEntrada() == null && entity.getFechaSalida() == null) {
                 entity.setFechaEntrada(LocalDateTime.now());
             }
@@ -78,10 +105,14 @@ public class MarcacionService extends CrudService<Marcacion, MarcacionRepository
             }
         }
 
-        Marcacion e = super.save(entity);
+        Boolean esSalidaAlmuerzo = entity.getEsSalidaAlmuerzo();
+
+        Marcacion e = repository.save(entity);
         if (e.getUsuario() == null && entity.getUsuario() != null) {
             e.setUsuario(entity.getUsuario());
         }
+
+        e.setEsSalidaAlmuerzo(esSalidaAlmuerzo);
 
         procesarJornada(e);
         return e;
@@ -201,12 +232,14 @@ public class MarcacionService extends CrudService<Marcacion, MarcacionRepository
                     jornada.setUsuario(marcacion.getUsuario());
                     jornada.setFecha(fechaJornada);
                     jornada.setEstado(EstadoJornada.INCOMPLETO);
+                    jornada.setSucursalId(marcacion.getSucursalId());
                 }
             } else {
                 jornada = new Jornada();
                 jornada.setUsuario(marcacion.getUsuario());
                 jornada.setFecha(fechaJornada);
                 jornada.setEstado(EstadoJornada.INCOMPLETO);
+                jornada.setSucursalId(marcacion.getSucursalId());
             }
 
             if (horario != null && jornada.getHoraEntradaHorario() == null) {
