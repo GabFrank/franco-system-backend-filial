@@ -8,6 +8,7 @@ import com.franco.dev.service.personas.PersonaService;
 import com.franco.dev.service.personas.RoleService;
 import com.franco.dev.service.personas.UsuarioRoleService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.utils.ImageService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -34,32 +35,59 @@ public class UsuarioGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     @Autowired
     private UsuarioRoleService usuarioRoleService;
 
-    public Optional<Usuario> usuario(Long id) {return service.findById(id);}
+    public Optional<Usuario> usuario(Long id) {
+        return service.findById(id);
+    }
 
-    public Usuario usuarioPorPersonaId(Long id) {return service.findByPersonaId(id);}
+    public Usuario usuarioPorPersonaId(Long id) {
+        return service.findByPersonaId(id);
+    }
 
-    public List<Usuario> usuarioSearch(String texto) {return service.findbyIdOrPersona(texto);}
+    public List<Usuario> usuarioSearch(String texto) {
+        return service.findbyIdOrPersona(texto);
+    }
 
-    public List<Usuario> usuarios(int page, int size){
-        Pageable pageable = PageRequest.of(page,size);
+    public List<Usuario> usuarios(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
-    public Usuario saveUsuario(UsuarioInput input){
+    public Usuario saveUsuario(UsuarioInput input) {
         ModelMapper m = new ModelMapper();
         Usuario e = m.map(input, Usuario.class);
-        if(input.getUsuarioId()!=null) e.setUsuario(service.findById(input.getUsuarioId()).orElse(null));
-        if(input.getPersonaId()!=null) e.setPersona(personaService.findById(input.getPersonaId()).orElse(null));
+        if (input.getUsuarioId() != null)
+            e.setUsuario(service.findById(input.getUsuarioId()).orElse(null));
+        if (input.getPersonaId() != null)
+            e.setPersona(personaService.findById(input.getPersonaId()).orElse(null));
         return service.save(e);
     }
 
-
-
-    public Boolean deleteUsuario(Long id){
+    public Boolean deleteUsuario(Long id) {
         return service.deleteById(id);
     }
 
-    public Long countUsuario(){
+    public Long countUsuario() {
         return service.count();
+    }
+
+    public Boolean verificarUsuario(String nickname) {
+        return service.existsByNickname(nickname);
+    }
+
+    public List<Usuario> usuariosActivos() {
+        return service.findAllActivos();
+    }
+
+    public UsuarioSimilitudResult usuarioPorEmbedding(List<Double> embedding, List<Integer> excludeIds) {
+        return service.findUsuarioByEmbedding(embedding, excludeIds);
+    }
+
+    public List<String> getUsuarioImages(Long id, String type) {
+        return service.getUserImages(id, type);
+    }
+
+    public Boolean saveUsuarioImage(Long id, String type, String image, List<Double> embedding)
+            throws java.io.IOException {
+        return service.saveUserImage(id, type, image, embedding);
     }
 }

@@ -28,6 +28,7 @@ public interface ProductoRepository extends HelperRepository<Producto, Long> {
     "where (CAST(p.id as text) like CONCAT('%', :texto, '%') or UPPER(p.descripcion) like CONCAT('%', UPPER(:texto), '%') " +
     "or UPPER(p.descripcion_factura) like CONCAT('%', UPPER(:texto), '%') or c.codigo like CONCAT('%', :texto, '%')) " +
     "and p.activo = true " +
+    "and EXISTS (SELECT 1 FROM productos.presentacion p3 WHERE p3.producto_id = p.id AND p3.activo = true) " +
     "and (:conStock = false OR (COALESCE(st.stock_actual, 0) > 0)) " +
     "ORDER BY p.descripcion asc " +
     "limit 10 " +
@@ -64,12 +65,14 @@ public interface ProductoRepository extends HelperRepository<Producto, Long> {
     public Producto findByCodigo(String texto);
 
     @Query(value = "select * from productos.producto p \n" +
-            "where p.activo = true", nativeQuery = true)
+            "where p.activo = true " +
+            "and EXISTS (SELECT 1 FROM productos.presentacion p3 WHERE p3.producto_id = p.id AND p3.activo = true)", nativeQuery = true)
     public List<Producto> findAllForPdv();
 
     @Query(value = "select * from productos.producto p " +
             "join productos.pdv_grupos_productos pgp on pgp.producto_id = p.id " +
-            "where pgp.id = ?1", nativeQuery = true)
+            "where pgp.id = ?1 " +
+            "and EXISTS (SELECT 1 FROM productos.presentacion p3 WHERE p3.producto_id = p.id AND p3.activo = true)", nativeQuery = true)
     public List<Producto> findByPdvGrupoProductoId(Long id);
 
 }

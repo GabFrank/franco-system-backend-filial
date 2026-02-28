@@ -19,4 +19,5 @@ public class FuncionarioInput {
     private Boolean activo;
     private LocalDateTime creadoEn;
     private Long usuarioId;
+    private Long horarioId;
 }

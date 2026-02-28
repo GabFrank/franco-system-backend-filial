@@ -1,0 +1,77 @@
+scalar DateTime
+
+type Marcacion {
+    id: ID!
+    sucursalId: ID!
+    usuario: Usuario
+    tipo: TipoMarcacion
+    
+    latitud: Float
+    longitud: Float
+    precisionGps: Float
+    distanciaSucursalMetros: Int
+    
+    deviceId: String
+    deviceInfo: String
+    
+    sucursalEntrada: Sucursal
+    fechaEntrada: String
+    
+    sucursalSalida: Sucursal
+    fechaSalida: String
+    
+    autorizacion: Int
+    codigo: String
+}
+
+type MarcacionPage {
+    getTotalPages: Int
+    getTotalElements: Int
+    getNumberOfElements: Int
+    isFirst: Boolean
+    isLast: Boolean
+    hasNext: Boolean
+    hasPrevious: Boolean
+    getContent: [Marcacion]
+}
+
+input MarcacionInput {
+    id: ID
+    sucursalId: ID
+    usuarioId: ID
+    tipo: TipoMarcacion
+    
+    latitud: Float
+    longitud: Float
+    precisionGps: Float
+    distanciaSucursalMetros: Int
+    
+    deviceId: String
+    deviceInfo: String
+    
+    sucursalEntradaId: ID
+    fechaEntrada: String
+    
+    sucursalSalidaId: ID
+    fechaSalida: String
+    
+    codigo: String
+    embedding: [Float]
+    esSalidaAlmuerzo: Boolean
+}
+
+enum TipoMarcacion {
+    ENTRADA
+    SALIDA
+}
+
+extend type Query {
+    marcacion(id: ID!, sucursalId: ID!): Marcacion
+    marcacionesPorUsuario(usuarioId: ID!, fechaInicio: String, fechaFin: String, page: Int, size: Int): MarcacionPage
+    marcaciones(fechaInicio: String, fechaFin: String, page: Int, size: Int): MarcacionPage
+    imprimirReporteMarcaciones(usuarioId: ID, fechaInicio: String, fechaFin: String, usuarioResponsableId: ID): String
+}
+
+extend type Mutation {
+    saveMarcacion(marcacion: MarcacionInput!): Marcacion
+}

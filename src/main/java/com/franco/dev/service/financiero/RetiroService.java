@@ -42,7 +42,7 @@ public class RetiroService extends CrudService<Retiro, RetiroRepository> {
 
     @Override
     public Retiro saveAndSend(Retiro entity, Boolean recibir) {
-        entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Retiro e = super.save(entity);
 //        personaPublisher.publish(p);
 //        propagacionService.propagarEntidad(e, RETIRO, recibir);

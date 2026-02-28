@@ -29,6 +29,10 @@ public interface UsuarioRepository extends HelperRepository<Usuario, Long> {
 
     public Optional<Usuario> findByEmail(String email);
 
-
+    @Query("select u from Usuario u " +
+            "join u.persona p " +
+            "where u.activo = true " +
+            "order by p.nombre asc")
+    List<Usuario> findAllActivos();
 
 }
