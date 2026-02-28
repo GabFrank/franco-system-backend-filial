@@ -10,9 +10,9 @@
         <relativePath />  <!-- lookup parent from repository -->
     </parent>
     <groupId>com.franco.dev</groupId>
-    <artifactId>franco-dev-systems</artifactId>
+    <artifactId>franco-dev-systems-filial</artifactId>
     <version>3.0.8-3</version>
-    <name>Franco Systems</name>
+    <name>Franco Systems (Filial)</name>
     <description>Sistema de gestion empresarial</description>
 
     <properties>
@@ -335,7 +335,7 @@
 
     <repositories>
         <repository>
-            <id>github</id>
+            <id>github-jsifenlib</id>
             <url>https://maven.pkg.github.com/GabFrank/rshk-jsifenlib</url>
             <snapshots>
                 <enabled>true</enabled>
