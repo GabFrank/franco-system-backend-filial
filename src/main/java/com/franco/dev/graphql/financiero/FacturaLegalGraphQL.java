@@ -8,6 +8,7 @@ import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
+import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
@@ -323,20 +324,35 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     item.setDescripcion(itemInput.getDescripcion());
                     item.setPrecioUnitario(itemInput.getPrecioUnitario());
                     item.setTotal(itemInput.getTotal());
-                    item.setIva(itemInput.getIva());
+                    
+                    Integer iva = itemInput.getIva();
+
+                    // Vincular producto si se proporciona productoId y priorizar su IVA
+                    if (itemInput.getProductoId() != null) {
+                        Optional<Producto> producto = productoService
+                                .findById(itemInput.getProductoId());
+                        if (producto.isPresent()) {
+                            item.setProducto(producto.get());
+                            if (producto.get().getIva() != null) {
+                                iva = producto.get().getIva();
+                            }
+                        }
+                    }
+
+                    if (iva == null) {
+                        iva = 10;
+                    }
+                    
+                    item.setIva(iva);
+                    // Actualizamos el input para que el bucle de cálculo de totales use el valor correcto
+                    itemInput.setIva(iva);
+                    
                     item.setUnidadMedida(itemInput.getUnidadMedida());
                     item.setSucursalId(facturaLegalGuardada.getSucursalId());
 
                     // Mapear relaciones del item
                     if (itemInput.getVentaItemId() != null) {
                         // TODO: Implementar mapeo de VentaItem si es necesario
-                    }
-
-                    // Vincular producto si se proporciona productoId
-                    if (itemInput.getProductoId() != null) {
-                        Optional<com.franco.dev.domain.productos.Producto> producto = productoService
-                                .findById(itemInput.getProductoId());
-                        producto.ifPresent(item::setProducto);
                     }
 
                     if (itemInput.getUsuarioId() != null) {

@@ -9,6 +9,7 @@ import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
+import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto;
 import com.franco.dev.repository.financiero.PdvCajaRepository;
 import com.franco.dev.service.CrudService;
@@ -18,6 +19,8 @@ import com.franco.dev.service.operaciones.CobroDetalleService;
 import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.DeliveryService;
 import com.franco.dev.service.operaciones.VentaService;
+import com.franco.dev.service.personas.UsuarioService;
+
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -157,6 +160,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
 
     /**
      * Gets the next sequential ID for PdvCaja
+     *
      * @return The next ID in sequence
      */
     @Transactional(isolation = Isolation.SERIALIZABLE)
@@ -530,8 +534,11 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         return pdvCaja;
     }
 
-    public Page<PdvCaja> findAllWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId, String fechaInicio, String fechaFin, Long sucId, Boolean verificado, Pageable pageable) {
-        return repository.findAllWithFilters(cajaId, estado, maletinId, cajeroId, fechaInicio != null ? stringToDate(fechaInicio) : null, fechaFin != null ? stringToDate(fechaFin) : null, sucId, verificado, pageable);
+    public Page<PdvCaja> findAllWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId,
+            String fechaInicio, String fechaFin, Long sucId, Boolean verificado, Pageable pageable) {
+        return repository.findAllWithFilters(cajaId, estado, maletinId, cajeroId,
+                fechaInicio != null ? stringToDate(fechaInicio) : null,
+                fechaFin != null ? stringToDate(fechaFin) : null, sucId, verificado, pageable);
     }
 
     public CajaBalance getBalance(Long id) {
@@ -576,6 +583,28 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     public PdvCaja findLastByMaletinId(Long id) {
         PdvCaja caja = repository.findFirstByMaletinIdOrderByCreadoEnDesc(id).orElse(null);
         return caja;
+    }
+
+    @Autowired
+    private UsuarioService usuarioService;
+
+    public PdvCaja transferirCaja(Long cajaId, Long usuarioId) throws GraphQLException {
+        PdvCaja caja = findById(cajaId).orElse(null);
+        if (caja == null) {
+            throw new GraphQLException("Caja no encontrada");
+        }
+        Usuario usuario = usuarioService.findById(usuarioId).orElse(null);
+        if (usuario == null) {
+            throw new GraphQLException("Usuario no encontrado");
+        }
+
+        List<PdvCaja> aux = repository.findByUsuarioIdAndActivo(usuarioId, true);
+        if (aux.size() > 0) {
+            throw new GraphQLException("El usuario destino ya tiene una caja abierta");
+        }
+
+        caja.setUsuario(usuario);
+        return repository.save(caja);
     }
 
 }

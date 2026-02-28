@@ -79,6 +79,7 @@ extend type Query {
 
 extend type Mutation {
   savePdvCaja(pdvCaja: PdvCajaInput!): PdvCaja!
+  transferirCaja(cajaId: ID!, usuarioId: ID!): PdvCaja
 }
 
 enum PdvCajaEstado {
