@@ -11,7 +11,7 @@
     </parent>
     <groupId>com.franco.dev</groupId>
     <artifactId>franco-dev-systems-filial</artifactId>
-    <version>3.0.9-gab</version>
+    <version>3.0.9</version>
     <name>Franco Systems (Filial)</name>
     <description>Sistema de gestion empresarial</description>
 
