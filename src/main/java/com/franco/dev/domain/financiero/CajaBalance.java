@@ -20,6 +20,11 @@ public class CajaBalance {
     private Double totalVentaRs;
     private Double totalVentaDs;
     private Double totalTarjeta;
+    private Double totalTarjetaRs;
+    private Double totalTarjetaDs;
+    private Double totalTransferencia;
+    private Double totalTransferenciaRs;
+    private Double totalTransferenciaDs;
     private Double totalCredito;
     private Double totalDescuento;
     private Double totalAumento;

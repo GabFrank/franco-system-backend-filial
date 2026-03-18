@@ -146,6 +146,38 @@ public class ImpresionService {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorTarjeta);
+                escpos.write("Reales R$: ");
+                String valorTarjetaRs = String.format("%.2f", balanceDto.getTotalTarjetaRs());
+                for (int i = 21; i > valorTarjetaRs.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(valorTarjetaRs);
+                escpos.write("Dolares D$: ");
+                String valorTarjetaDs = String.format("%.2f", balanceDto.getTotalTarjetaDs());
+                for (int i = 20; i > valorTarjetaDs.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(valorTarjetaDs);
+                escpos.writeLF("--------------------------------");
+                escpos.writeLF(center, "VALORES DE TRANSFERENCIA");
+                escpos.write("Guaranies G$: ");
+                String valorTransferencia = NumberFormat.getNumberInstance(Locale.GERMAN).format(balanceDto.getTotalTransferencia().intValue());
+                for (int i = 18; i > valorTransferencia.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(valorTransferencia);
+                escpos.write("Reales R$: ");
+                String valorTransferenciaRs = String.format("%.2f", balanceDto.getTotalTransferenciaRs());
+                for (int i = 21; i > valorTransferenciaRs.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(valorTransferenciaRs);
+                escpos.write("Dolares D$: ");
+                String valorTransferenciaDs = String.format("%.2f", balanceDto.getTotalTransferenciaDs());
+                for (int i = 20; i > valorTransferenciaDs.length(); i--) {
+                    escpos.write(" ");
+                }
+                escpos.writeLF(valorTransferenciaDs);
                 escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "VALORES DE CREDITO");
                 escpos.write("Guaranies G$: ");

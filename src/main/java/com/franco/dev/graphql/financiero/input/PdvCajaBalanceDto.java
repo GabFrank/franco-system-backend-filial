@@ -23,6 +23,11 @@ public class PdvCajaBalanceDto {
     private Double totalVentaRs = 0.0;
     private Double totalVentaDs = 0.0;
     private Double totalTarjeta = 0.0;
+    private Double totalTarjetaRs = 0.0;
+    private Double totalTarjetaDs = 0.0;
+    private Double totalTransferencia = 0.0;
+    private Double totalTransferenciaRs = 0.0;
+    private Double totalTransferenciaDs = 0.0;
     private Double totalCheque = 0.0;
     private Double diferenciaGs = 0.0;
     private Double diferenciaRs = 0.0;
