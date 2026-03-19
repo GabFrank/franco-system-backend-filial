@@ -9,6 +9,7 @@ import graphql.kickstart.tools.GraphQLResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +27,10 @@ public class VentaResolver implements GraphQLResolver<Venta> {
 
     public List<VentaItem> ventaItemList(Venta v){
         return ventaItemService.findByVentaId(v.getId());
+    }
+
+    public List<VentaObservacion> ventaObservacionList(Venta v){
+        return Collections.emptyList();
     }
 
     public Double valorDescuento(Venta v){

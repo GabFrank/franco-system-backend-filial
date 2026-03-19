@@ -8,6 +8,7 @@ type Venta {
     creadoEn: Date
     usuario: Usuario
     ventaItemList: [VentaItem]
+    ventaObservacionList: [VentaObservacion]
     valorDescuento: Float
     valorTotal: Float
     totalGs: Float

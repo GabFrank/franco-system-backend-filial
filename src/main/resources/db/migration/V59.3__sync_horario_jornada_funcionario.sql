@@ -1,7 +1,7 @@
 -- Migración V59.3 - Sincronización de Horarios, Jornadas y Funcionarios
 
 -- Crear tabla administrativo.horario
-CREATE SEQUENCE IF NOT EXISTS administrativo.horario_id_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS administrativo.horario_id_seq START WITH 2 INCREMENT BY 2 NO MINVALUE NO MAXVALUE CACHE 1;
 
 CREATE TABLE IF NOT EXISTS administrativo.horario (
     id BIGINT NOT NULL DEFAULT nextval('administrativo.horario_id_seq'),
@@ -27,7 +27,12 @@ CREATE TABLE IF NOT EXISTS administrativo.horario_dias (
 
 -- Actualizar tabla personas.funcionario para incluir el horario
 ALTER TABLE personas.funcionario ADD COLUMN IF NOT EXISTS horario_id BIGINT;
-ALTER TABLE personas.funcionario ADD CONSTRAINT fk_funcionario_horario FOREIGN KEY (horario_id) REFERENCES administrativo.horario (id);
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_funcionario_horario') THEN
+        ALTER TABLE personas.funcionario ADD CONSTRAINT fk_funcionario_horario FOREIGN KEY (horario_id) REFERENCES administrativo.horario (id);
+    END IF;
+END$$;
 
 -- Actualizar tabla administrativo.jornada con nuevos campos de cálculo y almuerzo
 ALTER TABLE administrativo.jornada ADD COLUMN IF NOT EXISTS marcacion_salida_almuerzo_id BIGINT;
