@@ -18,6 +18,8 @@ public class RetiroInput {
     private Long usuarioId;
 
     private Long cajaSalidaId;
+    private Long sucursalSalidaId;
+
 
     private Long cajaEntradaId;
 
