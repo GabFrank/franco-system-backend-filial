@@ -22,6 +22,7 @@ input RetiroInput {
     creadoEn: Date
     usuarioId: Int
     cajaSalidaId: Int
+    sucursalSalidaId: Int
     cajaEntradaId: Int
     retiroGs: Float
     retiroRs: Float
