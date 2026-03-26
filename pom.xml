@@ -356,7 +356,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.22.2</version>
                 <configuration>
-                    <skipTests>true</skipTests>
+                    <skipTests>false</skipTests>
                 </configuration>
             </plugin>
 
@@ -388,7 +388,7 @@
             <!--				</configuration>-->
             <!--			</plugin>-->
         </plugins>
-        <finalName>frc-server</finalName>
+        <finalName>frc-filial-server</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
