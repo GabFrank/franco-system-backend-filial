@@ -1,4 +1,4 @@
-package com.franco.dev.domain.vehiculos;
+package com.franco.dev.domain.activos;
 
 import com.franco.dev.config.Identifiable;
 import com.franco.dev.domain.personas.Usuario;
@@ -23,7 +23,7 @@ public class TipoCombustible implements Identifiable<Long> {
     private Long id;
 
     private String descripcion;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
