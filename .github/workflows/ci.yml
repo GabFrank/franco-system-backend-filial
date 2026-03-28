@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, release/*, main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: franco
+          POSTGRES_PASSWORD: franco
+          POSTGRES_DB: general
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Configure Maven settings (GitHub Packages)
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml << 'EOF'
+          <settings>
+            <servers>
+              <server>
+                <id>github-jsifenlib</id>
+                <username>${env.GITHUB_ACTOR}</username>
+                <password>${env.PACKAGES_PAT}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+        env:
+          PACKAGES_PAT: ${{ secrets.PACKAGES_PAT }}
+
+      - name: Build & Test
+        run: ./mvnw clean verify -B
+        env:
+          SPRING_PROFILES_ACTIVE: ci
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/general
+          SPRING_DATASOURCE_USERNAME: franco
+          SPRING_DATASOURCE_PASSWORD: franco
+          PACKAGES_PAT: ${{ secrets.PACKAGES_PAT }}
+          GITHUB_ACTOR: ${{ github.actor }}
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frc-filial-server
+          path: target/frc-filial-server.jar
+          retention-days: 5
