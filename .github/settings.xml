@@ -1,0 +1,9 @@
+<settings>
+  <servers>
+    <server>
+      <id>github-jsifenlib</id>
+      <username>${env.GITHUB_ACTOR}</username>
+      <password>${env.PACKAGES_PAT}</password>
+    </server>
+  </servers>
+</settings>
