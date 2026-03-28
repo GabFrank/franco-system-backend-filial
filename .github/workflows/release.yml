@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [develop, release/*, main]
+    branches: [develop, release/*, main, master]
 
 jobs:
   release:
