@@ -6,6 +6,7 @@ type Cargo {
     sueldoBase: Float
     creadoEn: Date
     usuario: Usuario
+    subcargoList: [Cargo]
 }
 
 input CargoInput {

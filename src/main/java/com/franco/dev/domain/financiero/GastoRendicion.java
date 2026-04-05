@@ -27,7 +27,10 @@ public class GastoRendicion implements Identifiable<Long> {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "pre_gasto_id")
+    @JoinColumns(value = {
+        @JoinColumn(name = "pre_gasto_id", referencedColumnName = "id"),
+        @JoinColumn(name = "pre_gasto_sucursal_id", referencedColumnName = "sucursal_id")
+    })
     private PreGasto preGasto;
 
     @ManyToOne(fetch = FetchType.LAZY)

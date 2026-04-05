@@ -1,6 +1,6 @@
 package com.franco.dev.domain.financiero;
 
-import com.franco.dev.config.Identifiable;
+import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.domain.activos.Ente;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.enums.EstadoPreGasto;
@@ -9,8 +9,8 @@ import com.franco.dev.domain.personas.Usuario;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.GenericGenerator;
 import javax.persistence.*;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -19,13 +19,16 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Entity
 @Table(name = "pre_gasto", schema = "financiero")
-public class PreGasto implements Identifiable<Long> {
+@IdClass(EmbebedPrimaryKey.class)
+public class PreGasto implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
-    @GenericGenerator(name = "assigned-identity", strategy = "com.franco.dev.config.AssignedIdentityGenerator")
-    @GeneratedValue(generator = "assigned-identity", strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Id
+    @Column(name = "sucursal_id")
+    private Long sucursalId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "funcionario_id")
