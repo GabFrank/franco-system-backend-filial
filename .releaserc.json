@@ -6,7 +6,7 @@
       "prerelease": "alpha"
     },
     {
-      "name": "release/*",
+      "name": "release/beta",
       "prerelease": "beta"
     }
   ],
