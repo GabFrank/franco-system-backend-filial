@@ -5,7 +5,7 @@
 ## Flujo General
 
 ```
-feature/* --PR--> develop (alpha) --merge--> release/next (beta) --merge--> master (stable)
+feature/* --PR--> develop (alpha) --merge--> release/beta (beta) --merge--> master (stable)
                      |                           |                             |
                semantic-release            semantic-release              semantic-release
                v2.5.0-alpha.1             v2.5.0-beta.1                   v2.5.0
@@ -33,9 +33,9 @@ feature/* --PR--> develop (alpha) --merge--> release/next (beta) --merge--> mast
 
 ## 2. Promocion a Beta
 
-1. Mergear `develop` en `release/next`:
+1. Mergear `develop` en `release/beta`:
    ```
-   git checkout release/next && git pull
+   git checkout release/beta && git pull
    git merge develop
    git push
    ```
@@ -45,12 +45,12 @@ feature/* --PR--> develop (alpha) --merge--> release/next (beta) --merge--> mast
 
 > **IMPORTANTE: Usar MERGE COMMIT, NO squash.**
 >
-> Si se hace squash con mensaje `chore: merge release/next into master`, semantic-release
+> Si se hace squash con mensaje `chore: merge release/beta into master`, semantic-release
 > solo ve un commit `chore:` y hace un patch bump (o ninguno). Se debe usar **merge commit**
 > para que semantic-release vea los commits originales `feat:` y `fix:` y calcule
 > correctamente el bump de version.
 
-1. Crear PR de `release/next` hacia `master`.
+1. Crear PR de `release/beta` hacia `master`.
 2. Mergear con **"Create a merge commit"** (NO "Squash and merge").
 3. `semantic-release` genera la release estable (ej: `v2.5.0`).
 
@@ -106,12 +106,12 @@ Set-Content C:\frc-filial\.channel "stable"     # Windows
 
 Si hay un bug critico en beta:
 
-1. Crear rama desde `release/next`:
+1. Crear rama desde `release/beta`:
    ```
-   git checkout release/next && git pull
+   git checkout release/beta && git pull
    git checkout -b fix/corregir-timeout-sync
    ```
-2. Crear PR hacia `release/next` con prefijo `fix:`.
+2. Crear PR hacia `release/beta` con prefijo `fix:`.
 3. Al mergear, se genera nueva release beta. Las filiales en canal `beta` se actualizan automaticamente.
 
 ## Prefijos de Commits
