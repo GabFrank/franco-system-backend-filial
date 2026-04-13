@@ -30,6 +30,9 @@ public class TipoGasto implements Serializable {
     private Boolean autorizacion;
 
     private String descripcion;
+    
+    private Boolean afectaFinanzasActivo;
+    private Boolean esPagoCuotaActivo;
 
     @Enumerated(EnumType.STRING)
     private TipoNaturalezaGasto tipoNaturaleza;
