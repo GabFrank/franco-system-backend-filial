@@ -1,0 +1,35 @@
+{
+  "branches": [
+    "master",
+    {
+      "name": "develop",
+      "prerelease": "alpha"
+    },
+    {
+      "name": "release/beta",
+      "prerelease": "beta"
+    }
+  ],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "./mvnw versions:set -DnewVersion=${nextRelease.version} -DgenerateBackupPoms=false -B && ./mvnw clean package -B -DskipTests -s .github/settings.xml"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "target/frc-filial-server.jar",
+            "name": "frc-filial-server.jar",
+            "label": "FRC Filial Server JAR"
+          }
+        ]
+      }
+    ]
+  ]
+}
