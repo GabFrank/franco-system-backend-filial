@@ -15,6 +15,7 @@ public class PreGastoInput {
     private Long monedaId;
     private Double montoSolicitado;
     private Long sucursalCajaId;
+    private Long cajaId;
     private EstadoPreGasto estado;
     private Long autorizadoPorId;
     private Long delegadoAId;

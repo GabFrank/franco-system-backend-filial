@@ -55,6 +55,9 @@ public class PreGasto implements Serializable {
     @JoinColumn(name = "sucursal_caja_id")
     private Sucursal sucursalCaja;
 
+    @Column(name = "caja_id")
+    private Long cajaId;
+
     @Enumerated(EnumType.STRING)
     private EstadoPreGasto estado;
 

@@ -73,6 +73,7 @@ public class PreGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         if (entity.getTipoGastoId() != null) e.setTipoGasto(tipoGastoService.findById(entity.getTipoGastoId()).orElse(null));
         if (entity.getMonedaId() != null) e.setMoneda(monedaService.findById(entity.getMonedaId()).orElse(null));
         if (entity.getSucursalCajaId() != null) e.setSucursalCaja(sucursalService.findById(entity.getSucursalCajaId()).orElse(null));
+        e.setCajaId(entity.getCajaId());
 
         if (e.getEstado() == null) {
             e.setEstado(EstadoPreGasto.PENDIENTE);

@@ -17,6 +17,7 @@ type PreGasto {
     moneda: Moneda
     montoSolicitado: Float
     sucursalCaja: Sucursal
+    cajaId: ID
     estado: EstadoPreGasto
     qrToken: String
     autorizadoPor: Persona
@@ -39,6 +40,7 @@ input PreGastoInput {
     monedaId: Int
     montoSolicitado: Float
     sucursalCajaId: Int
+    cajaId: Int
     estado: EstadoPreGasto
     autorizadoPorId: Int
     delegadoAId: Int
