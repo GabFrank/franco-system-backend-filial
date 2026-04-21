@@ -115,7 +115,7 @@ public class PreGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     public PreGasto completarPreGasto(Long id, Long sucId) {
         PreGasto e = service.findById(id).orElse(null);
         if (e != null) {
-            e.setEstado(EstadoPreGasto.TRAMITE);
+            e.setEstado(EstadoPreGasto.COMPLETADO);
             return service.saveAndSend(e, false);
         }
         return null;

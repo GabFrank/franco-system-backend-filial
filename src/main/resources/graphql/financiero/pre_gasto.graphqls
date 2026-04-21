@@ -4,6 +4,7 @@ enum EstadoPreGasto {
     AUTORIZADO
     RECHAZADO
     COMPLETADO
+    ENVIADO_A_TESORERIA
 }
 
 type PreGasto {
