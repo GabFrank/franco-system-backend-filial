@@ -96,6 +96,8 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             e.setResponsable(funcionarioService.findById(input.getResponsableId()).orElse(null));
         if (input.getTipoGastoId() != null)
             e.setTipoGasto(tipoGastoService.findById(input.getTipoGastoId()).orElse(null));
+        e.setPreGastoId(input.getPreGastoId());
+        e.setPreGastoSucursalId(input.getPreGastoSucursalId());
         Gasto gasto = service.saveAndSend(e, false);
         GastoDto gastoDto = new GastoDto();
         if (gasto != null && input.getFinalizado() != true) {
