@@ -96,8 +96,16 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             e.setResponsable(funcionarioService.findById(input.getResponsableId()).orElse(null));
         if (input.getTipoGastoId() != null)
             e.setTipoGasto(tipoGastoService.findById(input.getTipoGastoId()).orElse(null));
-        e.setPreGastoId(input.getPreGastoId());
-        e.setPreGastoSucursalId(input.getPreGastoSucursalId());
+        if (input.getPreGastoId() != null || input.getPreGastoSucursalId() != null) {
+            if (input.getPreGastoId() == null || input.getPreGastoSucursalId() == null) {
+                throw new GraphQLException("Debe enviar preGastoId y preGastoSucursalId para asociar el gasto.");
+            }
+            e.setPreGastoId(input.getPreGastoId());
+            e.setPreGastoSucursalId(input.getPreGastoSucursalId());
+        } else {
+            e.setPreGastoId(null);
+            e.setPreGastoSucursalId(null);
+        }
         Gasto gasto = service.saveAndSend(e, false);
         GastoDto gastoDto = new GastoDto();
         if (gasto != null && input.getFinalizado() != true) {
