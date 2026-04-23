@@ -2,8 +2,7 @@ package com.franco.dev.graphql.financiero.resolver;
 
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.CajaBalance;
-import com.franco.dev.domain.financiero.Gasto;
-import com.franco.dev.domain.financiero.GastoDetalle;
+import com.franco.dev.domain.financiero.CajaObservacion;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.GastoDetalleService;
@@ -15,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
 
 @Component
@@ -48,6 +48,10 @@ public class CajaResolver implements GraphQLResolver<PdvCaja> {
 //    totalAumento: Float
 //    totalRetiro: Float
 //    totalGasto: Float
+
+    public List<CajaObservacion> cajaObservacionList(PdvCaja caja) {
+        return Collections.emptyList();
+    }
 
     public CajaBalance balance(PdvCaja e){
         return pdvCajaService.getBalance(e.getId());

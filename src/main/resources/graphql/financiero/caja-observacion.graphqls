@@ -1,0 +1,5 @@
+type CajaObservacion {
+    id: ID!
+    descripcion: String
+    creadoEn: Date
+}

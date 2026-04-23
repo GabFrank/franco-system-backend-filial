@@ -17,6 +17,7 @@ type PdvCaja {
   verificadoPor: Usuario
   sucursalId: Int
   sucursal: Sucursal
+  cajaObservacionList: [CajaObservacion]
 }
 
 input PdvCajaInput {
