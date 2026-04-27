@@ -53,7 +53,7 @@ public class TokenController {
                     Usuario newUser = service.save(usuario);
                     JwtUser jwtUser = new JwtUser();
                     jwtUser.setId(newUser.getId());
-                    jwtUser.setNickname(newUser.getNickname().toUpperCase());
+                    jwtUser.setNickname(newUser.getNickname().trim().toUpperCase());
                     jwtUser.setPassword(usuario.getPassword().toUpperCase());
                     return generate(jwtUser);
                 } else {
@@ -70,7 +70,8 @@ public class TokenController {
     @PostMapping
     @ResponseBody
     public ResponseEntity<LoginResponse> generate(@RequestBody final JwtUser jwtUser) {
-        Usuario usuario = service.findByNickname(jwtUser.getNickname()).orElse(null);
+        String nickname = jwtUser.getNickname() != null ? jwtUser.getNickname().trim() : "";
+        Usuario usuario = service.findByNickname(nickname).orElse(null);
         List<Local> localList = localService.findAll();
         if (usuario != null) {
             Boolean matches = jwtUser.getPassword().toUpperCase().equals(usuario.getPassword().toUpperCase());
