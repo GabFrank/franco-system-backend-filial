@@ -45,6 +45,17 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        
+        // Validación de descuento único
+        if (entity.getDescuento() != null && entity.getDescuento() && entity.getCobro() != null && entity.getCobro().getId() != null) {
+            List<CobroDetalle> existentes = repository.findByCobroId(entity.getCobro().getId());
+            for (CobroDetalle cd : existentes) {
+                if (cd.getDescuento() != null && cd.getDescuento() && (entity.getId() == null || !cd.getId().equals(entity.getId()))) {
+                    return null;
+                }
+            }
+        }
+
         CobroDetalle e = super.save(entity);
 //        personaPublisher.publish(p);
         return e;
@@ -56,6 +67,17 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
         if (entity.getId() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getCreadoEn() == null) entity.setCreadoEn(LocalDateTime.now());
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+
+        // Validación de descuento único
+        if (entity.getDescuento() != null && entity.getDescuento() && entity.getCobro() != null && entity.getCobro().getId() != null) {
+            List<CobroDetalle> existentes = repository.findByCobroId(entity.getCobro().getId());
+            for (CobroDetalle cd : existentes) {
+                if (cd.getDescuento() != null && cd.getDescuento() && (entity.getId() == null || !cd.getId().equals(entity.getId()))) {
+                    return null;
+                }
+            }
+        }
+
         CobroDetalle e = super.save(entity);
 //        personaPublisher.publish(p);
 //        propagacionService.propagarEntidad(e, TipoEntidad.COBRO_DETALLE, recibir);
