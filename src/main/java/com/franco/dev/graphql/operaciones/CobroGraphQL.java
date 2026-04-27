@@ -66,10 +66,15 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         if(e.getUsuario()!=null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         Cobro cobro = service.saveAndSend(e, false);
         if(cobro!=null){
+            boolean discountApplied = false;
             for(CobroDetalleInput c : cobroDetalleList){
+                if (c.getDescuento() != null && c.getDescuento()) {
+                    if (discountApplied) continue;
+                    discountApplied = true;
+                }
                 c.setCobroId(cobro.getId());
                 CobroDetalle cobroDetalle = cobroDetalleGraphQL.saveCobroDetalle(c);
-                if(c.getId()==null && cobroDetalle.getDescuento()!=true && cobroDetalle.getAumento()!=true && cobroDetalle.getFormaPago().getDescripcion().toUpperCase().contains("EFECTIVO")){
+                if(cobroDetalle != null && c.getId()==null && cobroDetalle.getDescuento()!=true && cobroDetalle.getAumento()!=true && cobroDetalle.getFormaPago().getDescripcion().toUpperCase().contains("EFECTIVO")){
                     MovimientoCajaInput movimientoCajaInput = new MovimientoCajaInput();
                     movimientoCajaInput.setMonedaId(c.getMonedaId());
                     movimientoCajaInput.setCantidad(c.getValor());
