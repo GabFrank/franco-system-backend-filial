@@ -24,6 +24,8 @@ public interface UsuarioRepository extends HelperRepository<Usuario, Long> {
     public boolean existsByEmail(String email);
 
     public boolean existsByNickname(String nickname);
+    
+    public boolean existsByNicknameIgnoreCase(String nickname);
 
     public Optional<Usuario> findByNicknameIgnoreCase(String nickname);
 

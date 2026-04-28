@@ -940,9 +940,21 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
              venta.setSucursalId(delivery.getSucursalId());
              venta.setUsuario(delivery.getUsuario());
              delivery.setEstado(DeliveryEstado.CONCLUIDO);
-             delivery.setFechaConcluido(LocalDateTime.now());
-             for (CobroDetalleInput cd : cobroDetalleList) {
-                 cd.setCobroId(venta.getCobro().getId());
+              delivery.setFechaConcluido(LocalDateTime.now());
+              List<CobroDetalle> existingDetails = cobroDetalleService.findByCobroId(venta.getCobro().getId());
+              boolean discountApplied = false;
+              for (CobroDetalle d : existingDetails) {
+                  if (d.getDescuento() != null && d.getDescuento()) {
+                      discountApplied = true;
+                      break;
+                  }
+              }
+              for (CobroDetalleInput cd : cobroDetalleList) {
+                  if (cd.getDescuento() != null && cd.getDescuento()) {
+                      if (discountApplied) continue;
+                      discountApplied = true;
+                  }
+                  cd.setCobroId(venta.getCobro().getId());
                  cd.setUsuarioId(delivery.getUsuario().getId());
                  cd.setSucursalId(delivery.getSucursalId());
                  cobroDetalleGraphQL.saveCobroDetalle(cd);

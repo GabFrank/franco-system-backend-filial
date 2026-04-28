@@ -8,6 +8,7 @@ import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -32,7 +33,21 @@ public class PersonaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
     public List<Persona> personas(int page, int size){
         Pageable pageable = PageRequest.of(page,size);
-        return service.findAll(pageable);
+        return service.getRepository().findAll(pageable).getContent();
+    }
+
+    public Page<Persona> personasPage(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return service.getRepository().findAll(pageable);
+    }
+
+    public Page<Persona> personaSearchPage(String texto, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return service.findByAll(texto, pageable);
+    }
+
+    public Persona personaPorDocumento(String texto) {
+        return service.findByDocumento(texto);
     }
 
     public Persona savePersona(PersonaInput input){
