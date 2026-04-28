@@ -19,6 +19,18 @@ type Persona {
     isUsuario: Boolean
 }
 
+type PersonaPage {
+    getTotalPages: Int
+    getTotalElements: Int
+    getNumberOfElements: Int
+    isFirst: Boolean
+    isLast: Boolean
+    hasNext: Boolean
+    hasPrevious: Boolean
+    getContent: [Persona]
+    getPageable: Pageable
+}
+
 input PersonaInput {
     id:ID
     nombre: String
@@ -39,8 +51,11 @@ input PersonaInput {
 extend type Query {
     persona(id:ID!):Persona
     personaSearch(texto:String):[Persona]
+    personaSearchPage(texto:String, page:Int = 0, size:Int = 10):PersonaPage
     personas(page:Int = 0, size:Int = 10):[Persona]!
+    personasPage(page:Int = 0, size:Int = 10):PersonaPage
     countPersona:Int
+    personaPorDocumento(texto:String):Persona
 }
 
 extend type Mutation {
