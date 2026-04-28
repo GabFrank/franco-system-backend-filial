@@ -1,0 +1,57 @@
+name: Jira Issue Receiver
+
+on:
+  repository_dispatch:
+    types: [jira-issue]
+
+jobs:
+  receive:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Validate webhook token
+        run: |
+          if [[ "${{ github.event.client_payload.token }}" != "${{ secrets.JIRA_WEBHOOK_TOKEN }}" ]]; then
+            echo "::error::Invalid webhook token"
+            exit 1
+          fi
+
+      - name: Create GitHub Issue with @claude trigger
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const p = context.payload.client_payload;
+            const key = p.issueKey || 'UNKNOWN';
+            const body = [
+              `**Jira:** [${key}](${p.jiraUrl})`,
+              `**Tipo:** ${p.issueType || 'Task'} | **Prioridad:** ${p.priority || 'Medium'} | **Reporter:** ${p.reporter || '\u2014'}`,
+              '',
+              '## Descripcion',
+              p.description || '_(sin descripcion)_',
+              '',
+              '## Criterios de aceptacion',
+              p.criteria || '_(sin criterios)_',
+              '',
+              '---',
+              '',
+              '@claude Por favor analiza este issue y propone una solucion siguiendo estas reglas:',
+              '',
+              `1. Crea branch desde \`develop\`: \`auto/${key.toLowerCase()}-<slug-corto>\``,
+              '2. Respeta las convenciones del CLAUDE.md de este repo.',
+              '3. Corre los tests existentes. Si fallan, NO abras PR \u2014 comenta explicando el fallo.',
+              '4. Si no podes resolverlo con confianza alta (causa raiz incierta, requiere decision de producto, toca multiples repos), NO abras PR. Deja un comentario explicando que investigaste y que bloquea.',
+              `5. Si lo resolves, abri PR **draft** a \`develop\` con titulo Conventional Commits (ej: \`fix(modulo): descripcion corta\`) y referencia ${key} en el cuerpo.`,
+              '6. El PR body debe incluir: que cambio, como testearlo, impacto en DB (si aplica), riesgo de rollback.',
+              '7. No mergees nunca. Un humano revisa.',
+              '8. No pushees a `master`, `release/beta`, ni `develop` directamente.',
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[${key}] ${p.summary || 'Jira Auto-Fix'}`,
+              body,
+              labels: ['jira-auto'],
+            });

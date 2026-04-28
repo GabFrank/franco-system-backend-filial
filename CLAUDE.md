@@ -225,3 +225,39 @@ Si modificás un resolver/schema que el desktop o mobile consumen:
 - [../../REPORTE_VULNERABILIDADES.md](../../REPORTE_VULNERABILIDADES.md) — Auditoría 2026-04-02. Tiene hallazgos críticos abiertos en código de auth de **este** repo (plaintext passwords en `TokenController.java`, password en JWT claims en `JwtGenerator.java`). Leer antes de tocar `security/`.
 - [../../CLAUDE.md](../../CLAUDE.md) — Mapa cross-project del workspace (los 4 componentes + frc-efact + sifen).
 - [../central/CLAUDE.md](../central/CLAUDE.md) — Server central, usa el mismo mecanismo de `application-user-dev.properties`.
+
+## Automated Issue Resolution (Claude Code Action)
+
+Este repo esta configurado para resolucion automatizada de issues via Jira + Claude Code.
+
+### Branch naming
+Crear desde `develop`: `auto/{jira-key}-{slug}`
+- `{jira-key}`: Jira key en minusculas (ej: `frc-42`)
+- `{slug}`: max 40 chars, minusculas, solo hyphens, del titulo del issue
+- Ejemplo: `auto/frc-42-fix-validacion-ruc`
+
+### Commit format
+`fix(scope): descripcion en minusculas` o `feat(scope): descripcion`
+- Scope: modulo afectado (ej: `clientes`, `ventas`, `auth`)
+- Max 72 chars en subject
+- Referenciar Jira key en el body del commit
+
+### Preflight: correr tests antes de abrir PR
+`./mvnw clean verify -B`
+
+Si los tests fallan, NO abrir PR — comentar en el issue explicando el fallo.
+
+### PR rules
+- SIEMPRE draft: nunca PR ready-for-review
+- Target: `develop`
+- Titulo: Conventional Commits con Jira key (ej: `fix(clientes): validacion RUC [FRC-42]`)
+- Body: que cambio, como testear, impacto DB, riesgo rollback
+- NUNCA mergear — requiere review humano
+- NUNCA push directo a `master`, `release/beta`, o `develop`
+
+### Archivos que NO tocar
+- Secretos, `.env`, keystores, certificados
+- Migraciones Flyway ya aplicadas
+- `DROP TABLE`, `DROP COLUMN`, `RENAME COLUMN` sin estrategia 2 versiones
+- Nombre de artefacto `frc-filial-server.jar`
+- Codigo de auth en `security/TokenController.java` o `security/jwt/JwtGenerator.java` (ver REPORTE_VULNERABILIDADES.md)
