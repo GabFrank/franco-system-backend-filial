@@ -12,6 +12,7 @@ type TipoGasto {
     autorizacion: Boolean
     cargo: Cargo
     activo: Boolean
+    activoEnSucursales: Boolean
     creadoEn: Date
     usuario: Usuario
     subtipoList: [TipoGasto]
@@ -26,6 +27,7 @@ input TipoGastoInput {
     autorizacion: Boolean
     cargoId: Int
     activo: Boolean
+    activoEnSucursales: Boolean
     creadoEn: Date
     usuarioId: Int
 }

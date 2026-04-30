@@ -9,6 +9,7 @@ public class TipoGastoInput {
     private Long id;
     private Boolean isClasificacion;
     private Boolean activo;
+    private Boolean activoEnSucursales;
     private Boolean autorizacion;
     private String descripcion;
     private String simbolo;
