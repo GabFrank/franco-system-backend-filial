@@ -40,6 +40,7 @@ extend type Query {
 
 extend type Mutation {
     saveInicioSesion(entity:InicioSesionInput!):InicioSesion
+    notificarInicioSesion(usuarioId: Int!): Boolean
 }
 
 enum TipoDispositivo {

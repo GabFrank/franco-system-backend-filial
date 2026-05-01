@@ -82,12 +82,12 @@ public class TokenController {
                     jwtUser.setRoles(service.getRoles(usuario.getId()));
                 }
             } else {
-                throw new GraphQLException("Ups!! Contraseña inválida.");
+                return ResponseEntity.ok(new LoginResponse(null, null, null, "Ups!! Contraseña inválida."));
             }
         } else if (localList.size() == 0) {
             throw new GraphQLException("Servidor no configurado");
         } else {
-            throw new GraphQLException("Ups!! El usuario no existe");
+            return ResponseEntity.ok(new LoginResponse(null, null, null, "Ups!! El usuario no existe"));
         }
         LoginResponse response = new LoginResponse(usuario.getId(), jwtGenerator.generate(jwtUser), sucursalService.sucursalActual());
         return ResponseEntity.ok(response);
