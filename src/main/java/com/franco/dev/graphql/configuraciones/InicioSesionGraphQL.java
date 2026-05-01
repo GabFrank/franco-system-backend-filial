@@ -64,5 +64,12 @@ public class InicioSesionGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.count();
     }
 
+    public Boolean notificarInicioSesion(Long usuarioId) {
+        if (usuarioId == null) {
+            return false;
+        }
+        return usuarioService.findById(usuarioId).isPresent();
+    }
+
 
 }

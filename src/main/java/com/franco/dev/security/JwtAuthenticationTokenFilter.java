@@ -34,6 +34,7 @@ public class JwtAuthenticationTokenFilter extends AbstractAuthenticationProcessi
 
         if (header == null || !header.startsWith("Token ")) {
             log.warn("JWT Token is missing");
+            return null;
         }
 
         String authenticationToken = header.substring(6);
