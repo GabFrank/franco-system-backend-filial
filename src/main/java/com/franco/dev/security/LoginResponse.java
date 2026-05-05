@@ -12,4 +12,11 @@ public class LoginResponse {
     private Long usuarioId;
     private String token;
     private Sucursal sucursal;
-} 
+    private String aviso;
+
+    public LoginResponse(Long usuarioId, String token, Sucursal sucursal) {
+        this.usuarioId = usuarioId;
+        this.token = token;
+        this.sucursal = sucursal;
+    }
+}
