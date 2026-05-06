@@ -27,6 +27,8 @@ public class Cambio implements Serializable {
 
     private Double valorEnGs;
     private Double valorEnGsCambio;
+    private Double valorEnGsVentaMercado;
+    private Double valorEnGsCompraMercado;
 
     private Boolean activo;
 
