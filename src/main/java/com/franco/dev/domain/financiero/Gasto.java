@@ -67,6 +67,12 @@ public class Gasto implements Serializable {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "sucursal_vuelto_id", nullable = true)
     private Sucursal sucursalVuelto;
+
+    @Column(name = "pre_gasto_id")
+    private Long preGastoId;
+
+    @Column(name = "pre_gasto_sucursal_id")
+    private Long preGastoSucursalId;
 }
 
 

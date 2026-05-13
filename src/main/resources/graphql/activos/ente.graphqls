@@ -1,0 +1,15 @@
+enum TipoEnte {
+    VEHICULO
+    INMUEBLE
+    MUEBLE
+    INSTITUCION
+}
+
+type Ente {
+    id: ID!
+    tipoEnte: TipoEnte
+    referenciaId: Int
+    activo: Boolean
+    usuario: Usuario
+    creadoEn: Date
+}

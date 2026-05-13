@@ -1,11 +1,18 @@
+enum TipoNaturalezaGasto {
+    VARIABLE
+    CONTINUO
+}
+
 type TipoGasto {
     id:ID!
     isClasificacion: Boolean
     clasificacionGasto: TipoGasto
     descripcion: String
+    tipoNaturaleza: TipoNaturalezaGasto
     autorizacion: Boolean
     cargo: Cargo
     activo: Boolean
+    activoEnSucursales: Boolean
     creadoEn: Date
     usuario: Usuario
     subtipoList: [TipoGasto]
@@ -16,9 +23,11 @@ input TipoGastoInput {
     isClasificacion: Boolean
     clasificacionGastoId: Int
     descripcion: String
+    tipoNaturaleza: TipoNaturalezaGasto
     autorizacion: Boolean
     cargoId: Int
     activo: Boolean
+    activoEnSucursales: Boolean
     creadoEn: Date
     usuarioId: Int
 }
