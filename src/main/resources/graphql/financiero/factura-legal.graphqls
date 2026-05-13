@@ -32,6 +32,8 @@ type FacturaLegal {
     viaTributaria: Boolean
     autoimpreso: Boolean
     activo: Boolean
+    monedaExtranjera: String
+    tipoCambio: Float
 }
 
 enum EstadoLoteDE {
@@ -86,6 +88,8 @@ input FacturaLegalInput {
     sucursalId: Int
     descuento: Float
     activo: Boolean
+    monedaExtranjera: String
+    tipoCambio: Float
 }
 
 extend type Query {
