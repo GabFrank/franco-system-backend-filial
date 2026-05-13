@@ -381,7 +381,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     FacturaLegalItem item = new FacturaLegalItem();
                     item.setFacturaLegal(facturaLegalGuardada);
                     item.setCantidad(itemInput.getCantidad().floatValue());
-                    item.setDescripcion(itemInput.getDescripcion());
+                    item.setDescripcion(itemInput.getDescripcion() != null ? itemInput.getDescripcion().toUpperCase() : null);
                     item.setPrecioUnitario(itemInput.getPrecioUnitario());
                     item.setTotal(itemInput.getTotal());
                     
@@ -1144,13 +1144,13 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 
                 // Construir string de cantidad con unidad de medida si está disponible
                 String cantidadStr;
-                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty()) {
+                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty() && !vi.getUnidadMedida().equalsIgnoreCase("Unidad")) {
                     cantidadStr = vi.getCantidad().intValue() + " " + vi.getUnidadMedida() + " (" + vi.getCantidad() + ") " + iva + "%";
                 } else {
                     cantidadStr = vi.getCantidad().intValue() + " (" + vi.getCantidad() + ") " + iva + "%";
                 }
                 
-                escpos.writeLF(vi.getDescripcion());
+                escpos.writeLF(vi.getDescripcion() != null ? vi.getDescripcion().toUpperCase() : "");
                 escpos.write(new Style().setBold(true), cantidadStr);
                 String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN)
                         .format(vi.getPrecioUnitario().intValue());
@@ -1775,13 +1775,13 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 
                 // Construir string de cantidad con unidad de medida si está disponible
                 String cantidadStr;
-                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty()) {
+                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty() && !vi.getUnidadMedida().equalsIgnoreCase("Unidad")) {
                     cantidadStr = vi.getCantidad().intValue() + " " + vi.getUnidadMedida() + " (" + vi.getCantidad() + ") " + iva + "%";
                 } else {
                     cantidadStr = vi.getCantidad().intValue() + " (" + vi.getCantidad() + ") " + iva + "%";
                 }
                 
-                escpos.writeLF(vi.getDescripcion());
+                escpos.writeLF(vi.getDescripcion() != null ? vi.getDescripcion().toUpperCase() : "");
                 escpos.write(new Style().setBold(true), cantidadStr);
                 
                 // Convertir precios a moneda extranjera
