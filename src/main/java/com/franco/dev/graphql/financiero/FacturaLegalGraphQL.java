@@ -471,7 +471,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 facturaLegalGuardada.setTotalParcial10(totalParcial10);
                 facturaLegalGuardada.setIvaParcial5(ivaParcial5);
                 facturaLegalGuardada.setIvaParcial10(ivaParcial10);
-                facturaLegalGuardada.setTotalFinal(totalParcial0 + totalParcial5 + totalParcial10);
+
+                // Restar el descuento global al total final
+                Double descuentoGlobal = facturaLegalGuardada.getDescuento() != null ? facturaLegalGuardada.getDescuento() : 0.0;
+                facturaLegalGuardada.setTotalFinal(totalParcial0 + totalParcial5 + totalParcial10 - descuentoGlobal);
                 
                 // Guardar factura con totales calculados
                 facturaLegalGuardada = service.save(facturaLegalGuardada);

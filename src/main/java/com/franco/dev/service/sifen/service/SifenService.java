@@ -1816,6 +1816,12 @@ public class SifenService {
         gDtipDE.setgCamCond(gCamCond);
 
         // Items
+        // Calcular el total bruto (sin descuento) para prorratear el descuento global entre ítems
+        double totalBruto = items.stream()
+                .mapToDouble(it -> it.getTotal() != null ? it.getTotal() : 0.0)
+                .sum();
+        double descuentoGlobal = factura.getDescuento() != null ? factura.getDescuento() : 0.0;
+
         List<TgCamItem> gCamItemList = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
             FacturaLegalItem item = items.get(i);
@@ -1905,6 +1911,26 @@ public class SifenService {
             gValorItem.setdPUniProSer(precioUnitario);
 
             TgValorRestaItem gValorRestaItem = new TgValorRestaItem();
+
+            // Prorratear el descuento global entre ítems proporcionalmente a su total
+            double totalItem = item.getTotal() != null ? item.getTotal() : 0.0;
+            if (descuentoGlobal > 0.0 && totalBruto > 0.0) {
+                // Descuento proporcional al peso del ítem en el total bruto
+                double descuentoItem = descuentoGlobal * (totalItem / totalBruto);
+                BigDecimal descuentoItemBD = BigDecimal.valueOf(descuentoItem).setScale(0, RoundingMode.HALF_UP);
+                BigDecimal totalNetoItem = BigDecimal.valueOf(totalItem).subtract(descuentoItemBD).setScale(0, RoundingMode.HALF_UP);
+                gValorRestaItem.setdDescGloItem(descuentoItemBD);
+                // dTotOpeItem = total del ítem luego de aplicar el descuento
+                // La librería espera el total neto; si es moneda extranjera, convertimos
+                if (esMonedaExtranjera(factura) && factura.getTipoCambio() != null && factura.getTipoCambio() > 0) {
+                    BigDecimal tipoCambio = BigDecimal.valueOf(factura.getTipoCambio());
+                    totalNetoItem = totalNetoItem.divide(tipoCambio, 4, RoundingMode.HALF_UP);
+                    gValorRestaItem.setdDescGloItem(descuentoItemBD.divide(tipoCambio, 4, RoundingMode.HALF_UP));
+                }
+                log.debug("   Descuento prorrateado para ítem '{}': {} (descuento global: {}, peso: {}/{})",
+                        item.getDescripcion(), descuentoItemBD, descuentoGlobal, totalItem, totalBruto);
+            }
+
             gValorItem.setgValorRestaItem(gValorRestaItem);
             gCamItem.setgValorItem(gValorItem);
 
