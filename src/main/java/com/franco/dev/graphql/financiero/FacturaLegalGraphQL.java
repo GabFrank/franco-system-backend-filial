@@ -11,6 +11,7 @@ import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.personas.Persona;
+import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
 import com.franco.dev.graphql.financiero.input.FacturaLegalItemInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
@@ -217,18 +218,77 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 // TODO: Implementar mapeo de caja si es necesario
             }
 
-            if (entity.getClienteId() != null) {
+            if (entity.getClienteId() != null && entity.getClienteId() != 0) {
                 Optional<Cliente> cliente = clienteService.findById(entity.getClienteId());
                 cliente.ifPresent(facturaLegal::setCliente);
+            } else if (entity.getRuc() != null && !entity.getRuc().trim().isEmpty() && entity.getNombre() != null && !entity.getNombre().trim().isEmpty() && !entity.getRuc().trim().equalsIgnoreCase("X")) {
+                // SIFEN deshabilitado o carga manual de cliente nuevo
+                try {
+                    String rucLimpio = entity.getRuc().trim();
+                    Persona persona = personaService.findByDocumento(rucLimpio);
+                    if (persona == null) {
+                        String documentoNormalizado = rucLimpio.replaceAll("[^0-9]", "");
+                        if (!documentoNormalizado.isEmpty()) {
+                            persona = personaService.findByDocumento(documentoNormalizado);
+                        }
+                    }
+                    
+                    if (persona == null) {
+                        persona = new Persona();
+                        persona.setDocumento(rucLimpio);
+                        persona.setNombre(entity.getNombre().trim().toUpperCase());
+                        if (entity.getDireccion() != null && !entity.getDireccion().trim().isEmpty()) {
+                            persona.setDireccion(entity.getDireccion().trim().toUpperCase());
+                        }
+                        if (entity.getEmail() != null && !entity.getEmail().trim().isEmpty()) {
+                            persona.setEmail(entity.getEmail().trim().toUpperCase());
+                        }
+                        if (entity.getUsuarioId() != null) {
+                            Optional<Usuario> usuario = usuarioService.findById(entity.getUsuarioId());
+                            usuario.ifPresent(persona::setUsuario);
+                        }
+                        persona.setCreadoEn(LocalDateTime.now());
+                        persona = personaService.save(persona);
+                        log.info("Nueva Persona creada desde Factura - ID: {}, RUC: {}, Nombre: {}", persona.getId(), persona.getDocumento(), persona.getNombre());
+                    }
+
+                    Cliente cliente = clienteService.findByPersonaId(persona.getId());
+                    if (cliente == null) {
+                        cliente = new Cliente();
+                        cliente.setPersona(persona);
+                        cliente.setCreadoEn(LocalDateTime.now());
+                        cliente.setVerificadoSet(false);
+                        cliente.setTributa(true);
+                        if (entity.getUsuarioId() != null) {
+                            Optional<Usuario> usuario = usuarioService.findById(entity.getUsuarioId());
+                            usuario.ifPresent(cliente::setUsuario);
+                        }
+                        cliente = clienteService.save(cliente);
+                        log.info("Nuevo Cliente creado desde Factura - ID: {}", cliente.getId());
+                    }
+                    facturaLegal.setCliente(cliente);
+                } catch (Exception e) {
+                    log.error("Error al crear cliente manualmente desde FacturaLegal: {}", e.getMessage(), e);
+                }
             }
 
             if (entity.getVentaId() != null) {
                 Optional<Venta> venta = ventaService.findById(entity.getVentaId());
-                venta.ifPresent(facturaLegal::setVenta);
+                if (venta.isPresent()) {
+                    Venta v = venta.get();
+                    facturaLegal.setVenta(v);
+                    
+                    // Si se creó o asoció un cliente a la factura y la venta no lo tiene, asociarlo a la venta también
+                    if (facturaLegal.getCliente() != null && (v.getCliente() == null || v.getCliente().getId().equals(0L))) {
+                        v.setCliente(facturaLegal.getCliente());
+                        ventaService.save(v);
+                        log.info("Cliente asociado a la Venta ID: {}", v.getId());
+                    }
+                }
             }
 
             if (entity.getUsuarioId() != null) {
-                Optional<com.franco.dev.domain.personas.Usuario> usuario = usuarioService
+                Optional<Usuario> usuario = usuarioService
                         .findById(entity.getUsuarioId());
                 usuario.ifPresent(facturaLegal::setUsuario);
             }
@@ -321,7 +381,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     FacturaLegalItem item = new FacturaLegalItem();
                     item.setFacturaLegal(facturaLegalGuardada);
                     item.setCantidad(itemInput.getCantidad().floatValue());
-                    item.setDescripcion(itemInput.getDescripcion());
+                    item.setDescripcion(itemInput.getDescripcion() != null ? itemInput.getDescripcion().toUpperCase() : null);
                     item.setPrecioUnitario(itemInput.getPrecioUnitario());
                     item.setTotal(itemInput.getTotal());
                     
@@ -411,7 +471,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 facturaLegalGuardada.setTotalParcial10(totalParcial10);
                 facturaLegalGuardada.setIvaParcial5(ivaParcial5);
                 facturaLegalGuardada.setIvaParcial10(ivaParcial10);
-                facturaLegalGuardada.setTotalFinal(totalParcial0 + totalParcial5 + totalParcial10);
+
+                // Restar el descuento global al total final
+                Double descuentoGlobal = facturaLegalGuardada.getDescuento() != null ? facturaLegalGuardada.getDescuento() : 0.0;
+                facturaLegalGuardada.setTotalFinal(totalParcial0 + totalParcial5 + totalParcial10 - descuentoGlobal);
                 
                 // Guardar factura con totales calculados
                 facturaLegalGuardada = service.save(facturaLegalGuardada);
@@ -1084,13 +1147,13 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 
                 // Construir string de cantidad con unidad de medida si está disponible
                 String cantidadStr;
-                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty()) {
+                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty() && !vi.getUnidadMedida().equalsIgnoreCase("Unidad")) {
                     cantidadStr = vi.getCantidad().intValue() + " " + vi.getUnidadMedida() + " (" + vi.getCantidad() + ") " + iva + "%";
                 } else {
                     cantidadStr = vi.getCantidad().intValue() + " (" + vi.getCantidad() + ") " + iva + "%";
                 }
                 
-                escpos.writeLF(vi.getDescripcion());
+                escpos.writeLF(vi.getDescripcion() != null ? vi.getDescripcion().toUpperCase() : "");
                 escpos.write(new Style().setBold(true), cantidadStr);
                 String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN)
                         .format(vi.getPrecioUnitario().intValue());
@@ -1715,13 +1778,13 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 
                 // Construir string de cantidad con unidad de medida si está disponible
                 String cantidadStr;
-                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty()) {
+                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty() && !vi.getUnidadMedida().equalsIgnoreCase("Unidad")) {
                     cantidadStr = vi.getCantidad().intValue() + " " + vi.getUnidadMedida() + " (" + vi.getCantidad() + ") " + iva + "%";
                 } else {
                     cantidadStr = vi.getCantidad().intValue() + " (" + vi.getCantidad() + ") " + iva + "%";
                 }
                 
-                escpos.writeLF(vi.getDescripcion());
+                escpos.writeLF(vi.getDescripcion() != null ? vi.getDescripcion().toUpperCase() : "");
                 escpos.write(new Style().setBold(true), cantidadStr);
                 
                 // Convertir precios a moneda extranjera
