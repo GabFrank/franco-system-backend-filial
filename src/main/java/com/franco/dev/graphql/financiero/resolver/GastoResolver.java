@@ -3,6 +3,7 @@ package com.franco.dev.graphql.financiero.resolver;
 import com.franco.dev.domain.financiero.Gasto;
 import com.franco.dev.domain.financiero.GastoDetalle;
 import com.franco.dev.domain.financiero.Moneda;
+import com.franco.dev.domain.financiero.PreGasto;
 import com.franco.dev.domain.financiero.TipoGasto;
 import com.franco.dev.service.financiero.GastoDetalleService;
 import com.franco.dev.service.financiero.GastoService;
@@ -69,6 +70,16 @@ public class GastoResolver implements GraphQLResolver<Gasto> {
             }
         }
         return valor;
+    }
+
+    public PreGasto preGasto(Gasto e) {
+        if (e.getPreGastoId() == null || e.getPreGastoSucursalId() == null) {
+            return null;
+        }
+        PreGasto preGasto = new PreGasto();
+        preGasto.setId(e.getPreGastoId());
+        preGasto.setSucursalId(e.getPreGastoSucursalId());
+        return preGasto;
     }
 
 }

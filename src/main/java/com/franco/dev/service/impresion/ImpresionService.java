@@ -325,7 +325,15 @@ public class ImpresionService {
                     escpos.writeLF("Cajero: " + gastoDto.getUsuario().getPersona().getNombre());
                 }
                 escpos.writeLF("Fecha " + gastoDto.getFecha().format(formatter));
-                escpos.writeLF(new Style().setBold(true), "Tipo " + gastoDto.getTipoGasto().getId() + " - " + gastoDto.getTipoGasto().getDescripcion().toUpperCase());
+                String tipoGastoTexto = "SIN TIPO DE GASTO";
+                if (gastoDto.getTipoGasto() != null) {
+                    String tipoId = gastoDto.getTipoGasto().getId() != null ? gastoDto.getTipoGasto().getId().toString() : "N/A";
+                    String tipoDesc = gastoDto.getTipoGasto().getDescripcion() != null
+                            ? gastoDto.getTipoGasto().getDescripcion().toUpperCase()
+                            : "SIN DESCRIPCION";
+                    tipoGastoTexto = "Tipo " + tipoId + " - " + tipoDesc;
+                }
+                escpos.writeLF(new Style().setBold(true), tipoGastoTexto);
                 if (gastoDto.getObservacion() != null) {
                     escpos.writeLF("Obs: " + gastoDto.getObservacion().toUpperCase());
                 }

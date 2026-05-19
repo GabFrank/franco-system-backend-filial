@@ -1,0 +1,68 @@
+enum EstadoPreGasto {
+    PENDIENTE
+    TRAMITE
+    AUTORIZADO
+    RECHAZADO
+    COMPLETADO
+    ENVIADO_A_TESORERIA
+}
+
+type PreGasto {
+    id: ID!
+    sucursalId: Int
+    funcionario: Persona
+    ente: Ente
+    tipoGasto: TipoGasto
+    descripcion: String
+    moneda: Moneda
+    montoSolicitado: Float
+    sucursalCaja: Sucursal
+    cajaId: ID
+    estado: EstadoPreGasto
+    qrToken: String
+    autorizadoPor: Persona
+    delegadoA: Persona
+    motivoRechazo: String
+    montoRetirado: Float
+    montoGastado: Float
+    saldoDevolver: Float
+    usuario: Usuario
+    creadoEn: Date
+}
+
+input PreGastoInput {
+    id: ID
+    sucursalId: Int
+    funcionarioId: Int
+    enteId: Int
+    tipoGastoId: Int
+    descripcion: String
+    monedaId: Int
+    montoSolicitado: Float
+    sucursalCajaId: Int
+    cajaId: Int
+    estado: EstadoPreGasto
+    autorizadoPorId: Int
+    delegadoAId: Int
+    motivoRechazo: String
+    montoRetirado: Float
+    usuarioId: Int
+    creadoEn: Date
+}
+
+extend type Query {
+    preGasto(id: ID!, sucId: ID): PreGasto
+    preGastos(estado: String, sucId: ID): [PreGasto]!
+    preGastosPorSucursal(estado: String!, sucursalId: Int!): [PreGasto]!
+    preGastosPorFuncionario(funcionarioId: Int!): [PreGasto]!
+    preGastosSearch(texto: String!, sucId: ID): [PreGasto]!
+}
+
+extend type Mutation {
+    savePreGasto(entity: PreGastoInput!): PreGasto!
+    autorizarPreGasto(id: ID!, autorizadorId: Int!, sucId: ID): PreGasto
+    rechazarPreGasto(id: ID!, motivo: String!, sucId: ID): PreGasto
+    tramitarPreGasto(id: ID!, sucId: ID): PreGasto
+    completarPreGasto(id: ID!, sucId: ID): PreGasto
+    deletePreGasto(id: ID!, sucId: ID): Boolean!
+}
