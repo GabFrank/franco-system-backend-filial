@@ -14,8 +14,12 @@ import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,6 +65,12 @@ public class PreGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
     public List<PreGasto> preGastosSearch(String texto, Long sucId) {
         return service.findByTexto(texto, sucId);
+    }
+
+    public Page<PreGasto> filterPreGastos(Long id, Long cajaId, String estado, List<String> estados,
+            String inicio, String fin, Integer page, Integer size) {
+        Pageable pageable = PageRequest.of(page != null ? page : 0, size != null ? size : 15);
+        return new org.springframework.data.domain.PageImpl<>(Collections.emptyList(), pageable, 0);
     }
 
     public PreGasto savePreGasto(PreGastoInput entity) throws GraphQLException {

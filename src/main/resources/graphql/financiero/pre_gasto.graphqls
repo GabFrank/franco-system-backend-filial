@@ -7,6 +7,14 @@ enum EstadoPreGasto {
     ENVIADO_A_TESORERIA
 }
 
+type PreGastoDetalleFinanzas {
+    id: ID
+    moneda: Moneda
+    formaPago: String
+    monto: Float
+    creadoEn: Date
+}
+
 type PreGasto {
     id: ID!
     sucursalId: Int
@@ -26,6 +34,19 @@ type PreGasto {
     montoRetirado: Float
     montoGastado: Float
     saldoDevolver: Float
+    montoPendienteRetiro: Float
+    montoNoRendido: Float
+    porcentajeRendicion: Float
+    desvioVsSolicitado: Float
+    estadoEtiqueta: String
+    estadoIcono: String
+    estadoColor: String
+    solicitudPagoId: ID
+    rindioGasto: Boolean
+    estadoRendicion: String
+    fechaRendicion: Date
+    gasto: Gasto
+    finanzas: [PreGastoDetalleFinanzas]
     usuario: Usuario
     creadoEn: Date
 }
@@ -50,12 +71,25 @@ input PreGastoInput {
     creadoEn: Date
 }
 
+type PreGastoPage {
+    getTotalPages: Int
+    getTotalElements: Int
+    getNumberOfElements: Int
+    isFirst: Boolean
+    isLast: Boolean
+    hasNext: Boolean
+    hasPrevious: Boolean
+    getContent: [PreGasto]
+    getPageable: Pageable
+}
+
 extend type Query {
     preGasto(id: ID!, sucId: ID): PreGasto
     preGastos(estado: String, sucId: ID): [PreGasto]!
     preGastosPorSucursal(estado: String!, sucursalId: Int!): [PreGasto]!
     preGastosPorFuncionario(funcionarioId: Int!): [PreGasto]!
     preGastosSearch(texto: String!, sucId: ID): [PreGasto]!
+    filterPreGastos(id: ID, cajaId: ID, estado: String, estados: [String], inicio: String, fin: String, page: Int, size: Int): PreGastoPage
 }
 
 extend type Mutation {
