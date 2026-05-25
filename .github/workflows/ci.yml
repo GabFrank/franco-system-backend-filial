@@ -48,7 +48,7 @@ jobs:
           </settings>
           EOF
         env:
-          PACKAGES_PAT: ${{ secrets.PACKAGES_PAT }}
+          PACKAGES_PAT: ${{ secrets.PACKAGES_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Build & Test
         run: ./mvnw clean verify -B
@@ -57,7 +57,7 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/general
           SPRING_DATASOURCE_USERNAME: franco
           SPRING_DATASOURCE_PASSWORD: franco
-          PACKAGES_PAT: ${{ secrets.PACKAGES_PAT }}
+          PACKAGES_PAT: ${{ secrets.PACKAGES_PAT || secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
 
       - name: Upload JAR artifact
