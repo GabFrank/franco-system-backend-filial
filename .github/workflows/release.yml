@@ -27,7 +27,6 @@ jobs:
         with:
           java-version: '11'
           distribution: 'temurin'
-          cache: maven
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -38,7 +37,7 @@ jobs:
         run: npm install -g semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/exec @semantic-release/github
 
       - name: Fetch semantic-release git notes
-        run: git fetch origin 'refs/notes/:refs/notes/' || true
+        run: git fetch origin 'refs/notes/*:refs/notes/*' || true
 
       - name: Fix git references (Clear and Rebuild)
         run: |
