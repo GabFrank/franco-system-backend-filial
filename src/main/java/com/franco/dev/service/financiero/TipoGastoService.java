@@ -42,6 +42,8 @@ public class TipoGastoService extends CrudService<TipoGasto, TipoGastoRepository
     public TipoGasto save(TipoGasto entity) {
         if(entity.getId()==null) entity.setCreadoEn(LocalDateTime.now());
         if(entity.getCreadoEn()==null) entity.setCreadoEn(LocalDateTime.now());
+        if(entity.getActivo()==null) entity.setActivo(true);
+        if(entity.getActivoEnSucursales()==null) entity.setActivoEnSucursales(true);
         entity.setDescripcion(entity.getDescripcion().toUpperCase());
         TipoGasto e = super.save(entity);
 //        personaPublisher.publish(p);

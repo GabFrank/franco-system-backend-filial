@@ -71,5 +71,8 @@ public class InicioSesionGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return usuarioService.findById(usuarioId).isPresent();
     }
 
+    public Boolean actualizarTokenFcm(String tokenFcm) {
+        return true;
+    }
 
 }

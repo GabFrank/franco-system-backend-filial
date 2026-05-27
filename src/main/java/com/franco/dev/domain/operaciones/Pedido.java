@@ -63,6 +63,8 @@ public class Pedido implements Serializable {
     @JoinColumn(name = "moneda_id", nullable = true)
     private Moneda moneda;
 
+    private Double cotizacion;
+
     @Column(name = "plazo_credito")
     private Integer plazoCredito;
 

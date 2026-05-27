@@ -6,6 +6,7 @@ type Pedido {
     formaPago: FormaPago
     estado: PedidoEstado
     moneda: Moneda
+    cotizacion: Float
     plazoCredito: Int
     creadoEn: Date
     usuario: Usuario
@@ -24,6 +25,7 @@ input PedidoInput {
     formaPagoId: Int
     estado: PedidoEstado
     monedaId: Int
+    cotizacion: Float
     plazoCredito: Int
     creadoEn: Date
     usuarioId: Int

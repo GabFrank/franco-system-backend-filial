@@ -26,4 +26,6 @@ public class ProveedorDiasVisitaInput {
     private String observacion;
 
     private Long usuarioId;
+
+    private LocalDateTime creadoEn;
 }

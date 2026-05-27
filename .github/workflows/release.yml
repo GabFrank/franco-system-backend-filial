@@ -15,6 +15,7 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      packages: read
 
     steps:
       - uses: actions/checkout@v4
@@ -44,5 +45,5 @@ jobs:
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGES_PAT: ${{ secrets.PACKAGES_PAT }}
+          PACKAGES_PAT: ${{ secrets.PACKAGES_PAT || secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
