@@ -399,10 +399,24 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                         }
                     }
 
+                    // Si iva todavia null, intentar match por descripcion (fallback para
+                    // items huerfanos sin productoId). Si hay match unico, usar su iva;
+                    // si no hay match o es ambiguo, log.warn y default 10 como safety net.
+                    // TODO: cuando frontend valide iva obligatorio en form, hacer esto bloqueante.
+                    if (iva == null && itemInput.getDescripcion() != null) {
+                        List<Producto> matches = productoService.findByDescripcionNormalized(itemInput.getDescripcion());
+                        if (matches.size() == 1 && matches.get(0).getIva() != null) {
+                            iva = matches.get(0).getIva();
+                            log.warn("IVA resuelto por descripcion para item '{}': iva={}", itemInput.getDescripcion(), iva);
+                        } else if (matches.size() > 1) {
+                            log.warn("IVA ambiguo por descripcion para item '{}' ({} matches), default 10", itemInput.getDescripcion(), matches.size());
+                        }
+                    }
                     if (iva == null) {
+                        log.warn("IVA no resoluble para item desc='{}' productoId={}, default 10", itemInput.getDescripcion(), itemInput.getProductoId());
                         iva = 10;
                     }
-                    
+
                     item.setIva(iva);
                     // Actualizamos el input para que el bucle de cálculo de totales use el valor correcto
                     itemInput.setIva(iva);
@@ -450,11 +464,13 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                         }
                     }
                     
-                    // Default 10% si no se puede determinar el IVA
+                    // En este punto iva deberia estar resuelto por el bloque previo (resolveIva + setIva al itemInput).
+                    // Safety net: si igual llega null, log warn + default 10.
                     if (iva == null) {
+                        log.warn("IVA aun null en bucle de calculo totales para item desc='{}', default 10", itemInput.getDescripcion());
                         iva = 10;
                     }
-                    
+
                     if (iva == 10) {
                         totalParcial10 += totalItem;
                         ivaParcial10 += totalItem / 11;
@@ -465,16 +481,27 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                         totalParcial0 += totalItem;
                     }
                 }
-                
+
+                // Distribuir descuento global proporcional a cada banda.
+                // Bug historico: setTotalFinal(p0+p5+p10 - descuento) dejaba parciales brutos
+                // y total_final con descuento, generando sum(parciales) > total_final.
+                Double descuentoGlobal = facturaLegalGuardada.getDescuento() != null ? facturaLegalGuardada.getDescuento() : 0.0;
+                Double totalSinDescuento = totalParcial0 + totalParcial5 + totalParcial10;
+                if (descuentoGlobal > 0 && totalSinDescuento > 0) {
+                    Double porcentajeDescuento = descuentoGlobal / totalSinDescuento;
+                    totalParcial0  = totalParcial0  * (1 - porcentajeDescuento);
+                    totalParcial5  = totalParcial5  * (1 - porcentajeDescuento);
+                    totalParcial10 = totalParcial10 * (1 - porcentajeDescuento);
+                    ivaParcial5  = totalParcial5  / 21.0;
+                    ivaParcial10 = totalParcial10 / 11.0;
+                }
+
                 facturaLegalGuardada.setTotalParcial0(totalParcial0);
                 facturaLegalGuardada.setTotalParcial5(totalParcial5);
                 facturaLegalGuardada.setTotalParcial10(totalParcial10);
                 facturaLegalGuardada.setIvaParcial5(ivaParcial5);
                 facturaLegalGuardada.setIvaParcial10(ivaParcial10);
-
-                // Restar el descuento global al total final
-                Double descuentoGlobal = facturaLegalGuardada.getDescuento() != null ? facturaLegalGuardada.getDescuento() : 0.0;
-                facturaLegalGuardada.setTotalFinal(totalParcial0 + totalParcial5 + totalParcial10 - descuentoGlobal);
+                facturaLegalGuardada.setTotalFinal(totalParcial0 + totalParcial5 + totalParcial10);
                 
                 // Guardar factura con totales calculados
                 facturaLegalGuardada = service.save(facturaLegalGuardada);
@@ -1140,8 +1167,15 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     iva = vi.getPresentacion().getProducto().getIva();
                 }
                 
-                // Default 10% si no se puede determinar el IVA
+                // Fallback: lookup producto por descripcion (UPPER+TRIM) si iva todavia null.
+                if (iva == null && vi.getDescripcion() != null) {
+                    List<Producto> matches = productoService.findByDescripcionNormalized(vi.getDescripcion());
+                    if (matches.size() == 1 && matches.get(0).getIva() != null) {
+                        iva = matches.get(0).getIva();
+                    }
+                }
                 if (iva == null) {
+                    log.warn("IVA no resoluble al imprimir ticket para item desc='{}', default 10", vi.getDescripcion());
                     iva = 10;
                 }
                 
@@ -1771,8 +1805,15 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     iva = vi.getPresentacion().getProducto().getIva();
                 }
                 
-                // Default 10% si no se puede determinar el IVA
+                // Fallback: lookup producto por descripcion (UPPER+TRIM) si iva todavia null.
+                if (iva == null && vi.getDescripcion() != null) {
+                    List<Producto> matches = productoService.findByDescripcionNormalized(vi.getDescripcion());
+                    if (matches.size() == 1 && matches.get(0).getIva() != null) {
+                        iva = matches.get(0).getIva();
+                    }
+                }
                 if (iva == null) {
+                    log.warn("IVA no resoluble al imprimir ticket para item desc='{}', default 10", vi.getDescripcion());
                     iva = 10;
                 }
                 
