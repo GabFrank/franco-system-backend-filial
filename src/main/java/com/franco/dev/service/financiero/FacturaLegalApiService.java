@@ -7,6 +7,7 @@ import com.franco.dev.dto.factura.CrearFacturaLegalRequestDTO;
 import com.franco.dev.dto.factura.DisponibilidadTimbradoDetalleResponseDTO;
 import com.franco.dev.graphql.financiero.FacturaLegalGraphQL;
 import com.franco.dev.service.personas.ClienteService;
+import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.sifen.service.SifenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
@@ -27,6 +28,7 @@ public class FacturaLegalApiService {
     private final FacturaLegalService facturaLegalService;
     private final FacturaLegalItemService facturaLegalItemService;
     private final ClienteService clienteService;
+    private final ProductoService productoService;
     private final SifenService sifenService;
     private final FacturaLegalGraphQL facturaLegalGraphQL;
     private final ObjectMapper objectMapper;
@@ -278,7 +280,22 @@ public class FacturaLegalApiService {
             facturaLegalItemService.save(item);
             
             // Calcular totales de IVA basándose en los items
-            Integer iva = itemDTO.getIva() != null ? itemDTO.getIva() : 10; // Default 10%
+            Integer iva = itemDTO.getIva();
+            // Fallback: lookup producto por descripcion (UPPER+TRIM) si iva null.
+            if (iva == null && itemDTO.getDescripcion() != null) {
+                java.util.List<com.franco.dev.domain.productos.Producto> matches =
+                    productoService.findByDescripcionNormalized(itemDTO.getDescripcion());
+                if (matches.size() == 1 && matches.get(0).getIva() != null) {
+                    iva = matches.get(0).getIva();
+                    log.warn("IVA resuelto por descripcion para item '{}' (REST API): iva={}", itemDTO.getDescripcion(), iva);
+                } else if (matches.size() > 1) {
+                    log.warn("IVA ambiguo por descripcion para item '{}' (REST API), {} matches, default 10", itemDTO.getDescripcion(), matches.size());
+                }
+            }
+            if (iva == null) {
+                log.warn("IVA no resoluble para item desc='{}' productoId={} (REST API), default 10", itemDTO.getDescripcion(), itemDTO.getProductoId());
+                iva = 10;
+            }
             if (iva == 10) {
                 totalParcial10 += totalItem;
                 ivaParcial10 += totalItem / 11.0; // IVA incluido: total / 11
