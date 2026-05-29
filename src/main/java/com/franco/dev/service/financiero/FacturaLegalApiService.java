@@ -31,6 +31,7 @@ public class FacturaLegalApiService {
     private final ProductoService productoService;
     private final SifenService sifenService;
     private final FacturaLegalGraphQL facturaLegalGraphQL;
+    private final com.franco.dev.service.financiero.builder.FacturaLegalBuilder facturaLegalBuilder;
     private final ObjectMapper objectMapper;
 
     /**
@@ -237,112 +238,30 @@ public class FacturaLegalApiService {
             log.debug("Caja ID {} proporcionada pero no asignada (funcionalidad pendiente)", request.getCajaId());
         }
 
-        // Incrementar número de factura
-        Long numeroFactura = timbradoDetalle.getNumeroActual() != null 
-                ? timbradoDetalle.getNumeroActual() + 1 
-                : 1L;
-        facturaLegal.setNumeroFactura(numeroFactura.intValue());
-
-        // Guardar la factura legal
-        FacturaLegal facturaLegalGuardada = facturaLegalService.save(facturaLegal);
-
-        // Guardar los items y calcular totales
-        Double totalParcial0 = 0.0;
-        Double totalParcial5 = 0.0;
-        Double totalParcial10 = 0.0;
-        Double ivaParcial5 = 0.0;
-        Double ivaParcial10 = 0.0;
-        
-        for (com.franco.dev.dto.factura.FacturaLegalItemDTO itemDTO : request.getItems()) {
-            FacturaLegalItem item = new FacturaLegalItem();
-            item.setFacturaLegal(facturaLegalGuardada);
-            item.setDescripcion(itemDTO.getDescripcion());
-            item.setCantidad(itemDTO.getCantidad().floatValue());
-            item.setPrecioUnitario(itemDTO.getPrecioUnitario());
-            
-            // Calcular total del item si no viene
-            Double totalItem = itemDTO.getTotal() != null 
-                    ? itemDTO.getTotal() 
-                    : itemDTO.getPrecioUnitario() * itemDTO.getCantidad();
-            item.setTotal(totalItem);
-            
-            item.setUnidadMedida(itemDTO.getUnidadMedida());
-            item.setIva(itemDTO.getIva());
-            item.setSucursalId(facturaLegalGuardada.getSucursalId());
-
-            // Asignar producto si se proporciona
-            if (itemDTO.getProductoId() != null) {
-                // El producto se puede asignar aquí si es necesario en el futuro
-                log.debug("Producto ID {} proporcionado para item pero no asignado (funcionalidad pendiente)", 
-                        itemDTO.getProductoId());
-            }
-
-            facturaLegalItemService.save(item);
-            
-            // Calcular totales de IVA basándose en los items
-            Integer iva = itemDTO.getIva();
-            // Fallback: lookup producto por descripcion (UPPER+TRIM) si iva null.
-            if (iva == null && itemDTO.getDescripcion() != null) {
-                java.util.List<com.franco.dev.domain.productos.Producto> matches =
-                    productoService.findByDescripcionNormalized(itemDTO.getDescripcion());
-                if (matches.size() == 1 && matches.get(0).getIva() != null) {
-                    iva = matches.get(0).getIva();
-                    log.warn("IVA resuelto por descripcion para item '{}' (REST API): iva={}", itemDTO.getDescripcion(), iva);
-                } else if (matches.size() > 1) {
-                    log.warn("IVA ambiguo por descripcion para item '{}' (REST API), {} matches, default 10", itemDTO.getDescripcion(), matches.size());
-                }
-            }
-            if (iva == null) {
-                log.warn("IVA no resoluble para item desc='{}' productoId={} (REST API), default 10", itemDTO.getDescripcion(), itemDTO.getProductoId());
-                iva = 10;
-            }
-            if (iva == 10) {
-                totalParcial10 += totalItem;
-                ivaParcial10 += totalItem / 11.0; // IVA incluido: total / 11
-            } else if (iva == 5) {
-                totalParcial5 += totalItem;
-                ivaParcial5 += totalItem / 21.0; // IVA incluido: total / 21
-            } else {
-                totalParcial0 += totalItem;
+        // Construir descriptores desde el DTO REST y delegar al builder centralizado.
+        // Builder se encarga de numeroFactura, save FL, items con iva resuelto,
+        // parciales con descuento proporcional, update timbrado.
+        // SIFEN tambien lo dispara el builder si timbrado es electronico.
+        java.util.List<com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor> descriptores =
+                new java.util.ArrayList<>();
+        if (request.getItems() != null) {
+            for (com.franco.dev.dto.factura.FacturaLegalItemDTO itemDTO : request.getItems()) {
+                com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor d =
+                        new com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor();
+                d.setIva(itemDTO.getIva());
+                d.setProductoId(itemDTO.getProductoId());
+                d.setDescripcion(itemDTO.getDescripcion());
+                d.setPrecioUnitario(itemDTO.getPrecioUnitario());
+                d.setTotal(itemDTO.getTotal());
+                d.setCantidad(itemDTO.getCantidad() != null ? itemDTO.getCantidad().floatValue() : null);
+                d.setUnidadMedida(itemDTO.getUnidadMedida());
+                descriptores.add(d);
             }
         }
-        
-        // Validar y recalcular totales si es necesario
-        boolean totalesIncorrectos = (request.getIvaParcial0() == null || request.getIvaParcial0() == 0.0)
-                && (request.getIvaParcial5() == null || request.getIvaParcial5() == 0.0)
-                && (request.getIvaParcial10() == null || request.getIvaParcial10() == 0.0)
-                && (totalParcial10 > 0 || totalParcial5 > 0); // Hay items con IVA pero totales en 0
-        
-        if (totalesIncorrectos) {
-            log.warn("⚠️  Los totales de IVA vienen en 0.0 pero hay items con IVA. Recalculando totales desde los items...");
-            facturaLegalGuardada.setTotalParcial0(totalParcial0);
-            facturaLegalGuardada.setTotalParcial5(totalParcial5);
-            facturaLegalGuardada.setTotalParcial10(totalParcial10);
-            facturaLegalGuardada.setIvaParcial5(ivaParcial5);
-            facturaLegalGuardada.setIvaParcial10(ivaParcial10);
-            
-            // Recalcular total final
-            Double totalFinalRecalculado = totalParcial0 + totalParcial5 + totalParcial10;
-            facturaLegalGuardada.setTotalFinal(totalFinalRecalculado);
-            
-            log.info("✅ Totales recalculados - Total Parcial 0%: {}, 5%: {}, 10%: {}, IVA 5%: {}, IVA 10%: {}, Total Final: {}", 
-                    totalParcial0, totalParcial5, totalParcial10, ivaParcial5, ivaParcial10, totalFinalRecalculado);
-            
-            // Guardar factura con totales recalculados
-            facturaLegalGuardada = facturaLegalService.save(facturaLegalGuardada);
-        } else {
-            // Validar que los totales enviados sean consistentes (opcional, solo warning)
-            Double totalCalculado = totalParcial0 + totalParcial5 + totalParcial10;
-            Double totalEnviado = request.getTotalFinal();
-            if (totalEnviado != null && Math.abs(totalCalculado - totalEnviado) > 0.01) {
-                log.warn("⚠️  Diferencia entre total calculado ({}) y total enviado ({}). Usando total enviado.", 
-                        totalCalculado, totalEnviado);
-            }
-        }
-
-        // Actualizar número actual del timbrado detalle
-        timbradoDetalle.setNumeroActual(numeroFactura);
-        timbradoDetalleService.save(timbradoDetalle);
+        com.franco.dev.service.financiero.builder.BuildRequest buildReq =
+                new com.franco.dev.service.financiero.builder.BuildRequest(
+                        facturaLegal, descriptores, timbradoDetalle, false);
+        FacturaLegal facturaLegalGuardada = facturaLegalBuilder.build(buildReq);
 
         // Si es factura electrónica, generar el documento electrónico
         Boolean esElectronica = Boolean.TRUE.equals(timbradoDetalle.getTimbrado().getIsElectronico());
