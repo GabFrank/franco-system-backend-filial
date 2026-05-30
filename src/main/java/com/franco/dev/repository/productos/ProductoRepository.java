@@ -15,6 +15,10 @@ public interface ProductoRepository extends HelperRepository<Producto, Long> {
 
     public Producto findByDescripcion(String texto);
 
+    @Query("SELECT p FROM Producto p WHERE UPPER(TRIM(p.descripcion)) = UPPER(TRIM(?1)) " +
+           "OR UPPER(TRIM(p.descripcionFactura)) = UPPER(TRIM(?1))")
+    public List<Producto> findByDescripcionNormalized(String descripcion);
+
     @Query(value = "select distinct on (p.id, p.descripcion) p.* " +
     "from productos.producto p " +
     "left outer join productos.presentacion p2 on p2.producto_id = p.id " +
