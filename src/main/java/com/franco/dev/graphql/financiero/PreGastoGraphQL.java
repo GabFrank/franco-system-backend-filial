@@ -1,7 +1,10 @@
 package com.franco.dev.graphql.financiero;
 
+import com.franco.dev.domain.activos.Ente;
 import com.franco.dev.domain.financiero.PreGasto;
+import com.franco.dev.domain.financiero.TipoGasto;
 import com.franco.dev.domain.financiero.enums.EstadoPreGasto;
+import com.franco.dev.service.financiero.PreGastoEnteValidationService;
 import com.franco.dev.graphql.financiero.input.PreGastoInput;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.MonedaService;
@@ -44,6 +47,9 @@ public class PreGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     @Autowired
     private SucursalService sucursalService;
 
+    @Autowired
+    private PreGastoEnteValidationService preGastoEnteValidationService;
+
     public Optional<PreGasto> preGasto(Long id, Long sucId) {
         return service.findById(id);
     }
@@ -80,7 +86,13 @@ public class PreGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         if (entity.getFuncionarioId() != null) e.setFuncionario(funcionarioService.findById(entity.getFuncionarioId()).map(com.franco.dev.domain.personas.Funcionario::getPersona).orElse(null));
         if (entity.getAutorizadoPorId() != null) e.setAutorizadoPor(funcionarioService.findById(entity.getAutorizadoPorId()).map(com.franco.dev.domain.personas.Funcionario::getPersona).orElse(null));
         if (entity.getDelegadoAId() != null) e.setDelegadoA(funcionarioService.findById(entity.getDelegadoAId()).map(com.franco.dev.domain.personas.Funcionario::getPersona).orElse(null));
-        if (entity.getTipoGastoId() != null) e.setTipoGasto(tipoGastoService.findById(entity.getTipoGastoId()).orElse(null));
+        TipoGasto tipoGasto = null;
+        if (entity.getTipoGastoId() != null) {
+            tipoGasto = tipoGastoService.findById(entity.getTipoGastoId()).orElse(null);
+            e.setTipoGasto(tipoGasto);
+        }
+        Ente ente = preGastoEnteValidationService.validarYResolverEnte(tipoGasto, entity.getEnteId());
+        e.setEnte(ente);
         if (entity.getMonedaId() != null) e.setMoneda(monedaService.findById(entity.getMonedaId()).orElse(null));
         if (entity.getSucursalCajaId() != null) e.setSucursalCaja(sucursalService.findById(entity.getSucursalCajaId()).orElse(null));
         e.setCajaId(entity.getCajaId());
