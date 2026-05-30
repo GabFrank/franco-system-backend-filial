@@ -1,6 +1,7 @@
 package com.franco.dev.graphql.financiero.input;
 
 import com.franco.dev.domain.financiero.enums.TipoNaturalezaGasto;
+import com.franco.dev.domain.financiero.enums.TipoPadreGastoModulo;
 import lombok.Data;
 import java.util.Date;
 
@@ -18,4 +19,5 @@ public class TipoGastoInput {
     private Date creadoEn;
     private Long usuarioId;
     private TipoNaturalezaGasto tipoNaturaleza;
+    private TipoPadreGastoModulo moduloPadre;
 }
