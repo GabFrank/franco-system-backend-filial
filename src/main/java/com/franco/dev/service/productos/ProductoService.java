@@ -190,4 +190,18 @@ public class ProductoService extends CrudService<Producto, ProductoRepository> {
         return repository.findByDescripcion(texto);
     }
 
+    /**
+     * Match de producto por descripcion normalizada (UPPER+TRIM), aceptando
+     * tanto p.descripcion como p.descripcionFactura. Util para resolver iva de
+     * items de factura legal que llegan sin productoId ni iva (huerfanos).
+     * Retorna lista porque pueden haber duplicados en catalogo con distinto iva,
+     * en cuyo caso el caller debe decidir como manejar la ambiguedad.
+     */
+    public List<Producto> findByDescripcionNormalized(String descripcion) {
+        if (descripcion == null || descripcion.trim().isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        return repository.findByDescripcionNormalized(descripcion);
+    }
+
 }

@@ -103,6 +103,9 @@ public class FacturaService {
     private SifenService sifenService;
 
     @Autowired
+    private com.franco.dev.service.financiero.builder.FacturaLegalBuilder facturaLegalBuilder;
+
+    @Autowired
     private DocumentoElectronicoService documentoElectronicoService;
 
     public DecimalFormat df = new DecimalFormat("#,###.##");
@@ -382,140 +385,59 @@ public class FacturaService {
         // Si es positivo = descuento neto, si es negativo = aumento neto
         Double ajusteNeto = descuentoTotal - aumentoTotal;
 
-        Double totalParcial0 = 0.0;
-        Double totalParcial5 = 0.0;
-        Double totalParcial10 = 0.0;
-        Double ivaParcial5 = 0.0;
-        Double ivaParcial10 = 0.0;
-
-        for (VentaItem item : items) {
-            Double totalItem = item.getPrecio() * item.getCantidad();
-            Integer iva = item.getProducto().getIva();
-            if (iva != null) {
-                switch (iva) {
-                    case 10:
-                        totalParcial10 += totalItem;
-                        ivaParcial10 += totalItem / 11;
-                        break;
-                    case 5:
-                        totalParcial5 += totalItem;
-                        ivaParcial5 += totalItem / 21;
-                        break;
-                    default:
-                        totalParcial0 += totalItem;
-                        break;
-                }
-        } else {
-                totalParcial0 += totalItem;
-            }
-        }
-
-        // Incluir costo de delivery si existe
-        Double precioDelivery = 0.0;
-        if (venta.getDelivery() != null && venta.getDelivery().getPrecio() != null) {
-            precioDelivery = venta.getDelivery().getPrecio().getValor();
-            // El delivery se considera gravado al 10% IVA
-            totalParcial10 += precioDelivery;
-            ivaParcial10 += precioDelivery / 11;
-        }
-
-        // Aplicar ajuste (descuento o aumento) proporcionalmente a cada categoría de IVA
-        Double totalSinAjuste = totalParcial0 + totalParcial5 + totalParcial10;
-        
-        if (ajusteNeto != 0 && totalSinAjuste > 0) {
-            Double porcentajeAjuste = Math.abs(ajusteNeto) / totalSinAjuste;
-            
-            if (ajusteNeto > 0) {
-                // Descuento: reducir los totales
-                totalParcial0 = totalParcial0 * (1 - porcentajeAjuste);
-                totalParcial5 = totalParcial5 * (1 - porcentajeAjuste);
-                totalParcial10 = totalParcial10 * (1 - porcentajeAjuste);
-            } else {
-                // Aumento: incrementar los totales
-                totalParcial0 = totalParcial0 * (1 + porcentajeAjuste);
-                totalParcial5 = totalParcial5 * (1 + porcentajeAjuste);
-                totalParcial10 = totalParcial10 * (1 + porcentajeAjuste);
-            }
-            
-            // Recalcular IVA después del ajuste
-            ivaParcial5 = totalParcial5 / 21;
-            ivaParcial10 = totalParcial10 / 11;
-        }
-
-        facturaLegal.setTotalParcial0(totalParcial0);
-        facturaLegal.setTotalParcial5(totalParcial5);
-        facturaLegal.setTotalParcial10(totalParcial10);
-        facturaLegal.setIvaParcial5(ivaParcial5);
-        facturaLegal.setIvaParcial10(ivaParcial10);
-        // Asegurar que siempre se guarde el descuento, incluso si es 0.0
+        // Setear campos comunes en la factura antes del build
         facturaLegal.setDescuento(ajusteNeto != null ? ajusteNeto : 0.0);
-        facturaLegal.setTotalFinal(totalParcial0 + totalParcial5 + totalParcial10);
         facturaLegal.setUsuario(venta.getUsuario());
         facturaLegal.setSucursalId(venta.getSucursalId());
         facturaLegal.setCredito(false);
 
-        TimbradoDetalle timbradoDetalle = timbradoDetalleService.getTimbradoDetalleActual(pdvId);
-        if (timbradoDetalle != null) {
-            facturaLegal.setTimbradoDetalle(timbradoDetalle);
-            Long numeroFactura = timbradoDetalle.getNumeroActual() != null ? timbradoDetalle.getNumeroActual() + 1 : timbradoDetalle.getNumeroActual();
-            // numero factura es un integer
-            facturaLegal.setNumeroFactura(numeroFactura.intValue());
-
-            FacturaLegal facturaLegalGuardada = facturaLegalService.save(facturaLegal);
-
-            for(VentaItem vi : items){
-                FacturaLegalItem fli = new FacturaLegalItem();
-                fli.setFacturaLegal(facturaLegalGuardada);
-                fli.setVentaItem(vi);
-                fli.setCantidad(vi.getCantidad().floatValue());
-                fli.setDescripcion(vi.getProducto().getDescripcion());
-                fli.setPrecioUnitario(vi.getPrecio());
-                Double total = vi.getPrecio() * vi.getCantidad();
-                fli.setTotal(total);
-                fli.setSucursalId(facturaLegalGuardada.getSucursalId());
-                facturaLegalItemService.save(fli);
+        // Construir descriptores desde VentaItem.
+        // El builder se encarga de:
+        //   - resolver iva por cadena (incluido venta_item.producto.iva — flow del PDV F11)
+        //   - vincular producto/ventaItem al FLI para que items futuros tengan FK resoluble
+        //   - calcular parciales con descuento/aumento proporcional (signo en descuento)
+        //   - manejar SIFEN si timbrado es electronico
+        java.util.List<com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor> descriptores =
+                new java.util.ArrayList<>();
+        for (VentaItem vi : items) {
+            com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor d =
+                    new com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor();
+            d.setVentaItemId(vi.getId());
+            if (vi.getProducto() != null) {
+                d.setProductoId(vi.getProducto().getId());
+                d.setIva(vi.getProducto().getIva()); // explicito desde VentaItem
+                d.setDescripcion(vi.getProducto().getDescripcion());
             }
-
-            // Agregar delivery como item adicional si existe
+            if (vi.getPresentacion() != null) {
+                d.setPresentacionId(vi.getPresentacion().getId());
+            }
+            d.setPrecioUnitario(vi.getPrecio());
+            d.setCantidad(vi.getCantidad() != null ? vi.getCantidad().floatValue() : 1.0f);
+            d.setTotal(vi.getPrecio() * vi.getCantidad());
+            descriptores.add(d);
+        }
+        // Delivery como item adicional iva 10
+        if (venta.getDelivery() != null && venta.getDelivery().getPrecio() != null) {
+            Double precioDelivery = venta.getDelivery().getPrecio().getValor();
             if (precioDelivery > 0) {
-                FacturaLegalItem deliveryItem = new FacturaLegalItem();
-                deliveryItem.setFacturaLegal(facturaLegalGuardada);
-                deliveryItem.setCantidad(1.0f);
-                deliveryItem.setDescripcion("SERVICIO DE DELIVERY");
-                deliveryItem.setPrecioUnitario(precioDelivery);
-                deliveryItem.setTotal(precioDelivery);
-                deliveryItem.setSucursalId(facturaLegalGuardada.getSucursalId());
-                facturaLegalItemService.save(deliveryItem);
+                com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor dDelivery =
+                        new com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor();
+                dDelivery.setIva(10);
+                dDelivery.setDescripcion("SERVICIO DE DELIVERY");
+                dDelivery.setCantidad(1.0f);
+                dDelivery.setPrecioUnitario(precioDelivery);
+                dDelivery.setTotal(precioDelivery);
+                descriptores.add(dDelivery);
             }
+        }
 
-            timbradoDetalle.setNumeroActual(numeroFactura);
-            timbradoDetalleService.save(timbradoDetalle);
-
-            if (timbradoDetalle.getTimbrado() != null && Boolean.TRUE.equals(timbradoDetalle.getTimbrado().getIsElectronico())) {
-                // Generar documento electrónico directamente usando SifenService
-                try {
-                    log.info("📝 Generando Documento Electrónico para factura ID: {}", facturaLegalGuardada.getId());
-                    
-                    com.franco.dev.domain.financiero.DocumentoElectronico de = 
-                        sifenService.crearDocumentoElectronico(facturaLegalGuardada);
-                    
-                    // Actualizar la factura con el CDC del DE para impresión
-                    facturaLegalGuardada.setCdc(de.getCdc());
-                    facturaLegalGuardada = facturaLegalService.save(facturaLegalGuardada);
-                    
-                    log.info("✅ Documento Electrónico generado exitosamente - CDC: {}", de.getCdc());
-                    
-                } catch (Exception e) {
-                    log.error("❌ Error al generar documento electrónico para factura ID: {}", facturaLegalGuardada.getId(), e);
-                    log.error("   Detalle del error: {}", e.getMessage());
-                    // No lanzamos excepción para no romper el flujo, pero registramos el error
-                    // La factura se creó correctamente, solo falló la generación del DE
-                }
-            }
-
-            return facturaLegalGuardada;
-        } else {
-            log.error("No se encontró un timbrado para el punto de expedición de la caja");
+        try {
+            com.franco.dev.service.financiero.builder.BuildRequest buildReq =
+                    new com.franco.dev.service.financiero.builder.BuildRequest(
+                            facturaLegal, descriptores, pdvId, true);
+            return facturaLegalBuilder.build(buildReq);
+        } catch (Exception e) {
+            log.error("Error creando factura legal desde venta: {}", e.getMessage(), e);
             return null;
         }
     }
