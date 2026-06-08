@@ -30,7 +30,7 @@ public class PreGastoEnteValidationService {
             if (enteId != null) {
                 throw new GraphQLException(
                         "El tipo de gasto \"" + tipoGasto.getDescripcion()
-                                + "\" no admite vinculación a un activo (inmueble, vehículo o mueble).");
+                                + "\" no admite vinculación a un activo (inmueble, vehículo, mueble o equipo).");
             }
             return null;
         }
@@ -68,6 +68,8 @@ public class PreGastoEnteValidationService {
                 return TipoEnte.MUEBLE;
             case INMUEBLE:
                 return TipoEnte.INMUEBLE;
+            case EQUIPOS:
+                return TipoEnte.EQUIPO;
             default:
                 return null;
         }
@@ -81,6 +83,8 @@ public class PreGastoEnteValidationService {
                 return "un mueble";
             case INMUEBLE:
                 return "un inmueble";
+            case EQUIPO:
+                return "un equipo";
             default:
                 return "un activo";
         }
