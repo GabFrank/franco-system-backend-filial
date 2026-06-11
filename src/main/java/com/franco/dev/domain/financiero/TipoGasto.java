@@ -1,5 +1,7 @@
 package com.franco.dev.domain.financiero;
 
+import com.franco.dev.domain.financiero.enums.TipoNaturalezaGasto;
+import com.franco.dev.domain.financiero.enums.TipoPadreGastoModulo;
 import com.franco.dev.domain.empresarial.Cargo;
 import com.franco.dev.domain.personas.Usuario;
 import lombok.AllArgsConstructor;
@@ -26,9 +28,21 @@ public class TipoGasto implements Serializable {
 
     private Boolean isClasificacion;
     private Boolean activo;
+    @Column(name = "activo_en_sucursales")
+    private Boolean activoEnSucursales;
     private Boolean autorizacion;
 
     private String descripcion;
+    
+    private Boolean afectaFinanzasActivo;
+    private Boolean esPagoCuotaActivo;
+
+    @Enumerated(EnumType.STRING)
+    private TipoNaturalezaGasto tipoNaturaleza;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "modulo_padre")
+    private TipoPadreGastoModulo moduloPadre;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "clasificacion_gasto_id", nullable = true)

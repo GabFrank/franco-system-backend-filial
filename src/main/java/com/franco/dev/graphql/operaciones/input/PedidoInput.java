@@ -15,6 +15,7 @@ public class PedidoInput {
     private Long formaPagoId;
     private PedidoEstado estado;
     private Long monedaId;
+    private Double cotizacion;
     private Integer plazoCredito;
     private Float descuento;
     private Float valorTotal;

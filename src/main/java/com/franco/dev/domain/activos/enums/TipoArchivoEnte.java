@@ -1,0 +1,5 @@
+package com.franco.dev.domain.activos.enums;
+
+public enum TipoArchivoEnte {
+    CONTRATO_COMPRA, CONTRATO_ALQUILER, CONTRATO_COMODATO, FOTO_ESTADO_INICIAL, DOCUMENTO_TRANSFERENCIA, FACTURA, OTRO
+}

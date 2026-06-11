@@ -1,0 +1,2 @@
+ALTER TABLE operaciones.pedido
+    ADD COLUMN IF NOT EXISTS cotizacion DOUBLE PRECISION;

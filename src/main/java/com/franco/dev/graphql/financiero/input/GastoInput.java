@@ -39,4 +39,8 @@ public class GastoInput {
     private Long sucursalVueltoId;
 
     private Long sucursalId;
+
+    private Long preGastoId;
+
+    private Long preGastoSucursalId;
 }

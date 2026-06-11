@@ -1,11 +1,29 @@
+enum TipoNaturalezaGasto {
+    VARIABLE
+    CONTINUO
+}
+
+enum TipoPadreGastoModulo {
+    MUEBLE
+    INMUEBLE
+    PERSONAS
+    VEHICULO
+    OTRO
+}
+
 type TipoGasto {
     id:ID!
     isClasificacion: Boolean
     clasificacionGasto: TipoGasto
     descripcion: String
+    tipoNaturaleza: TipoNaturalezaGasto
+    moduloPadre: TipoPadreGastoModulo
     autorizacion: Boolean
     cargo: Cargo
     activo: Boolean
+    activoEnSucursales: Boolean
+    afectaFinanzasActivo: Boolean
+    esPagoCuotaActivo: Boolean
     creadoEn: Date
     usuario: Usuario
     subtipoList: [TipoGasto]
@@ -16,9 +34,14 @@ input TipoGastoInput {
     isClasificacion: Boolean
     clasificacionGastoId: Int
     descripcion: String
+    tipoNaturaleza: TipoNaturalezaGasto
+    moduloPadre: TipoPadreGastoModulo
     autorizacion: Boolean
     cargoId: Int
     activo: Boolean
+    activoEnSucursales: Boolean
+    afectaFinanzasActivo: Boolean
+    esPagoCuotaActivo: Boolean
     creadoEn: Date
     usuarioId: Int
 }
@@ -35,4 +58,3 @@ extend type Mutation {
     saveTipoGasto(tipoGasto:TipoGastoInput!):TipoGasto!
     deleteTipoGasto(id:ID!):Boolean!
 }
-

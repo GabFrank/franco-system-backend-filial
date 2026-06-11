@@ -640,7 +640,7 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
         if (!sifenService.isSifenEnabled()) {
             responseBuilder.exito(false)
-                    .errores(Collections.singletonList("SIFEN no está habilitado"));
+                    .warnings(Collections.singletonList("SIFEN no está habilitado, puede continuar con la carga manual"));
             return responseBuilder.build();
         }
 

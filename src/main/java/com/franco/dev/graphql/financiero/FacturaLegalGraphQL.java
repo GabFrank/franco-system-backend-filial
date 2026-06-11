@@ -11,6 +11,7 @@ import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.personas.Persona;
+import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
 import com.franco.dev.graphql.financiero.input.FacturaLegalItemInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
@@ -145,6 +146,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private ProductoService productoService;
 
+    @Autowired
+    private com.franco.dev.service.financiero.builder.FacturaLegalBuilder facturaLegalBuilder;
+
     public Optional<FacturaLegal> facturaLegal(Long id, Long sucId) {
         return service.findById(id);
     }
@@ -217,69 +221,112 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 // TODO: Implementar mapeo de caja si es necesario
             }
 
-            if (entity.getClienteId() != null) {
+            if (entity.getClienteId() != null && entity.getClienteId() != 0) {
                 Optional<Cliente> cliente = clienteService.findById(entity.getClienteId());
                 cliente.ifPresent(facturaLegal::setCliente);
+            } else if (entity.getRuc() != null && !entity.getRuc().trim().isEmpty() && entity.getNombre() != null && !entity.getNombre().trim().isEmpty() && !entity.getRuc().trim().equalsIgnoreCase("X")) {
+                // SIFEN deshabilitado o carga manual de cliente nuevo
+                try {
+                    String rucLimpio = entity.getRuc().trim();
+                    Persona persona = personaService.findByDocumento(rucLimpio);
+                    if (persona == null) {
+                        String documentoNormalizado = rucLimpio.replaceAll("[^0-9]", "");
+                        if (!documentoNormalizado.isEmpty()) {
+                            persona = personaService.findByDocumento(documentoNormalizado);
+                        }
+                    }
+                    
+                    if (persona == null) {
+                        persona = new Persona();
+                        persona.setDocumento(rucLimpio);
+                        persona.setNombre(entity.getNombre().trim().toUpperCase());
+                        if (entity.getDireccion() != null && !entity.getDireccion().trim().isEmpty()) {
+                            persona.setDireccion(entity.getDireccion().trim().toUpperCase());
+                        }
+                        if (entity.getEmail() != null && !entity.getEmail().trim().isEmpty()) {
+                            persona.setEmail(entity.getEmail().trim().toUpperCase());
+                        }
+                        if (entity.getUsuarioId() != null) {
+                            Optional<Usuario> usuario = usuarioService.findById(entity.getUsuarioId());
+                            usuario.ifPresent(persona::setUsuario);
+                        }
+                        persona.setCreadoEn(LocalDateTime.now());
+                        persona = personaService.save(persona);
+                        log.info("Nueva Persona creada desde Factura - ID: {}, RUC: {}, Nombre: {}", persona.getId(), persona.getDocumento(), persona.getNombre());
+                    }
+
+                    Cliente cliente = clienteService.findByPersonaId(persona.getId());
+                    if (cliente == null) {
+                        cliente = new Cliente();
+                        cliente.setPersona(persona);
+                        cliente.setCreadoEn(LocalDateTime.now());
+                        cliente.setVerificadoSet(false);
+                        cliente.setTributa(true);
+                        if (entity.getUsuarioId() != null) {
+                            Optional<Usuario> usuario = usuarioService.findById(entity.getUsuarioId());
+                            usuario.ifPresent(cliente::setUsuario);
+                        }
+                        cliente = clienteService.save(cliente);
+                        log.info("Nuevo Cliente creado desde Factura - ID: {}", cliente.getId());
+                    }
+                    facturaLegal.setCliente(cliente);
+                } catch (Exception e) {
+                    log.error("Error al crear cliente manualmente desde FacturaLegal: {}", e.getMessage(), e);
+                }
             }
 
             if (entity.getVentaId() != null) {
                 Optional<Venta> venta = ventaService.findById(entity.getVentaId());
-                venta.ifPresent(facturaLegal::setVenta);
+                if (venta.isPresent()) {
+                    Venta v = venta.get();
+                    facturaLegal.setVenta(v);
+                    
+                    // Si se creó o asoció un cliente a la factura y la venta no lo tiene, asociarlo a la venta también
+                    if (facturaLegal.getCliente() != null && (v.getCliente() == null || v.getCliente().getId().equals(0L))) {
+                        v.setCliente(facturaLegal.getCliente());
+                        ventaService.save(v);
+                        log.info("Cliente asociado a la Venta ID: {}", v.getId());
+                    }
+                }
             }
 
             if (entity.getUsuarioId() != null) {
-                Optional<com.franco.dev.domain.personas.Usuario> usuario = usuarioService
+                Optional<Usuario> usuario = usuarioService
                         .findById(entity.getUsuarioId());
                 usuario.ifPresent(facturaLegal::setUsuario);
             }
 
-            boolean sifenHabilitado = sifenService != null && sifenService.isSifenEnabled();
-
-            TimbradoDetalle timbradoDetalle = timbradoDetalleService
-                    .getTimbradoDetalleActual(pdvId.longValue(), sifenHabilitado);
-
-            if (timbradoDetalle == null) {
-                String mensajeError = sifenHabilitado
-                        ? "SIFEN está habilitado, pero no se encontró un timbrado electrónico activo para el punto de venta ID: "
-                                + pdvId
-                        : "SIFEN está deshabilitado, pero no se encontró un timbrado no electrónico activo para el punto de venta ID: "
-                                + pdvId;
-                throw new GraphQLException(mensajeError);
+            // Construir lista de descriptores para el builder centralizado.
+            // El builder se encarga de:
+            //   - validar timbrado + sucursal + numeroFactura
+            //   - resolver iva por cadena (producto/ventaItem/presentacion/descripcion) + safety net default 10
+            //   - vincular producto/presentacion/ventaItem al item para FK durable
+            //   - calcular parciales con descuento proporcional
+            //   - generar DE SIFEN si el timbrado es electronico
+            List<com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor> descriptores = new java.util.ArrayList<>();
+            if (detalleList != null) {
+                for (FacturaLegalItemInput in : detalleList) {
+                    com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor d =
+                            new com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor();
+                    d.setIva(in.getIva());
+                    d.setProductoId(in.getProductoId());
+                    d.setVentaItemId(in.getVentaItemId());
+                    d.setDescripcion(in.getDescripcion());
+                    d.setPrecioUnitario(in.getPrecioUnitario());
+                    d.setTotal(in.getTotal());
+                    d.setCantidad(in.getCantidad() != null ? in.getCantidad().floatValue() : null);
+                    d.setUnidadMedida(in.getUnidadMedida());
+                    d.setUsuarioId(in.getUsuarioId());
+                    descriptores.add(d);
+                }
             }
 
-            if (timbradoDetalle.getTimbrado() == null) {
-                throw new GraphQLException(
-                        "El timbrado detalle recuperado no tiene un timbrado asociado para el punto de venta ID: "
-                                + pdvId);
-            }
+            com.franco.dev.service.financiero.builder.BuildRequest buildReq =
+                    new com.franco.dev.service.financiero.builder.BuildRequest(
+                            facturaLegal, descriptores, pdvId.longValue(), true);
 
-            Boolean timbradoEsElectronico = Boolean.TRUE.equals(timbradoDetalle.getTimbrado().getIsElectronico());
-            if (sifenHabilitado && !timbradoEsElectronico) {
-                throw new GraphQLException(
-                        "SIFEN está habilitado y se requiere un timbrado electrónico activo para el punto de venta ID: "
-                                + pdvId);
-            }
-            if (!sifenHabilitado && timbradoEsElectronico) {
-                throw new GraphQLException(
-                        "SIFEN está deshabilitado y se requiere un timbrado no electrónico activo para el punto de venta ID: "
-                                + pdvId);
-            }
-
-            facturaLegal.setTimbradoDetalle(timbradoDetalle);
-            
-            // Asignar sucursal desde el timbrado detalle
-            if (timbradoDetalle.getSucursal() != null && timbradoDetalle.getSucursal().getId() != null) {
-                facturaLegal.setSucursalId(timbradoDetalle.getSucursal().getId());
-            } else {
-                throw new GraphQLException("El timbrado detalle no tiene una sucursal asignada");
-            }
-
-            // Incrementar número de factura
-            Long numeroFactura = timbradoDetalle.getNumeroActual() != null ? timbradoDetalle.getNumeroActual() + 1 : 1L;
-            facturaLegal.setNumeroFactura(numeroFactura.intValue());
-
-            // Guardar la factura legal
-            FacturaLegal facturaLegalGuardada = service.save(facturaLegal);
+            FacturaLegal facturaLegalGuardada = facturaLegalBuilder.build(buildReq);
+            TimbradoDetalle timbradoDetalle = facturaLegalGuardada.getTimbradoDetalle();
 
             // Actualizar dirección y email de la persona del cliente si existe cliente y persona
             if (facturaLegalGuardada.getCliente() != null && facturaLegalGuardada.getCliente().getPersona() != null) {
@@ -312,132 +359,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     personaService.save(persona);
                     log.info("✅ Persona del cliente actualizada - ID: {}, Dirección: {}, Email: {}", 
                         persona.getId(), persona.getDireccion(), persona.getEmail());
-                }
-            }
-
-            // Guardar los items si se proporcionan
-            if (detalleList != null && !detalleList.isEmpty()) {
-                for (FacturaLegalItemInput itemInput : detalleList) {
-                    FacturaLegalItem item = new FacturaLegalItem();
-                    item.setFacturaLegal(facturaLegalGuardada);
-                    item.setCantidad(itemInput.getCantidad().floatValue());
-                    item.setDescripcion(itemInput.getDescripcion());
-                    item.setPrecioUnitario(itemInput.getPrecioUnitario());
-                    item.setTotal(itemInput.getTotal());
-                    
-                    Integer iva = itemInput.getIva();
-
-                    // Vincular producto si se proporciona productoId y priorizar su IVA
-                    if (itemInput.getProductoId() != null) {
-                        Optional<Producto> producto = productoService
-                                .findById(itemInput.getProductoId());
-                        if (producto.isPresent()) {
-                            item.setProducto(producto.get());
-                            if (producto.get().getIva() != null) {
-                                iva = producto.get().getIva();
-                            }
-                        }
-                    }
-
-                    if (iva == null) {
-                        iva = 10;
-                    }
-                    
-                    item.setIva(iva);
-                    // Actualizamos el input para que el bucle de cálculo de totales use el valor correcto
-                    itemInput.setIva(iva);
-                    
-                    item.setUnidadMedida(itemInput.getUnidadMedida());
-                    item.setSucursalId(facturaLegalGuardada.getSucursalId());
-
-                    // Mapear relaciones del item
-                    if (itemInput.getVentaItemId() != null) {
-                        // TODO: Implementar mapeo de VentaItem si es necesario
-                    }
-
-                    if (itemInput.getUsuarioId() != null) {
-                        Optional<com.franco.dev.domain.personas.Usuario> usuario = usuarioService
-                                .findById(itemInput.getUsuarioId());
-                        usuario.ifPresent(item::setUsuario);
-                    }
-
-                    facturaLegalItemService.save(item);
-                }
-            }
-
-            // Actualizar el número actual del timbrado
-            timbradoDetalle.setNumeroActual(numeroFactura);
-            timbradoDetalleService.save(timbradoDetalle);
-
-            // Calcular totales de la factura antes de generar el DE
-            if (detalleList != null && !detalleList.isEmpty()) {
-                Double totalParcial0 = 0.0;
-                Double totalParcial5 = 0.0;
-                Double totalParcial10 = 0.0;
-                Double ivaParcial5 = 0.0;
-                Double ivaParcial10 = 0.0;
-                
-                for (FacturaLegalItemInput itemInput : detalleList) {
-                    Double totalItem = itemInput.getTotal();
-                    Integer iva = itemInput.getIva();
-                    
-                    // Si no se proporciona IVA en el input, intentar obtenerlo del producto
-                    if (iva == null && itemInput.getProductoId() != null) {
-                        Optional<com.franco.dev.domain.productos.Producto> producto = productoService
-                                .findById(itemInput.getProductoId());
-                        if (producto.isPresent()) {
-                            iva = producto.get().getIva();
-                        }
-                    }
-                    
-                    // Default 10% si no se puede determinar el IVA
-                    if (iva == null) {
-                        iva = 10;
-                    }
-                    
-                    if (iva == 10) {
-                        totalParcial10 += totalItem;
-                        ivaParcial10 += totalItem / 11;
-                    } else if (iva == 5) {
-                        totalParcial5 += totalItem;
-                        ivaParcial5 += totalItem / 21;
-                    } else {
-                        totalParcial0 += totalItem;
-                    }
-                }
-                
-                facturaLegalGuardada.setTotalParcial0(totalParcial0);
-                facturaLegalGuardada.setTotalParcial5(totalParcial5);
-                facturaLegalGuardada.setTotalParcial10(totalParcial10);
-                facturaLegalGuardada.setIvaParcial5(ivaParcial5);
-                facturaLegalGuardada.setIvaParcial10(ivaParcial10);
-                facturaLegalGuardada.setTotalFinal(totalParcial0 + totalParcial5 + totalParcial10);
-                
-                // Guardar factura con totales calculados
-                facturaLegalGuardada = service.save(facturaLegalGuardada);
-            }
-
-            // Generar documento electrónico si el timbrado es electrónico
-            if (timbradoDetalle.getTimbrado() != null && Boolean.TRUE.equals(timbradoDetalle.getTimbrado().getIsElectronico())) {
-                try {
-                    // Verificar si es moneda extranjera
-                    boolean esMonedaExtranjera = facturaLegalGuardada.getMonedaExtranjera() != null 
-                            && !facturaLegalGuardada.getMonedaExtranjera().trim().isEmpty()
-                            && facturaLegalGuardada.getTipoCambio() != null;
-                    
-                    // El método crearDocumentoElectronico usará los campos monedaExtranjera y tipoCambio
-                    // de la factura si están presentes
-                    com.franco.dev.domain.financiero.DocumentoElectronico de = 
-                        sifenService.crearDocumentoElectronico(facturaLegalGuardada);
-                    
-                    // Actualizar la factura con el CDC del DE para impresión
-                    facturaLegalGuardada.setCdc(de.getCdc());
-                    facturaLegalGuardada = service.save(facturaLegalGuardada);
-                    
-                } catch (Exception e) {
-                    log.error("❌ Error al generar documento electrónico para factura ID: {}", facturaLegalGuardada.getId(), e);
-                    log.error("   Detalle del error: {}", e.getMessage());
-                    // No lanzamos excepción para no romper el guardado de la factura
                 }
             }
 
@@ -1077,20 +998,27 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     iva = vi.getPresentacion().getProducto().getIva();
                 }
                 
-                // Default 10% si no se puede determinar el IVA
+                // Fallback: lookup producto por descripcion (UPPER+TRIM) si iva todavia null.
+                if (iva == null && vi.getDescripcion() != null) {
+                    List<Producto> matches = productoService.findByDescripcionNormalized(vi.getDescripcion());
+                    if (matches.size() == 1 && matches.get(0).getIva() != null) {
+                        iva = matches.get(0).getIva();
+                    }
+                }
                 if (iva == null) {
+                    log.warn("IVA no resoluble al imprimir ticket para item desc='{}', default 10", vi.getDescripcion());
                     iva = 10;
                 }
                 
                 // Construir string de cantidad con unidad de medida si está disponible
                 String cantidadStr;
-                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty()) {
+                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty() && !vi.getUnidadMedida().equalsIgnoreCase("Unidad")) {
                     cantidadStr = vi.getCantidad().intValue() + " " + vi.getUnidadMedida() + " (" + vi.getCantidad() + ") " + iva + "%";
                 } else {
                     cantidadStr = vi.getCantidad().intValue() + " (" + vi.getCantidad() + ") " + iva + "%";
                 }
                 
-                escpos.writeLF(vi.getDescripcion());
+                escpos.writeLF(vi.getDescripcion() != null ? vi.getDescripcion().toUpperCase() : "");
                 escpos.write(new Style().setBold(true), cantidadStr);
                 String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN)
                         .format(vi.getPrecioUnitario().intValue());
@@ -1708,20 +1636,27 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     iva = vi.getPresentacion().getProducto().getIva();
                 }
                 
-                // Default 10% si no se puede determinar el IVA
+                // Fallback: lookup producto por descripcion (UPPER+TRIM) si iva todavia null.
+                if (iva == null && vi.getDescripcion() != null) {
+                    List<Producto> matches = productoService.findByDescripcionNormalized(vi.getDescripcion());
+                    if (matches.size() == 1 && matches.get(0).getIva() != null) {
+                        iva = matches.get(0).getIva();
+                    }
+                }
                 if (iva == null) {
+                    log.warn("IVA no resoluble al imprimir ticket para item desc='{}', default 10", vi.getDescripcion());
                     iva = 10;
                 }
                 
                 // Construir string de cantidad con unidad de medida si está disponible
                 String cantidadStr;
-                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty()) {
+                if (vi.getUnidadMedida() != null && !vi.getUnidadMedida().trim().isEmpty() && !vi.getUnidadMedida().equalsIgnoreCase("Unidad")) {
                     cantidadStr = vi.getCantidad().intValue() + " " + vi.getUnidadMedida() + " (" + vi.getCantidad() + ") " + iva + "%";
                 } else {
                     cantidadStr = vi.getCantidad().intValue() + " (" + vi.getCantidad() + ") " + iva + "%";
                 }
                 
-                escpos.writeLF(vi.getDescripcion());
+                escpos.writeLF(vi.getDescripcion() != null ? vi.getDescripcion().toUpperCase() : "");
                 escpos.write(new Style().setBold(true), cantidadStr);
                 
                 // Convertir precios a moneda extranjera

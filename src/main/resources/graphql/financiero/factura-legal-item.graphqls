@@ -8,6 +8,8 @@ type FacturaLegalItem {
     descripcion:String
     precioUnitario:Float
     total:Float
+    unidadMedida: String
+    iva: Int
     creadoEn: Date
     usuario: Usuario
     sucursalId: Int
@@ -22,8 +24,11 @@ input FacturaLegalItemInput {
     cantidad:Float
     descripcion:String
     precioUnitario:Float
+    iva: Int
     total:Float
+    unidadMedida: String
     usuarioId: Int
+    clienteId: Int
     sucursalId: Int
 }
 
