@@ -61,19 +61,37 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
 
     @Unsecured()
     public Conteo saveConteo(ConteoInput input, List<ConteoMonedaInput> conteoMonedaInputList, Long cajaId, Boolean apertura) {
+        log.info("[FILIAL saveConteo] INICIO -> cajaId={}, apertura={}, usuarioId={}, totalGs={}, totalRs={}, totalDs={}, cantConteoMoneda={}",
+                cajaId, apertura,
+                input != null ? input.getUsuarioId() : null,
+                input != null ? input.getTotalGs() : null,
+                input != null ? input.getTotalRs() : null,
+                input != null ? input.getTotalDs() : null,
+                conteoMonedaInputList != null ? conteoMonedaInputList.size() : "null");
         ModelMapper m = new ModelMapper();
         Conteo e = m.map(input, Conteo.class);
         Conteo conteo = null;
         PdvCaja pdvCaja = pdvCajaService.findById(cajaId).orElse(null);
+        if (pdvCaja == null) {
+            log.error("[FILIAL saveConteo] No se encontro la PdvCaja con id={}. No se puede guardar el conteo de apertura. Abortando.", cajaId);
+            return null;
+        }
         if (pdvCaja != null) {
             if (input.getUsuarioId() != null) {
                 e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
             }
             e.setSucursalId(sucursalService.sucursalActual().getId());
+            boolean esApertura = Boolean.TRUE.equals(apertura);
+            if (!esApertura && pdvCaja.getConteoCierre() != null) {
+                log.warn("[FILIAL saveConteo] La caja id={} ya tiene conteo de cierre. Operacion idempotente.", cajaId);
+                return pdvCaja.getConteoCierre();
+            }
             conteo = service.saveAndSend(e, false);
+            log.info("[FILIAL saveConteo] Conteo persistido -> conteoId={}, sucursalId={}",
+                    conteo != null ? conteo.getId() : null, e.getSucursalId());
             List<Moneda> monedaList = monedaService.findAll2();
             if (conteo != null) {
-                if (pdvCaja.getConteoApertura() == null) {
+                if (esApertura && pdvCaja.getConteoApertura() == null) {
                     log.warn("entranndo enn apertura");
                     pdvCaja.setConteoApertura(conteo);
                     pdvCaja.setFechaApertura(LocalDateTime.now());
@@ -102,7 +120,7 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                             movimientoCajaService.saveAndSend(movimientoCaja, false);
                         }
                     }
-                } else {
+                } else if (!esApertura) {
                     pdvCaja.setConteoCierre(conteo);
                     pdvCaja.setFechaCierre(LocalDateTime.now());
                     pdvCaja.setActivo(false);
@@ -132,7 +150,7 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                         }
                     }
                 }
-                if (!conteoMonedaInputList.isEmpty()) {
+                if (conteoMonedaInputList != null && !conteoMonedaInputList.isEmpty()) {
                     for (ConteoMonedaInput conteoMonedaInput : conteoMonedaInputList) {
                         conteoMonedaInput.setConteoId(conteo.getId());
                         conteoMonedaInput.setUsuarioId(input.getUsuarioId());
@@ -141,10 +159,15 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                     }
                 }
             } else {
+                log.error("[FILIAL saveConteo] El conteo no se pudo persistir (saveAndSend retorno null). Eliminando caja id={} para no dejar caja huerfana.", pdvCaja.getId());
                 pdvCajaService.deleteById(pdvCaja.getId());
             }
         }
-        log.info("retornando conteo: " + conteo.getId());
+        if (conteo == null) {
+            log.error("[FILIAL saveConteo] FIN con conteo null (cajaId={}). Se retorna null.", cajaId);
+            return null;
+        }
+        log.info("[FILIAL saveConteo] FIN OK -> retornando conteoId={} (cajaId={})", conteo.getId(), cajaId);
         return conteo;
     }
 

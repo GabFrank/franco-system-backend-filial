@@ -12,6 +12,8 @@ import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +25,8 @@ import java.util.Optional;
 
 @Component
 public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    private static final Logger log = LoggerFactory.getLogger(PdvCajaGraphQL.class);
 
     @Autowired
     private PdvCajaService service;
@@ -87,22 +91,48 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public PdvCaja savePdvCaja(PdvCajaInput input) {
-        ModelMapper m = new ModelMapper();
-        PdvCaja e = m.map(input, PdvCaja.class);
-        if (input.getUsuarioId() != null) {
-            e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
+        log.info("[FILIAL savePdvCaja] INICIO -> id={}, sucursalId={}, maletinId={}, usuarioId={}, estado={}, activo={}, fechaApertura={}",
+                input != null ? input.getId() : null,
+                input != null ? input.getSucursalId() : null,
+                input != null ? input.getMaletinId() : null,
+                input != null ? input.getUsuarioId() : null,
+                input != null ? input.getEstado() : null,
+                input != null ? input.getActivo() : null,
+                input != null ? input.getFechaApertura() : null);
+        try {
+            ModelMapper m = new ModelMapper();
+            PdvCaja e = m.map(input, PdvCaja.class);
+            if (input.getUsuarioId() != null) {
+                e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
+                if (e.getUsuario() == null) {
+                    log.warn("[FILIAL savePdvCaja] usuarioId={} no existe en la filial", input.getUsuarioId());
+                }
+            }
+            if (input.getVerificadoPorId() != null) {
+                e.setVerificadoPor(usuarioService.findById(input.getVerificadoPorId()).orElse(null));
+            }
+            if (input.getConteoAperturaId() != null)
+                e.setConteoApertura(conteoService.findById(input.getConteoAperturaId()).orElse(null));
+            if (input.getConteoCierreId() != null)
+                e.setConteoCierre(conteoService.findById(input.getConteoCierreId()).orElse(null));
+            if (input.getMaletinId() != null) {
+                e.setMaletin(maletinService.findById(input.getMaletinId()).orElse(null));
+                if (e.getMaletin() == null) {
+                    log.warn("[FILIAL savePdvCaja] maletinId={} no existe en la filial", input.getMaletinId());
+                }
+            }
+            PdvCaja pdvCaja = service.saveAndSend(e, false);
+            log.info("[FILIAL savePdvCaja] OK -> caja guardada con id={}, sucursalId={}",
+                    pdvCaja != null ? pdvCaja.getId() : null,
+                    pdvCaja != null ? pdvCaja.getSucursalId() : null);
+            return pdvCaja;
+        } catch (Exception ex) {
+            log.error("[FILIAL savePdvCaja] ERROR al guardar caja (sucursalId={}, maletinId={}): {}",
+                    input != null ? input.getSucursalId() : null,
+                    input != null ? input.getMaletinId() : null,
+                    ex.getMessage(), ex);
+            throw ex;
         }
-        if (input.getVerificadoPorId() != null) {
-            e.setVerificadoPor(usuarioService.findById(input.getVerificadoPorId()).orElse(null));
-        }
-        if (input.getConteoAperturaId() != null)
-            e.setConteoApertura(conteoService.findById(input.getConteoAperturaId()).orElse(null));
-        if (input.getConteoCierreId() != null)
-            e.setConteoCierre(conteoService.findById(input.getConteoCierreId()).orElse(null));
-        if (input.getMaletinId() != null)
-            e.setMaletin(maletinService.findById(input.getMaletinId()).orElse(null));
-        PdvCaja pdvCaja = service.saveAndSend(e, false);
-        return pdvCaja;
     }
 
     public PdvCaja transferirCaja(Long cajaId, Long usuarioId) {

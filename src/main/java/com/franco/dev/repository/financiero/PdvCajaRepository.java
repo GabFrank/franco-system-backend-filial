@@ -20,6 +20,8 @@ public interface PdvCajaRepository extends HelperRepository<PdvCaja, Long> {
 
     List<PdvCaja> findByUsuarioIdAndActivo(Long id, Boolean activo);
 
+    boolean existsByMaletinIdAndActivoTrueAndIdNot(Long maletinId, Long id);
+
     Optional<PdvCaja> findById(Long id);
 
     public List<PdvCaja> findByCreadoEnBetween(LocalDateTime inicio, LocalDateTime fin);

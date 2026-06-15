@@ -104,21 +104,24 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             entity.setCreadoEn(LocalDateTime.now());
         if (entity.getMaletin() != null) {
             m = maletinService.findById(entity.getMaletin().getId()).orElse(null);
-            if (entity.getActivo() == true) {
+            if (Boolean.TRUE.equals(entity.getActivo())) {
                 if (m != null) {
                     m.setAbierto(true);
                 }
-            } else {
-                if (m != null) {
-                    m.setAbierto(false);
-                }
+            } else if (m != null && !repository.existsByMaletinIdAndActivoTrueAndIdNot(m.getId(), entity.getId())) {
+                m.setAbierto(false);
             }
         }
 
-        List<PdvCaja> aux = repository.findByUsuarioIdAndActivo(entity.getUsuario().getId(), true);
+        if (entity.getUsuario() == null || entity.getUsuario().getId() == null) {
+            throw new GraphQLException("No se puede abrir la caja: el usuario no existe en esta sucursal (filial). Verifique que el usuario este replicado en la filial.");
+        }
 
-        if (aux.size() > 0 && !aux.get(0).getId().equals(entity.getId()))
-            throw new GraphQLException("Ya existe una caja abierta");
+        if (Boolean.TRUE.equals(entity.getActivo())) {
+            List<PdvCaja> aux = repository.findByUsuarioIdAndActivo(entity.getUsuario().getId(), true);
+            if (aux.size() > 0 && !aux.get(0).getId().equals(entity.getId()))
+                throw new GraphQLException("Ya existe una caja abierta");
+        }
 
         PdvCaja e = super.save(entity);
         maletinService.save(m);
@@ -137,20 +140,22 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             entity.setCreadoEn(LocalDateTime.now());
         if (entity.getMaletin() != null) {
             m = maletinService.findById(entity.getMaletin().getId()).orElse(null);
-            if (entity.getActivo() == true) {
+            if (Boolean.TRUE.equals(entity.getActivo())) {
                 if (m != null) {
                     m.setAbierto(true);
                 }
-            } else {
-                if (m != null) {
-                    m.setAbierto(false);
-                }
+            } else if (m != null && !repository.existsByMaletinIdAndActivoTrueAndIdNot(m.getId(), entity.getId())) {
+                m.setAbierto(false);
             }
         }
-        List<PdvCaja> aux = repository.findByUsuarioIdAndActivo(entity.getUsuario().getId(), true);
-
-        if (aux.size() > 0 && !aux.get(0).getId().equals(entity.getId()))
-            throw new GraphQLException("Ya existe una caja abierta");
+        if (entity.getUsuario() == null || entity.getUsuario().getId() == null) {
+            throw new GraphQLException("No se puede abrir la caja: el usuario no existe en esta sucursal (filial). Verifique que el usuario este replicado en la filial.");
+        }
+        if (Boolean.TRUE.equals(entity.getActivo())) {
+            List<PdvCaja> aux = repository.findByUsuarioIdAndActivo(entity.getUsuario().getId(), true);
+            if (aux.size() > 0 && !aux.get(0).getId().equals(entity.getId()))
+                throw new GraphQLException("Ya existe una caja abierta");
+        }
         if (entity.getSucursalId() == null)
             entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         PdvCaja e = super.save(entity);
