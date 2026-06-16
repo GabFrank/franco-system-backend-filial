@@ -8,6 +8,7 @@ import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.graphql.financiero.input.ConteoInput;
 import com.franco.dev.graphql.financiero.input.ConteoMonedaInput;
 import com.franco.dev.security.Unsecured;
+import com.franco.dev.service.configuracion.DesktopPrinterConfigService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.general.PaisService;
@@ -21,6 +22,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,6 +52,8 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     private CambioService cambioService;
     @Autowired
     private SucursalService sucursalService;
+    @Autowired
+    private DesktopPrinterConfigService desktopPrinterConfigService;
 
     public Optional<Conteo> conteo(Long id, Long sucId) {
         return service.findById(id);
@@ -60,20 +66,40 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
 
 
     @Unsecured()
-    public Conteo saveConteo(ConteoInput input, List<ConteoMonedaInput> conteoMonedaInputList, Long cajaId, Boolean apertura) {
+    @Transactional
+    public Conteo saveConteo(ConteoInput input, List<ConteoMonedaInput> conteoMonedaInputList, Long cajaId, Boolean apertura, Boolean imprimirBalance) {
+        log.info("[FILIAL saveConteo] INICIO -> cajaId={}, apertura={}, imprimirBalance={}, usuarioId={}, totalGs={}, totalRs={}, totalDs={}, cantConteoMoneda={}",
+                cajaId, apertura, imprimirBalance,
+                input != null ? input.getUsuarioId() : null,
+                input != null ? input.getTotalGs() : null,
+                input != null ? input.getTotalRs() : null,
+                input != null ? input.getTotalDs() : null,
+                conteoMonedaInputList != null ? conteoMonedaInputList.size() : "null");
         ModelMapper m = new ModelMapper();
         Conteo e = m.map(input, Conteo.class);
         Conteo conteo = null;
         PdvCaja pdvCaja = pdvCajaService.findById(cajaId).orElse(null);
+        if (pdvCaja == null) {
+            log.error("[FILIAL saveConteo] No se encontro la PdvCaja con id={}. No se puede guardar el conteo de apertura. Abortando.", cajaId);
+            return null;
+        }
         if (pdvCaja != null) {
             if (input.getUsuarioId() != null) {
                 e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
             }
             e.setSucursalId(sucursalService.sucursalActual().getId());
+            boolean esApertura = Boolean.TRUE.equals(apertura);
+            if (!esApertura && pdvCaja.getConteoCierre() != null) {
+                log.warn("[FILIAL saveConteo] La caja id={} ya tiene conteo de cierre. Operacion idempotente.", cajaId);
+                return pdvCaja.getConteoCierre();
+            }
             conteo = service.saveAndSend(e, false);
+            log.info("[FILIAL saveConteo] Conteo persistido -> conteoId={}, sucursalId={}",
+                    conteo != null ? conteo.getId() : null, e.getSucursalId());
             List<Moneda> monedaList = monedaService.findAll2();
+            boolean cierreRealizado = false;
             if (conteo != null) {
-                if (pdvCaja.getConteoApertura() == null) {
+                if (esApertura && pdvCaja.getConteoApertura() == null) {
                     log.warn("entranndo enn apertura");
                     pdvCaja.setConteoApertura(conteo);
                     pdvCaja.setFechaApertura(LocalDateTime.now());
@@ -102,11 +128,12 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                             movimientoCajaService.saveAndSend(movimientoCaja, false);
                         }
                     }
-                } else {
+                } else if (!esApertura) {
                     pdvCaja.setConteoCierre(conteo);
                     pdvCaja.setFechaCierre(LocalDateTime.now());
                     pdvCaja.setActivo(false);
                     pdvCajaService.saveAndSend(pdvCaja, false);
+                    cierreRealizado = true;
                     for (Moneda moneda : monedaList) {
                         MovimientoCaja movimientoCaja = new MovimientoCaja();
                         if (moneda.getDenominacion().contains("GUARANI")) {
@@ -132,7 +159,7 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                         }
                     }
                 }
-                if (!conteoMonedaInputList.isEmpty()) {
+                if (conteoMonedaInputList != null && !conteoMonedaInputList.isEmpty()) {
                     for (ConteoMonedaInput conteoMonedaInput : conteoMonedaInputList) {
                         conteoMonedaInput.setConteoId(conteo.getId());
                         conteoMonedaInput.setUsuarioId(input.getUsuarioId());
@@ -140,11 +167,19 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                         conteoMonedaGraphQL.saveConteoMoneda(conteoMonedaInput);
                     }
                 }
+                if (cierreRealizado) {
+                    programarImpresionBalanceCierre(cajaId, imprimirBalance);
+                }
             } else {
+                log.error("[FILIAL saveConteo] El conteo no se pudo persistir (saveAndSend retorno null). Eliminando caja id={} para no dejar caja huerfana.", pdvCaja.getId());
                 pdvCajaService.deleteById(pdvCaja.getId());
             }
         }
-        log.info("retornando conteo: " + conteo.getId());
+        if (conteo == null) {
+            log.error("[FILIAL saveConteo] FIN con conteo null (cajaId={}). Se retorna null.", cajaId);
+            return null;
+        }
+        log.info("[FILIAL saveConteo] FIN OK -> retornando conteoId={} (cajaId={})", conteo.getId(), cajaId);
         return conteo;
     }
 
@@ -156,5 +191,37 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         return service.count();
     }
 
+    private void programarImpresionBalanceCierre(Long cajaId, Boolean imprimirBalance) {
+        if (!Boolean.TRUE.equals(imprimirBalance)) {
+            return;
+        }
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    imprimirBalanceCierreSiCorresponde(cajaId, true);
+                }
+            });
+            log.info("[FILIAL saveConteo] Impresion de balance de cierre programada post-commit. cajaId={}", cajaId);
+        } else {
+            imprimirBalanceCierreSiCorresponde(cajaId, imprimirBalance);
+        }
+    }
+
+    private void imprimirBalanceCierreSiCorresponde(Long cajaId, Boolean imprimirBalance) {
+        if (!Boolean.TRUE.equals(imprimirBalance)) {
+            return;
+        }
+        try {
+            String printerName = desktopPrinterConfigService.getTicketPrinterName().orElse(null);
+            String local = desktopPrinterConfigService.getLocalName().orElse(null);
+            log.info("[FILIAL saveConteo] Imprimiendo balance de cierre. cajaId={}, printer={}, local={}",
+                    cajaId, printerName, local);
+            pdvCajaService.imprimirBalance(cajaId, printerName, local);
+        } catch (Exception e) {
+            log.error("[FILIAL saveConteo] Error al imprimir balance de cierre para cajaId={}. El cierre fue exitoso.",
+                    cajaId, e);
+        }
+    }
 
 }

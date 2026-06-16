@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.financiero.input;
 
+import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
 import com.franco.dev.domain.operaciones.enums.TipoEntrada;
 import com.franco.dev.domain.personas.Usuario;
 import lombok.Data;
@@ -8,6 +9,7 @@ import java.time.LocalDateTime;
 
 @Data
 public class PdvCajaInput {
+    private PdvCajaEstado estado;
     private Long id;
     private Long sucursalId;
     private String descripcion;
