@@ -1,1 +1,1 @@
-ALTER TABLE financiero.tipo_gasto ADD COLUMN tipo_naturaleza VARCHAR;
+ALTER TABLE financiero.tipo_gasto ADD COLUMN IF NOT EXISTS tipo_naturaleza VARCHAR;
