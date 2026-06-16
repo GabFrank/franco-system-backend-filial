@@ -3,6 +3,7 @@ package com.franco.dev.service.financiero;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.*;
 import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
+import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.domain.operaciones.Delivery;
@@ -330,46 +331,12 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                     pdvCaja.getId(),
                     Arrays.asList(DeliveryEstado.CONCLUIDO, DeliveryEstado.PARA_ENTREGA, DeliveryEstado.ENTREGADO),
                     pdvCaja.getSucursalId());
-            if (!conteoMonedaAperList.isEmpty()) {
-                Double totalGsAper = 0.0;
-                Double totalRsAper = 0.0;
-                Double totalDsAper = 0.0;
-                Double totalGsCierre = 0.0;
-                Double totalRsCierre = 0.0;
-                Double totalDsCierre = 0.0;
-
-                for (ConteoMoneda c : conteoMonedaAperList) {
-                    if (c.getMonedaBilletes().getMoneda().getDenominacion().contains("GUARANI")) {
-                        totalGsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
-                    } else if (c.getMonedaBilletes().getMoneda().getDenominacion().contains("REAL")) {
-                        totalRsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
-                    } else if (c.getMonedaBilletes().getMoneda().getDenominacion().contains("DOLAR")) {
-                        totalDsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
-                    }
-                }
-                balance.setTotalGsAper(totalGsAper);
-                balance.setTotalRsAper(totalRsAper);
-                balance.setTotalDsAper(totalDsAper);
-
+            if (pdvCaja.getConteoApertura() != null) {
+                establecerTotalesApertura(pdvCaja, balance, conteoMonedaAperList);
             }
 
-            if (!conteoMonedaCierreList.isEmpty()) {
-                Double totalGsCierre = 0.0;
-                Double totalRsCierre = 0.0;
-                Double totalDsCierre = 0.0;
-                for (ConteoMoneda c : conteoMonedaCierreList) {
-                    if (c.getMonedaBilletes().getMoneda().getDenominacion().contains("GUARANI")) {
-                        totalGsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
-                    } else if (c.getMonedaBilletes().getMoneda().getDenominacion().contains("REAL")) {
-                        totalRsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
-                    } else if (c.getMonedaBilletes().getMoneda().getDenominacion().contains("DOLAR")) {
-                        totalDsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
-                    }
-                }
-                balance.setTotalGsCierre(totalGsCierre);
-                balance.setTotalRsCierre(totalRsCierre);
-                balance.setTotalDsCierre(totalDsCierre);
-
+            if (pdvCaja.getConteoCierre() != null) {
+                establecerTotalesCierre(pdvCaja, balance, conteoMonedaCierreList);
             }
             // List<MovimientoCaja> movimientoCajaList =
             // movimientoCajaService.findByPdvCajaId(pdvCaja.getId());
@@ -618,6 +585,113 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     public PdvCaja findLastByMaletinId(Long id) {
         PdvCaja caja = repository.findFirstByMaletinIdOrderByCreadoEnDesc(id).orElse(null);
         return caja;
+    }
+
+    private boolean denominacionContains(ConteoMoneda conteoMoneda, String texto) {
+        if (conteoMoneda == null || conteoMoneda.getMonedaBilletes() == null) {
+            return false;
+        }
+        return denominacionContains(conteoMoneda.getMonedaBilletes().getMoneda(), texto);
+    }
+
+    private boolean denominacionContains(Moneda moneda, String texto) {
+        return moneda != null && moneda.getDenominacion() != null && moneda.getDenominacion().contains(texto);
+    }
+
+    private void establecerTotalesApertura(PdvCaja pdvCaja, PdvCajaBalanceDto balance, List<ConteoMoneda> conteoMonedaAperList) {
+        Double totalGsAper = 0.0;
+        Double totalRsAper = 0.0;
+        Double totalDsAper = 0.0;
+        for (ConteoMoneda c : conteoMonedaAperList) {
+            if (denominacionContains(c, "GUARANI")) {
+                totalGsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
+            } else if (denominacionContains(c, "REAL")) {
+                totalRsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
+            } else if (denominacionContains(c, "DOLAR")) {
+                totalDsAper += c.getCantidad() * c.getMonedaBilletes().getValor();
+            }
+        }
+        PdvCajaBalanceDto desdeMovimientos = new PdvCajaBalanceDto();
+        aplicarTotalesAperturaDesdeMovimientos(pdvCaja, desdeMovimientos);
+        balance.setTotalGsAper(elegirTotalMoneda(totalGsAper, desdeMovimientos.getTotalGsAper()));
+        balance.setTotalRsAper(elegirTotalMoneda(totalRsAper, desdeMovimientos.getTotalRsAper()));
+        balance.setTotalDsAper(elegirTotalMoneda(totalDsAper, desdeMovimientos.getTotalDsAper()));
+    }
+
+    private void establecerTotalesCierre(PdvCaja pdvCaja, PdvCajaBalanceDto balance, List<ConteoMoneda> conteoMonedaCierreList) {
+        Double totalGsCierre = 0.0;
+        Double totalRsCierre = 0.0;
+        Double totalDsCierre = 0.0;
+        for (ConteoMoneda c : conteoMonedaCierreList) {
+            if (denominacionContains(c, "GUARANI")) {
+                totalGsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
+            } else if (denominacionContains(c, "REAL")) {
+                totalRsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
+            } else if (denominacionContains(c, "DOLAR")) {
+                totalDsCierre += c.getCantidad() * c.getMonedaBilletes().getValor();
+            }
+        }
+        PdvCajaBalanceDto desdeMovimientos = new PdvCajaBalanceDto();
+        aplicarTotalesCierreDesdeMovimientos(pdvCaja, desdeMovimientos);
+        balance.setTotalGsCierre(elegirTotalMoneda(totalGsCierre, desdeMovimientos.getTotalGsCierre()));
+        balance.setTotalRsCierre(elegirTotalMoneda(totalRsCierre, desdeMovimientos.getTotalRsCierre()));
+        balance.setTotalDsCierre(elegirTotalMoneda(totalDsCierre, desdeMovimientos.getTotalDsCierre()));
+    }
+
+    private Double elegirTotalMoneda(Double totalConteo, Double totalMovimiento) {
+        double conteo = totalConteo != null ? totalConteo : 0.0;
+        double movimiento = totalMovimiento != null ? totalMovimiento : 0.0;
+        return conteo > 0.0 ? conteo : movimiento;
+    }
+
+    private void aplicarTotalesAperturaDesdeMovimientos(PdvCaja pdvCaja, PdvCajaBalanceDto balance) {
+        Double totalGsAper = 0.0;
+        Double totalRsAper = 0.0;
+        Double totalDsAper = 0.0;
+        Long conteoAperturaId = pdvCaja.getConteoApertura().getId();
+        for (MovimientoCaja movimientoCaja : movimientoCajaService.findByPdvCajaId(pdvCaja.getId())) {
+            if (movimientoCaja.getTipoMovimiento() != PdvCajaTipoMovimiento.CAJA_INICIAL) {
+                continue;
+            }
+            if (movimientoCaja.getReferencia() != null && !movimientoCaja.getReferencia().equals(conteoAperturaId)) {
+                continue;
+            }
+            if (denominacionContains(movimientoCaja.getMoneda(), "GUARANI")) {
+                totalGsAper += movimientoCaja.getCantidad();
+            } else if (denominacionContains(movimientoCaja.getMoneda(), "REAL")) {
+                totalRsAper += movimientoCaja.getCantidad();
+            } else if (denominacionContains(movimientoCaja.getMoneda(), "DOLAR")) {
+                totalDsAper += movimientoCaja.getCantidad();
+            }
+        }
+        balance.setTotalGsAper(totalGsAper);
+        balance.setTotalRsAper(totalRsAper);
+        balance.setTotalDsAper(totalDsAper);
+    }
+
+    private void aplicarTotalesCierreDesdeMovimientos(PdvCaja pdvCaja, PdvCajaBalanceDto balance) {
+        Double totalGsCierre = 0.0;
+        Double totalRsCierre = 0.0;
+        Double totalDsCierre = 0.0;
+        Long conteoCierreId = pdvCaja.getConteoCierre().getId();
+        for (MovimientoCaja movimientoCaja : movimientoCajaService.findByPdvCajaId(pdvCaja.getId())) {
+            if (movimientoCaja.getTipoMovimiento() != PdvCajaTipoMovimiento.CAJA_FINAL) {
+                continue;
+            }
+            if (movimientoCaja.getReferencia() != null && !movimientoCaja.getReferencia().equals(conteoCierreId)) {
+                continue;
+            }
+            if (denominacionContains(movimientoCaja.getMoneda(), "GUARANI")) {
+                totalGsCierre += movimientoCaja.getCantidad();
+            } else if (denominacionContains(movimientoCaja.getMoneda(), "REAL")) {
+                totalRsCierre += movimientoCaja.getCantidad();
+            } else if (denominacionContains(movimientoCaja.getMoneda(), "DOLAR")) {
+                totalDsCierre += movimientoCaja.getCantidad();
+            }
+        }
+        balance.setTotalGsCierre(totalGsCierre);
+        balance.setTotalRsCierre(totalRsCierre);
+        balance.setTotalDsCierre(totalDsCierre);
     }
 
     @Autowired

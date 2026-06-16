@@ -1,9 +1,13 @@
 package com.franco.dev.graphql.financiero;
 
+import com.franco.dev.domain.financiero.Conteo;
 import com.franco.dev.domain.financiero.ConteoMoneda;
+import com.franco.dev.domain.financiero.MonedaBilletes;
 import com.franco.dev.graphql.financiero.input.ConteoMonedaInput;
 import com.franco.dev.security.Unsecured;
 import com.franco.dev.service.financiero.ConteoMonedaService;
+import com.franco.dev.service.financiero.ConteoService;
+import com.franco.dev.service.financiero.MonedaBilleteService;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
@@ -29,6 +33,12 @@ public class ConteoMonedaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private PaisService paisService;
 
+    @Autowired
+    private MonedaBilleteService monedaBilleteService;
+
+    @Autowired
+    private ConteoService conteoService;
+
     public Optional<ConteoMoneda> conteoMoneda(Long id, Long sucId) {
         return service.findById(id);
     }
@@ -44,6 +54,17 @@ public class ConteoMonedaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         ConteoMoneda e = m.map(input, ConteoMoneda.class);
         if (input.getUsuarioId() != null) {
             e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
+        }
+        if (input.getConteoId() != null) {
+            Conteo conteo = conteoService.findById(input.getConteoId()).orElse(null);
+            e.setConteo(conteo);
+            if (conteo != null && e.getSucursalId() == null) {
+                e.setSucursalId(conteo.getSucursalId());
+            }
+        }
+        if (input.getMonedaBilletesId() != null) {
+            MonedaBilletes monedaBilletes = monedaBilleteService.findById(input.getMonedaBilletesId()).orElse(null);
+            e.setMonedaBilletes(monedaBilletes);
         }
         return service.saveAndSend(e, false);
     }

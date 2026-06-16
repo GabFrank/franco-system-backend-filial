@@ -4,6 +4,7 @@ import com.franco.dev.domain.financiero.CajaBalance;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
 import com.franco.dev.graphql.financiero.input.PdvCajaInput;
+import com.franco.dev.service.configuracion.DesktopPrinterConfigService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.ConteoService;
 import com.franco.dev.service.financiero.MaletinService;
@@ -48,6 +49,9 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
     @Autowired
     private SucursalService sucursalService;
+
+    @Autowired
+    private DesktopPrinterConfigService desktopPrinterConfigService;
 
     public Optional<PdvCaja> pdvCaja(Long id, Long sucId) {
         return service.findById(id);
@@ -156,7 +160,14 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public PdvCaja imprimirBalance(Long id, String printerName, String local, Long sucId) {
-        return service.imprimirBalance(id, printerName, local);
+        String resolvedPrinter = (printerName == null || printerName.isBlank())
+                ? desktopPrinterConfigService.getTicketPrinterName().orElse(null)
+                : printerName;
+        String resolvedLocal = (local == null || local.isBlank())
+                ? desktopPrinterConfigService.getLocalName().orElse(null)
+                : local;
+        log.info("[FILIAL imprimirBalance] cajaId={}, printer={}, local={}", id, resolvedPrinter, resolvedLocal);
+        return service.imprimirBalance(id, resolvedPrinter, resolvedLocal);
     }
 
     public Page<PdvCaja> cajasWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId,
