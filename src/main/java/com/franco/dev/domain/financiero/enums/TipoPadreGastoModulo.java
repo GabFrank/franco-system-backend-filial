@@ -6,5 +6,12 @@ public enum TipoPadreGastoModulo {
     PERSONAS,
     VEHICULO,
     EQUIPOS,
+    ANDE,
+    JUNTA_SANEAMIENTO,
+    IMPUESTO,
+    INTERNET,
+    SEGURIDAD,
+    BASURA,
+    SEGURO,
     OTRO
 }
