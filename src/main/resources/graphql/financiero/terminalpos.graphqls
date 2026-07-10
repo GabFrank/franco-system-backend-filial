@@ -1,0 +1,42 @@
+type TerminalPos {
+    id:ID!
+    descripcion: String
+    codigo: String
+    activo: Boolean
+    creadoEn: Date
+    usuario: Usuario
+}
+
+type TerminalPosPage {
+    getTotalPages: Int
+    getTotalElements: Int
+    getNumberOfElements: Int
+    isFirst: Boolean
+    isLast: Boolean
+    hasNext: Boolean
+    hasPrevious: Boolean
+    getContent: [TerminalPos]
+}
+
+input TerminalPosInput {
+    id:ID
+    descripcion: String
+    codigo: String
+    cuentaBancariaId: Int
+    activo: Boolean
+    creadoEn: Date
+    usuarioId: Int
+}
+
+extend type Query {
+    terminalPos(id:ID!):TerminalPos
+    terminalesPos(page:Int = 0, size:Int = 10):[TerminalPos]!
+    countTerminalPos: Int
+    searchTerminalPos(texto: String):[TerminalPos]
+    filterTerminalPos(descripcion: String, codigo: String, activo: Boolean, page: Int = 0, size: Int = 10):TerminalPosPage
+}
+
+extend type Mutation {
+    saveTerminalPos(terminalPos:TerminalPosInput!):TerminalPos!
+    deleteTerminalPos(id:ID!):Boolean!
+}
