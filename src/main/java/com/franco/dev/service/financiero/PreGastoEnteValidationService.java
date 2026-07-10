@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 public class PreGastoEnteValidationService {
 
     private final EnteRepository enteRepository;
+    private final TipoGastoModuloReglasService moduloReglasService;
 
     public Ente validarYResolverEnte(TipoGasto tipoGasto, Long enteId) {
         if (tipoGasto == null) {
@@ -24,7 +25,7 @@ public class PreGastoEnteValidationService {
         }
 
         TipoPadreGastoModulo modulo = tipoGasto.getModuloPadre();
-        TipoEnte tipoEnteRequerido = tipoEnteEsperado(modulo);
+        TipoEnte tipoEnteRequerido = moduloReglasService.tipoEnteEsperado(modulo);
 
         if (tipoEnteRequerido == null) {
             if (enteId != null) {
@@ -55,24 +56,6 @@ public class PreGastoEnteValidationService {
         }
 
         return ente;
-    }
-
-    private TipoEnte tipoEnteEsperado(TipoPadreGastoModulo modulo) {
-        if (modulo == null) {
-            return null;
-        }
-        switch (modulo) {
-            case VEHICULO:
-                return TipoEnte.VEHICULO;
-            case MUEBLE:
-                return TipoEnte.MUEBLE;
-            case INMUEBLE:
-                return TipoEnte.INMUEBLE;
-            case EQUIPOS:
-                return TipoEnte.EQUIPO;
-            default:
-                return null;
-        }
     }
 
     private String etiquetaActivo(TipoEnte tipo) {

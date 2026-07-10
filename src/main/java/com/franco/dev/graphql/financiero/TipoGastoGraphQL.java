@@ -1,18 +1,18 @@
 package com.franco.dev.graphql.financiero;
 
-import com.franco.dev.domain.financiero.Banco;
 import com.franco.dev.domain.financiero.TipoGasto;
-import com.franco.dev.graphql.financiero.input.BancoInput;
+import com.franco.dev.domain.financiero.enums.TipoPadreGastoModulo;
+import com.franco.dev.graphql.financiero.dto.ModuloGastoInfo;
 import com.franco.dev.graphql.financiero.input.TipoGastoInput;
 import com.franco.dev.service.empresarial.CargoService;
-import com.franco.dev.service.financiero.BancoService;
+import com.franco.dev.service.financiero.TipoGastoModuloReglasService;
 import com.franco.dev.service.financiero.TipoGastoService;
-import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -32,6 +32,9 @@ public class TipoGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
     @Autowired
     private CargoService cargoService;
 
+    @Autowired
+    private TipoGastoModuloReglasService moduloReglasService;
+
     public Optional<TipoGasto> tipoGasto(Long id) {return service.findById(id);}
 
     public List<TipoGasto> tipoGastos(int page, int size){
@@ -39,8 +42,14 @@ public class TipoGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         return service.findAll(pageable);
     }
 
-    public List<TipoGasto> rootTipoGasto(){
-        return service.findRoot();
+    public List<ModuloGastoInfo> modulosGasto() {
+        return moduloReglasService.listarModulos();
+    }
+
+    public Page<TipoGasto> filterTipoGastos(String naturaleza, String texto, TipoPadreGastoModulo moduloPadre, Integer page, Integer size) {
+        Pageable pageable = PageRequest.of(page != null ? page : 0, size != null ? size : 15);
+        String moduloPadreStr = moduloPadre != null ? moduloPadre.name() : null;
+        return service.filterTipoGastos(naturaleza, texto, moduloPadreStr, pageable);
     }
 
 
@@ -50,7 +59,6 @@ public class TipoGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         if(input.getUsuarioId()!=null){
             e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         }
-        if(input.getClasificacionGastoId()!=null) e.setClasificacionGasto(service.findById(input.getClasificacionGastoId()).orElse(null));
         if(input.getCargoId()!=null) e.setCargo(cargoService.findById(input.getCargoId()).orElse(null));
         return service.save(e);
     }

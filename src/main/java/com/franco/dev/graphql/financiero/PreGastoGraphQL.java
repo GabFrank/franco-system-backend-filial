@@ -25,6 +25,7 @@ import org.springframework.stereotype.Component;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import com.franco.dev.service.financiero.dto.EnteFinancialSummaryDTO;
 
 @Component
 public class PreGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
@@ -77,6 +78,13 @@ public class PreGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
             String inicio, String fin, Integer page, Integer size) {
         Pageable pageable = PageRequest.of(page != null ? page : 0, size != null ? size : 15);
         return new org.springframework.data.domain.PageImpl<>(Collections.emptyList(), pageable, 0);
+    }
+
+    public EnteFinancialSummaryDTO getEnteFinancialSummary(Long enteId, Long tipoGastoId) {
+        EnteFinancialSummaryDTO dto = new EnteFinancialSummaryDTO();
+        dto.setEnteId(enteId);
+        dto.setAutocompletarMonto(false);
+        return dto;
     }
 
     public PreGasto savePreGasto(PreGastoInput entity) throws GraphQLException {

@@ -4,6 +4,8 @@ import com.franco.dev.domain.financiero.TipoGasto;
 import com.franco.dev.repository.financiero.TipoGastoRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -30,12 +32,9 @@ public class TipoGastoService extends CrudService<TipoGasto, TipoGastoRepository
         texto = texto.replace(' ', '%').toUpperCase();
         return repository.findByAll(texto);
     }
-    public List<TipoGasto> findByClasificacionGastoId(Long id){
-        return repository.findByClasificacionGastoId(id);
-    }
 
-    public List<TipoGasto> findRoot(){
-       return repository.findRoot();
+    public Page<TipoGasto> filterTipoGastos(String naturaleza, String texto, String moduloPadre, Pageable pageable) {
+        return repository.filterTipoGastos(naturaleza, texto, moduloPadre, pageable);
     }
 
     @Override

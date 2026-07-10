@@ -26,6 +26,11 @@ public class TipoGasto implements Serializable {
     @Id
     private Long id;
 
+    /**
+     * @deprecated La clasificación/agrupación libre fue reemplazada por moduloPadre.
+     * La columna se conserva por compatibilidad de replicación lógica.
+     */
+    @Deprecated
     private Boolean isClasificacion;
     private Boolean activo;
     @Column(name = "activo_en_sucursales")
@@ -44,6 +49,11 @@ public class TipoGasto implements Serializable {
     @Column(name = "modulo_padre")
     private TipoPadreGastoModulo moduloPadre;
 
+    /**
+     * @deprecated La clasificación/agrupación libre fue reemplazada por moduloPadre.
+     * La columna se conserva por compatibilidad de replicación lógica.
+     */
+    @Deprecated
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "clasificacion_gasto_id", nullable = true)
     private TipoGasto clasificacionGasto;
