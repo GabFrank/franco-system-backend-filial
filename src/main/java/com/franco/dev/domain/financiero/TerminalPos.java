@@ -39,6 +39,10 @@ public class TerminalPos implements Identifiable<Long> {
     @JoinColumn(name = "cuenta_bancaria_id", nullable = true)
     private CuentaBancaria cuentaBancaria;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "moneda_id", nullable = true)
+    private Moneda moneda;
+
     private Boolean activo;
 
     @CreationTimestamp
