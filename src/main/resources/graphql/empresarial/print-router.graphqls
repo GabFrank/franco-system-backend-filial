@@ -1,0 +1,6 @@
+# Impresion con routing entre hosts (Fase 3).
+extend type Mutation {
+    imprimirEnDestino(impresoraId: ID!, payloadBase64: String!): Boolean
+    imprimirEnImpresora(impresoraId: ID!, payloadBase64: String!): Boolean
+    imprimirPruebaEnImpresora(impresoraId: ID!): Boolean
+}
