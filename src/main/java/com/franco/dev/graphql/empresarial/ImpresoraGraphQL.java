@@ -9,8 +9,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import com.franco.dev.config.multitenant.CustomPage;
-import com.franco.dev.config.multitenant.CustomPageImpl;
 
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
@@ -42,12 +40,10 @@ public class ImpresoraGraphQL implements GraphQLQueryResolver {
         return service.findBySucursalId(id);
     }
 
-    public CustomPage<Impresora> impresoraSearchPage(String texto, Integer page, Integer size) {
+    public Page<Impresora> impresoraSearchPage(String texto, Integer page, Integer size) {
         int p = (page == null || page < 0) ? 0 : page;
         int s = (size == null || size <= 0) ? 10 : size;
-        Pageable pageable = PageRequest.of(p, s);
-        Page<Impresora> pageResult = service.buscarConPagina(texto, p, s);
-        return new CustomPageImpl<>(pageResult.getContent(), pageable, pageResult.getTotalElements(), null);
+        return service.buscarConPagina(texto, p, s);
     }
 
     public List<Impresora> impresorasActivas() {
