@@ -4,9 +4,13 @@ import com.franco.dev.domain.empresarial.Impresora;
 import com.franco.dev.service.empresarial.ImpresoraService;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+
+import com.franco.dev.config.multitenant.CustomPage;
+import com.franco.dev.config.multitenant.CustomPageImpl;
 
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
@@ -36,6 +40,14 @@ public class ImpresoraGraphQL implements GraphQLQueryResolver {
 
     public List<Impresora> impresorasPorSucursalId(Long id) {
         return service.findBySucursalId(id);
+    }
+
+    public CustomPage<Impresora> impresoraSearchPage(String texto, Integer page, Integer size) {
+        int p = (page == null || page < 0) ? 0 : page;
+        int s = (size == null || size <= 0) ? 10 : size;
+        Pageable pageable = PageRequest.of(p, s);
+        Page<Impresora> pageResult = service.buscarConPagina(texto, p, s);
+        return new CustomPageImpl<>(pageResult.getContent(), pageable, pageResult.getTotalElements(), null);
     }
 
     public List<Impresora> impresorasActivas() {

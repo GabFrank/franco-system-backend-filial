@@ -51,11 +51,20 @@ type Impresora {
     usuario: Usuario
 }
 
+type ImpresoraPage {
+    content: [Impresora]
+    totalElements: Int
+    totalPages: Int
+    size: Int
+    number: Int
+}
+
 # En la filial las impresoras son de solo lectura (se administran en el central y se
 # replican hacia aca). Por eso este schema no expone mutations de impresora.
 extend type Query {
     impresora(id: ID!): Impresora
     impresoras(page: Int, size: Int = 20): [Impresora]!
+    impresoraSearchPage(texto: String, page: Int, size: Int): ImpresoraPage
     impresorasPorSucursalId(id: Int): [Impresora]
     impresorasActivas: [Impresora]
     impresorasDelSistema: [String]
