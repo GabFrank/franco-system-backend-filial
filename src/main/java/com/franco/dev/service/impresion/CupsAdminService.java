@@ -32,26 +32,15 @@ public class CupsAdminService {
     private static final Logger log = LoggerFactory.getLogger(CupsAdminService.class);
     private static final long TIMEOUT_SEG = 20;
 
-    /** Detecta dispositivos conectables via {@code lpinfo -v}. */
+    /** Detecta dispositivos conectables via {@code lpinfo -v} (con fallback a {@code sudo -n}). */
     public List<DispositivoDetectado> detectarDispositivos() {
         List<DispositivoDetectado> lista = new ArrayList<>();
-        try {
-            Process proceso = new ProcessBuilder("lpinfo", "-v")
-                    .redirectErrorStream(true)
-                    .start();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(proceso.getInputStream(), StandardCharsets.UTF_8))) {
-                String linea;
-                while ((linea = reader.readLine()) != null) {
-                    DispositivoDetectado d = parsearLinea(linea);
-                    if (d != null) {
-                        lista.add(d);
-                    }
-                }
+        Resultado r = ejecutarConFallbackSudo(Arrays.asList("lpinfo", "-v"));
+        for (String linea : r.salida.split("\\R")) {
+            DispositivoDetectado d = parsearLinea(linea);
+            if (d != null) {
+                lista.add(d);
             }
-            proceso.waitFor(TIMEOUT_SEG, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("[CUPS] Error ejecutando lpinfo -v: {}", e.getMessage(), e);
         }
         return lista;
     }
@@ -127,6 +116,41 @@ public class CupsAdminService {
     }
 
     private boolean ejecutar(List<String> cmd) {
+        return ejecutarConFallbackSudo(cmd).codigo == 0;
+    }
+
+    /**
+     * Ejecuta un comando; si falla por permisos (tipicamente {@code lpadmin: Forbidden} porque el
+     * proceso corre headless sin permisos de CUPS, ej. servicio systemd 'deploy' en Fedora),
+     * reintenta con {@code sudo -n} para correrlo como root. Requiere una entrada sudoers NOPASSWD
+     * para el usuario del servicio sobre lpadmin/lpinfo. Si {@code sudo -n} no esta permitido,
+     * devuelve el resultado del intento directo (con el error real).
+     */
+    private Resultado ejecutarConFallbackSudo(List<String> cmd) {
+        Resultado r = correr(cmd);
+        if (r.codigo != 0 && requiereSudo(r.salida)) {
+            List<String> conSudo = new ArrayList<>();
+            conSudo.add("sudo");
+            conSudo.add("-n");
+            conSudo.addAll(cmd);
+            // Devolvemos el intento con sudo: si funcionó, código 0; si no, trae el error real de sudo.
+            return correr(conSudo);
+        }
+        return r;
+    }
+
+    /** Heuristica: la salida sugiere que fallo por falta de permisos y conviene reintentar con sudo. */
+    private boolean requiereSudo(String salida) {
+        if (salida == null || salida.isBlank()) {
+            return true;
+        }
+        String s = salida.toLowerCase();
+        return s.contains("forbidden") || s.contains("not authorized")
+                || s.contains("no autorizado") || s.contains("permission")
+                || s.contains("permiso") || s.contains("unauthorized");
+    }
+
+    private Resultado correr(List<String> cmd) {
         try {
             Process proceso = new ProcessBuilder(cmd).redirectErrorStream(true).start();
             StringBuilder salida = new StringBuilder();
@@ -144,10 +168,20 @@ public class CupsAdminService {
             } else {
                 log.info("[CUPS] Comando {} OK", cmd);
             }
-            return codigo == 0;
+            return new Resultado(codigo, salida.toString());
         } catch (Exception e) {
             log.error("[CUPS] Error ejecutando {}: {}", cmd, e.getMessage(), e);
-            return false;
+            return new Resultado(-1, e.getMessage() == null ? "" : e.getMessage());
+        }
+    }
+
+    /** Resultado de ejecutar un comando: codigo de salida + salida combinada (stdout+stderr). */
+    private static final class Resultado {
+        final int codigo;
+        final String salida;
+        Resultado(int codigo, String salida) {
+            this.codigo = codigo;
+            this.salida = salida;
         }
     }
 

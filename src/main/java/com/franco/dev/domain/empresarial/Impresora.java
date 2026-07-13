@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.io.Serializable;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 /**
  * Registro de impresoras. En la filial esta entidad es de solo lectura: las filas se
@@ -75,7 +75,7 @@ public class Impresora implements Serializable {
     /** Code-page ESC/POS. */
     private String codepage;
 
-    private Date creadoEn;
+    private LocalDateTime creadoEn;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
