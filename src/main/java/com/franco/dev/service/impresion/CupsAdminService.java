@@ -58,8 +58,11 @@ public class CupsAdminService {
             log.warn("[CUPS] Parametros invalidos para instalar (cola='{}', uri='{}')", cola, uri);
             return false;
         }
+        // printer-error-policy=retry-current-job: ante un error del backend la cola NO se pausa
+        // (evita el "stop-printer" por defecto, que deja la impresora inactiva y los jobs pendientes).
         List<String> cmd = new ArrayList<>(Arrays.asList(
-                "lpadmin", "-p", cola, "-E", "-v", uri, "-m", raw ? "raw" : "everywhere"));
+                "lpadmin", "-p", cola, "-E", "-v", uri, "-m", raw ? "raw" : "everywhere",
+                "-o", "printer-error-policy=retry-current-job"));
         return ejecutar(cmd);
     }
 
