@@ -2,6 +2,7 @@ package com.franco.dev.utilitarios;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
@@ -43,15 +44,19 @@ public class DateUtils {
     
     public static LocalDateTime stringToDate(String s) {
         if(s == null) return null;
-        // Handle ISO-8601 format with timezone (e.g., "2025-10-13T18:06:28.768Z")
-        if (s.contains("T") && (s.endsWith("Z") || s.contains("+"))) {
-            // Parse as Instant and convert to LocalDateTime in system default timezone
-            Instant instant = Instant.parse(s);
-            return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-        }
-        // Handle ISO format without timezone (e.g., "2025-10-13T18:06:28")
-        if(s.contains("T")) {
-            return LocalDateTime.parse(s, formatter_iso);
+        s = s.trim();
+        if (s.isEmpty()) return null;
+        if (s.contains("T")) {
+            // ISO-8601 con zona/offset (ej. "2025-10-13T18:06:28.768Z" o "...-03:00"),
+            // milisegundos opcionales. Se convierte al huso horario del servidor.
+            try {
+                return OffsetDateTime.parse(s)
+                        .atZoneSameInstant(ZoneId.systemDefault())
+                        .toLocalDateTime();
+            } catch (java.time.format.DateTimeParseException ignored) {
+                // ISO local sin zona, con fracciones de segundo opcionales (ej. "2026-06-13T16:39:04.456")
+                return LocalDateTime.parse(s);
+            }
         }
         // Handle date only format (yyyy-MM-dd) - add default time
         if(s.length() == 10) {

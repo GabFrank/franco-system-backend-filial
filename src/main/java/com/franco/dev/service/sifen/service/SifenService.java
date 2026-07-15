@@ -1970,6 +1970,8 @@ public class SifenService {
                     break;
                 case 0:
                     gCamIVA.setiAfecIVA(TiAfecIVA.EXENTO);
+                    // La librería jsifenlib exige dPropIVA incluso para ítems exentos (divide por este valor sin chequeo de null)
+                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
                     log.debug("   Configurado IVA EXENTO para producto");
                     break;
                 case 10:

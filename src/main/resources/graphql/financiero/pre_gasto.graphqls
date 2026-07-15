@@ -83,6 +83,32 @@ type PreGastoPage {
     getPageable: Pageable
 }
 
+type EnteFinancialSummary {
+    enteId: ID
+    descripcion: String
+    montoTotal: Float
+    montoYaPagado: Float
+    montoPendiente: Float
+    cuotasTotales: Int
+    cuotasPagadas: Int
+    cuotasFaltantes: Int
+    diaVencimiento: Int
+    diasParaVencer: Int
+    estadoCuota: String
+    monedaSimbolo: String
+    monedaId: ID
+    proveedorNombre: String
+    proveedorId: ID
+    tipoGastoSugeridoId: String
+    situacionPago: String
+    porcentajePagado: Float
+    montoSugerido: Float
+    descripcionSugerida: String
+    autocompletarMonto: Boolean
+    numeroCuotaActual: Int
+    fechaVencimientoSugerida: Date
+}
+
 extend type Query {
     preGasto(id: ID!, sucId: ID): PreGasto
     preGastos(estado: String, sucId: ID): [PreGasto]!
@@ -90,6 +116,7 @@ extend type Query {
     preGastosPorFuncionario(funcionarioId: Int!): [PreGasto]!
     preGastosSearch(texto: String!, sucId: ID): [PreGasto]!
     filterPreGastos(id: ID, cajaId: ID, estado: String, estados: [String], inicio: String, fin: String, page: Int, size: Int): PreGastoPage
+    getEnteFinancialSummary(enteId: ID!, tipoGastoId: ID): EnteFinancialSummary
 }
 
 extend type Mutation {

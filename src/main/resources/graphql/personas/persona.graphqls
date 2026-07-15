@@ -17,6 +17,7 @@ type Persona {
     isCliente: Boolean
     isProveedor: Boolean
     isUsuario: Boolean
+    embeddingFacial: String
 }
 
 type PersonaPage {

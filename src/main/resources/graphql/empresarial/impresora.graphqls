@@ -1,0 +1,72 @@
+enum TipoImpresora {
+    TERMICA
+    NORMAL
+    ETIQUETA
+}
+
+enum UsoImpresora {
+    TICKET
+    FACTURA
+    REPORTE
+    ETIQUETA
+    COMANDA
+}
+
+enum TipoConexion {
+    CUPS
+    USB
+    RED
+    BLUETOOTH
+}
+
+enum PerfilPapel {
+    MM_48
+    MM_58
+    MM_72
+    MM_80
+    A4
+    CARTA
+    CUSTOM
+}
+
+type Impresora {
+    id: ID!
+    nombre: String
+    activo: Boolean
+    esPredeterminada: Boolean
+    sucursal: Sucursal
+    tipo: TipoImpresora
+    uso: UsoImpresora
+    conexion: TipoConexion
+    colaCups: String
+    ip: String
+    puerto: Int
+    perfilPapel: PerfilPapel
+    columnas: Int
+    anchoMm: Int
+    altoMm: Int
+    marca: String
+    codepage: String
+    creadoEn: Date
+    usuario: Usuario
+}
+
+type ImpresoraPage {
+    content: [Impresora]
+    totalElements: Int
+    totalPages: Int
+    size: Int
+    number: Int
+}
+
+# En la filial las impresoras son de solo lectura (se administran en el central y se
+# replican hacia aca). Por eso este schema no expone mutations de impresora.
+extend type Query {
+    impresora(id: ID!): Impresora
+    impresoras(page: Int, size: Int = 20): [Impresora]!
+    impresoraSearchPage(texto: String, page: Int, size: Int): ImpresoraPage
+    impresorasPorSucursalId(id: Int): [Impresora]
+    impresorasActivas: [Impresora]
+    impresorasDelSistema: [String]
+    countImpresora: Int
+}
