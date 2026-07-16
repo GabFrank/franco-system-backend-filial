@@ -10,6 +10,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -88,6 +89,86 @@ public class CupsAdminService {
                 "lpadmin", "-p", cola, "-E", "-v", uri, "-m", raw ? "raw" : "everywhere",
                 "-o", "printer-error-policy=retry-current-job"));
         return ejecutar(cmd);
+    }
+
+    /**
+     * Comparte una cola ya instalada en ESTE host (filial o central) para que sea alcanzable por
+     * red via IPP: habilita {@code cupsctl --share-printers --remote-any} (si no estaba ya) y
+     * marca la cola con {@code printer-is-shared=true}. Se usa para exponer una impresora de una
+     * sucursal a otro host (ej. el central instala ahi una cola proxy que reenvia por IPP).
+     * Best-effort: si hay firewalld, restringe el puerto 631 solo a {@code ipDestino}.
+     */
+    public boolean compartirCola(String nombreCola, String ipDestino) {
+        String cola = sanearNombre(nombreCola);
+        if (cola.isEmpty()) {
+            log.warn("[CUPS] Nombre de cola invalido para compartir");
+            return false;
+        }
+        Resultado estado = ejecutarConFallbackSudo(Collections.singletonList("cupsctl"));
+        boolean yaCompartido = estado.salida.contains("_share_printers=1") && estado.salida.contains("_remote_any=1");
+        if (!yaCompartido) {
+            Resultado c1 = ejecutarConFallbackSudo(Arrays.asList("cupsctl", "--share-printers", "--remote-any"));
+            if (c1.codigo != 0) {
+                log.warn("[CUPS] cupsctl --share-printers fallo: {}", c1.salida.trim());
+                return false;
+            }
+            esperar(1000); // cupsd puede reiniciarse tras el cambio de config
+        }
+        // Marcamos la cola como compartida; reintentamos si cupsd esta reiniciando (Service unavailable).
+        Resultado ultimo = new Resultado(1, "");
+        for (int i = 0; i < 6; i++) {
+            ultimo = ejecutarConFallbackSudo(Arrays.asList("lpadmin", "-p", cola, "-o", "printer-is-shared=true"));
+            if (ultimo.codigo == 0) {
+                break;
+            }
+            if (!requiereReintento(ultimo.salida)) {
+                break; // error real (no es el reinicio) -> no tiene sentido reintentar
+            }
+            esperar(800);
+        }
+        if (ultimo.codigo != 0) {
+            log.warn("[CUPS] lpadmin -o printer-is-shared=true fallo para '{}': {}", cola, ultimo.salida.trim());
+            return false;
+        }
+        restringirCupsA(ipDestino);
+        return true;
+    }
+
+    /** Heuristica: la salida sugiere que cupsd esta reiniciando (conviene reintentar). */
+    private boolean requiereReintento(String salida) {
+        if (salida == null) {
+            return false;
+        }
+        return salida.toLowerCase().matches("(?s).*(no disponible|unavailable|503|refus|connect).*");
+    }
+
+    /**
+     * Best-effort: restringe el acceso al CUPS local (puerto 631) SOLO a la IP destino via
+     * firewalld. No es fatal si falla o no hay firewalld: el compartir ya funciono igual.
+     */
+    private void restringirCupsA(String ip) {
+        if (ip == null || !ip.matches("\\d{1,3}(\\.\\d{1,3}){3}")) {
+            return;
+        }
+        Resultado cual = ejecutarConFallbackSudo(Arrays.asList("sh", "-c", "command -v firewall-cmd || true"));
+        if (cual.salida == null || cual.salida.trim().isEmpty()) {
+            return;
+        }
+        String regla = "rule family=\"ipv4\" source address=\"" + ip + "\" port port=\"631\" protocol=\"tcp\" accept";
+        Resultado add = ejecutarConFallbackSudo(Arrays.asList("firewall-cmd", "--permanent", "--add-rich-rule=" + regla));
+        if (add.codigo != 0) {
+            log.warn("[CUPS] No se pudo restringir firewall a {}: {}", ip, add.salida.trim());
+            return;
+        }
+        ejecutarConFallbackSudo(Arrays.asList("firewall-cmd", "--reload"));
+    }
+
+    private void esperar(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     // ---- helpers ----
