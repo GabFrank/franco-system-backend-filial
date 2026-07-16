@@ -56,6 +56,9 @@ public class Sucursal implements Serializable {
     
     private Integer puerto;
 
+    @Column(name = "puerto_servidor")
+    private Integer puertoServidor;
+
     private Boolean activo;
 
 }
