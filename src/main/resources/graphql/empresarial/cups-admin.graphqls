@@ -12,4 +12,5 @@ extend type Query {
 
 extend type Mutation {
     instalarImpresoraCups(nombreCola: String!, uri: String!, raw: Boolean): Boolean
+    compartirColaCups(nombreCola: String!, ipDestino: String): Boolean
 }
