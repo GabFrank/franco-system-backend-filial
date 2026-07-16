@@ -46,6 +46,30 @@ public class CupsAdminService {
     }
 
     /**
+     * Lista los nombres de las colas CUPS ya instaladas en el sistema (locales y remotas)
+     * via {@code lpstat -p}. A diferencia de {@code javax.print.PrintServiceLookup} (que en
+     * Linux excluye las colas marcadas {@code CUPS_PRINTER_REMOTE}), esto trae tambien las
+     * colas que apuntan a un {@code device-uri ipp://...} de otro host.
+     */
+    public List<String> listarColasInstaladas() {
+        List<String> nombres = new ArrayList<>();
+        Resultado r = ejecutarConFallbackSudo(Arrays.asList("lpstat", "-p"));
+        for (String linea : r.salida.split("\\R")) {
+            String l = linea.trim();
+            if (!l.startsWith("printer ")) {
+                continue;
+            }
+            String resto = l.substring("printer ".length());
+            int sp = resto.indexOf(' ');
+            String nombre = (sp >= 0 ? resto.substring(0, sp) : resto).trim();
+            if (!nombre.isEmpty()) {
+                nombres.add(nombre);
+            }
+        }
+        return nombres;
+    }
+
+    /**
      * Instala una cola CUPS nueva.
      * @param nombreCola nombre deseado (se sanea a [A-Za-z0-9_-]).
      * @param uri URI del dispositivo (de {@link #detectarDispositivos()}).
