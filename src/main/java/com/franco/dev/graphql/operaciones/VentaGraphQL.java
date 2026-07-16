@@ -280,6 +280,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                                 false, null, null);
                     }
                     return venta;
+                } else if (facturar != null && !facturar) {
+                    // El frontend ya generó una factura manual para esta venta: se omite la
+                    // facturación silenciosa automática para no duplicar el comprobante fiscal.
+                    // No se toca facturaCountDown para no desincronizar el contador de las demás ventas.
                 } else if (facturaCountDown == 0) {
                     if (pdvId != null) {
                         FacturaLegalInput facturaLegalInput = new FacturaLegalInput();

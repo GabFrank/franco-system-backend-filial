@@ -10,6 +10,7 @@ type TimbradoDetalle {
     activo: Boolean
     creadoEn: Date
     usuario: Usuario
+    facturaLegalId: ID
 }
 
 extend type Query {

@@ -103,5 +103,6 @@ extend type Mutation {
     saveFacturaLegal(entity: FacturaLegalInput!, detalleList: [FacturaLegalItemInput], printerName: String, pdvId: Int!, print: Boolean): TimbradoDetalle!
     deleteFacturaLegal(id: ID!, sucId: ID): Boolean!
     generarDocumentoElectronico(facturaLegalId: ID!, sucId: ID): FacturaLegal!
+    vincularFacturaLegalAVenta(facturaLegalId: ID!, ventaId: ID!): FacturaLegal!
 }
 
