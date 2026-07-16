@@ -64,6 +64,12 @@ public class TimbradoDetalle implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
+
+    // No persistido: usado solo para devolver el id de la FacturaLegal recién
+    // creada en la respuesta de la mutation saveFacturaLegal, para que el
+    // frontend pueda vincularla a la Venta una vez que esta se guarde.
+    @Transient
+    private Long facturaLegalId;
 }
 
 
