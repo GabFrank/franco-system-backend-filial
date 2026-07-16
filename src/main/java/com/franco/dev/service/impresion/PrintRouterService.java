@@ -138,8 +138,21 @@ public class PrintRouterService {
             body.put("query", query);
             body.put("variables", variables);
             HttpEntity<String> request = new HttpEntity<>(objectMapper.writeValueAsString(body), buildAuthHeaders());
-            restTemplate.postForEntity(url, request, Map.class);
-            log.info("[PRINT] Reenviado a {} (impresora id={})", url, impresoraId);
+            Map<?, ?> responseBody = restTemplate.postForEntity(url, request, Map.class).getBody();
+            if (responseBody != null && responseBody.get("errors") != null) {
+                log.error("[PRINT] El destino {} devolvio errores GraphQL (impresora id={}): {}",
+                        url, impresoraId, responseBody.get("errors"));
+                return false;
+            }
+            Object data = responseBody != null ? responseBody.get("data") : null;
+            boolean impreso = data instanceof Map
+                    && Boolean.TRUE.equals(((Map<?, ?>) data).get("imprimirEnDestino"));
+            if (!impreso) {
+                log.warn("[PRINT] El destino {} respondio pero no confirmo la impresion (impresora id={}): {}",
+                        url, impresoraId, responseBody);
+                return false;
+            }
+            log.info("[PRINT] Reenviado y confirmado en {} (impresora id={})", url, impresoraId);
             return true;
         } catch (Exception e) {
             log.error("[PRINT] Error reenviando impresion a {}: {}", url, e.getMessage(), e);
