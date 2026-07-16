@@ -27,4 +27,12 @@ public class CupsAdminGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
     public Boolean instalarImpresoraCups(String nombreCola, String uri, Boolean raw) {
         return cupsAdminService.instalarImpresora(nombreCola, uri, raw == null || raw);
     }
+
+    /**
+     * Comparte una cola CUPS ya instalada en este host (filial o central) via IPP, para que otro
+     * host pueda instalar una cola proxy que reenvie hacia ella (ver {@code instalarImpresoraCups}).
+     */
+    public Boolean compartirColaCups(String nombreCola, String ipDestino) {
+        return cupsAdminService.compartirCola(nombreCola, ipDestino);
+    }
 }
