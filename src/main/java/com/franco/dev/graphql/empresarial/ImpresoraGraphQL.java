@@ -2,6 +2,7 @@ package com.franco.dev.graphql.empresarial;
 
 import com.franco.dev.domain.empresarial.Impresora;
 import com.franco.dev.service.empresarial.ImpresoraService;
+import com.franco.dev.service.impresion.CupsAdminService;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -10,9 +11,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 
-import javax.print.PrintService;
-import javax.print.PrintServiceLookup;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +24,9 @@ public class ImpresoraGraphQL implements GraphQLQueryResolver {
 
     @Autowired
     private ImpresoraService service;
+
+    @Autowired
+    private CupsAdminService cupsAdminService;
 
     public Optional<Impresora> impresora(Long id) {
         return service.findById(id);
@@ -51,14 +52,11 @@ public class ImpresoraGraphQL implements GraphQLQueryResolver {
     }
 
     /**
-     * Colas de impresion visibles localmente en esta filial (en Linux, las colas CUPS).
+     * Colas de impresion visibles localmente en esta filial (en Linux, las colas CUPS,
+     * incluyendo las que apuntan a un device-uri remoto via IPP).
      */
     public List<String> impresorasDelSistema() {
-        List<String> nombres = new ArrayList<>();
-        for (PrintService p : PrintServiceLookup.lookupPrintServices(null, null)) {
-            nombres.add(p.getName());
-        }
-        return nombres;
+        return cupsAdminService.listarColasInstaladas();
     }
 
     public Long countImpresora() {
