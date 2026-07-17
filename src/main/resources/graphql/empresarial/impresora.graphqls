@@ -47,6 +47,7 @@ type Impresora {
     altoMm: Int
     marca: String
     codepage: String
+    compartidaEnCentral: Boolean
     creadoEn: Date
     usuario: Usuario
 }
