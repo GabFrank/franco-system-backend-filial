@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 public class PreGastoEnteValidationService {
 
     private final EnteRepository enteRepository;
+    private final TipoGastoModuloReglasService moduloReglasService;
 
     public Ente validarYResolverEnte(TipoGasto tipoGasto, Long enteId) {
         if (tipoGasto == null) {
@@ -24,13 +25,13 @@ public class PreGastoEnteValidationService {
         }
 
         TipoPadreGastoModulo modulo = tipoGasto.getModuloPadre();
-        TipoEnte tipoEnteRequerido = tipoEnteEsperado(modulo);
+        TipoEnte tipoEnteRequerido = moduloReglasService.tipoEnteEsperado(modulo);
 
         if (tipoEnteRequerido == null) {
             if (enteId != null) {
                 throw new GraphQLException(
                         "El tipo de gasto \"" + tipoGasto.getDescripcion()
-                                + "\" no admite vinculación a un activo (inmueble, vehículo o mueble).");
+                                + "\" no admite vinculación a un activo (inmueble, vehículo, mueble o equipo).");
             }
             return null;
         }
@@ -57,22 +58,6 @@ public class PreGastoEnteValidationService {
         return ente;
     }
 
-    private TipoEnte tipoEnteEsperado(TipoPadreGastoModulo modulo) {
-        if (modulo == null) {
-            return null;
-        }
-        switch (modulo) {
-            case VEHICULO:
-                return TipoEnte.VEHICULO;
-            case MUEBLE:
-                return TipoEnte.MUEBLE;
-            case INMUEBLE:
-                return TipoEnte.INMUEBLE;
-            default:
-                return null;
-        }
-    }
-
     private String etiquetaActivo(TipoEnte tipo) {
         switch (tipo) {
             case VEHICULO:
@@ -81,6 +66,8 @@ public class PreGastoEnteValidationService {
                 return "un mueble";
             case INMUEBLE:
                 return "un inmueble";
+            case EQUIPO:
+                return "un equipo";
             default:
                 return "un activo";
         }

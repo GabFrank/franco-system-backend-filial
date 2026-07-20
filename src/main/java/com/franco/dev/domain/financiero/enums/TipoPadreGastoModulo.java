@@ -5,5 +5,13 @@ public enum TipoPadreGastoModulo {
     INMUEBLE,
     PERSONAS,
     VEHICULO,
+    EQUIPOS,
+    ANDE,
+    JUNTA_SANEAMIENTO,
+    IMPUESTO,
+    INTERNET,
+    SEGURIDAD,
+    BASURA,
+    SEGURO,
     OTRO
 }

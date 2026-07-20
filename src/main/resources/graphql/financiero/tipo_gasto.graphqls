@@ -1,6 +1,7 @@
 enum TipoNaturalezaGasto {
     VARIABLE
     CONTINUO
+    RECURRENTE
 }
 
 enum TipoPadreGastoModulo {
@@ -8,13 +9,19 @@ enum TipoPadreGastoModulo {
     INMUEBLE
     PERSONAS
     VEHICULO
+    EQUIPOS
+    ANDE
+    JUNTA_SANEAMIENTO
+    IMPUESTO
+    INTERNET
+    SEGURIDAD
+    BASURA
+    SEGURO
     OTRO
 }
 
 type TipoGasto {
     id:ID!
-    isClasificacion: Boolean
-    clasificacionGasto: TipoGasto
     descripcion: String
     tipoNaturaleza: TipoNaturalezaGasto
     moduloPadre: TipoPadreGastoModulo
@@ -26,13 +33,23 @@ type TipoGasto {
     esPagoCuotaActivo: Boolean
     creadoEn: Date
     usuario: Usuario
-    subtipoList: [TipoGasto]
+}
+
+type ModuloGastoInfo {
+    valor: TipoPadreGastoModulo
+    etiqueta: String
+    grupo: String
+    esServicioContinuo: Boolean
+    tieneCuotasActivo: Boolean
+    requiereEnteActivo: Boolean
+    tipoEnteEsperado: String
+    diaVencimientoEnContinuo: Boolean
+    lecturaMedidorEnContinuo: Boolean
+    nisEnContinuo: Boolean
 }
 
 input TipoGastoInput {
     id:ID
-    isClasificacion: Boolean
-    clasificacionGastoId: Int
     descripcion: String
     tipoNaturaleza: TipoNaturalezaGasto
     moduloPadre: TipoPadreGastoModulo
@@ -46,12 +63,25 @@ input TipoGastoInput {
     usuarioId: Int
 }
 
+type TipoGastoPage {
+    getTotalPages: Int
+    getTotalElements: Int
+    getNumberOfElements: Int
+    isFirst: Boolean
+    isLast: Boolean
+    hasNext: Boolean
+    hasPrevious: Boolean
+    getContent: [TipoGasto]
+    getPageable: Pageable
+}
+
 extend type Query {
     tipoGasto(id:ID!):TipoGasto
     tipoGastosSearch(texto: String):[TipoGasto]
     tipoGastos(page:Int = 0, size:Int = 10):[TipoGasto]!
-    rootTipoGasto:[TipoGasto]!
     countTipoGasto: Int
+    filterTipoGastos(naturaleza: String, texto: String, moduloPadre: TipoPadreGastoModulo, page: Int, size: Int): TipoGastoPage
+    modulosGasto: [ModuloGastoInfo!]!
 }
 
 extend type Mutation {

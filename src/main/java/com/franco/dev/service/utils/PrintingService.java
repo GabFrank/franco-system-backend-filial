@@ -101,7 +101,7 @@ public class PrintingService {
 
     public PrintService searchPrinter(String printerName) {
         return printServiceList.stream()
-                .filter(x -> printerName.equals(x))
+                .filter(x -> printerName.equals(x.getName()))
                 .findAny()
                 .orElse(null);
     }

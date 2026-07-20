@@ -391,12 +391,33 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 }
             }
 
+            if (timbradoDetalle != null) {
+                timbradoDetalle.setFacturaLegalId(facturaLegalGuardada.getId());
+            }
             return timbradoDetalle;
 
         } catch (Exception e) {
             log.error("Error al guardar factura legal: {}", e.getMessage(), e);
             throw new GraphQLException("Error al guardar factura legal: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Vincula una FacturaLegal ya guardada (creada antes de que la Venta existiera,
+     * ej. el flujo "Finalizar con Factura" del POS) a la Venta recién persistida.
+     * No recalcula ni reimprime nada, solo setea la relación.
+     */
+    public FacturaLegal vincularFacturaLegalAVenta(Long facturaLegalId, Long ventaId) {
+        FacturaLegal facturaLegal = service.findById(facturaLegalId)
+                .orElseThrow(() -> new GraphQLException("FacturaLegal no encontrada: " + facturaLegalId));
+        Venta venta = ventaService.findById(ventaId)
+                .orElseThrow(() -> new GraphQLException("Venta no encontrada: " + ventaId));
+        facturaLegal.setVenta(venta);
+        if (facturaLegal.getCliente() != null && (venta.getCliente() == null || venta.getCliente().getId().equals(0L))) {
+            venta.setCliente(facturaLegal.getCliente());
+            ventaService.save(venta);
+        }
+        return service.save(facturaLegal);
     }
 
     public FacturaDto crearFacturaDto(FacturaLegalInput facturaLegal,

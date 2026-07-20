@@ -1,0 +1,16 @@
+# Detectar-para-instalar impresoras a nivel CUPS (Linux).
+type DispositivoDetectado {
+    clase: String
+    uri: String
+    nombre: String
+    descripcion: String
+}
+
+extend type Query {
+    dispositivosParaInstalar: [DispositivoDetectado]
+}
+
+extend type Mutation {
+    instalarImpresoraCups(nombreCola: String!, uri: String!, raw: Boolean): Boolean
+    compartirColaCups(nombreCola: String!, ipDestino: String): Boolean
+}
