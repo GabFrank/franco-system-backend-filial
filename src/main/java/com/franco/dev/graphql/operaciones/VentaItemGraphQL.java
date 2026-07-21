@@ -86,14 +86,17 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
 
     public void calcularTotalVenta(Venta venta) {
         List<VentaItem> ventaItemList = service.findByVentaId(venta.getId());
-        Cambio cambioRs = cambioService.findLastByMonedaId((long) 2);
-        Cambio cambioDs = cambioService.findLastByMonedaId((long) 3);
+        // Divisor seguro: si no hay cotización de REAL/DÓLAR, usar 1.0 para no
+        // abortar el cálculo (NPE / división por cero). Solo afecta los
+        // subtotales informativos en moneda extranjera, nunca el total en Gs.
+        Double cambioRs = cambioService.findLastValorEnGsByMonedaIdOrDefault((long) 2, 1.0);
+        Double cambioDs = cambioService.findLastValorEnGsByMonedaIdOrDefault((long) 3, 1.0);
         Double totalGs = 0.0;
         for (VentaItem vi : ventaItemList) {
             totalGs += vi.getPrecio() * vi.getCantidad();
         }
-        Double totalRs = totalGs / cambioRs.getValorEnGs();
-        Double totalDs = totalGs / cambioDs.getValorEnGs();
+        Double totalRs = totalGs / cambioRs;
+        Double totalDs = totalGs / cambioDs;
         venta.setTotalGs(totalGs);
         venta.setTotalRs(totalRs);
         venta.setTotalDs(totalDs);
