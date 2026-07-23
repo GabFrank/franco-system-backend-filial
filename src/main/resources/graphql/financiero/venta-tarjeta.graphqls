@@ -1,0 +1,43 @@
+type VentaTarjeta {
+    id: ID!
+    sucursalId: Int
+    ventaId: Int
+    cajaId: Int
+    terminalPos: TerminalPos
+    codigoAutorizacion: String
+    numeroBoleta: String
+    monto: Float
+    montoEscaneado: Float
+    imagenUrl: String
+    estado: String
+    usuario: Usuario
+    creadoEn: Date
+}
+
+input VentaTarjetaInput {
+    id: ID
+    sucursalId: Int
+    ventaId: Int
+    terminalPosId: Int
+    cajaId: Int
+    codigoAutorizacion: String
+    numeroBoleta: String
+    monto: Float
+    montoEscaneado: Float
+    imagenUrl: String
+    estado: String
+    usuarioId: Int
+}
+
+extend type Query {
+    ventaTarjetaPorId(id: ID!, sucId: ID!): VentaTarjeta
+    ventaTarjetaPorVentaId(ventaId: ID!, sucId: ID!): VentaTarjeta
+    ventasTarjetaPorCaja(cajaId: ID!, sucId: ID!): [VentaTarjeta]
+    countVentasTarjetaSinRegistrar(cajaId: ID!, sucId: ID!): Int
+}
+
+extend type Mutation {
+    saveVentaTarjeta(ventaTarjeta: VentaTarjetaInput!): VentaTarjeta!
+    cancelarVentaTarjetaPorVentaId(ventaId: ID!, sucId: ID!): Boolean
+    marcarVentasTarjetaNoCompletadas(cajaId: ID!, sucId: ID!): Int
+}
