@@ -87,8 +87,12 @@ public class PrintingService {
         PrintService ps = null;
         try {
             ps = PrinterOutputStream.getPrintServiceByName(printerName);
-            selectedPrintService = ps;
-            printServiceList.add(ps);
+            if (ps != null) {
+                selectedPrintService = ps;
+                printServiceList.add(ps);
+            } else {
+                log.warn("Impresora '{}' no encontrada en el sistema, no se agrega al cache", printerName);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -101,7 +105,7 @@ public class PrintingService {
 
     public PrintService searchPrinter(String printerName) {
         return printServiceList.stream()
-                .filter(x -> printerName.equals(x.getName()))
+                .filter(x -> x != null && printerName.equals(x.getName()))
                 .findAny()
                 .orElse(null);
     }
