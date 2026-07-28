@@ -44,6 +44,9 @@ public class Producto implements Serializable {
     private Boolean promocion;
     private Boolean vencimiento;
     private Integer diasVencimiento;
+    // Indica si el producto requiere control de lote. La columna existe desde V62.3 pero la
+    // entidad no la mapeaba. Se administra en el central y baja por replicacion (MAIN_TO_ALL).
+    private Boolean lote;
     private String observacion;
     private String imagenes;
     private Boolean isEnvase;
