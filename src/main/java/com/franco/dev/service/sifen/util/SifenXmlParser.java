@@ -52,6 +52,54 @@ public class SifenXmlParser {
     }
 
     /**
+     * Extrae un campo del bloque gResProc de una respuesta de consulta individual de SIFEN.
+     *
+     * Ese bloque contiene el resultado de procesamiento del documento (dCodRes / dMsgRes), que
+     * es el par que el flujo de lote persiste en codigo_respuesta_sifen / mensaje_respuesta_sifen.
+     * Se acota la búsqueda al bloque porque el primer dCodRes del XML es el de la consulta en sí
+     * (0422 = CDC encontrado) y no dice nada sobre el documento.
+     *
+     * Prueba con el prefijo ns2 y sin prefijo, igual que el resto del parseo de respuestas.
+     *
+     * @param xml El XML de respuesta completo
+     * @param campo Nombre del elemento a extraer, sin prefijo (ej: "dCodRes")
+     * @return El valor encontrado, o null si la respuesta no trae bloque gResProc
+     */
+    public static String extractGResProcValue(String xml, String campo) {
+        if (xml == null || xml.isEmpty() || campo == null || campo.isEmpty()) {
+            return null;
+        }
+
+        for (String prefijo : new String[]{"ns2:", ""}) {
+            int inicioBloque = xml.indexOf("<" + prefijo + "gResProc>");
+            if (inicioBloque == -1) {
+                continue;
+            }
+
+            int finBloque = xml.indexOf("</" + prefijo + "gResProc>", inicioBloque);
+            if (finBloque == -1) {
+                continue;
+            }
+
+            String bloque = xml.substring(inicioBloque, finBloque);
+            String openTag = "<" + prefijo + campo + ">";
+            String closeTag = "</" + prefijo + campo + ">";
+
+            int desde = bloque.indexOf(openTag);
+            int hasta = bloque.indexOf(closeTag, desde + 1);
+
+            if (desde != -1 && hasta > desde) {
+                String valor = bloque.substring(desde + openTag.length(), hasta).trim();
+                if (!valor.isEmpty()) {
+                    return decodeHtmlEntities(valor);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Extrae el valor de un tag XML específico con un namespace/prefijo.
      * 
      * @param xml El XML completo como String
