@@ -42,6 +42,7 @@ import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.sifen.dto.response.ConsultaRucResponse;
 import com.franco.dev.service.sifen.util.GCamIvaMapper;
 import com.franco.dev.service.sifen.util.SifenEventoParser;
+import com.franco.dev.service.sifen.util.SifenXmlParser;
 import com.franco.dev.utilitarios.CalcularVerificadorRuc;
 import com.franco.dev.service.sifen.util.SifenReceptorHelper;
 import com.roshka.sifen.Sifen;
@@ -64,6 +65,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Servicio para integración con SIFEN (Sistema Integrado de Facturación Electrónica Nacional).
@@ -643,51 +645,79 @@ public class SifenService {
                 log.info("   📋 Protocolo de autorización: {}", protocoloAutorizacion);
             }
             
+            // Extraer el resultado de procesamiento del documento (gResProc). Es el mismo par
+            // código/mensaje que persiste el flujo de lote; el primer dCodRes del XML es el de
+            // la consulta (0422 = CDC encontrado) y no dice nada sobre el documento.
+            String codigoRespuesta = SifenXmlParser.extractGResProcValue(xmlRespuesta, "dCodRes");
+            String mensajeRespuesta = SifenXmlParser.extractGResProcValue(xmlRespuesta, "dMsgRes");
+
+            if (codigoRespuesta != null) {
+                log.info("   📥 Resultado del DE: {} - {}", codigoRespuesta, mensajeRespuesta);
+            }
+
             // Extraer estado del resultado (dEstRes) del DE
             // Este campo indica si el documento fue Aprobado, Aprobado con observación, o Rechazado
             String estadoResultado = extraerEstadoResultadoDE(xmlRespuesta);
-            
+
             if (estadoResultado == null) {
                 log.warn("   ⚠️ No se pudo determinar estado del DE desde respuesta");
-                return;
+            } else {
+                log.info("   📊 Estado en SIFEN: {}", estadoResultado);
             }
-            
-            log.info("   📊 Estado en SIFEN: {}", estadoResultado);
-            
+
             // Mapear estado de SIFEN a estado local
             EstadoDE nuevoEstado = null;
-            boolean actualizar = false;
-            
-            if ("Aprobado".equalsIgnoreCase(estadoResultado) || 
+
+            if (estadoResultado == null) {
+                // Sin dEstRes no se toca el estado, pero el código de respuesta sí se persiste.
+            } else if ("Aprobado".equalsIgnoreCase(estadoResultado) ||
                 estadoResultado.toLowerCase().contains("aprobado con observación") ||
                 estadoResultado.toLowerCase().contains("aprobado con observacion")) {
-                
+
                 // Solo actualizar a APROBADO si no está ya en un estado final más específico
-                if (de.getEstado() != EstadoDE.APROBADO && 
+                if (de.getEstado() != EstadoDE.APROBADO &&
                     de.getEstado() != EstadoDE.CANCELADO) {
                     nuevoEstado = EstadoDE.APROBADO;
-                    actualizar = true;
                     log.info("   ✅ DE aprobado por SIFEN");
                 }
-                
+
             } else if ("Rechazado".equalsIgnoreCase(estadoResultado)) {
-                
+
                 // Actualizar a RECHAZADO si no está ya en ese estado
                 if (de.getEstado() != EstadoDE.RECHAZADO) {
                     nuevoEstado = EstadoDE.RECHAZADO;
-                    actualizar = true;
                     log.info("   ❌ DE rechazado por SIFEN");
                 }
             }
-            
-            // Actualizar en BD si corresponde
-            if (actualizar && nuevoEstado != null) {
+
+            // Actualizar en BD si corresponde. El código y el mensaje se persisten aunque el
+            // estado no cambie: antes esta vía sólo escribía el estado, y los DEs actualizados
+            // por consulta individual quedaban sin código de respuesta en BD.
+            boolean cambios = false;
+
+            if (nuevoEstado != null) {
                 de.setEstado(nuevoEstado);
                 de.setFechaRecepcionSifen(LocalDateTime.now());
+                cambios = true;
+            }
+
+            if (codigoRespuesta != null
+                    && (!codigoRespuesta.equals(de.getCodigoRespuestaSifen())
+                        || !Objects.equals(mensajeRespuesta, de.getMensajeRespuestaSifen()))) {
+                de.setCodigoRespuestaSifen(codigoRespuesta);
+                de.setMensajeRespuestaSifen(mensajeRespuesta);
+                if (de.getFechaRecepcionSifen() == null) {
+                    de.setFechaRecepcionSifen(LocalDateTime.now());
+                }
+                cambios = true;
+            }
+
+            if (cambios) {
                 documentoElectronicoService.save(de);
-                log.info("   💾 Estado del DE actualizado a: {}", nuevoEstado);
+                log.info("   💾 DE actualizado - estado: {}, código: {}",
+                    de.getEstado(), de.getCodigoRespuestaSifen());
             } else {
-                log.info("   ℹ️ Estado del DE no requiere actualización (actual: {})", de.getEstado());
+                log.info("   ℹ️ El DE no requiere actualización (estado actual: {})", de.getEstado());
             }
             
         } catch (Exception e) {
