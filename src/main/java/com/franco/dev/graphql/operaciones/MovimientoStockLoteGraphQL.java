@@ -7,9 +7,10 @@ import com.franco.dev.service.operaciones.MovimientoStockLoteService;
 import com.franco.dev.service.productos.PresentacionService;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -35,13 +36,18 @@ public class MovimientoStockLoteGraphQL implements GraphQLQueryResolver {
     /**
      * Saldo por lote convertido a la presentación con la que cobra el cajero. Es lo que alimenta el
      * selector de lotes del POS.
+     *
+     * Misma firma que la del central a propósito: el desktop usa la misma clase GraphQL contra los
+     * dos servidores y solo cambia el cliente Apollo. Con presentacionId nulo las cantidades quedan
+     * en unidades, sin convertir.
      */
-    public List<StockLotePresentacionDto> stockLotePorPresentacion(Long productoId, Long sucursalId,
-                                                                   Long presentacionId) {
-        if (presentacionId == null) {
-            return new ArrayList<>();
-        }
-        Presentacion presentacion = presentacionService.findById(presentacionId).orElse(null);
-        return service.stockLotePorPresentacion(productoId, sucursalId, presentacion);
+    public Page<StockLotePresentacionDto> stockPorLoteEnPresentacion(Long productoId, Long sucursalId,
+                                                                     Long presentacionId, String numeroLote,
+                                                                     int page, int size) {
+        Presentacion presentacion = presentacionId != null
+                ? presentacionService.findById(presentacionId).orElse(null)
+                : null;
+        return service.stockPorLoteEnPresentacion(productoId, sucursalId, presentacion, numeroLote,
+                PageRequest.of(page, size));
     }
 }

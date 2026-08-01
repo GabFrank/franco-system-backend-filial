@@ -8,6 +8,9 @@ import com.franco.dev.domain.productos.Presentacion;
 import com.franco.dev.repository.operaciones.MovimientoStockLoteRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,18 +56,23 @@ public class MovimientoStockLoteService extends CrudService<MovimientoStockLote,
      *
      * Solo devuelve lotes LIBERADO: lo que no se puede vender no se le ofrece al cajero.
      */
-    public List<StockLotePresentacionDto> stockLotePorPresentacion(Long productoId, Long sucursalId,
-                                                                   Presentacion presentacion) {
+    public Page<StockLotePresentacionDto> stockPorLoteEnPresentacion(Long productoId, Long sucursalId,
+                                                                     Presentacion presentacion,
+                                                                     String numeroLote, Pageable pageable) {
         List<StockLotePresentacionDto> resultado = new ArrayList<>();
-        if (presentacion == null) {
-            return resultado;
-        }
-        double porPresentacion = presentacion.getCantidad() != null && presentacion.getCantidad() > 0
+        // Sin presentación las cantidades quedan en unidades, igual que en el central.
+        double porPresentacion = presentacion != null && presentacion.getCantidad() != null
+                && presentacion.getCantidad() > 0
                 ? presentacion.getCantidad()
                 : 1.0;
+        String filtro = numeroLote != null ? numeroLote.trim().toUpperCase() : null;
 
         for (StockLoteDto lote : stockPorLote(productoId, sucursalId)) {
             if (lote.getEstado() != EstadoLote.LIBERADO) {
+                continue;
+            }
+            if (filtro != null && !filtro.isEmpty()
+                    && (lote.getNumeroLote() == null || !lote.getNumeroLote().contains(filtro))) {
                 continue;
             }
             double disponible = lote.getCantidadDisponible() != null ? lote.getCantidadDisponible() : 0.0;
@@ -84,10 +92,27 @@ public class MovimientoStockLoteService extends CrudService<MovimientoStockLote,
             dto.setCantidadDisponiblePresentacion(completas);
             dto.setUnidadesSobrantes(sobrantes);
             dto.setUnidadesPorPresentacion(porPresentacion);
-            dto.setPresentacionDescripcion(presentacion.getDescripcion());
+            dto.setPresentacionDescripcion(presentacion != null ? presentacion.getDescripcion() : null);
             resultado.add(dto);
         }
-        return resultado;
+        return paginar(resultado, pageable);
+    }
+
+    /**
+     * Pagina en memoria. Es correcto acá porque la lista es el saldo por lote de UN producto en UNA
+     * sucursal: son unidades o decenas de filas, no un listado abierto. Traer todo y cortar evita
+     * una segunda consulta de conteo en el camino del cobro.
+     */
+    private Page<StockLotePresentacionDto> paginar(List<StockLotePresentacionDto> filas, Pageable pageable) {
+        if (pageable == null || pageable.isUnpaged()) {
+            return new PageImpl<>(filas);
+        }
+        int desde = (int) pageable.getOffset();
+        if (desde >= filas.size()) {
+            return new PageImpl<>(new ArrayList<>(), pageable, filas.size());
+        }
+        int hasta = Math.min(desde + pageable.getPageSize(), filas.size());
+        return new PageImpl<>(new ArrayList<>(filas.subList(desde, hasta)), pageable, filas.size());
     }
 
     public List<MovimientoStockLote> desglosePorMovimiento(Long movimientoStockId, Long sucursalId) {

@@ -4,6 +4,7 @@ import com.franco.dev.domain.operaciones.Lote;
 import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.MovimientoStockLote;
 import com.franco.dev.domain.operaciones.VentaItem;
+import com.franco.dev.domain.operaciones.dto.LotePreferidoDto;
 import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.service.operaciones.LoteFefoService.AsignacionLote;
 import lombok.AllArgsConstructor;
@@ -45,12 +46,13 @@ public class VentaLoteService {
      *   sigue. Nunca se bloquea una caja por datos de lote incompletos: el stock agregado sigue
      *   siendo la fuente de verdad del total. Se deja un warning para poder detectarlo después.
      *
-     * @param preferencias lotes elegidos a mano por el cajero. Null o vacío = FEFO puro, que es el
-     *                     camino de la enorme mayoría de las ventas.
+     * @param preferencias lotes elegidos a mano por el cajero, con la cantidad EN PRESENTACIONES.
+     *                     Null o vacío = FEFO puro, que es el camino de la enorme mayoría de las
+     *                     ventas.
      */
     @Transactional
     public List<MovimientoStockLote> registrarSalidaVenta(VentaItem item, MovimientoStock movimiento,
-                                                          List<AsignacionLote> preferencias) {
+                                                          List<LotePreferidoDto> preferencias) {
         List<MovimientoStockLote> creadas = new ArrayList<>();
         if (item == null || movimiento == null || movimiento.getId() == null) {
             return creadas;
@@ -67,8 +69,9 @@ public class VentaLoteService {
             return creadas;
         }
 
-        List<AsignacionLote> asignaciones =
-                loteFefoService.asignarConPreferencia(producto.getId(), sucursalId, cantidadEnUnidades, preferencias);
+        List<AsignacionLote> asignaciones = loteFefoService.asignarConPreferencia(
+                producto.getId(), sucursalId, cantidadEnUnidades,
+                aUnidadesBase(preferencias, unidadesPorPresentacion(item)));
 
         double asignado = 0.0;
         for (AsignacionLote asignacion : asignaciones) {
@@ -109,10 +112,34 @@ public class VentaLoteService {
         if (item.getCantidad() == null) {
             return 0.0;
         }
-        double porPresentacion = item.getPresentacion() != null && item.getPresentacion().getCantidad() != null
+        return item.getCantidad() * unidadesPorPresentacion(item);
+    }
+
+    private double unidadesPorPresentacion(VentaItem item) {
+        return item.getPresentacion() != null && item.getPresentacion().getCantidad() != null
+                && item.getPresentacion().getCantidad() > 0
                 ? item.getPresentacion().getCantidad()
                 : 1.0;
-        return item.getCantidad() * porPresentacion;
+    }
+
+    /**
+     * El cajero elige en presentaciones y FEFO razona en unidades base. La conversión se hace acá,
+     * en el backend, con el mismo factor que usa el movimiento agregado: si se convirtiera en el
+     * cliente, dos redondeos distintos romperían el invariante SUM(hijas) = padre.
+     */
+    private List<AsignacionLote> aUnidadesBase(List<LotePreferidoDto> preferencias, double porPresentacion) {
+        if (preferencias == null || preferencias.isEmpty()) {
+            return null;
+        }
+        List<AsignacionLote> convertidas = new ArrayList<>();
+        for (LotePreferidoDto preferida : preferencias) {
+            if (preferida == null || preferida.getLoteId() == null || preferida.getCantidad() == null) {
+                continue;
+            }
+            convertidas.add(new AsignacionLote(preferida.getLoteId(), null,
+                    preferida.getCantidad() * porPresentacion));
+        }
+        return convertidas.isEmpty() ? null : convertidas;
     }
 
     private MovimientoStockLote construirSalida(VentaItem item, MovimientoStock movimiento,

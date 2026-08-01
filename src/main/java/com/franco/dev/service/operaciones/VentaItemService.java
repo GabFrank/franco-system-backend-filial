@@ -75,7 +75,7 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
                 movimientoStock.setUsuario(e.getUsuario());
                 MovimientoStock guardado = movimientoStockService.saveAndSend(movimientoStock, false);
                 // La cantidad pudo cambiar, asi que el reparto entre lotes se rehace entero.
-                ventaLoteService.registrarSalidaVenta(e, guardado, null);
+                ventaLoteService.registrarSalidaVenta(e, guardado, e.getLotesPreferidos());
             } else {
                 // Solo crear uno nuevo si no existe
                 log.debug("✅ Creando nuevo MovimientoStock para VentaItem ID: {}", e.getId());
@@ -91,7 +91,7 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
                 movimientoStock.setUsuario(e.getUsuario());
                 movimientoStock.setSucursalId(e.getSucursalId());
                 MovimientoStock guardado = movimientoStockService.saveAndSend(movimientoStock, false);
-                ventaLoteService.registrarSalidaVenta(e, guardado, null);
+                ventaLoteService.registrarSalidaVenta(e, guardado, e.getLotesPreferidos());
             }
         }
 
@@ -128,7 +128,7 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
                 movimientoStock.setUsuario(e.getUsuario());
                 MovimientoStock guardado = movimientoStockService.saveAndSend(movimientoStock, recibir);
                 // La cantidad pudo cambiar, asi que el reparto entre lotes se rehace entero.
-                ventaLoteService.registrarSalidaVenta(e, guardado, null);
+                ventaLoteService.registrarSalidaVenta(e, guardado, e.getLotesPreferidos());
             } else {
                 // Solo crear uno nuevo si no existe
                 log.debug("✅ Creando nuevo MovimientoStock para VentaItem ID: {}", e.getId());
@@ -144,7 +144,7 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
                 movimientoStock.setUsuario(e.getUsuario());
                 movimientoStock.setSucursalId(e.getSucursalId());
                 MovimientoStock guardado = movimientoStockService.saveAndSend(movimientoStock, recibir);
-                ventaLoteService.registrarSalidaVenta(e, guardado, null);
+                ventaLoteService.registrarSalidaVenta(e, guardado, e.getLotesPreferidos());
             }
         }
 

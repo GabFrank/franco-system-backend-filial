@@ -5,7 +5,9 @@ import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
+import com.franco.dev.domain.operaciones.dto.LotePreferidoDto;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
+import com.franco.dev.graphql.operaciones.input.VentaItemLoteInput;
 import com.franco.dev.service.financiero.CambioService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
 import com.franco.dev.service.operaciones.VentaItemService;
@@ -80,8 +82,27 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
             e.setVenta(venta);
         if (e.getPrecioVenta() != null)
             e.setPrecioVenta(precioPorSucursalService.findById(input.getPrecioVentaId()).orElse(null));
+        // Se setea explicitamente y no via ModelMapper: son tipos distintos (input -> dto) y el
+        // campo es transiente, solo viaja hasta VentaLoteService.
+        e.setLotesPreferidos(mapearLotesPreferidos(input));
         e = service.saveAndSend(e, false);
         return e;
+    }
+
+    /**
+     * Traduce los lotes elegidos por el cajero al DTO de dominio. Null o vacío deja el campo en
+     * null, que es lo que VentaLoteService interpreta como FEFO puro.
+     */
+    private List<LotePreferidoDto> mapearLotesPreferidos(VentaItemInput input) {
+        if (input.getLotes() == null || input.getLotes().isEmpty()) {
+            return null;
+        }
+        List<LotePreferidoDto> preferidos = new ArrayList<>();
+        for (VentaItemLoteInput lote : input.getLotes()) {
+            if (lote == null || lote.getLoteId() == null) continue;
+            preferidos.add(new LotePreferidoDto(lote.getLoteId(), lote.getCantidad()));
+        }
+        return preferidos.isEmpty() ? null : preferidos;
     }
 
     public void calcularTotalVenta(Venta venta) {

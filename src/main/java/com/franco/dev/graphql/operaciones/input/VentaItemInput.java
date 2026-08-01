@@ -3,6 +3,7 @@ package com.franco.dev.graphql.operaciones.input;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class VentaItemInput {
@@ -23,4 +24,6 @@ public class VentaItemInput {
     private Long usuarioId;
     private Boolean activo;
     private Long sucursalId;
+    /** Lotes elegidos a mano por el cajero. Null o vacío = FEFO puro. */
+    private List<VentaItemLoteInput> lotes;
 }
