@@ -40,7 +40,9 @@ import com.franco.dev.service.financiero.FacturaLegalService;
 import com.franco.dev.service.financiero.LoteDEService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.sifen.dto.response.ConsultaRucResponse;
+import com.franco.dev.service.sifen.util.GCamIvaMapper;
 import com.franco.dev.service.sifen.util.SifenEventoParser;
+import com.franco.dev.service.sifen.util.SifenXmlParser;
 import com.franco.dev.utilitarios.CalcularVerificadorRuc;
 import com.franco.dev.service.sifen.util.SifenReceptorHelper;
 import com.roshka.sifen.Sifen;
@@ -63,6 +65,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Servicio para integración con SIFEN (Sistema Integrado de Facturación Electrónica Nacional).
@@ -642,51 +645,79 @@ public class SifenService {
                 log.info("   📋 Protocolo de autorización: {}", protocoloAutorizacion);
             }
             
+            // Extraer el resultado de procesamiento del documento (gResProc). Es el mismo par
+            // código/mensaje que persiste el flujo de lote; el primer dCodRes del XML es el de
+            // la consulta (0422 = CDC encontrado) y no dice nada sobre el documento.
+            String codigoRespuesta = SifenXmlParser.extractGResProcValue(xmlRespuesta, "dCodRes");
+            String mensajeRespuesta = SifenXmlParser.extractGResProcValue(xmlRespuesta, "dMsgRes");
+
+            if (codigoRespuesta != null) {
+                log.info("   📥 Resultado del DE: {} - {}", codigoRespuesta, mensajeRespuesta);
+            }
+
             // Extraer estado del resultado (dEstRes) del DE
             // Este campo indica si el documento fue Aprobado, Aprobado con observación, o Rechazado
             String estadoResultado = extraerEstadoResultadoDE(xmlRespuesta);
-            
+
             if (estadoResultado == null) {
                 log.warn("   ⚠️ No se pudo determinar estado del DE desde respuesta");
-                return;
+            } else {
+                log.info("   📊 Estado en SIFEN: {}", estadoResultado);
             }
-            
-            log.info("   📊 Estado en SIFEN: {}", estadoResultado);
-            
+
             // Mapear estado de SIFEN a estado local
             EstadoDE nuevoEstado = null;
-            boolean actualizar = false;
-            
-            if ("Aprobado".equalsIgnoreCase(estadoResultado) || 
+
+            if (estadoResultado == null) {
+                // Sin dEstRes no se toca el estado, pero el código de respuesta sí se persiste.
+            } else if ("Aprobado".equalsIgnoreCase(estadoResultado) ||
                 estadoResultado.toLowerCase().contains("aprobado con observación") ||
                 estadoResultado.toLowerCase().contains("aprobado con observacion")) {
-                
+
                 // Solo actualizar a APROBADO si no está ya en un estado final más específico
-                if (de.getEstado() != EstadoDE.APROBADO && 
+                if (de.getEstado() != EstadoDE.APROBADO &&
                     de.getEstado() != EstadoDE.CANCELADO) {
                     nuevoEstado = EstadoDE.APROBADO;
-                    actualizar = true;
                     log.info("   ✅ DE aprobado por SIFEN");
                 }
-                
+
             } else if ("Rechazado".equalsIgnoreCase(estadoResultado)) {
-                
+
                 // Actualizar a RECHAZADO si no está ya en ese estado
                 if (de.getEstado() != EstadoDE.RECHAZADO) {
                     nuevoEstado = EstadoDE.RECHAZADO;
-                    actualizar = true;
                     log.info("   ❌ DE rechazado por SIFEN");
                 }
             }
-            
-            // Actualizar en BD si corresponde
-            if (actualizar && nuevoEstado != null) {
+
+            // Actualizar en BD si corresponde. El código y el mensaje se persisten aunque el
+            // estado no cambie: antes esta vía sólo escribía el estado, y los DEs actualizados
+            // por consulta individual quedaban sin código de respuesta en BD.
+            boolean cambios = false;
+
+            if (nuevoEstado != null) {
                 de.setEstado(nuevoEstado);
                 de.setFechaRecepcionSifen(LocalDateTime.now());
+                cambios = true;
+            }
+
+            if (codigoRespuesta != null
+                    && (!codigoRespuesta.equals(de.getCodigoRespuestaSifen())
+                        || !Objects.equals(mensajeRespuesta, de.getMensajeRespuestaSifen()))) {
+                de.setCodigoRespuestaSifen(codigoRespuesta);
+                de.setMensajeRespuestaSifen(mensajeRespuesta);
+                if (de.getFechaRecepcionSifen() == null) {
+                    de.setFechaRecepcionSifen(LocalDateTime.now());
+                }
+                cambios = true;
+            }
+
+            if (cambios) {
                 documentoElectronicoService.save(de);
-                log.info("   💾 Estado del DE actualizado a: {}", nuevoEstado);
+                log.info("   💾 DE actualizado - estado: {}, código: {}",
+                    de.getEstado(), de.getCodigoRespuestaSifen());
             } else {
-                log.info("   ℹ️ Estado del DE no requiere actualización (actual: {})", de.getEstado());
+                log.info("   ℹ️ El DE no requiere actualización (estado actual: {})", de.getEstado());
             }
             
         } catch (Exception e) {
@@ -1218,8 +1249,8 @@ public class SifenService {
         List<com.franco.dev.domain.financiero.DocumentoElectronico> documentos = 
             documentoElectronicoService.findByLoteDe(lote);
         
-        int aprobados = 0, rechazados = 0;
-        
+        int aprobados = 0, rechazados = 0, sinConfirmar = 0;
+
         for (com.franco.dev.domain.financiero.DocumentoElectronico documento : documentos) {
             // Buscar detalle individual por CDC
             DetalleDocumentoEnLote detalle = detallesDocumentos.stream()
@@ -1245,20 +1276,27 @@ public class SifenService {
                     log.debug("      ✗ Documento {} RECHAZADO: {}", documento.getCdc(), detalle.mensaje);
                 }
             } else {
-                // No se encontró detalle, usar estado general
-                EstadoDE estadoGeneral = loteAprobado ? EstadoDE.APROBADO : EstadoDE.RECHAZADO;
-                documento.setEstado(estadoGeneral);
-                log.warn("      ⚠️ Documento {} sin detalle individual - usando estado general", documento.getCdc());
+                // SIFEN no devolvió resultado para este CDC: no procesó el documento (típicamente
+                // porque el XML no pasó la validación del esquema). El estado del lote es el del
+                // resto de los documentos y no dice nada sobre éste, así que no se infiere: se deja
+                // como está (EN_LOTE) y sin fecha de recepción, para que figure como no confirmado
+                // en lugar de aparecer como aprobado por arrastre.
+                sinConfirmar++;
+                log.error("      ❌ Documento {} sin resultado individual en la respuesta del lote {} "
+                        + "- se mantiene en estado {} (no confirmado por SIFEN)",
+                    documento.getCdc(), lote.getId(), documento.getEstado());
+                continue;
             }
-            
+
             documento.setFechaRecepcionSifen(LocalDateTime.now());
             documentoElectronicoService.save(documento);
         }
         
-        // 5. Ajustar estado final del lote si hay errores mixtos
-        if (aprobados > 0 && rechazados > 0) {
+        // 5. Ajustar estado final del lote si hay errores mixtos o documentos sin confirmar
+        if ((aprobados > 0 && rechazados > 0) || sinConfirmar > 0) {
             lote.setEstado(EstadoLoteDE.PROCESADO_CON_ERRORES);
-            log.info("   ⚠️ Lote con resultados mixtos → PROCESADO_CON_ERRORES");
+            log.info("   ⚠️ Lote con resultados mixtos o incompletos → PROCESADO_CON_ERRORES "
+                + "({} aprobados, {} rechazados, {} sin confirmar)", aprobados, rechazados, sinConfirmar);
         }
     }
 
@@ -1934,8 +1972,6 @@ public class SifenService {
             gValorItem.setgValorRestaItem(gValorRestaItem);
             gCamItem.setgValorItem(gValorItem);
 
-            TgCamIVA gCamIVA = new TgCamIVA();
-            
             // Determinar IVA con la siguiente prioridad:
             // 1. IVA del FacturaLegalItem directamente (PRIORIDAD MÁXIMA)
             // 2. IVA del producto vinculado directamente
@@ -1960,29 +1996,11 @@ public class SifenService {
                 log.debug("   IVA no disponible - usando default: {}%", iva);
             }
 
-            switch (iva) {
-                case 5:
-                    gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
-                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
-                    gCamIVA.setdTasaIVA(BigDecimal.valueOf(5));
-                    // dBasExe no se setea - la librería lo maneja automáticamente (como en versión anterior)
-                    log.debug("   Configurado IVA 5% para producto");
-                    break;
-                case 0:
-                    gCamIVA.setiAfecIVA(TiAfecIVA.EXENTO);
-                    // La librería jsifenlib exige dPropIVA incluso para ítems exentos (divide por este valor sin chequeo de null)
-                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
-                    log.debug("   Configurado IVA EXENTO para producto");
-                    break;
-                case 10:
-                default:
-                    gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
-                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
-                    gCamIVA.setdTasaIVA(BigDecimal.valueOf(10));
-                    // dBasExe no se setea - la librería lo maneja automáticamente (como en versión anterior)
-                    log.debug("   Configurado IVA 10% para producto");
-                    break;
-            }
+            // Mapeo a gCamIVA (E730) centralizado en GCamIvaMapper, que aplica las reglas
+            // 1904/1905/1907/1908 del MT v150 y evita dejar campos obligatorios en null.
+            TgCamIVA gCamIVA = GCamIvaMapper.construir(iva);
+            log.debug("   Configurado IVA {}% para producto", iva);
+
             gCamItem.setgCamIVA(gCamIVA);
 
             gCamItemList.add(gCamItem);
