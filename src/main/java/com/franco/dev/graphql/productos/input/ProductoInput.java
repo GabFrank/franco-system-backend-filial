@@ -32,6 +32,12 @@ public class ProductoInput {
     private Boolean promocion;
     private Boolean vencimiento;
     private Integer diasVencimiento;
+    /**
+     * Requiere control de lote. El flag se administra en el central, pero tiene que existir acá
+     * porque {@code updateProducto} mapea el input entero sobre la entidad: sin este campo un
+     * update desde la filial lo dejaría en null y el producto perdería el control de lote.
+     */
+    private Boolean lote;
     private Long usuarioId;
     private String imagenes;
     private TipoConservacion tipoConservacion;
