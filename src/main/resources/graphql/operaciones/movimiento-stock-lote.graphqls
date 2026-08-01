@@ -1,0 +1,50 @@
+# Stock por lote disponible en esta filial. Se expone solo como DTO de salida: la entidad
+# MovimientoStockLote no sale nunca por la API.
+#
+# El saldo se deriva del ledger operaciones.movimiento_stock_lote resuelto contra el maestro
+# operaciones.lote, en orden FEFO (fecha de retiro, o vencimiento si no hay retiro).
+type StockLoteDto {
+    loteId: ID
+    productoId: ID
+    sucursalId: ID
+    numeroLote: String
+    fechaVencimiento: Date
+    # Fecha por la que ordena FEFO. Null si el lote no tiene retiro definido.
+    fechaRetiro: Date
+    # Null si el maestro del lote todavia no bajo por replicacion.
+    estado: EstadoLote
+    # Saldo en unidades base, como vive en el ledger.
+    cantidadDisponible: Float
+}
+
+# Saldo de un lote expresado en la presentacion con la que cobra el cajero. Las conversiones se
+# resuelven en el backend: el frontend es solo capa de presentacion.
+type StockLotePresentacionDto {
+    loteId: ID
+    numeroLote: String
+    fechaVencimiento: Date
+    fechaRetiro: Date
+    estado: EstadoLote
+    # Saldo en unidades base.
+    cantidadDisponible: Float
+    # Presentaciones completas que entran en el saldo. Una caja es indivisible.
+    cantidadDisponiblePresentacion: Float
+    # Unidades que quedan fuera de esas presentaciones completas.
+    unidadesSobrantes: Float
+    unidadesPorPresentacion: Float
+    presentacionDescripcion: String
+}
+
+enum EstadoLote {
+    LIBERADO
+    CUARENTENA
+    BLOQUEADO
+}
+
+extend type Query {
+    # Saldo por lote de un producto en una sucursal, en orden FEFO. Devuelve todos los estados.
+    stockPorLote(productoId: ID!, sucursalId: ID!): [StockLoteDto]
+    # Lo mismo, convertido a la presentacion indicada. Es lo que consume el selector de lotes del
+    # POS. Solo devuelve lotes LIBERADO: lo que no se puede vender no se ofrece al cajero.
+    stockLotePorPresentacion(productoId: ID!, sucursalId: ID!, presentacionId: ID!): [StockLotePresentacionDto]
+}
