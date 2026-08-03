@@ -1,5 +1,6 @@
 package com.franco.dev.service.operaciones;
 
+import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.MovimientoStockLote;
 import com.franco.dev.domain.operaciones.dto.StockLoteDto;
 import com.franco.dev.domain.operaciones.dto.StockLotePresentacionDto;
@@ -120,6 +121,29 @@ public class MovimientoStockLoteService extends CrudService<MovimientoStockLote,
             return new ArrayList<>();
         }
         return repository.findByMovimientoStockIdAndSucursalId(movimientoStockId, sucursalId);
+    }
+
+    /**
+     * Borra el desglose de un movimiento y lo confirma contra la base.
+     *
+     * Hay que llamarlo ANTES de calcular una asignacion nueva para ese mismo movimiento. El saldo
+     * por lote se deriva del ledger, y el ledger todavia contiene las filas de la corrida
+     * anterior: sin este borrado previo, el movimiento se descuenta a si mismo del saldo y la
+     * asignacion se calcula contra un stock que no existe.
+     *
+     * El caso concreto: {@code VentaItemService} re-ejecuta {@code registrarSalidaVenta} sobre el
+     * mismo movimiento cuando se edita un item ya vendido. Sin este borrado previo, la venta se
+     * descontaba a si misma del saldo por lote y la atribucion salia mal.
+     */
+    @Transactional
+    public void limpiarDesglose(MovimientoStock movimiento) {
+        if (movimiento == null || movimiento.getId() == null) {
+            return;
+        }
+        repository.deleteByMovimientoStockIdAndSucursalId(
+                movimiento.getId(), movimiento.getSucursalId());
+        // Flush explicito: la consulta de saldo tiene que ver la base ya sin estas filas.
+        repository.flush();
     }
 
     /**

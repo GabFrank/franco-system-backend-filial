@@ -74,6 +74,11 @@ public class VentaLoteService {
             return creadas;
         }
 
+        // Hay que borrar el desglose viejo ANTES de calcular la asignacion nueva: VentaItemService
+        // re-ejecuta este metodo sobre el MISMO movimiento cuando se edita un item ya vendido, y
+        // sin este borrado previo la venta se descuenta a si misma del saldo por lote.
+        movimientoStockLoteService.limpiarDesglose(movimiento);
+
         List<AsignacionLote> asignaciones = loteFefoService.asignarConPreferencia(
                 producto.getId(), sucursalId, cantidadEnUnidades,
                 aAsignaciones(preferencias));
