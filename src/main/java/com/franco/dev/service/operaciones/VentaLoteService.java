@@ -31,6 +31,8 @@ import java.util.List;
 @AllArgsConstructor
 public class VentaLoteService {
 
+    private static final double EPSILON = 0.0001;
+
     private final LoteFefoService loteFefoService;
     private final MovimientoStockLoteService movimientoStockLoteService;
 
@@ -84,13 +86,35 @@ public class VentaLoteService {
             asignado += asignacion.getCantidad();
         }
 
-        if (asignado + 0.0001 < cantidadEnUnidades) {
-            log.warn("Venta item {} producto {}: FEFO cubrio {} de {} unidades. "
-                            + "Se registra el desglose parcial y la venta continua.",
-                    item.getId(), producto.getId(), asignado, cantidadEnUnidades);
+        LoteFefoService.AsignacionLote sinTrazar =
+                faltanteSinTrazar(cantidadEnUnidades, asignado);
+        if (sinTrazar != null) {
+            // Queda anotada en las DOS cuentas, con lo que SUM(hijas) = padre se sigue
+            // cumpliendo. El saldo negativo resultante es la deuda de trazabilidad.
+            creadas.add(construirSalida(item, movimiento, sucursalId, sinTrazar));
+            log.warn("Venta item {} producto {}: {} de {} unidades salieron sin lote asignado. "
+                            + "Se registran como {}.",
+                    item.getId(), producto.getId(), sinTrazar.getCantidad(), cantidadEnUnidades,
+                    LoteFefoService.NUMERO_LOTE_SIN_TRAZAR);
         }
 
         return movimientoStockLoteService.reemplazarDesglose(movimiento.getId(), sucursalId, creadas);
+    }
+
+    /**
+     * Lo que FEFO no logró cubrir sale igual, pero anotado contra el bucket sin trazar. Antes
+     * esto solo se logueaba y la venta quedaba registrada en el agregado y no en el ledger de
+     * lotes, que es lo que separaba las dos cuentas para siempre.
+     *
+     * @return la asignación por el faltante, o null si no faltó nada.
+     */
+    static LoteFefoService.AsignacionLote faltanteSinTrazar(double requerida, double asignada) {
+        double faltante = requerida - asignada;
+        if (faltante <= EPSILON) {
+            return null;
+        }
+        return new LoteFefoService.AsignacionLote(
+                null, LoteFefoService.NUMERO_LOTE_SIN_TRAZAR, faltante);
     }
 
     /**
