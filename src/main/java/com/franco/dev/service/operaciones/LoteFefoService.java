@@ -30,6 +30,12 @@ public class LoteFefoService {
     /** Tolerancia al comparar cantidades en punto flotante. */
     private static final double EPSILON = 0.0001;
 
+    /**
+     * Bucket del stock que existe en el agregado pero no está atribuido a ningún lote. No es un
+     * lote real: no se persiste como maestro y se deriva de existencia - suma de lotes reales.
+     */
+    public static final String NUMERO_LOTE_SIN_TRAZAR = "SIN LOTE";
+
     private final MovimientoStockLoteService movimientoStockLoteService;
 
     /** Una porción de la cantidad total, asignada a un lote concreto. */
