@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
  * Es una preferencia, no una orden: FEFO la recorta al saldo real del lote y completa el faltante
  * con otros lotes. Ver {@code LoteFefoService.asignarConPreferencia}.
  *
- * La cantidad viaja EN PRESENTACIONES, que es la unidad en la que el cajero ve y elige. La
- * conversión a unidades base la hace el backend.
+ * La cantidad viaja EN UNIDADES BASE, que es la unidad en la que el cajero ve y elige en el
+ * selector del POS, y también en la que razona FEFO. No hay conversión en el medio.
  */
 @Data
 @AllArgsConstructor

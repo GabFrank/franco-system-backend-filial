@@ -37,8 +37,8 @@ input VentaItemInput {
     lotes: [VentaItemLoteInput]
 }
 
-# Lote elegido a mano para un item de venta. La cantidad va EN PRESENTACIONES, la misma unidad que
-# muestra el selector; la conversion a unidades base la hace el backend.
+# Lote elegido a mano para un item de venta. La cantidad va EN UNIDADES BASE, la misma unidad que
+# muestra el selector del POS y en la que vive el ledger: no hay conversion en el medio.
 input VentaItemLoteInput {
     loteId: ID
     cantidad: Float

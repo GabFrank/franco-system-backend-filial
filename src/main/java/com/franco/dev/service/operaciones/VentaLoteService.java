@@ -46,7 +46,9 @@ public class VentaLoteService {
      *   sigue. Nunca se bloquea una caja por datos de lote incompletos: el stock agregado sigue
      *   siendo la fuente de verdad del total. Se deja un warning para poder detectarlo después.
      *
-     * @param preferencias lotes elegidos a mano por el cajero, con la cantidad EN PRESENTACIONES.
+     * @param preferencias lotes elegidos a mano por el cajero, con la cantidad EN UNIDADES BASE,
+     *                     la misma unidad del ledger. El selector del POS muestra unidades, así que
+     *                     lo que eligió el cajero llega sin conversión de por medio.
      *                     Null o vacío = FEFO puro, que es el camino de la enorme mayoría de las
      *                     ventas.
      */
@@ -71,7 +73,7 @@ public class VentaLoteService {
 
         List<AsignacionLote> asignaciones = loteFefoService.asignarConPreferencia(
                 producto.getId(), sucursalId, cantidadEnUnidades,
-                aUnidadesBase(preferencias, unidadesPorPresentacion(item)));
+                aAsignaciones(preferencias));
 
         double asignado = 0.0;
         for (AsignacionLote asignacion : asignaciones) {
@@ -123,11 +125,15 @@ public class VentaLoteService {
     }
 
     /**
-     * El cajero elige en presentaciones y FEFO razona en unidades base. La conversión se hace acá,
-     * en el backend, con el mismo factor que usa el movimiento agregado: si se convirtiera en el
-     * cliente, dos redondeos distintos romperían el invariante SUM(hijas) = padre.
+     * Las preferencias ya vienen en unidades base: el selector del POS muestra y envía unidades,
+     * que es la unidad en la que razona FEFO y en la que vive el ledger. Acá solo se cambia de
+     * forma, no de unidad.
+     *
+     * Que no haya conversión es deliberado. Antes el cajero elegía en presentaciones y este método
+     * multiplicaba por el factor; con cantidades que no eran múltiplo de la presentación, ese ida
+     * y vuelta arrastraba un redondeo que desviaba el reparto entre lotes.
      */
-    private List<AsignacionLote> aUnidadesBase(List<LotePreferidoDto> preferencias, double porPresentacion) {
+    private List<AsignacionLote> aAsignaciones(List<LotePreferidoDto> preferencias) {
         if (preferencias == null || preferencias.isEmpty()) {
             return null;
         }
@@ -136,8 +142,7 @@ public class VentaLoteService {
             if (preferida == null || preferida.getLoteId() == null || preferida.getCantidad() == null) {
                 continue;
             }
-            convertidas.add(new AsignacionLote(preferida.getLoteId(), null,
-                    preferida.getCantidad() * porPresentacion));
+            convertidas.add(new AsignacionLote(preferida.getLoteId(), null, preferida.getCantidad()));
         }
         return convertidas.isEmpty() ? null : convertidas;
     }
