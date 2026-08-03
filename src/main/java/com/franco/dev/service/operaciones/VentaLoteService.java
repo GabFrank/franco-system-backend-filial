@@ -44,9 +44,10 @@ public class VentaLoteService {
      *   comportamiento histórico queda intacto.
      * - Las cantidades van NEGATIVAS y en unidades base, para que se sumen con las entradas por
      *   compra en la misma unidad y el saldo del lote salga de un SUM directo.
-     * - Si FEFO no logra cubrir toda la cantidad, se escribe lo que se pudo asignar y la venta
-     *   sigue. Nunca se bloquea una caja por datos de lote incompletos: el stock agregado sigue
-     *   siendo la fuente de verdad del total. Se deja un warning para poder detectarlo después.
+     * - Si FEFO no logra cubrir toda la cantidad, se registra el faltante contra el bucket
+     *   sin trazar ("SIN LOTE"), de modo que SUM(filas hijas) = padre se sigue cumpliendo.
+     *   El saldo negativo resultante es la deuda de trazabilidad. La venta nunca se bloquea
+     *   por datos de lote incompletos. Se deja un warning para poder detectarlo después.
      *
      * @param preferencias lotes elegidos a mano por el cajero, con la cantidad EN UNIDADES BASE,
      *                     la misma unidad del ledger. El selector del POS muestra unidades, así que
