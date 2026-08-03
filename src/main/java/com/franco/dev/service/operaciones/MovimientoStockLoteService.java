@@ -6,7 +6,6 @@ import com.franco.dev.domain.operaciones.dto.StockLotePresentacionDto;
 import com.franco.dev.domain.operaciones.enums.EstadoLote;
 import com.franco.dev.domain.productos.Presentacion;
 import com.franco.dev.repository.operaciones.MovimientoStockLoteRepository;
-import com.franco.dev.repository.operaciones.MovimientoStockRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,10 +28,7 @@ import java.util.List;
 @AllArgsConstructor
 public class MovimientoStockLoteService extends CrudService<MovimientoStockLote, MovimientoStockLoteRepository> {
 
-    private static final double EPSILON = 0.0001;
-
     private final MovimientoStockLoteRepository repository;
-    private final MovimientoStockRepository movimientoStockRepository;
 
     @Override
     public MovimientoStockLoteRepository getRepository() {
@@ -40,54 +36,14 @@ public class MovimientoStockLoteService extends CrudService<MovimientoStockLote,
     }
 
     /**
-     * Agrega el bucket de stock sin trazar al final de la lista.
-     *
-     * El saldo sin trazar se deriva, no se almacena: es lo que hay en el agregado y no está
-     * atribuido a ningún lote real. Sembrarlo como fila no es posible porque
-     * movimiento_stock_lote.movimiento_stock_id es NOT NULL y no existe un movimiento del cual
-     * colgarlo.
-     *
-     * Solo cuentan los lotes REALES en la resta: las filas SIN LOTE que ya existen son el
-     * registro de salidas sin trazar, no stock atribuido, y contarlas duplicaría.
-     *
-     * Va al final porque es el orden en el que FEFO debe consumirlo: primero lo que vence.
-     */
-    public static List<StockLoteDto> agregarSinTrazar(List<StockLoteDto> lotes,
-                                                      double existencia,
-                                                      Long productoId, Long sucursalId) {
-        List<StockLoteDto> resultado = new ArrayList<>(lotes);
-        double enLotesReales = 0.0;
-        for (StockLoteDto lote : lotes) {
-            if (lote.getLoteId() != null && lote.getCantidadDisponible() != null) {
-                enLotesReales += lote.getCantidadDisponible();
-            }
-        }
-        double sinTrazar = existencia - enLotesReales;
-        if (Math.abs(sinTrazar) <= EPSILON) {
-            return resultado;
-        }
-        resultado.add(new StockLoteDto(null, productoId, sucursalId,
-                LoteFefoService.NUMERO_LOTE_SIN_TRAZAR, null, null, null, sinTrazar));
-        return resultado;
-    }
-
-    /**
-     * Saldo por lote, con el bucket de stock sin trazar al final.
-     *
-     * El bucket solo tiene sentido para productos con control de lote; para el resto la
-     * existencia y el ledger de lotes no tienen por que coincidir y agregarlo seria ruido.
+     * Saldo por lote de un producto en una sucursal, en orden FEFO. Devuelve todos los estados:
+     * quien descuenta stock debe filtrar por LIBERADO.
      */
     public List<StockLoteDto> stockPorLote(Long productoId, Long sucursalId) {
         if (productoId == null || sucursalId == null) {
             return new ArrayList<>();
         }
-        List<StockLoteDto> lotes = repository.stockPorLote(productoId, sucursalId);
-        Float existencia = movimientoStockRepository
-                .stockByProductoIdAndSucursalId(productoId, sucursalId);
-        if (existencia == null) {
-            return lotes;
-        }
-        return agregarSinTrazar(lotes, existencia.doubleValue(), productoId, sucursalId);
+        return repository.stockPorLote(productoId, sucursalId);
     }
 
     /**
