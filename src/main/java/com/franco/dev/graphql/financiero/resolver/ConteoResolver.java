@@ -25,6 +25,13 @@ public class ConteoResolver implements GraphQLResolver<Conteo> {
         return conteoMonedaService.findByConteoId(e.getId());
     }
 
+    public Conteo conteoAnterior(Conteo e){
+        if (e.getConteoAnteriorId() == null) {
+            return null;
+        }
+        return conteoService.findById(e.getConteoAnteriorId()).orElse(null);
+    }
+
     public Double totalGs(Conteo e){
         return conteoService.getTotalPorMoneda(e.getId(), (long) 1);
     }
