@@ -3,6 +3,7 @@ type TerminalPos {
     descripcion: String
     codigo: String
     moneda: Moneda
+    proveedorServicio: ProveedorServicio
     activo: Boolean
     creadoEn: Date
     usuario: Usuario

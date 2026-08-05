@@ -150,8 +150,22 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private com.franco.dev.service.financiero.builder.FacturaLegalBuilder facturaLegalBuilder;
 
+    @Autowired
+    private com.franco.dev.service.financiero.FacturaSimilarService facturaSimilarService;
+
     public Optional<FacturaLegal> facturaLegal(Long id, Long sucId) {
         return service.findById(id);
+    }
+
+    /**
+     * Busca una factura del turno de caja actual que se parezca a la que el cajero está
+     * por emitir (mismo cliente, mismo total y mismos items), para poder avisarle antes
+     * de emitir un duplicado. Devuelve null si no hay ninguna.
+     */
+    public com.franco.dev.domain.financiero.dto.FacturaSimilarDto facturaSimilarReciente(
+            Long usuarioId, Long clienteId, Double totalFinal,
+            List<FacturaLegalItemInput> items) {
+        return facturaSimilarService.buscarFacturaSimilarReciente(usuarioId, clienteId, totalFinal, items);
     }
 
     public List<FacturaLegal> facturaLegales(int page, int size, Long sucId) {

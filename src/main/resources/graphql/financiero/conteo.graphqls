@@ -4,6 +4,8 @@ type Conteo {
     observacion: String
     creadoEn: Date
     usuario: Usuario
+    conteoAnteriorId: ID
+    conteoAnterior: Conteo
     conteoMonedaList: [ConteoMoneda]
     totalGs: Float
     totalRs: Float
@@ -19,6 +21,7 @@ input ConteoInput {
     totalRs: Float
     totalDs: Float
     sucursalId: Int
+    conteoAnteriorId: ID
 }
 
 extend type Query {
@@ -29,6 +32,7 @@ extend type Query {
 
 extend type Mutation {
     saveConteo(conteo:ConteoInput!, conteoMonedaInputList: [ConteoMonedaInput], cajaId: Int, apertura: Boolean, imprimirBalance: Boolean):Conteo!
+    editarConteoCaja(conteo:ConteoInput!, conteoMonedaInputList: [ConteoMonedaInput], cajaId: Int!, conteoAnteriorId: ID!, apertura: Boolean!, usuarioId: Int!):Conteo!
     deleteConteo(id:ID!, sucId: ID):Boolean!
 }
 
