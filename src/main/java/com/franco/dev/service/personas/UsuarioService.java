@@ -87,6 +87,24 @@ public class UsuarioService extends CrudService<Usuario, UsuarioRepository> {
         return roleList;
     }
 
+    /**
+     * Verifica si el usuario tiene alguno de los roles indicados (por nombre, sin distinguir mayusculas).
+     * <p>
+     * Lee la relacion usuario_role directamente en lugar de reutilizar {@link #getRoles(Long)}, porque ese
+     * metodo resuelve el Role usando el id del usuario y devuelve resultados incorrectos.
+     */
+    public boolean tieneRol(Long usuarioId, String... nombresRol) {
+        if (usuarioId == null || nombresRol == null || nombresRol.length == 0) return false;
+        List<UsuarioRole> usuarioRoleList = usuarioRoleService.findByUserId(usuarioId);
+        if (usuarioRoleList == null || usuarioRoleList.isEmpty()) return false;
+        return usuarioRoleList.stream()
+                .map(UsuarioRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .map(Role::getNombre)
+                .filter(java.util.Objects::nonNull)
+                .anyMatch(nombre -> java.util.Arrays.stream(nombresRol).anyMatch(nombre::equalsIgnoreCase));
+    }
+
     public Usuario findByEmail(String email) {
         return repository.findByEmail(email).orElse(null);
     }

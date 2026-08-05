@@ -27,6 +27,13 @@ public class Conteo implements Serializable {
 
     private String observacion;
 
+    /**
+     * Versionado: id del conteo que esta version reemplaza. NULL en la version original.
+     * Se completa cuando un ADMIN edita los montos de apertura/cierre.
+     */
+    @Column(name = "conteo_anterior_id")
+    private Long conteoAnteriorId;
+
     @CreationTimestamp
     private LocalDateTime creadoEn;
 
