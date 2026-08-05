@@ -1,0 +1,14 @@
+# Espejo de solo lectura del central: las filas llegan por replicacion MAIN_TO_ALL.
+# A diferencia del central, aca NO se declaran Query ni Mutation ni el input -- el ABM
+# de proveedores de servicio vive en el central. El tipo existe unicamente para que
+# TerminalPos pueda exponer su relacion, que el desktop consulta contra la filial
+# durante el escaneo de terminal en el flujo de venta con tarjeta offline.
+type ProveedorServicio {
+    id:ID!
+    persona: Persona
+    cuentaBancaria: CuentaBancaria
+    nombreContacto: String
+    numeroContacto: String
+    creadoEn: Date
+    usuario: Usuario
+}

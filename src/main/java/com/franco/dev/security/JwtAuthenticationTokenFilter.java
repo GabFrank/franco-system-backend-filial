@@ -3,6 +3,7 @@ package com.franco.dev.security;
 import com.franco.dev.security.model.JwtAuthenticationToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
@@ -34,7 +35,11 @@ public class JwtAuthenticationTokenFilter extends AbstractAuthenticationProcessi
 
         if (header == null || !header.startsWith("Token ")) {
             log.warn("JWT Token is missing");
-            return null;
+            // No devolver null: AbstractAuthenticationProcessingFilter interpreta el null
+            // como "autenticacion aun sin terminar", corta el doFilter y NO escribe nada
+            // en la respuesta. El cliente recibe un HTTP 200 con cuerpo vacio, que Apollo
+            // no puede parsear. Lanzando la excepcion se responde el 401 que corresponde.
+            throw new InsufficientAuthenticationException("Falta el token de autenticacion");
         }
 
         String authenticationToken = header.substring(6);

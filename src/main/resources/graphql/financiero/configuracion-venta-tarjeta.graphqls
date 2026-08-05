@@ -1,0 +1,11 @@
+type ConfiguracionVentaTarjeta {
+    id: ID!
+    habilitado: Boolean!
+    usuario: Usuario
+    creadoEn: Date
+    modificadoEn: Date
+}
+
+extend type Query {
+    configuracionVentaTarjeta: ConfiguracionVentaTarjeta!
+}

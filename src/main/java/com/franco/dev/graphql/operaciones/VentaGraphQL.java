@@ -28,6 +28,7 @@ import com.franco.dev.graphql.operaciones.input.VentaItemInput;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.impresion.ImpresionService;
+import com.franco.dev.service.impresion.PagosTicketAgrupador;
 import com.franco.dev.service.operaciones.CobroDetalleService;
 import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.DeliveryService;
@@ -460,8 +461,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         Double precioDeliveryGs = 0.0;
         Double precioDeliveryRs = 0.0;
         Double precioDeliveryDs = 0.0;
-        Double cambioRs = cambioService.findLastByMonedaId(Long.valueOf(2)).getValorEnGs();
-        Double cambioDs = cambioService.findLastByMonedaId(Long.valueOf(3)).getValorEnGs();
+        // Divisor seguro (ver VentaItemGraphQL): evita NPE / división por cero
+        // cuando REAL/DÓLAR no tienen cotización registrada. No frena la venta.
+        Double cambioRs = cambioService.findLastValorEnGsByMonedaIdOrDefault(Long.valueOf(2), 1.0);
+        Double cambioDs = cambioService.findLastValorEnGsByMonedaIdOrDefault(Long.valueOf(3), 1.0);
         
         // Obtener instancias de las monedas para usar getAbreviatura()
         Moneda monedaGs = monedaService.findById(Long.valueOf(1)).orElse(null);
@@ -762,15 +765,14 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     for (Map.Entry<Long, List<CobroDetalle>> entry : porMoneda.entrySet()) {
                         List<CobroDetalle> detallesMoneda = entry.getValue();
                         
-                        // Agrupar pagos por forma de pago para esta moneda
-                        Map<Long, CobroDetalle> pagosPorFormaPago = new LinkedHashMap<>();
+                        // Agrupar pagos por forma de pago para esta moneda, sumando los repetidos
+                        // (ej. dos pagos en efectivo van en una sola linea con el total cobrado)
+                        List<PagosTicketAgrupador.PagoAgrupado> pagosPorFormaPago =
+                                PagosTicketAgrupador.agrupar(detallesMoneda);
                         Double vueltoTotal = 0.0;
-                        
+
                         for (CobroDetalle cd : detallesMoneda) {
-                            if (cd.getPago() != null && cd.getPago()) {
-                                Long formaPagoId = cd.getFormaPago() != null ? cd.getFormaPago().getId() : 0L;
-                                pagosPorFormaPago.put(formaPagoId, cd);
-                            } else if (cd.getVuelto() != null && cd.getVuelto()) {
+                            if (cd.getVuelto() != null && cd.getVuelto()) {
                                 vueltoTotal += cd.getValor();
                             }
                         }
@@ -778,8 +780,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         // Imprimir cada pago
                         // Distribución de 32 caracteres: 4 (moneda) + 18 (pago) + 10 (vuelto)
                         int lineasPago = 0;
-                        for (Map.Entry<Long, CobroDetalle> pagoEntry : pagosPorFormaPago.entrySet()) {
-                            CobroDetalle pago = pagoEntry.getValue();
+                        for (PagosTicketAgrupador.PagoAgrupado pago : pagosPorFormaPago) {
                             String simboloMoneda = pago.getMoneda() != null ? pago.getMoneda().getAbreviatura() + "." : "N/A";
                             
                             // Obtener abreviatura de forma de pago

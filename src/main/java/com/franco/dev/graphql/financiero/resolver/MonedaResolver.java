@@ -25,7 +25,12 @@ public class MonedaResolver implements GraphQLResolver<Moneda> {
 
 
     public Double cambio(Moneda e){
-        return cambioService.findLastByMonedaId(e.getId()).getValorEnGs();
+        // Null-safe: si esta moneda no tiene ninguna cotización registrada,
+        // devolver null en lugar de lanzar NullPointerException. Antes, una
+        // sola moneda sin cotización tumbaba toda la query `monedas`, y el POS
+        // caía a su cotización default (1) para TODAS las monedas. Devolviendo
+        // null, las demás monedas conservan su cotización real.
+        return cambioService.findLastValorEnGsByMonedaId(e.getId());
     }
 
     public List<MonedaBilletes> monedaBilleteList(Moneda e){

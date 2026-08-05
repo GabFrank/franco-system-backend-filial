@@ -51,21 +51,6 @@ public class Vehiculo implements Identifiable<Long> {
         @Column(name = "fecha_adquisicion")
         private LocalDate fechaAdquisicion;
 
-        @Column(name = "primer_kilometraje")
-        private BigDecimal primerKilometraje;
-
-        @Column(name = "capacidad_kg")
-        private BigDecimal capacidadKg;
-
-        @Column(name = "capacidad_pasajeros")
-        private Integer capacidadPasajeros;
-
-        @Column(name = "imagenes_vehiculo")
-        private String imagenesVehiculo;
-
-        @Column(name = "imagenes_documentos")
-        private String imagenesDocumentos;
-
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "propietario_id")
         private com.franco.dev.domain.personas.Persona propietario;
@@ -73,23 +58,14 @@ public class Vehiculo implements Identifiable<Long> {
         @Column(name = "identificador_interno")
         private String identificadorInterno;
 
-        @ManyToOne(fetch = FetchType.LAZY)
-        @JoinColumn(name = "tipo_combustible_id")
-        private TipoCombustible tipoCombustible;
-
-        private String chasis;
-
-        @Column(name = "aire_acondicionado")
-        private Boolean aireAcondicionado;
-
         @Column(name = "valor_estimado")
         private BigDecimal valorEstimado;
 
-        @Column(name = "mantenimiento_motor_intervalo")
-        private Integer mantenimientoMotorIntervalo;
+        @Column(name = "valor_estimado_pyg")
+        private BigDecimal valorEstimadoPyg;
 
-        @Column(name = "mantenimiento_caja_intervalo")
-        private Integer mantenimientoCajaIntervalo;
+        @Column(name = "valor_estimado_brl")
+        private BigDecimal valorEstimadoBrl;
 
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "usuario_id", nullable = true)
