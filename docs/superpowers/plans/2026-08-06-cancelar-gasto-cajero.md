@@ -613,12 +613,15 @@ y agregar el método junto a los demás:
 
 ```typescript
   onCancelarGasto(id: number, sucId: number, servidor = true): Observable<boolean> {
-    return this.genericService.onCustomQuery(this.cancelarGastoGQL, {
-      id,
-      sucId
-    }, servidor);
+    return this.genericService.onCustomMutation(this.cancelarGastoGQL, { id, sucId }, servidor);
   }
 ```
+
+**`onCustomMutation`, NO `onCustomQuery`.** `onCustomQuery` ejecuta
+`apollo.query({ query: gql.document, ... })` (`generic-crud.service.ts:118`), y
+Apollo rechaza un documento `mutation` ahí con *"Running a Query requires a
+graphql Query, but a Mutation was used instead"* — el botón no haría nada. La
+referencia correcta es `retiro.service.ts:44`, que usa `onCustomMutation`.
 
 - [ ] **Step 6: Resolver el rol y la acción en el componente**
 
