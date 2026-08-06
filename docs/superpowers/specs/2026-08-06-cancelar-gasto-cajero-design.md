@@ -45,9 +45,12 @@ Las tres decisiones de diseño que se heredan de ahí:
 
 `Retiro` ya tenía columna `estado` con un enum de Postgres, así que alcanzó con
 agregarle el valor `CANCELADO`. **`Gasto` no tiene columna de estado**: solo
-`activo` y `finalizado`, dos booleanos que hoy no lee ninguna lógica de negocio
-—solo se persisten—. Por eso acá hay que introducir la representación del estado
-cancelado desde cero.
+`activo` y `finalizado`. Por eso acá hay que introducir la representación del
+estado cancelado desde cero.
+
+Ojo con `activo`: **sí lo lee lógica de negocio**. Las 4 queries agregadas de
+`GastoRepository` ya filtran `AND g.activo = true`. `finalizado`, en cambio, solo
+se persiste. El balance de caja no filtra por ninguno de los dos.
 
 ## Decisiones tomadas
 
@@ -59,9 +62,10 @@ ALTER TABLE financiero.gasto ADD COLUMN IF NOT EXISTS cancelado BOOLEAN;
 
 `NULL` = no cancelado. Cubre todos los gastos históricos sin backfill.
 
-Se descartó reusar `activo`: ya viaja en `GastoInput`, así que cualquier
-`saveGasto` podría revertir la cancelación sin querer, y su semántica no está
-definida en ningún lado.
+Se descartó reusar `activo` por dos razones: viaja en `GastoInput`, así que
+cualquier `saveGasto` podría revertir la cancelación sin querer; y ya tiene
+significado propio en las queries agregadas (`AND g.activo = true`), así que
+sobrecargarlo con "cancelado" mezclaría dos conceptos en una sola columna.
 
 Se descartó crear un enum `financiero.estado_gasto`: sería más parecido al
 retiro y más extensible, pero obliga a sincronizar un tipo nuevo entre las N+1
