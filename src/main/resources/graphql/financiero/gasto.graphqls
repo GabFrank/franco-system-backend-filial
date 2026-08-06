@@ -10,6 +10,7 @@ type Gasto {
     gastoDetalleList: [GastoDetalle]
     activo: Boolean
     finalizado: Boolean
+    cancelado: Boolean
     retiroGs: Float
     retiroRs: Float
     retiroDs: Float
