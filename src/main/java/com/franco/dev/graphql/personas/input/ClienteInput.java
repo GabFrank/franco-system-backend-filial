@@ -18,4 +18,5 @@ public class ClienteInput {
     private Boolean tributa;
     private Boolean verificadoSet;
     private Integer tipoContribuyente;
+    private Boolean activo;
 }
