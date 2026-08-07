@@ -57,6 +57,12 @@ public class Gasto implements Serializable {
 
     private Boolean finalizado;
 
+    /**
+     * NULL = no cancelado. Lo setea el central via cancelarGasto y baja por
+     * replicacion. La filial solo lo lee.
+     */
+    private Boolean cancelado;
+
     private Double retiroGs;
     private Double retiroRs;
     private Double retiroDs;
