@@ -15,9 +15,12 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.TypeDef;
 
+import com.franco.dev.domain.operaciones.dto.LotePreferidoDto;
+
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -82,5 +85,16 @@ public class VentaItem implements Serializable {
 
     private Boolean activo;
 
-
+    /**
+     * Lotes que el cajero eligió a mano en el POS. NO se persiste: viaja desde el resolver hasta
+     * {@code VentaLoteService}, que lo usa para sesgar FEFO y después lo descarta. El registro de
+     * qué salió de cada lote queda en el ledger operaciones.movimiento_stock_lote, no acá.
+     *
+     * Va como campo transiente y no como parámetro de save() porque save() se llama desde varios
+     * lugares y cambiarle la firma obligaría a tocarlos todos solo para pasar null.
+     *
+     * Null o vacío = FEFO puro, que es el camino de casi todas las ventas.
+     */
+    @Transient
+    private List<LotePreferidoDto> lotesPreferidos;
 }
