@@ -57,6 +57,28 @@ public class CuentaBancaria implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
+
+    // Campos del modulo financiero central (columnas agregadas por V88.3). Se exponen para
+    // alinear el contrato GraphQL con el desktop feat/modulo-financiero.
+    private String nombre;
+
+    private String titular;
+
+    private String alias;
+
+    private Boolean activo;
+
+    @Column(name = "saldo")
+    private java.math.BigDecimal saldo;
+
+    @Column(name = "saldo_reservado")
+    private java.math.BigDecimal saldoReservado;
+
+    @Column(name = "permite_saldo_negativo")
+    private Boolean permiteSaldoNegativo;
+
+    @Column(name = "disponible_operaciones_financieras")
+    private Boolean disponibleOperacionesFinancieras;
 }
 
 

@@ -7,6 +7,14 @@ type CuentaBancaria {
     tipoCuenta: TipoCuenta,
     creadoEn: Date
     usuario: Usuario
+    nombre: String,
+    saldo: Float,
+    saldoReservado: Float,
+    titular: String,
+    alias: String,
+    activo: Boolean,
+    disponibleOperacionesFinancieras: Boolean,
+    permiteSaldoNegativo: Boolean
 }
 
 input CuentaBancariaInput {
@@ -17,6 +25,12 @@ input CuentaBancariaInput {
     numero: String,
     tipoCuenta: TipoCuenta,
     usuarioId: Int
+    nombre: String,
+    titular: String,
+    alias: String,
+    activo: Boolean,
+    disponibleOperacionesFinancieras: Boolean,
+    permiteSaldoNegativo: Boolean
 }
 
 extend type Query {
