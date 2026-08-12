@@ -81,4 +81,28 @@ public class Funcionario implements Identifiable<Long> {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "horario_id", nullable = true)
     private com.franco.dev.domain.administrativo.Horario horario;
+
+    // Campos IPS / datos personales que consulta el desktop feat/modulo-financiero.
+    // codigo_interno/ips_activo/numero_ips/cuenta_bancaria: columnas de V88.3.
+    // fecha_ingreso_ips/contacto_emergencia_*: columnas de V88.5 (espejo de central V169.0).
+    @Column(name = "codigo_interno")
+    private String codigoInterno;
+
+    @Column(name = "ips_activo")
+    private Boolean ipsActivo;
+
+    @Column(name = "numero_ips")
+    private String numeroIps;
+
+    @Column(name = "cuenta_bancaria")
+    private String cuentaBancaria;
+
+    @Column(name = "fecha_ingreso_ips")
+    private java.time.LocalDate fechaIngresoIps;
+
+    @Column(name = "contacto_emergencia_nombre")
+    private String contactoEmergenciaNombre;
+
+    @Column(name = "contacto_emergencia_telefono")
+    private String contactoEmergenciaTelefono;
 }

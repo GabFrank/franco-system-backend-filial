@@ -14,6 +14,13 @@ type Funcionario {
     activo: Boolean
     nickname: String
     horario: Horario
+    codigoInterno: String
+    ipsActivo: Boolean
+    numeroIps: String
+    cuentaBancaria: String
+    fechaIngresoIps: Date
+    contactoEmergenciaNombre: String
+    contactoEmergenciaTelefono: String
 }
 
 input FuncionarioInput {
@@ -31,6 +38,13 @@ input FuncionarioInput {
     usuarioId: Int
     activo: Boolean
     horarioId: Int
+    codigoInterno: String
+    ipsActivo: Boolean
+    numeroIps: String
+    cuentaBancaria: String
+    fechaIngresoIps: String
+    contactoEmergenciaNombre: String
+    contactoEmergenciaTelefono: String
 }
 
 extend type Query {
