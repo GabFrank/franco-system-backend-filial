@@ -45,6 +45,8 @@ public class Cliente implements Serializable {
 
     private Boolean verificadoSet;
 
+    private Boolean activo;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sucursal_id", nullable = true)
     private Sucursal sucursal;

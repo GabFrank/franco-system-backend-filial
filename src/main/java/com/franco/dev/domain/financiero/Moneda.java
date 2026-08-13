@@ -43,6 +43,20 @@ public class Moneda implements Serializable {
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
 
+    // Campos de "Moneda rica" (modulo financiero central). Columnas agregadas por V88.3;
+    // se exponen para alinear el contrato GraphQL con el desktop feat/modulo-financiero.
+    private Boolean activo;
+
+    private Boolean principal;
+
+    private Integer decimales;
+
+    @Column(name = "regla_redondeo")
+    private String reglaRedondeo;
+
+    @Column(name = "redondeo_multiplo")
+    private java.math.BigDecimal redondeoMultiplo;
+
     public String getAbreviatura() {
         switch (denominacion) {
             case "GUARANI":
