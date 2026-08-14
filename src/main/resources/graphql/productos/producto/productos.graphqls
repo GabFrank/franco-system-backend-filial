@@ -15,6 +15,9 @@ type Producto {
     promocion: Boolean
     vencimiento: Boolean
     diasVencimiento: Int
+    # Requiere control de lote. Se administra en el central y baja por replicacion (MAIN_TO_ALL);
+    # aca se lee para saber si la venta tiene que resolver FEFO y ofrecer el selector de lotes.
+    lote: Boolean
     cambiable: Boolean
     usuario: Usuario
     imagenes: String
@@ -51,6 +54,9 @@ input ProductoInput {
     promocion: Boolean
     vencimiento: Boolean
     diasVencimiento: Int
+    # Necesario aunque el flag se administre en el central: updateProducto mapea el input entero
+    # sobre la entidad, asi que sin este campo un update desde la filial lo dejaria en null.
+    lote: Boolean
     cambiable: Boolean
     usuarioId: Int
     imagenes: String

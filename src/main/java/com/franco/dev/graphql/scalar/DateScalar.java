@@ -7,6 +7,7 @@ import graphql.schema.CoercingSerializeException;
 import graphql.schema.GraphQLScalarType;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -20,6 +21,13 @@ public class DateScalar extends GraphQLScalarType {
                 if (input instanceof LocalDateTime) {
                     LocalDateTime localDateTime = (LocalDateTime) input;
                     return DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(localDateTime);
+                }
+                // El maestro de lotes guarda vencimiento y retiro como LocalDate: son fechas de
+                // calendario, no instantes. Salen por el mismo scalar Date, asi que se completan
+                // al inicio del dia en vez de reventar la query entera.
+                if (input instanceof LocalDate) {
+                    LocalDate localDate = (LocalDate) input;
+                    return DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(localDate.atStartOfDay());
                 }
                 throw new CoercingSerializeException("Unable to serialize " + input + " as LocalDateTime.");
             }

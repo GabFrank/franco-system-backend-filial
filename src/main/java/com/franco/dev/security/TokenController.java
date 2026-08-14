@@ -76,6 +76,10 @@ public class TokenController {
         if (usuario != null) {
             Boolean matches = jwtUser.getPassword().toUpperCase().equals(usuario.getPassword().toUpperCase());
             if (matches) {
+                if (Boolean.FALSE.equals(usuario.getActivo())) {
+                    return ResponseEntity.ok(new LoginResponse(null, null, null,
+                            "Usuario inactivo, contacte al administrador"));
+                }
                 if (localList.size() == 0) {
                     throw new GraphQLException("Servidor no configurado");
                 } else {

@@ -1,0 +1,13 @@
+-- Marca un gasto de cajero como cancelado. La cancelacion se ejecuta en el central
+-- y baja por replicacion; la filial solo necesita conocer la columna y descontarla
+-- de su propio generarBalance.
+--
+-- Esta migracion tiene que estar aplicada en la filial ANTES de desplegar el central
+-- con la mutation cancelarGasto: si el central replica una columna que la filial no
+-- tiene, el apply worker de la suscripcion falla y la replicacion queda trabada
+-- acumulando WAL.
+--
+-- Nullable a proposito: NULL = no cancelado, y asi los gastos historicos no
+-- necesitan backfill. Por eso el chequeo es Boolean.TRUE.equals(...) en Java y
+-- IS NOT TRUE en SQL, nunca "= false".
+ALTER TABLE financiero.gasto ADD COLUMN IF NOT EXISTS cancelado BOOLEAN;

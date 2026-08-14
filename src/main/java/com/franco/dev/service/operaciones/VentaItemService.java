@@ -30,6 +30,13 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
     @Autowired
     private UsuarioService usuarioService;
 
+    /**
+     * Desglose por lote de la venta. Solo hace algo si el producto tiene control de lote, así que
+     * para el resto del catálogo el camino de cobro queda exactamente como estaba.
+     */
+    @Autowired
+    private VentaLoteService ventaLoteService;
+
     @Override
     public VentaItemRepository getRepository() {
         return repository;
@@ -51,7 +58,9 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
             MovimientoStock movimientoStock = movimientoStockService.findByTipoMovimientoAndReferencia(TipoMovimiento.VENTA, entity.getId());
             if (movimientoStock != null) {
                 movimientoStock.setEstado(false);
-                movimientoStockService.saveAndSend(movimientoStock, false);
+                MovimientoStock guardado = movimientoStockService.saveAndSend(movimientoStock, false);
+                // El soft delete del padre no dispara el ON DELETE CASCADE: hay que apagar las hijas.
+                ventaLoteService.cambiarEstado(guardado, false);
             }
         } else if (e.getVenta().getEstado() == VentaEstado.CONCLUIDA && e.getId() != null) {
             MovimientoStock movimientoStock = movimientoStockService.findByTipoMovimientoAndReferencia(TipoMovimiento.VENTA, e.getId());
@@ -64,7 +73,9 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
                 movimientoStock.setCantidad(e.getCantidad() * e.getPresentacion().getCantidad() * -1);
                 movimientoStock.setSucursalId(e.getSucursalId());
                 movimientoStock.setUsuario(e.getUsuario());
-                movimientoStockService.saveAndSend(movimientoStock, false);
+                MovimientoStock guardado = movimientoStockService.saveAndSend(movimientoStock, false);
+                // La cantidad pudo cambiar, asi que el reparto entre lotes se rehace entero.
+                ventaLoteService.registrarSalidaVenta(e, guardado, e.getLotesPreferidos());
             } else {
                 // Solo crear uno nuevo si no existe
                 log.debug("✅ Creando nuevo MovimientoStock para VentaItem ID: {}", e.getId());
@@ -79,7 +90,8 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
                 movimientoStock.setCreadoEn(e.getCreadoEn());
                 movimientoStock.setUsuario(e.getUsuario());
                 movimientoStock.setSucursalId(e.getSucursalId());
-                movimientoStockService.saveAndSend(movimientoStock, false);
+                MovimientoStock guardado = movimientoStockService.saveAndSend(movimientoStock, false);
+                ventaLoteService.registrarSalidaVenta(e, guardado, e.getLotesPreferidos());
             }
         }
 
@@ -99,7 +111,9 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
             MovimientoStock movimientoStock = movimientoStockService.findByTipoMovimientoAndReferencia(TipoMovimiento.VENTA, entity.getId());
             if (movimientoStock != null) {
                 movimientoStock.setEstado(false);
-                movimientoStockService.saveAndSend(movimientoStock, recibir);
+                MovimientoStock guardado = movimientoStockService.saveAndSend(movimientoStock, recibir);
+                // El soft delete del padre no dispara el ON DELETE CASCADE: hay que apagar las hijas.
+                ventaLoteService.cambiarEstado(guardado, false);
             }
         } else if (e.getId() != null) {
             MovimientoStock movimientoStock = movimientoStockService.findByTipoMovimientoAndReferencia(TipoMovimiento.VENTA, e.getId());
@@ -112,7 +126,9 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
                 movimientoStock.setCantidad(e.getCantidad() * e.getPresentacion().getCantidad() * -1);
                 movimientoStock.setSucursalId(e.getSucursalId());
                 movimientoStock.setUsuario(e.getUsuario());
-                movimientoStockService.saveAndSend(movimientoStock, recibir);
+                MovimientoStock guardado = movimientoStockService.saveAndSend(movimientoStock, recibir);
+                // La cantidad pudo cambiar, asi que el reparto entre lotes se rehace entero.
+                ventaLoteService.registrarSalidaVenta(e, guardado, e.getLotesPreferidos());
             } else {
                 // Solo crear uno nuevo si no existe
                 log.debug("✅ Creando nuevo MovimientoStock para VentaItem ID: {}", e.getId());
@@ -127,7 +143,8 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
                 movimientoStock.setCreadoEn(e.getCreadoEn());
                 movimientoStock.setUsuario(e.getUsuario());
                 movimientoStock.setSucursalId(e.getSucursalId());
-                movimientoStockService.saveAndSend(movimientoStock, recibir);
+                MovimientoStock guardado = movimientoStockService.saveAndSend(movimientoStock, recibir);
+                ventaLoteService.registrarSalidaVenta(e, guardado, e.getLotesPreferidos());
             }
         }
 

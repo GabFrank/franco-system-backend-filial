@@ -7,6 +7,11 @@ type Moneda {
     usuario: Usuario
     cambio: Float
     monedaBilleteList: [MonedaBilletes]
+    activo: Boolean
+    principal: Boolean
+    decimales: Int
+    reglaRedondeo: String
+    redondeoMultiplo: Float
 }
 
 input MonedaInput {
@@ -15,6 +20,11 @@ input MonedaInput {
     simbolo: String
     paisId: Int
     usuarioId: Int
+    activo: Boolean
+    principal: Boolean
+    decimales: Int
+    reglaRedondeo: String
+    redondeoMultiplo: Float
 }
 
 extend type Query {

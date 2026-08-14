@@ -31,6 +31,17 @@ input VentaItemInput {
     usuarioId: Int
     sucursalId: Int
     activo: Boolean
+    # Lotes elegidos a mano por el cajero. Omitir o mandar vacio = FEFO puro, que es el camino de
+    # casi todas las ventas. No se persiste: solo sesga la asignacion, y el registro real de que
+    # salio de cada lote queda en el ledger operaciones.movimiento_stock_lote.
+    lotes: [VentaItemLoteInput]
+}
+
+# Lote elegido a mano para un item de venta. La cantidad va EN UNIDADES BASE, la misma unidad que
+# muestra el selector del POS y en la que vive el ledger: no hay conversion en el medio.
+input VentaItemLoteInput {
+    loteId: ID
+    cantidad: Float
 }
 
 extend type Query {

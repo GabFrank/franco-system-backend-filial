@@ -14,6 +14,7 @@ type Cliente {
     tributa: Boolean
     verificadoSet: Boolean
     tipoContribuyente: Int
+    activo: Boolean
 }
 
 input ClienteInput {
@@ -32,6 +33,7 @@ input ClienteInput {
     tributa: Boolean
     verificadoSet: Boolean
     tipoContribuyente: Int
+    activo: Boolean
 }
 
 type ConsultaRucResponse {
