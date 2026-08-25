@@ -6,11 +6,36 @@ type DispositivoDetectado {
     descripcion: String
 }
 
+# Estado real de una cola CUPS (lpstat -p), independiente del flag impresora.activo de la BD.
+type ColaEstado {
+    nombre: String
+    # INACTIVA | IMPRIMIENDO | DESHABILITADA | DESCONOCIDA
+    estado: String
+    razon: String
+    habilitada: Boolean
+}
+
 extend type Query {
     dispositivosParaInstalar: [DispositivoDetectado]
+    # Shares de impresora publicados por un host Windows (smbclient -L). La password se usa
+    # solo para autenticar la consulta; no se persiste ni vuelve en la respuesta.
+    recursosSmb(host: String!, usuario: String, dominio: String, password: String): [DispositivoDetectado]
+    estadoColas: [ColaEstado]
 }
 
 extend type Mutation {
     instalarImpresoraCups(nombreCola: String!, uri: String!, raw: Boolean): Boolean
     compartirColaCups(nombreCola: String!, ipDestino: String): Boolean
+    # Instala una cola CUPS que entrega a un share de Windows via smbspool.
+    instalarImpresoraSmb(
+        nombreCola: String!
+        host: String!
+        recurso: String!
+        usuario: String
+        dominio: String
+        password: String
+        raw: Boolean
+    ): Boolean
+    # Rehabilita una cola que CUPS freno ante un fallo y le fija la politica de reintento.
+    reactivarCola(nombreCola: String!): Boolean
 }
