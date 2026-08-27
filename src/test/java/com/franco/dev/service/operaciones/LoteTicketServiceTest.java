@@ -52,7 +52,7 @@ class LoteTicketServiceTest {
                 fila("L2409A", LocalDate.of(2026, 9, 30), -1.0)));
 
         assertEquals(1, lineas.size());
-        assertEquals(" Lote: L2409A        Vto 09/2026", lineas.get(0));
+        assertEquals(" Lote: L2409A     Vto 30/09/2026", lineas.get(0));
         assertEquals(32, lineas.get(0).length());
     }
 
@@ -109,7 +109,7 @@ class LoteTicketServiceTest {
 
         String linea = lineas.get(0);
         assertEquals(32, linea.length());
-        assertTrue(linea.endsWith("Vto 09/2026"), linea);
+        assertTrue(linea.endsWith("Vto 30/09/2026"), linea);
     }
 
     @Test
@@ -146,7 +146,7 @@ class LoteTicketServiceTest {
         LoteTicketService servicio = servicioCon(Collections.<LoteVendidoDto>emptyList());
 
         escpos.writeLF("PILSEN CLASICA LATA 269 ML");
-        servicio.escribir(escpos, Collections.singletonList(" Lote: L2409A        Vto 09/2026"));
+        servicio.escribir(escpos, Collections.singletonList(" Lote: L2409A     Vto 30/09/2026"));
         escpos.writeLF("COCA COLA 2L");
 
         assertEquals("010", secuencia(salida.toByteArray(), 'E'), "ESC E (enfatizado)");

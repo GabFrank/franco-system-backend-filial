@@ -47,7 +47,12 @@ public class LoteTicketService {
     private static final String PREFIJO = " Lote: ";
     private static final String PREFIJO_VTO = "Vto ";
 
-    private static final DateTimeFormatter MES_ANIO = DateTimeFormatter.ofPattern("MM/yyyy");
+    /**
+     * Con el día completo y no solo mes/año: el vencimiento del ticket es el que se mira en un
+     * recall y en un reclamo de mostrador, y ahí "09/2026" no alcanza para saber si el producto
+     * estaba vencido el día que se vendió.
+     */
+    private static final DateTimeFormatter FECHA_VTO = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /** ESC G n: doble golpe. Ver {@link #escribir}. */
     private static final byte[] DOBLE_GOLPE_ON = {0x1B, 'G', 1};
@@ -209,7 +214,7 @@ public class LoteTicketService {
      */
     private String formatear(LoteVendidoDto fila, boolean conCantidad) {
         String derecha = fila.getFechaVencimiento() != null
-                ? PREFIJO_VTO + fila.getFechaVencimiento().format(MES_ANIO)
+                ? PREFIJO_VTO + fila.getFechaVencimiento().format(FECHA_VTO)
                 : "";
         String cantidad = conCantidad ? " x" + formatearCantidad(fila.getCantidad()) : "";
 
