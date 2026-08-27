@@ -21,6 +21,7 @@ import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.PagosTicketAgrupador;
 import com.franco.dev.service.operaciones.CobroDetalleService;
+import com.franco.dev.service.operaciones.LoteTicketService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.PersonaService;
@@ -94,6 +95,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private VentaService ventaService;
+
+    /** Resuelve las lineas de lote que van debajo de cada item. */
+    @Autowired
+    private LoteTicketService loteTicketService;
 
     @Autowired
     private FacturaLegalItemGraphQL facturaLegalItemGraphQL;
@@ -742,6 +747,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         escpos.writeLF("Producto");
         escpos.writeLF("Cant    P.U                 P.T");
         escpos.writeLF("--------------------------------");
+        // Una sola consulta para todos los items: dentro del cobro, una por item serian N.
+        Map<Long, List<String>> lineasLote = loteTicketService.lineasDeVentaItems(ventaItemList);
         for (VentaItem vi : ventaItemList) {
             String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad() + ")";
             // log.info(vi.getProducto().getDescripcion());
@@ -760,6 +767,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
             escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN)
                     .format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
+            loteTicketService.escribir(escpos, lineasLote.get(vi.getId()));
         }
         escpos.writeLF("--------------------------------");
         String valorGs = NumberFormat.getNumberInstance(Locale.GERMAN).format(venta.getTotalGs().intValue());
@@ -1023,6 +1031,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF("Producto");
             escpos.writeLF("Cant  IVA   P.U              P.T");
             escpos.writeLF("--------------------------------");
+            // Una sola consulta para todos los items: dentro del cobro, una por item serian N.
+            // Las claves son ids de venta_item, no de item de factura.
+            Map<Long, List<String>> lineasLote = loteTicketService.lineasDeFacturaItems(facturaLegalItemList);
             for (FacturaLegalItem vi : facturaLegalItemList) {
                 // Prioridad 1: IVA del item directamente
                 Integer iva = vi.getIva();
@@ -1069,6 +1080,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorTotal);
+                if (vi.getVentaItem() != null) {
+                    loteTicketService.escribir(escpos, lineasLote.get(vi.getVentaItem().getId()));
+                }
             }
             // escpos.writeLF("--------------------------------");
 
@@ -1659,6 +1673,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF("Producto");
             escpos.writeLF("Cant  IVA   P.U              P.T");
             escpos.writeLF("--------------------------------");
+            // Una sola consulta para todos los items: dentro del cobro, una por item serian N.
+            // Las claves son ids de venta_item, no de item de factura.
+            Map<Long, List<String>> lineasLote = loteTicketService.lineasDeFacturaItems(facturaLegalItemList);
             for (FacturaLegalItem vi : facturaLegalItemList) {
                 // Prioridad 1: IVA del item directamente
                 Integer iva = vi.getIva();
@@ -1711,6 +1728,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorTotal);
+                if (vi.getVentaItem() != null) {
+                    loteTicketService.escribir(escpos, lineasLote.get(vi.getVentaItem().getId()));
+                }
             }
 
             // Sección de totales en moneda extranjera
