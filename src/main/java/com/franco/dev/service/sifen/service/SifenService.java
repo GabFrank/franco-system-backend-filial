@@ -670,9 +670,7 @@ public class SifenService {
 
             if (estadoResultado == null) {
                 // Sin dEstRes no se toca el estado, pero el código de respuesta sí se persiste.
-            } else if ("Aprobado".equalsIgnoreCase(estadoResultado) ||
-                estadoResultado.toLowerCase().contains("aprobado con observación") ||
-                estadoResultado.toLowerCase().contains("aprobado con observacion")) {
+            } else if (mapearEstadoResultadoSifen(estadoResultado) == EstadoDE.APROBADO) {
 
                 // Solo actualizar a APROBADO si no está ya en un estado final más específico
                 if (de.getEstado() != EstadoDE.APROBADO &&
@@ -681,7 +679,7 @@ public class SifenService {
                     log.info("   ✅ DE aprobado por SIFEN");
                 }
 
-            } else if ("Rechazado".equalsIgnoreCase(estadoResultado)) {
+            } else if (mapearEstadoResultadoSifen(estadoResultado) == EstadoDE.RECHAZADO) {
 
                 // Actualizar a RECHAZADO si no está ya en ese estado
                 if (de.getEstado() != EstadoDE.RECHAZADO) {
@@ -1260,11 +1258,19 @@ public class SifenService {
             
             if (detalle != null) {
                 // Determinar estado basado en detalle individual
-                EstadoDE estadoIndividual = "Aprobado".equalsIgnoreCase(detalle.estado) 
-                    ? EstadoDE.APROBADO 
-                    : EstadoDE.RECHAZADO;
-            
-            documento.setEstado(estadoIndividual);
+                EstadoDE estadoIndividual = mapearEstadoResultadoSifen(detalle.estado);
+
+                if (estadoIndividual == null) {
+                    // dEstRes ausente o desconocido: no se infiere nada, igual que cuando
+                    // SIFEN no devuelve resultado para el CDC.
+                    sinConfirmar++;
+                    log.error("      ❌ Documento {} con dEstRes no reconocido ('{}') en el lote {} "
+                            + "- se mantiene en estado {} (no confirmado por SIFEN)",
+                        documento.getCdc(), detalle.estado, lote.getId(), documento.getEstado());
+                    continue;
+                }
+
+                documento.setEstado(estadoIndividual);
                 documento.setCodigoRespuestaSifen(detalle.codigo);
                 documento.setMensajeRespuestaSifen(detalle.mensaje);
                 
@@ -1333,7 +1339,7 @@ public class SifenService {
         
         if (startIndex > 13 && endIndex > startIndex) {
             String estadoResultado = xmlRespuesta.substring(startIndex, endIndex).trim();
-            return "Aprobado".equalsIgnoreCase(estadoResultado);
+            return mapearEstadoResultadoSifen(estadoResultado) == EstadoDE.APROBADO;
         }
         
         return false;
@@ -1383,6 +1389,30 @@ public class SifenService {
     /**
      * Extrae un valor específico de un bloque XML.
      */
+    /**
+     * Mapea el <dEstRes> que devuelve SIFEN a nuestro {@link EstadoDE}.
+     *
+     * <p>SIFEN responde con tres valores: "Aprobado", "Aprobado con observación" y
+     * "Rechazado". <b>"Aprobado con observación" es una aprobación</b> — la observación
+     * típica es la transmisión fuera del plazo, y el documento queda válido igual.
+     *
+     * <p>Se compara por prefijo y no por la frase completa a propósito: el texto llega
+     * con tilde o sin tilde según el ambiente, y a veces HTML-escapado
+     * ("observaci&amp;#243;n"), porque {@code extraerValorXML} no decodifica entidades
+     * y {@code decodeHtmlEntities} no cubre las numéricas. Comparar la frase entera
+     * hacía caer "Aprobado con observación" en el {@code else} de rechazo.
+     *
+     * @return el estado correspondiente, o {@code null} si no se reconoce — en ese caso
+     *         el llamador no debe inferir nada y tiene que dejar el documento sin confirmar.
+     */
+    static EstadoDE mapearEstadoResultadoSifen(String dEstRes) {
+        if (dEstRes == null) return null;
+        String estado = dEstRes.trim().toLowerCase();
+        if (estado.startsWith("aprobado")) return EstadoDE.APROBADO;
+        if (estado.startsWith("rechazado")) return EstadoDE.RECHAZADO;
+        return null;
+    }
+
     private String extraerValorXML(String xml, String tagInicio, String tagFin) {
         try {
             int inicio = xml.indexOf(tagInicio);
