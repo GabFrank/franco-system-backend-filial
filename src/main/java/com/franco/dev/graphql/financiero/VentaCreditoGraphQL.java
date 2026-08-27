@@ -20,6 +20,7 @@ import com.franco.dev.service.financiero.VentaCreditoCuotaService;
 import com.franco.dev.service.financiero.VentaCreditoService;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.operaciones.DeliveryService;
+import com.franco.dev.service.operaciones.LoteTicketService;
 import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
@@ -49,6 +50,7 @@ import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.franco.dev.service.utils.PrintingService.resize;
@@ -99,6 +101,10 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private DeliveryService deliveryService;
+
+    /** Resuelve las lineas de lote que van debajo de cada item. */
+    @Autowired
+    private LoteTicketService loteTicketService;
 
     public Optional<VentaCredito> ventaCredito(Long id) {
         return service.findById(id);
@@ -252,6 +258,8 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             if (ventaItemList == null) {
                 ventaItemList = ventaItemService.findByVentaId(venta.getId());
             }
+            // Una sola consulta para todos los items: dentro del cobro, una por item serian N.
+            Map<Long, List<String>> lineasLote = loteTicketService.lineasDeVentaItems(ventaItemList);
             for (VentaItem vi : ventaItemList) {
                 String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad().intValue() + ") " + "10%";
                 escpos.writeLF(vi.getProducto().getDescripcion());
@@ -266,6 +274,7 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     escpos.write(" ");
                 }
                 escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
+                loteTicketService.escribir(escpos, lineasLote.get(vi.getId()));
             }
             if (delivery != null) {
                 escpos.writeLF("--------------------------------");
