@@ -56,6 +56,16 @@ public class Impresora implements Serializable {
     /** Direccion IP (conexion RED / inalambrica). */
     private String ip;
 
+    /**
+     * Datos del share de Windows (conexion SMB). Espejo de las columnas del central: la password
+     * NO se replica (esta tabla llega a todas las filiales); vive solo en el device-uri que CUPS
+     * guarda en /etc/cups/printers.conf del host duenio de la cola.
+     */
+    private String smbHost;
+    private String smbRecurso;
+    private String smbUsuario;
+    private String smbDominio;
+
     /** Puerto RAW/JetDirect (default 9100) para conexion RED. */
     private Integer puerto;
 
