@@ -44,7 +44,7 @@ public class LoteTicketService {
     /** Ancho útil de la impresora de 58mm en fuente A, el mismo que usan los separadores. */
     private static final int ANCHO_TICKET = 32;
 
-    private static final String PREFIJO = " Lote ";
+    private static final String PREFIJO = " Lote: ";
     private static final String PREFIJO_VTO = "Vto ";
 
     private static final DateTimeFormatter MES_ANIO = DateTimeFormatter.ofPattern("MM/yyyy");

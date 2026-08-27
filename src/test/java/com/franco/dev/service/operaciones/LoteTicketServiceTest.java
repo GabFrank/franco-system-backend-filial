@@ -52,7 +52,7 @@ class LoteTicketServiceTest {
                 fila("L2409A", LocalDate.of(2026, 9, 30), -1.0)));
 
         assertEquals(1, lineas.size());
-        assertEquals(" Lote L2409A         Vto 09/2026", lineas.get(0));
+        assertEquals(" Lote: L2409A        Vto 09/2026", lineas.get(0));
         assertEquals(32, lineas.get(0).length());
     }
 
@@ -82,7 +82,7 @@ class LoteTicketServiceTest {
     void sinVencimientoLaLineaQuedaSoloConElNumero() {
         List<String> lineas = lineasDe(Collections.singletonList(fila("L2409A", null, -1.0)));
 
-        assertEquals(" Lote L2409A", lineas.get(0));
+        assertEquals(" Lote: L2409A", lineas.get(0));
     }
 
     /** Ver {@code LoteFefoService.NUMERO_LOTE_SIN_TRAZAR}: no es un lote, es el stock sin atribuir. */
@@ -146,7 +146,7 @@ class LoteTicketServiceTest {
         LoteTicketService servicio = servicioCon(Collections.<LoteVendidoDto>emptyList());
 
         escpos.writeLF("PILSEN CLASICA LATA 269 ML");
-        servicio.escribir(escpos, Collections.singletonList(" Lote L2409A         Vto 09/2026"));
+        servicio.escribir(escpos, Collections.singletonList(" Lote: L2409A        Vto 09/2026"));
         escpos.writeLF("COCA COLA 2L");
 
         assertEquals("010", secuencia(salida.toByteArray(), 'E'), "ESC E (enfatizado)");
