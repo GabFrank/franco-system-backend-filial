@@ -73,7 +73,8 @@ public class FacturaSimilarService {
      */
     @Transactional(readOnly = true)
     public FacturaSimilarDto buscarFacturaSimilarReciente(Long usuarioId, Long clienteId,
-                                                          Double totalFinal, List<FacturaLegalItemInput> items) {
+                                                          Double totalFinal, List<FacturaLegalItemInput> items,
+                                                          Long sucursalId) {
         if (usuarioId == null || totalFinal == null || items == null || items.isEmpty()) {
             return null;
         }
@@ -83,7 +84,11 @@ public class FacturaSimilarService {
             return null;
         }
 
-        Long sucursalId = Long.valueOf(env.getProperty("sucursalId"));
+        // El desktop manda la sucursal cuando factura contra una sucursal elegida a mano;
+        // en el POS no la manda y vale la del propio servidor filial.
+        if (sucursalId == null) {
+            sucursalId = Long.valueOf(env.getProperty("sucursalId"));
+        }
         LocalDateTime desde = LocalDate.now().atStartOfDay();
 
         List<FacturaLegal> candidatas = facturaLegalRepository

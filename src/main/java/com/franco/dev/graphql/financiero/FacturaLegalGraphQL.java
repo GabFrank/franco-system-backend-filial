@@ -169,8 +169,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     public com.franco.dev.domain.financiero.dto.FacturaSimilarDto facturaSimilarReciente(
             Long usuarioId, Long clienteId, Double totalFinal,
-            List<FacturaLegalItemInput> items) {
-        return facturaSimilarService.buscarFacturaSimilarReciente(usuarioId, clienteId, totalFinal, items);
+            List<FacturaLegalItemInput> items, Long sucursalId) {
+        return facturaSimilarService.buscarFacturaSimilarReciente(
+                usuarioId, clienteId, totalFinal, items, sucursalId);
     }
 
     public List<FacturaLegal> facturaLegales(int page, int size, Long sucId) {
