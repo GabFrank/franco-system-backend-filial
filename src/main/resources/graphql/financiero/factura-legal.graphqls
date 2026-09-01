@@ -101,7 +101,7 @@ type FacturaSimilar {
 }
 
 extend type Query {
-    facturaSimilarReciente(usuarioId: ID!, clienteId: ID, totalFinal: Float!, items: [FacturaLegalItemInput]): FacturaSimilar
+    facturaSimilarReciente(usuarioId: ID!, clienteId: ID, totalFinal: Float!, items: [FacturaLegalItemInput], sucursalId: ID): FacturaSimilar
     facturaLegal(id: ID!, sucId: ID): FacturaLegal
     facturaLegales(page: Int = 0, size: Int = 10, sucId: ID): [FacturaLegal]!
     countFacturaLegal: Int
