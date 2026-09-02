@@ -24,6 +24,15 @@ public class CrearFacturaLegalRequestDTO {
 
     private Long clienteId;
 
+    /**
+     * Datos del cliente enviados por el central para poder materializarlo si esta filial
+     * todavia no lo tiene. Viene lleno siempre que clienteId no sea null.
+     */
+    private ClienteFacturaDTO cliente;
+
+    /** Usuario que emite la factura, para no perder la trazabilidad de quien la genero. */
+    private Long usuarioId;
+
     @NotBlank(message = "El nombre del cliente es requerido")
     @Size(max = 255, message = "El nombre no puede exceder 255 caracteres")
     private String nombre;
