@@ -18,7 +18,9 @@ import java.io.OutputStream;
 /**
  * Abre el destino de impresion correcto a partir de una {@link Impresora} del registro:
  * <ul>
- *   <li>CUPS / USB / BLUETOOTH: cola local del sistema via {@link PrinterOutputStream}.</li>
+ *   <li>CUPS / USB / SMB / BLUETOOTH: cola local del sistema via {@link PrinterOutputStream}.
+ *       En SMB la cola apunta a un share de Windows (device-uri {@code smb://...}); el que habla
+ *       CIFS es el backend smb de CUPS, para Java es una cola mas.</li>
  *   <li>RED / inalambrica: socket a IP:puerto via {@link TcpIpOutputStream} (RAW/JetDirect).</li>
  * </ul>
  * Devuelve un {@link EscPos} listo para escribir y el {@link TicketFormato} con las

@@ -11,7 +11,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -83,12 +85,7 @@ public class CupsAdminService {
             log.warn("[CUPS] Parametros invalidos para instalar (cola='{}', uri='{}')", cola, uri);
             return false;
         }
-        // printer-error-policy=retry-current-job: ante un error del backend la cola NO se pausa
-        // (evita el "stop-printer" por defecto, que deja la impresora inactiva y los jobs pendientes).
-        List<String> cmd = new ArrayList<>(Arrays.asList(
-                "lpadmin", "-p", cola, "-E", "-v", uri, "-m", raw ? "raw" : "everywhere",
-                "-o", "printer-error-policy=retry-current-job"));
-        return ejecutar(cmd);
+        return ejecutar(comandoInstalar(cola, uri, raw));
     }
 
     /**
@@ -171,7 +168,106 @@ public class CupsAdminService {
         }
     }
 
+
+    // ---- impresoras compartidas por un host Windows (SMB/CIFS) ----
+
+    /**
+     * Lista los shares de impresora publicados por un host Windows via
+     * {@code smbclient -L //host -g}. Sin credenciales usa login anonimo ({@code -N}), que en
+     * la practica suele devolver {@code NT_STATUS_ACCESS_DENIED} (asi respondio adm-bodega).
+     *
+     * <p>La password se pasa por la variable de entorno {@code PASSWD} y no por argumento, para
+     * que no quede visible en {@code ps} para el resto de los usuarios del host.</p>
+     */
+    public List<DispositivoDetectado> detectarRecursosSmb(String host, String usuario,
+                                                          String dominio, String password) {
+        if (host == null || host.trim().isEmpty()) {
+            log.warn("[SMB] Host requerido para detectar recursos");
+            return Collections.emptyList();
+        }
+        List<String> cmd = new ArrayList<>(Arrays.asList("smbclient", "-L", "//" + host.trim(), "-g"));
+        Map<String, String> env = new HashMap<>();
+        if (usuario != null && !usuario.trim().isEmpty()) {
+            String identidad = (dominio != null && !dominio.trim().isEmpty())
+                    ? dominio.trim() + "\\" + usuario.trim()
+                    : usuario.trim();
+            cmd.add("-U");
+            cmd.add(identidad);
+            env.put("PASSWD", password == null ? "" : password);
+        } else {
+            cmd.add("-N");
+        }
+        Resultado r = correr(cmd, env);
+        List<DispositivoDetectado> recursos = SmbPrinterSupport.recursosDeImpresora(host.trim(), r.salida);
+        if (recursos.isEmpty() && r.codigo != 0) {
+            log.warn("[SMB] No se pudieron listar los recursos de {}: {}", host, r.salida.trim());
+        }
+        return recursos;
+    }
+
+    /**
+     * Instala una cola CUPS que entrega los jobs a una impresora compartida por un host Windows,
+     * usando el backend {@code smb} de CUPS (smbspool). Para el motor de impresion Java pasa a ser
+     * una cola local mas.
+     *
+     * <p>La password se usa solo para armar el device-uri y no se persiste en la BD: queda en
+     * {@code /etc/cups/printers.conf} (root-only), que es donde CUPS la necesita para reconectar.</p>
+     */
+    public boolean instalarImpresoraSmb(String nombreCola, String host, String recurso,
+                                        String usuario, String dominio, String password, boolean raw) {
+        String cola = sanearNombre(nombreCola);
+        if (cola.isEmpty()) {
+            log.warn("[SMB] Nombre de cola invalido");
+            return false;
+        }
+        String uri;
+        try {
+            uri = SmbPrinterSupport.deviceUri(host, recurso, usuario, dominio, password);
+        } catch (IllegalArgumentException e) {
+            log.warn("[SMB] No se pudo armar el device-uri: {}", e.getMessage());
+            return false;
+        }
+        return ejecutar(comandoInstalar(cola, uri, raw));
+    }
+
+    // ---- estado real de las colas ----
+
+    /**
+     * Estado real de las colas CUPS de este host ({@code lpstat -p}). La app mostraba
+     * {@code impresora.activo} de la BD, que no sabe nada de una cola frenada por CUPS.
+     */
+    public List<ColaEstado> estadoColas() {
+        return ColaEstado.parsear(correr(Arrays.asList("lpstat", "-p")).salida);
+    }
+
+    /**
+     * Vuelve a habilitar una cola que CUPS freno ante un fallo del backend y libera los jobs
+     * retenidos. Ademas le fija {@code printer-error-policy=retry-current-job}: sin eso la cola
+     * se vuelve a deshabilitar sola en el proximo corte (es lo que le paso a adm_ticket, creada
+     * a mano con la politica {@code stop-printer} por defecto).
+     */
+    public boolean reactivarCola(String nombreCola) {
+        String cola = sanearNombre(nombreCola);
+        if (cola.isEmpty()) {
+            log.warn("[CUPS] Nombre de cola invalido para reactivar");
+            return false;
+        }
+        ejecutar(Arrays.asList("lpadmin", "-p", cola, "-o", "printer-error-policy=retry-current-job"));
+        ejecutar(Arrays.asList("cupsaccept", cola));
+        return ejecutar(Arrays.asList("cupsenable", "--release", cola));
+    }
+
     // ---- helpers ----
+
+    /**
+     * printer-error-policy=retry-current-job: ante un error del backend la cola NO se pausa
+     * (evita el "stop-printer" por defecto, que deja la impresora inactiva y los jobs pendientes).
+     */
+    private List<String> comandoInstalar(String cola, String uri, boolean raw) {
+        return new ArrayList<>(Arrays.asList(
+                "lpadmin", "-p", cola, "-E", "-v", uri, "-m", raw ? "raw" : "everywhere",
+                "-o", "printer-error-policy=retry-current-job"));
+    }
 
     private DispositivoDetectado parsearLinea(String lineaRaw) {
         if (lineaRaw == null) {
@@ -259,8 +355,23 @@ public class CupsAdminService {
     }
 
     private Resultado correr(List<String> cmd) {
+        return correr(cmd, Collections.emptyMap());
+    }
+
+    /**
+     * Ejecuta un comando con {@code LC_ALL=C} (las salidas de lpstat/lpadmin se parsean por texto,
+     * no pueden depender del idioma del sistema) y con las variables de entorno extra que reciba
+     * (se usa para pasarle {@code PASSWD} a smbclient sin exponerla en {@code ps}).
+     *
+     * <p>Tanto el comando como su salida se loguean redactados: pueden contener la password del
+     * share de Windows.</p>
+     */
+    private Resultado correr(List<String> cmd, Map<String, String> envExtra) {
         try {
-            Process proceso = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+            ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
+            pb.environment().put("LC_ALL", "C");
+            pb.environment().putAll(envExtra);
+            Process proceso = pb.start();
             StringBuilder salida = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(proceso.getInputStream(), StandardCharsets.UTF_8))) {
@@ -272,13 +383,14 @@ public class CupsAdminService {
             boolean termino = proceso.waitFor(TIMEOUT_SEG, TimeUnit.SECONDS);
             int codigo = termino ? proceso.exitValue() : -1;
             if (codigo != 0) {
-                log.warn("[CUPS] Comando {} terminó con código {}: {}", cmd, codigo, salida.toString().trim());
+                log.warn("[CUPS] Comando {} terminó con código {}: {}", SmbPrinterSupport.redactar(cmd),
+                        codigo, SmbPrinterSupport.redactarTexto(salida.toString().trim()));
             } else {
-                log.info("[CUPS] Comando {} OK", cmd);
+                log.info("[CUPS] Comando {} OK", SmbPrinterSupport.redactar(cmd));
             }
             return new Resultado(codigo, salida.toString());
         } catch (Exception e) {
-            log.error("[CUPS] Error ejecutando {}: {}", cmd, e.getMessage(), e);
+            log.error("[CUPS] Error ejecutando {}: {}", SmbPrinterSupport.redactar(cmd), e.getMessage(), e);
             return new Resultado(-1, e.getMessage() == null ? "" : e.getMessage());
         }
     }
