@@ -16,6 +16,8 @@ enum TipoConexion {
     CUPS
     USB
     RED
+    # Impresora compartida por un host Windows (transporte via backend smb de CUPS)
+    SMB
     BLUETOOTH
 }
 
@@ -41,6 +43,11 @@ type Impresora {
     colaCups: String
     ip: String
     puerto: Int
+    # Share de Windows (conexion SMB). Nunca incluye la password.
+    smbHost: String
+    smbRecurso: String
+    smbUsuario: String
+    smbDominio: String
     perfilPapel: PerfilPapel
     columnas: Int
     anchoMm: Int

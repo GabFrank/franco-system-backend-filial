@@ -30,6 +30,7 @@ import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.PagosTicketAgrupador;
 import com.franco.dev.service.operaciones.CobroDetalleService;
+import com.franco.dev.service.operaciones.LoteTicketService;
 import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.DeliveryService;
 import com.franco.dev.service.operaciones.VentaDuplicadaCacheService;
@@ -95,6 +96,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     private VentaService service;
     @Autowired
     private VentaItemService ventaItemService;
+    /** Resuelve las lineas de lote que van debajo de cada item. */
+    @Autowired
+    private LoteTicketService loteTicketService;
     @Autowired
     private UsuarioService usuarioService;
     @Autowired
@@ -564,6 +568,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             if (ventaItemList == null) {
                 ventaItemList = ventaItemService.findByVentaId(venta.getId());
             }
+            // Una sola consulta para todos los items: dentro del cobro, una por item serian N.
+            Map<Long, List<String>> lineasLote = loteTicketService.lineasDeVentaItems(ventaItemList);
             for (VentaItem vi : ventaItemList) {
                 String cantidad = df.format(vi.getCantidad().doubleValue()) + " ("
                         + vi.getPresentacion().getCantidad().intValue() + ") " + "10%";
@@ -582,6 +588,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorTotal);
+                loteTicketService.escribir(escpos, lineasLote.get(vi.getId()));
             }
             if (delivery != null) {
                 escpos.writeLF("--------------------------------");

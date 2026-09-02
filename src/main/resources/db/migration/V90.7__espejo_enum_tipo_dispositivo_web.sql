@@ -1,0 +1,33 @@
+-- Espejo en FILIAL del fix de enum aplicado en CENTRAL por V192.5
+-- (frc-comercial/central: V192.5__fix_tipo_dispositivo_web_enum.sql).
+--
+-- El schema inicial define por error un unico label mal formado 'WEBWEB_MOBILE'
+-- (dos valores concatenados por un typo), por lo que faltan 'WEB' y 'WEB_MOBILE'.
+-- Central ya los agrego; la replicacion logica NO propaga DDL, asi que las filiales
+-- quedaron con el enum viejo.
+--
+-- Consecuencia real (incidente 2026-08-20, filial 1 farmacia): en cuanto un usuario
+-- inicia sesion desde la app servida como web o desde la PWA, central inserta la fila
+-- en configuraciones.inicio_sesion con tipo_dispositivo = 'WEB' / 'WEB_MOBILE' y la
+-- publica por central_filial<N>_pub. El apply worker del filial no conoce el label y
+-- muere:
+--   ERROR: la sintaxis de entrada no es valida para el enum
+--          configuraciones.tipo_dispositivo: «WEB_MOBILE»
+-- -> crash-loop cada 5s, worker sin pid, slot inactivo con WAL retenido creciendo,
+--    y la bajada central->filial cortada por completo para esa sucursal.
+--
+-- Efecto secundario observado: con la bajada cortada el filial deja de ver los ids
+-- que central va creando en inicio_sesion, su findMaxId se atrasa y termina generando
+-- una PK (id, sucursal_id) que central ya tenia -> duplicate key -> tambien se corta
+-- la subida filial->central. Una sola causa raiz rompe las dos direcciones.
+--
+-- Estrategia aditiva (regla del proyecto): solo se agregan los valores faltantes.
+-- El label 'WEBWEB_MOBILE' queda huerfano (Postgres no soporta eliminar valores de un
+-- enum); no se usa desde el codigo.
+--
+-- ADD VALUE IF NOT EXISTS es idempotente y corre dentro de la transaccion de Flyway en
+-- PostgreSQL 12+ (el valor nuevo no se usa en la misma transaccion). En las filiales
+-- parcheadas a mano durante el incidente queda no-op.
+
+ALTER TYPE configuraciones.tipo_dispositivo ADD VALUE IF NOT EXISTS 'WEB';
+ALTER TYPE configuraciones.tipo_dispositivo ADD VALUE IF NOT EXISTS 'WEB_MOBILE';

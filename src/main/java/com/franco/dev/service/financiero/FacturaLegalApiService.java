@@ -3,6 +3,8 @@ package com.franco.dev.service.financiero;
 import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.FacturaLegalItem;
 import com.franco.dev.domain.financiero.TimbradoDetalle;
+import com.franco.dev.domain.personas.Cliente;
+import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.dto.factura.CrearFacturaLegalRequestDTO;
 import com.franco.dev.dto.factura.DisponibilidadTimbradoDetalleResponseDTO;
 import com.franco.dev.graphql.financiero.FacturaLegalGraphQL;
@@ -33,6 +35,8 @@ public class FacturaLegalApiService {
     private final FacturaLegalGraphQL facturaLegalGraphQL;
     private final com.franco.dev.service.financiero.builder.FacturaLegalBuilder facturaLegalBuilder;
     private final ObjectMapper objectMapper;
+    private final com.franco.dev.service.personas.ClienteDelCentralService clienteDelCentralService;
+    private final com.franco.dev.repository.personas.UsuarioRepository usuarioRepository;
 
     /**
      * Verifica la disponibilidad de un timbrado detalle para emitir facturas.
@@ -226,10 +230,26 @@ public class FacturaLegalApiService {
             throw new IllegalStateException("El timbrado detalle no tiene una sucursal asignada");
         }
 
-        // Asignar cliente si se proporciona
+        // Asignar cliente si se proporciona. Puede no existir localmente: personas y
+        // clientes no llegan por replicacion a todas las filiales, asi que el central
+        // manda sus datos y aca se materializa. Antes se guardaba con cliente_id null y
+        // sin ningun aviso.
         if (request.getClienteId() != null) {
-            clienteService.findById(request.getClienteId())
-                    .ifPresent(facturaLegal::setCliente);
+            Cliente cliente = clienteDelCentralService
+                    .resolverOMaterializar(request.getClienteId(), request.getCliente())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "El cliente " + request.getClienteId() + " no existe en esta sucursal y el "
+                                    + "servidor central no envio sus datos para crearlo"));
+            facturaLegal.setCliente(cliente);
+        }
+
+        // Asignar el usuario que emite. Es trazabilidad fiscal: si el central lo manda y
+        // aca no existe, se rechaza en vez de perderlo en silencio.
+        if (request.getUsuarioId() != null) {
+            Usuario usuario = usuarioRepository.findById(request.getUsuarioId())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "El usuario " + request.getUsuarioId() + " no existe en esta sucursal"));
+            facturaLegal.setUsuario(usuario);
         }
 
         // Asignar caja si se proporciona
