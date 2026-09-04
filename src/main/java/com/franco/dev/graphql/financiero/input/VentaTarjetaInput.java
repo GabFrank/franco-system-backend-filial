@@ -10,6 +10,9 @@ public class VentaTarjetaInput {
     private Long sucursalId;
     private Long ventaId;
     private Long terminalPosId;
+
+    /** Moneda del cobro que este registro respalda. Sin ella, monto no tiene unidad. */
+    private Long monedaId;
     private Long cajaId;
     private String codigoAutorizacion;
     private String numeroBoleta;
