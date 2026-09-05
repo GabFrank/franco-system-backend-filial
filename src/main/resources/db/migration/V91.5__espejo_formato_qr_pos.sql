@@ -1,4 +1,4 @@
--- Espejo de la estructura que CENTRAL crea en V216.5 (formato de QR impreso por el POS).
+-- Espejo de la estructura que CENTRAL crea en V217.5 (formato de QR impreso por el POS).
 --
 -- POR QUE ESTA MIGRACION EXISTE Y POR QUE VA PRIMERO
 --
@@ -9,7 +9,7 @@
 -- y entra en crash-loop cada 5s con el slot inactivo reteniendo WAL. Es exactamente el corte
 -- del 2026-08-20 con tipo_dispositivo, y lo que V89.5 documenta.
 --
--- Por eso esta migracion se despliega en TODA la flota ANTES que la V216.5 del central.
+-- Por eso esta migracion se despliega en TODA la flota ANTES que la V217.5 del central.
 -- Mismo patron que V81.2 respecto de la V153.2 de central.
 --
 -- Todo aditivo e idempotente. Sin FK a personas.proveedor_servicio: si por cualquier motivo la
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS financiero.formato_qr_pos (
 );
 
 -- Indice, NO constraint unico: un UNIQUE en el subscriber puede abortar el apply si el central
--- manda un update transitorio que lo viole. La unicidad se garantiza en el central (V216.5).
+-- manda un update transitorio que lo viole. La unicidad se garantiza en el central (V217.5).
 CREATE INDEX IF NOT EXISTS idx_formato_qr_pos_proveedor
     ON financiero.formato_qr_pos (proveedor_servicio_id);
 

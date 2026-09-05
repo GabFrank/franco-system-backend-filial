@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  * Como se lee el QR que imprime la maquinita de un proveedor.
  * <p>
  * En el filial es SOLO LECTURA: la fila se administra en el central y baja por
- * replicacion MAIN_TO_ALL (V216.5 central / V91.5 espejo aca). No hay mutation
+ * replicacion MAIN_TO_ALL (V217.5 central / V91.5 espejo aca). No hay mutation
  * en este repo a proposito — un formato editable desde una sucursal se
  * desincronizaria del resto de la flota en cuanto alguien lo tocara.
  * <p>
