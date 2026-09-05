@@ -225,6 +225,7 @@ Si modificás un resolver/schema que el desktop o mobile consumen:
 - [../../REPORTE_VULNERABILIDADES.md](../../REPORTE_VULNERABILIDADES.md) — Auditoría 2026-04-02. Tiene hallazgos críticos abiertos en código de auth de **este** repo (plaintext passwords en `TokenController.java`, password en JWT claims en `JwtGenerator.java`). Leer antes de tocar `security/`.
 - [../../CLAUDE.md](../../CLAUDE.md) — Mapa cross-project del workspace (los 4 componentes + frc-efact + sifen).
 - [../central/CLAUDE.md](../central/CLAUDE.md) — Server central, usa el mismo mecanismo de `application-user-dev.properties`.
+- [../central/docs/manuales-implementacion/financiero/VENTA-TARJETA-QR-CUPON.md](../central/docs/manuales-implementacion/financiero/VENTA-TARJETA-QR-CUPON.md) — Registro de cobros con tarjeta leyendo el QR del cupón. **La mutation que completa una `venta_tarjeta` corre contra este repo** (`VentaTarjetaService.completar()`), y `financiero.formato_qr_pos` acá es un espejo de la tabla del central (`V91.5`): el ABM vive allá.
 
 ## Automated Issue Resolution (Claude Code Action)
 
