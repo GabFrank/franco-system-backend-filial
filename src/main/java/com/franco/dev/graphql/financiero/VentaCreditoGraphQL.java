@@ -335,7 +335,7 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 sb.append(itens.get(x).getVencimiento().format(formatter));
                 sb.append(" pagare solidariamente al Sr. FRANCO AREVALOS S.A. la suma de G$ ");
                 sb.append(valorPagare);
-                sb.append("por el valor recibido a mi/nuestro entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara contituida la MORA automatica, sin necesidad de interpelacion alguna.");
+                sb.append(" por el valor recibido a mi/nuestra entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara contituida la MORA automatica, sin necesidad de interpelacion alguna.");
                 escpos.write(sb.toString());
                 escpos.feed(4);
                 escpos.writeLF("   --------------------------   ");
