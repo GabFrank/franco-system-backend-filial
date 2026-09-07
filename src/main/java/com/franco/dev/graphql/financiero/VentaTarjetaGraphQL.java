@@ -1,7 +1,9 @@
 package com.franco.dev.graphql.financiero;
 
 import com.franco.dev.domain.financiero.VentaTarjeta;
+import com.franco.dev.graphql.financiero.input.CompletarVentaTarjetaInput;
 import com.franco.dev.graphql.financiero.input.VentaTarjetaInput;
+import com.franco.dev.service.financiero.MonedaService;
 import com.franco.dev.service.financiero.TerminalPosService;
 import com.franco.dev.service.financiero.VentaTarjetaService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -26,6 +28,9 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private TerminalPosService terminalPosService;
+
+    @Autowired
+    private MonedaService monedaService;
 
     @Autowired
     private UsuarioService usuarioService;
@@ -62,10 +67,36 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (input.getTerminalPosId() != null) {
             entity.setTerminalPos(terminalPosService.findById(input.getTerminalPosId()).orElse(null));
         }
+        // La moneda del COBRO, no la de la terminal: es el cobro el que se esta pagando, y sin
+        // ella monto/monto_escaneado quedan sin unidad.
+        if (input.getMonedaId() != null) {
+            entity.setMoneda(monedaService.findById(input.getMonedaId()).orElse(null));
+        }
         if (input.getUsuarioId() != null) {
             entity.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         }
         return service.save(entity);
+    }
+
+    /**
+     * Completa un PENDIENTE con los datos que vienen del QR impreso por el POS, leidos con el
+     * lector del PDV. Es el reemplazo del camino foto+OCR desde el celular.
+     * <p>
+     * Deliberadamente NO reusa saveVentaTarjeta: ese arma la entidad de cero y dejaria en null
+     * ventaId, cajaId, monto, terminalPos y usuario. Ver VentaTarjetaService#completar, que
+     * ademas valida que el estado sea PENDIENTE (el updateVentaTarjeta del central no valida).
+     */
+    public VentaTarjeta completarVentaTarjeta(CompletarVentaTarjetaInput input) {
+        return service.completar(
+                input.getId(),
+                input.getSucursalId(),
+                input.getCodigoAutorizacion(),
+                input.getNumeroBoleta(),
+                input.getMontoEscaneado(),
+                input.getIdentificadorTransaccion(),
+                input.getQrCrudo(),
+                input.getCobroDetalleId(),
+                input.getMonedaId());
     }
 
     public Boolean cancelarVentaTarjetaPorVentaId(Long ventaId, Long sucId) {

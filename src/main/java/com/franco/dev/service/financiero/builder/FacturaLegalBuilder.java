@@ -73,7 +73,26 @@ public class FacturaLegalBuilder {
         this.sifenService = sifenService;
     }
 
-    @Transactional
+    /**
+     * ⚠️ noRollbackFor NO es cosmetico: sin el, un fallo de facturacion PIERDE LA VENTA.
+     * <p>
+     * Este metodo participa en la transaccion de VentaGraphQL#saveVenta (REQUIRED). Cuando la
+     * facturacion silenciosa falla, el catch de VentaGraphQL loguea y sigue "para no romper el
+     * flujo de venta" — pero el interceptor transaccional ya marco la transaccion como
+     * rollback-only al ver salir la excepcion, y el commit termina en
+     * UnexpectedRollbackException. El cajero ve "Ups! Algo salio mal: Transaction silently
+     * rolled back" y la venta desaparece con el cliente ya pagado. Lo dispara cualquier cosa
+     * rutinaria: timbrado vencido, rango agotado, PDV sin timbrado del tipo que corresponde.
+     * <p>
+     * Solo se exceptua GraphQLException, que es lo que lanzan las validaciones de arriba, TODAS
+     * antes del primer write. Las demas excepciones siguen abortando a proposito: si algo revienta
+     * despues de insertar la cabecera o parte de los items, esas filas quedarian a medias dentro
+     * de la transaccion de la venta y confirmarlas seria peor que perder la operacion.
+     * <p>
+     * REQUIRES_NEW no es alternativa: financiero.factura_legal tiene FK a operaciones.venta y la
+     * venta todavia no esta commiteada, asi que en otra transaccion el insert violaria la FK.
+     */
+    @Transactional(noRollbackFor = GraphQLException.class)
     public FacturaLegal build(BuildRequest request) {
         FacturaLegal facturaLegal = request.getFacturaLegal();
         Long pdvId = request.getPdvId();

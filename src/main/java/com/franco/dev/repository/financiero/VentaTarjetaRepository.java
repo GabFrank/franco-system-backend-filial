@@ -26,4 +26,7 @@ public interface VentaTarjetaRepository extends HelperRepository<VentaTarjeta, L
     List<VentaTarjeta> findByCajaIdAndSucursalIdAndEstado(Long cajaId, Long sucursalId, String estado);
 
     Long countByCajaIdAndSucursalIdAndEstado(Long cajaId, Long sucursalId, String estado);
+
+    /** Un cupon solo puede estar registrado una vez: sirve para detectar el re-escaneo. */
+    List<VentaTarjeta> findByQrCrudo(String qrCrudo);
 }

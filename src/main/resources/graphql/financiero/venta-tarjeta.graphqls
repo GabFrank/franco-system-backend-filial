@@ -4,11 +4,14 @@ type VentaTarjeta {
     ventaId: Int
     cajaId: Int
     terminalPos: TerminalPos
+    """Moneda del cobro que respalda. Sin esto, monto no tiene unidad."""
+    moneda: Moneda
     codigoAutorizacion: String
     numeroBoleta: String
     monto: Float
     montoEscaneado: Float
     imagenUrl: String
+    qrCrudo: String
     estado: String
     usuario: Usuario
     creadoEn: Date
@@ -19,6 +22,7 @@ input VentaTarjetaInput {
     sucursalId: Int
     ventaId: Int
     terminalPosId: Int
+    monedaId: Int
     cajaId: Int
     codigoAutorizacion: String
     numeroBoleta: String
@@ -36,8 +40,30 @@ extend type Query {
     countVentasTarjetaSinRegistrar(cajaId: ID!, sucId: ID!): Int
 }
 
+input CompletarVentaTarjetaInput {
+    id: ID!
+    sucursalId: Int!
+    codigoAutorizacion: String
+    numeroBoleta: String
+    montoEscaneado: Float
+    identificadorTransaccion: String
+    qrCrudo: String
+    """
+    Cobro al que pertenece este cupon, elegido por el usuario. Cuando viene, manda: no se
+    infiere nada. Es el unico camino posible cuando la venta tiene dos cobros con tarjeta del
+    MISMO monto, porque ahi no hay dato que permita desempatarlos.
+    """
+    cobroDetalleId: Int
+    """
+    Moneda que declara el cupon. Tiene que coincidir con la del cobro: comparar 8.000 Gs contra
+    8.000 R$ da diferencia cero y el registro queda "conciliado" siendo que difiere ~5900x.
+    """
+    monedaId: Int
+}
+
 extend type Mutation {
     saveVentaTarjeta(ventaTarjeta: VentaTarjetaInput!): VentaTarjeta!
+    completarVentaTarjeta(input: CompletarVentaTarjetaInput!): VentaTarjeta!
     cancelarVentaTarjetaPorVentaId(ventaId: ID!, sucId: ID!): Boolean
     marcarVentasTarjetaNoCompletadas(cajaId: ID!, sucId: ID!): Int
 }
