@@ -349,38 +349,52 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             FacturaLegal facturaLegalGuardada = facturaLegalBuilder.build(buildReq);
             TimbradoDetalle timbradoDetalle = facturaLegalGuardada.getTimbradoDetalle();
 
-            // Actualizar dirección y email de la persona del cliente si existe cliente y persona
-            if (facturaLegalGuardada.getCliente() != null && facturaLegalGuardada.getCliente().getPersona() != null) {
-                Persona persona = facturaLegalGuardada.getCliente().getPersona();
-                boolean necesitaActualizar = false;
-                
-                // Actualizar dirección si se proporciona y es diferente
-                if (entity.getDireccion() != null && !entity.getDireccion().trim().isEmpty()) {
-                    String nuevaDireccion = entity.getDireccion().trim();
-                    String direccionActual = persona.getDireccion() != null ? persona.getDireccion() : "";
-                    if (!nuevaDireccion.equals(direccionActual)) {
-                        persona.setDireccion(nuevaDireccion);
-                        necesitaActualizar = true;
+            // Actualizar dirección y email de la persona del cliente si existe cliente y persona.
+            //
+            // Va en su propio try/catch, igual que la impresión de más abajo: en este punto
+            // el builder (que sí es @Transactional) ya commiteó la factura y consumió el
+            // número de timbrado, pero este método no lo es. PersonaService.save() no guarda
+            // localmente: sincroniza contra el central y lanza IllegalStateException si esa
+            // sincronización falla. Sin este catch, esa excepción sale como GraphQLException,
+            // el cliente la lee como "no se guardó la factura", reintenta, y emite una segunda
+            // factura con otro número de timbrado — ninguna de las dos queda ligada a la venta.
+            try {
+                if (facturaLegalGuardada.getCliente() != null && facturaLegalGuardada.getCliente().getPersona() != null) {
+                    Persona persona = facturaLegalGuardada.getCliente().getPersona();
+                    boolean necesitaActualizar = false;
+
+                    // Actualizar dirección si se proporciona y es diferente
+                    if (entity.getDireccion() != null && !entity.getDireccion().trim().isEmpty()) {
+                        String nuevaDireccion = entity.getDireccion().trim();
+                        String direccionActual = persona.getDireccion() != null ? persona.getDireccion() : "";
+                        if (!nuevaDireccion.equals(direccionActual)) {
+                            persona.setDireccion(nuevaDireccion);
+                            necesitaActualizar = true;
+                        }
+                    }
+
+                    // Actualizar email si se proporciona y es diferente
+                    if (entity.getEmail() != null && !entity.getEmail().trim().isEmpty()) {
+                        String nuevoEmail = entity.getEmail().trim();
+                        String emailActual = persona.getEmail() != null ? persona.getEmail() : "";
+                        // Comparar sin considerar mayúsculas/minúsculas ya que PersonaService guarda en mayúsculas
+                        if (!nuevoEmail.equalsIgnoreCase(emailActual)) {
+                            persona.setEmail(nuevoEmail);
+                            necesitaActualizar = true;
+                        }
+                    }
+
+                    // Guardar persona actualizada si hubo cambios
+                    if (necesitaActualizar) {
+                        personaService.save(persona);
+                        log.info("✅ Persona del cliente actualizada - ID: {}, Dirección: {}, Email: {}",
+                            persona.getId(), persona.getDireccion(), persona.getEmail());
                     }
                 }
-                
-                // Actualizar email si se proporciona y es diferente
-                if (entity.getEmail() != null && !entity.getEmail().trim().isEmpty()) {
-                    String nuevoEmail = entity.getEmail().trim();
-                    String emailActual = persona.getEmail() != null ? persona.getEmail() : "";
-                    // Comparar sin considerar mayúsculas/minúsculas ya que PersonaService guarda en mayúsculas
-                    if (!nuevoEmail.equalsIgnoreCase(emailActual)) {
-                        persona.setEmail(nuevoEmail);
-                        necesitaActualizar = true;
-                    }
-                }
-                
-                // Guardar persona actualizada si hubo cambios
-                if (necesitaActualizar) {
-                    personaService.save(persona);
-                    log.info("✅ Persona del cliente actualizada - ID: {}, Dirección: {}, Email: {}", 
-                        persona.getId(), persona.getDireccion(), persona.getEmail());
-                }
+            } catch (Exception e) {
+                log.error("❌ No se pudo actualizar la persona del cliente de la factura legal ID: {}. "
+                        + "La factura ya fue guardada y se devuelve igual.", facturaLegalGuardada.getId(), e);
+                log.error("   Detalle del error: {}", e.getMessage());
             }
 
             // Imprimir si se solicita
