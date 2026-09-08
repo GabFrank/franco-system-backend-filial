@@ -12,8 +12,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -156,12 +161,51 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
      * validacion tiene que valer para los dos.
      */
     private void validarCuponNoUsado(VentaTarjeta vt, String identificadorTransaccion, String qrCrudo) {
+        motivoCuponNoUsable(vt.getId(), vt.getVentaId(), vt.getSucursalId(), identificadorTransaccion, qrCrudo)
+                .ifPresent(motivo -> {
+                    throw new GraphQLException(motivo);
+                });
+    }
+
+    /**
+     * El motivo por el que este cupon NO se puede usar, o vacio si esta libre.
+     * <p>
+     * Es la misma logica que corre al guardar, extraida para que el PDV pueda preguntar ANTES de
+     * escanear en firme. Detectar el duplicado recien al guardar deja al cajero enterandose cuando
+     * la venta ya se registro y el dato escaneado ya se descarto: el cupon se pierde y hay que
+     * volver a registrarlo desde la lista. Preguntar antes lo corta con el ticket todavia en la
+     * mano.
+     * <p>
+     * <b>Una sola fuente de verdad a proposito.</b> Si el chequeo previo fuera una copia, las dos
+     * versiones divergirian y el PDV terminaria dejando pasar casos que el guardado rechaza —
+     * exactamente el problema que se quiere evitar.
+     *
+     * @param ventaTarjetaId el registro que se esta completando, o {@code null} si todavia no
+     *                       existe (pre-chequeo desde el PDV). Se excluye de la busqueda para que
+     *                       un registro no choque consigo mismo.
+     * @param ventaId        la venta duenha de los cobros que NO cuentan como ajenos, o
+     *                       {@code null} en el pre-chequeo (ahi no hay venta todavia).
+     */
+    /**
+     * Ventas con tarjeta de una caja, paginadas y filtradas. Ver
+     * {@link com.franco.dev.repository.financiero.VentaTarjetaRepository#filtrarPorCaja}.
+     */
+    public Page<VentaTarjeta> filtrarPorCaja(Long cajaId, Long sucursalId, String estado,
+                                             Long terminalPosId, Long monedaId,
+                                             BigDecimal montoDesde, BigDecimal montoHasta,
+                                             int page, int size) {
+        return repository.filtrarPorCaja(cajaId, sucursalId, estado, terminalPosId, monedaId,
+                montoDesde, montoHasta, PageRequest.of(page, size));
+    }
+
+    public Optional<String> motivoCuponNoUsable(Long ventaTarjetaId, Long ventaId, Long sucursalId,
+                                                String identificadorTransaccion, String qrCrudo) {
         if (qrCrudo != null && !qrCrudo.trim().isEmpty()) {
             List<VentaTarjeta> previos = repository.findByQrCrudo(qrCrudo.trim());
             if (previos != null) {
                 for (VentaTarjeta otro : previos) {
-                    if (otro.getId() != null && !otro.getId().equals(vt.getId())) {
-                        throw new GraphQLException("Ese cupon ya fue registrado en la venta con tarjeta "
+                    if (otro.getId() != null && !otro.getId().equals(ventaTarjetaId)) {
+                        return Optional.of("Ese cupon ya fue registrado en la venta con tarjeta "
                                 + otro.getId() + " (venta " + otro.getVentaId() + "). Un cupon no se puede"
                                 + " usar en dos cobros.");
                     }
@@ -174,18 +218,22 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                     .findByIdentificadorTransaccion(identificadorTransaccion.trim());
             if (usados != null) {
                 // Los cobros de ESTA venta no cuentan: el PDV escribe el identificador junto con el
-                // saveVenta, asi que al completar ya esta puesto en la linea correcta.
-                List<Long> propios = cobroDetalleRepository
-                        .findByVentaIdAndSucursalId(vt.getVentaId(), vt.getSucursalId())
-                        .stream().map(CobroDetalle::getId).collect(Collectors.toList());
+                // saveVenta, asi que al completar ya esta puesto en la linea correcta. En el
+                // pre-chequeo no hay venta todavia, asi que no hay nada propio que excluir.
+                List<Long> propios = ventaId == null
+                        ? Collections.emptyList()
+                        : cobroDetalleRepository.findByVentaIdAndSucursalId(ventaId, sucursalId)
+                                .stream().map(CobroDetalle::getId).collect(Collectors.toList());
                 for (CobroDetalle cd : usados) {
                     if (cd.getId() != null && !propios.contains(cd.getId())) {
-                        throw new GraphQLException("Esa referencia (" + identificadorTransaccion.trim()
+                        return Optional.of("Esa referencia (" + identificadorTransaccion.trim()
                                 + ") ya esta registrada en el cobro " + cd.getId() + " de otra venta.");
                     }
                 }
             }
         }
+
+        return Optional.empty();
     }
 
     /**
