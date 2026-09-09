@@ -314,6 +314,27 @@
             <version>0.2.4-frc.13</version>
         </dependency>
 
+        <!-- OCR del cupon de tarjeta: PP-OCRv4 sobre ONNX Runtime.
+             Es el artefacto oficial de Microsoft con los nativos de las plataformas
+             que NO desplegamos removidos: 71,8 MB -> 13,1 MB. Sin recompilar ni
+             parchear una sola clase; ver PODA-FRC.txt dentro del jar.
+             Motivo: el frc-filial-server.jar se descarga ENTERO en cada auto-update,
+             cada 15 minutos, en 24 sucursales. -->
+        <dependency>
+            <groupId>io.github.gabfrank</groupId>
+            <artifactId>onnxruntime-slim</artifactId>
+            <version>1.23.2</version>
+        </dependency>
+
+        <!-- Modelos PP-OCRv4 (.onnx) + diccionario, como recursos del classpath.
+             Van en un artefacto y no en el repo para no cargar 15,5 MB de binarios
+             en cada clon. Terminan igual dentro del frc-filial-server.jar. -->
+        <dependency>
+            <groupId>io.github.gabfrank</groupId>
+            <artifactId>ppocr-models</artifactId>
+            <version>1.0</version>
+        </dependency>
+
         <!-- <dependency>
             <groupId>com.roshka.sifen</groupId>
             <artifactId>rshk-jsifenlib</artifactId>
