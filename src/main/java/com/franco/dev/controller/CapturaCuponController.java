@@ -119,7 +119,10 @@ public class CapturaCuponController {
     }
 
     /**
-     * Le cuenta al desktop como termino la captura.
+     * Toca el timbre para que el desktop vaya a buscar el resultado.
+     *
+     * <p>Va sin el texto del cupon: la subscription del filial es anonima --por WebSocket no hay
+     * sesion-- y el contenido sale por la query, que si exige login. Ver {@code CapturaCuponUpdate}.
      *
      * <p>Nunca hace fallar la subida: el telefono ya cumplio, y si el aviso se pierde el desktop
      * lo va a ver igual cuando consulte por token.
@@ -130,9 +133,6 @@ public class CapturaCuponController {
             u.setToken(c.getToken());
             u.setCajaId(c.getCajaId());
             u.setEstado(c.getEstado());
-            u.setTextoOcr(c.getTextoOcr());
-            u.setError(c.getError());
-            u.setMsOcr(c.getMsOcr());
             publisher.publish(u);
         } catch (Exception e) {
             log.error("no se pudo avisar al desktop de la captura {}", c.getId(), e);

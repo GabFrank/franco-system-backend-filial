@@ -18,15 +18,13 @@ type CapturaCuponQr {
     expiraEn: String
 }
 
-# El aviso que sale cuando el OCR termina. Se emite tambien en ERROR: el cajero suele estar
-# mirando la caja, no el telefono.
+# El aviso que sale cuando el OCR termina: un TIMBRE, no el contenido. El texto del cupon se
+# pide con capturaCupon(token), que pasa por login; esta subscription es anonima porque por
+# WebSocket no hay sesion. Se emite tambien en ERROR: el cajero mira la caja, no el telefono.
 type CapturaCuponUpdate {
     token: String
     cajaId: ID
     estado: String
-    textoOcr: String
-    error: String
-    msOcr: Int
 }
 
 # El estado de una captura, como lo consulta el desktop. Sin el usuario: es dato de auditoria
