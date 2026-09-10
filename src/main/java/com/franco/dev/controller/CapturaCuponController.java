@@ -78,7 +78,11 @@ public class CapturaCuponController {
     @PostMapping(value = "/{token}", consumes = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<?> subir(@PathVariable String token,
                                    @RequestHeader(value = "X-Nitidez", required = false) String nitidez,
-                                   @RequestBody byte[] jpeg) {
+                                   @RequestBody(required = false) byte[] jpeg) {
+        // `required = false` para que el chequeo de abajo sea el que conteste. Con el default
+        // (`true`) Spring rechaza la request ANTES del handler y responde el JSON de error del
+        // framework --con el stack trace completo-- en un endpoint sin autenticacion. El
+        // telefono muestra ese cuerpo tal cual. Verificado el 2026-09-10 mandando un POST vacio.
         if (jpeg == null || jpeg.length == 0) {
             return ResponseEntity.badRequest().body("la foto llego vacia");
         }

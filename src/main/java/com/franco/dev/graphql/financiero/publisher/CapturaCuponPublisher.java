@@ -40,7 +40,14 @@ public class CapturaCuponPublisher {
     }
 
     public void publish(final CapturaCuponUpdate entity) {
-        if (emitter == null) return;   // nadie conecto todavia; el desktop lo va a ver por query
+        if (emitter == null) {
+            // No deberia pasar: connect() en el constructor deja el emitter listo desde el
+            // arranque. Si pasa, el desktop no se entera por subscription y solo lo ve cuando
+            // sondea --y eso, sin este aviso, es indistinguible de un OCR lento.
+            log.warn("captura {} lista pero el canal de avisos no esta armado", entity.getToken());
+            return;
+        }
+        log.info("aviso de captura {} -> {}", entity.getToken(), entity.getEstado());
         emitter.onNext(entity);
     }
 

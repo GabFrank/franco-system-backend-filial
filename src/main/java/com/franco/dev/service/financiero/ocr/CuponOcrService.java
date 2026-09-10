@@ -46,9 +46,14 @@ public class CuponOcrService {
         try {
             motor = new MotorOcr(recurso(DET), recurso(CLS), recurso(REC), diccionario());
             log.info("OCR de cupon listo en {} ms", (System.nanoTime() - t0) / 1_000_000);
-        } catch (Exception e) {
-            // No se tumba la aplicacion: el resto del filial tiene que seguir vendiendo.
-            // El flujo de captura por foto se degrada al fallback manual.
+        } catch (Throwable e) {
+            // Throwable y no Exception, y no es exceso de celo: el modo de falla mas probable de
+            // esto es que la libreria nativa de ONNX no cargue --arquitectura sin binario, glibc
+            // vieja, jar podado sin la plataforma-- y eso llega como UnsatisfiedLinkError, que es
+            // un Error. Con `catch (Exception)` el guard no se activaba y la excepcion subia por
+            // el @PostConstruct tumbando TODO el contexto de Spring: el filial entero no
+            // arrancaba, la sucursal no vendia, por un lector de cupones que es opcional.
+            // Verificado el 2026-09-10 arrancando en macOS ARM, donde el jar slim no trae nativo.
             motor = null;
             log.error("OCR de cupon NO disponible — la captura por foto va a caer al fallback manual", e);
         }
