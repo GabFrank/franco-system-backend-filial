@@ -164,17 +164,16 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
      * Vive en el backend a proposito, para que no dependa de que el cliente se acuerde de
      * chequear.
      * <p>
-     * <b>OJO: hoy NO cubre a `mobile`.</b> Una version anterior de este comentario decia que "el
-     * desktop y el celular completan por el mismo camino". Es falso, y se verifico el 2026-09-10:
-     * la pantalla de carga manual de `mobile` llama a la mutation `updateVentaTarjeta` del
-     * CENTRAL (`mobile/.../venta-tarjeta.service.ts:82`), que es un setter generico sin ninguna
-     * validacion --ni de estado, ni de cupon duplicado, ni de moneda. Asi que un cajero con la app
-     * puede tipear el cupon de la venta anterior y nada lo frena.
+     * <b>Cubre los dos caminos vivos: el lector del PDV y la foto del cupon.</b> La captura por
+     * camara NO pasa por la app `mobile` --el telefono abre, en su navegador, una pagina que sirve
+     * este mismo filial-- asi que los dos terminan aca.
      * <p>
-     * No es una regresion de esta entrega: `mobile` ya bypaseaba `completar()` desde antes. Pero
-     * queda dicho para que nadie lea este metodo y crea que el agujero esta tapado. Se cierra de
-     * una de dos formas, y hay que elegir: que `mobile` llame `completarVentaTarjeta` del filial,
-     * o replicar este chequeo en el `updateVentaTarjeta` del central.
+     * Una version anterior de este comentario decia que "el desktop y el celular completan por el
+     * mismo camino" refiriendose a la app, y eso era falso: la pantalla de venta con tarjeta de
+     * `mobile` llama `updateVentaTarjeta` del CENTRAL, un setter generico sin validacion alguna.
+     * Pero esa pantalla quedo fuera del circuito de la fase 2 y la app esta en mantenimiento
+     * (la reemplaza `mobile-pwa`), asi que es un camino heredado, no un agujero de este flujo. Si
+     * algun dia se reactiva, hay que hacerla pasar por aca.
      */
     private void validarCuponNoUsado(VentaTarjeta vt, String identificadorTransaccion, String qrCrudo,
                                      String codigoAutorizacion, BigDecimal montoEscaneado) {
