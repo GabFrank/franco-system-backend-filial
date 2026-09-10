@@ -94,6 +94,10 @@ public class Funcionario implements Identifiable<Long> {
     @Column(name = "numero_ips")
     private String numeroIps;
 
+    /** true = cobra por transferencia bancaria; false/null = cobra en efectivo. Se gestiona en el central. */
+    @Column(name = "cobra_banco")
+    private Boolean cobraBanco;
+
     @Column(name = "cuenta_bancaria")
     private String cuentaBancaria;
 
