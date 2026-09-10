@@ -51,7 +51,20 @@ extend type Query {
     diferencia entre que el cajero rehaga el escaneo con el ticket en la mano o que se entere
     cuando la venta ya se guardo y el dato escaneado se perdio.
     """
-    motivoCuponNoUsable(qrCrudo: String, identificadorTransaccion: String, sucId: ID!): String
+    motivoCuponNoUsable(
+        qrCrudo: String
+        identificadorTransaccion: String
+        """
+        Codigo de autorizacion. Es el unico identificador que la carga a mano garantiza para
+        todos los proveedores: qrCrudo solo existe si entro por el lector, e
+        identificadorTransaccion solo lo llenan los formatos que tienen un campo aparte
+        (el EndToEndId de Pix si; Dinelco, Infonet, Stone, BXX y PlugPay no).
+        """
+        codigoAutorizacion: String
+        """Acota el chequeo del codigo de autorizacion, que solo es unico por aparato."""
+        terminalPosId: ID
+        sucId: ID!
+    ): String
     """
     Ventas con tarjeta de UNA caja, paginadas y filtradas.
 

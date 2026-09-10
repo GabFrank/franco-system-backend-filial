@@ -41,7 +41,13 @@ import java.util.stream.Collectors;
 @Service
 public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponRepository> {
 
-    /** Suficiente para que el cajero saque la foto sin que el QR quede vivo toda la tarde. */
+    /**
+     * Suficiente para que el cajero saque la foto sin que el QR quede vivo toda la tarde.
+     * <p>
+     * Sigue siendo el default, pero ya no es la ultima palabra: lo configura
+     * {@code configuracion_venta_tarjeta.minutos_validez_captura}. Se usa cuando la fila todavia
+     * no bajo por replicacion, que en un filial recien migrado es un caso real.
+     */
     private static final int MINUTOS_VALIDEZ = 10;
 
     /** 32 bytes de entropia real: el token es la unica credencial del telefono. */
@@ -53,6 +59,9 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
     private final CapturaCuponRepository repository;
     private final CuponOcrService ocr;
     private final PdvCajaService cajas;
+
+    /** De aca sale la vida del token. Ver {@link #MINUTOS_VALIDEZ}. */
+    private final ConfiguracionVentaTarjetaService configuracion;
 
     /**
      * Relativa al directorio de trabajo del servicio (/opt/frc-filial en produccion). Se crea
@@ -72,12 +81,14 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
     public CapturaCuponService(CapturaCuponRepository repository,
                                CuponOcrService ocr,
                                PdvCajaService cajas,
+                               ConfiguracionVentaTarjetaService configuracion,
                                @Value("${frc.captura.ruta-imagenes:cupones}") String rutaImagenes,
                                @Value("${frc.captura.base-url:}") String baseUrlConfigurada,
                                @Value("${server.port:8081}") int puerto) {
         this.repository = repository;
         this.ocr = ocr;
         this.cajas = cajas;
+        this.configuracion = configuracion;
         this.rutaImagenes = rutaImagenes;
         this.baseUrlConfigurada = baseUrlConfigurada;
         this.puerto = puerto;
@@ -99,8 +110,29 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         c.setSucursalId(sucursalId);
         c.setUsuario(usuario);
         c.setEstado(CapturaCupon.ESPERANDO);
-        c.setExpiraEn(LocalDateTime.now().plusMinutes(MINUTOS_VALIDEZ));
+        c.setExpiraEn(LocalDateTime.now().plusMinutes(minutosValidez()));
         return repository.save(c);
+    }
+
+    /**
+     * Minutos de vida del QR de captura.
+     * <p>
+     * Se lee en cada creacion y no se cachea: son pocas por dia y la fila puede cambiar por
+     * replicacion en cualquier momento. Cachearla haria que un filial siga usando el valor viejo
+     * hasta el proximo reinicio, sin que nadie entienda por que.
+     */
+    private int minutosValidez() {
+        try {
+            return configuracion.findOrDefault().minutosValidezCapturaEfectivo();
+        } catch (Throwable e) {
+            // Throwable y no Exception, por la misma razon que CuponOcrService: en este repo ya
+            // hubo un arranque caido por un UnsatisfiedLinkError --que es un Error, no una
+            // Exception-- que un catch (Exception) dejo pasar. Y sobre todo: que no se pueda leer
+            // la configuracion no puede impedir sacar una foto. La captura es el camino de salida
+            // cuando el POS no imprime QR; si falla, el cajero no tiene ninguno.
+            log.warn("no se pudo leer minutos_validez_captura, usando el default de {} min", MINUTOS_VALIDEZ, e);
+            return MINUTOS_VALIDEZ;
+        }
     }
 
     public Optional<CapturaCupon> porToken(String token) {

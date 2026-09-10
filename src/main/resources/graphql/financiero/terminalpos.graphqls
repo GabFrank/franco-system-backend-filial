@@ -4,6 +4,8 @@ type TerminalPos {
     codigo: String
     moneda: Moneda
     proveedorServicio: ProveedorServicio
+    "Formato del modelo de aparato. NULL = sin configurar: el desktop bloquea la venta con tarjeta."
+    formatoTerminalPos: FormatoTerminalPos
     activo: Boolean
     creadoEn: Date
     usuario: Usuario

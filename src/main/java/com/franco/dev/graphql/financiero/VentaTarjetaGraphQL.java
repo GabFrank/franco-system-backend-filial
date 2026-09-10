@@ -69,8 +69,18 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 size != null ? size : 15);
     }
 
-    public String motivoCuponNoUsable(String qrCrudo, String identificadorTransaccion, Long sucId) {
-        return service.motivoCuponNoUsable(null, null, sucId, identificadorTransaccion, qrCrudo)
+    /**
+     * El pre-chequeo del cupon, antes de que el cajero de el dato por bueno.
+     * <p>
+     * `montoEscaneado` no se pide aca a proposito: en el pre-chequeo el cajero muchas veces
+     * todavia no lo tiene --acaba de escanear o de tipear el codigo-- y sin monto el chequeo por
+     * codigo de autorizacion avisa de mas, que es el lado correcto para equivocarse en una
+     * advertencia. Al guardar, `completar` lo pasa y el filtro se afina.
+     */
+    public String motivoCuponNoUsable(String qrCrudo, String identificadorTransaccion,
+                                      String codigoAutorizacion, Long terminalPosId, Long sucId) {
+        return service.motivoCuponNoUsable(null, null, sucId, identificadorTransaccion, qrCrudo,
+                        codigoAutorizacion, null, terminalPosId)
                 .orElse(null);
     }
 

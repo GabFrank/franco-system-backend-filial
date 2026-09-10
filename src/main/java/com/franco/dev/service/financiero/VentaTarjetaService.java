@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +33,9 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     private final CobroDetalleRepository cobroDetalleRepository;
 
     private final MonedaService monedaService;
+
+    /** De aca sale la ventana del chequeo de duplicado por codigo de autorizacion. */
+    private final ConfiguracionVentaTarjetaService configuracionService;
 
     @Override
     public VentaTarjetaRepository getRepository() {
@@ -94,7 +98,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                     + ". Solo se puede completar una PENDIENTE.");
         }
 
-        validarCuponNoUsado(vt, identificadorTransaccion, qrCrudo);
+        validarCuponNoUsado(vt, identificadorTransaccion, qrCrudo, codigoAutorizacion, montoEscaneado);
         validarMoneda(vt, monedaId, cobroDetalleId);
 
         // Si el PENDIENTE se creo sin moneda (cliente viejo), el cupon la aporta ahora. Ya paso
@@ -157,15 +161,31 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
      * negarse empeora las cosas), un cupon repetido es un error objetivo. Si de verdad son dos
      * cobros distintos, van a tener referencias distintas.
      * <p>
-     * Vive en el backend a proposito: el desktop y el celular completan por el mismo camino, y la
-     * validacion tiene que valer para los dos.
+     * Vive en el backend a proposito, para que no dependa de que el cliente se acuerde de
+     * chequear.
+     * <p>
+     * <b>OJO: hoy NO cubre a `mobile`.</b> Una version anterior de este comentario decia que "el
+     * desktop y el celular completan por el mismo camino". Es falso, y se verifico el 2026-09-10:
+     * la pantalla de carga manual de `mobile` llama a la mutation `updateVentaTarjeta` del
+     * CENTRAL (`mobile/.../venta-tarjeta.service.ts:82`), que es un setter generico sin ninguna
+     * validacion --ni de estado, ni de cupon duplicado, ni de moneda. Asi que un cajero con la app
+     * puede tipear el cupon de la venta anterior y nada lo frena.
+     * <p>
+     * No es una regresion de esta entrega: `mobile` ya bypaseaba `completar()` desde antes. Pero
+     * queda dicho para que nadie lea este metodo y crea que el agujero esta tapado. Se cierra de
+     * una de dos formas, y hay que elegir: que `mobile` llame `completarVentaTarjeta` del filial,
+     * o replicar este chequeo en el `updateVentaTarjeta` del central.
      */
-    private void validarCuponNoUsado(VentaTarjeta vt, String identificadorTransaccion, String qrCrudo) {
-        motivoCuponNoUsable(vt.getId(), vt.getVentaId(), vt.getSucursalId(), identificadorTransaccion, qrCrudo)
+    private void validarCuponNoUsado(VentaTarjeta vt, String identificadorTransaccion, String qrCrudo,
+                                     String codigoAutorizacion, BigDecimal montoEscaneado) {
+        motivoCuponNoUsable(vt.getId(), vt.getVentaId(), vt.getSucursalId(), identificadorTransaccion,
+                qrCrudo, codigoAutorizacion, montoEscaneado,
+                vt.getTerminalPos() != null ? vt.getTerminalPos().getId() : null)
                 .ifPresent(motivo -> {
                     throw new GraphQLException(motivo);
                 });
     }
+
 
     /**
      * El motivo por el que este cupon NO se puede usar, o vacio si esta libre.
@@ -198,8 +218,28 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                 montoDesde, montoHasta, PageRequest.of(page, size));
     }
 
+    /**
+     * El motivo por el que este cupon no se puede usar, o vacio si esta libre.
+     * <p>
+     * Tres chequeos, de mas fuerte a mas debil:
+     * <ol>
+     *   <li>{@code qrCrudo} — la cadena entera que imprimio el POS. Solo existe si entro por el
+     *       lector.</li>
+     *   <li>{@code identificadorTransaccion} — referencia propia del proveedor. Solo la llenan los
+     *       formatos que traen un campo aparte: el EndToEndId de Pix si; Dinelco, Infonet, Stone,
+     *       BXX y PlugPay no.</li>
+     *   <li>{@code codigoAutorizacion} + terminal + ventana — el unico que la <b>carga a mano</b>
+     *       garantiza para todos los proveedores.</li>
+     * </ol>
+     * El tercero se agrego junto con la carga a mano, y no es opcional: sin el, un cajero puede
+     * tipear el cupon de la venta anterior entero --que quedo sobre el mostrador-- y producir un
+     * registro valido y falso que nadie descubre hasta la conciliacion. Es el caso 5 del analisis
+     * de modos de falla.
+     */
     public Optional<String> motivoCuponNoUsable(Long ventaTarjetaId, Long ventaId, Long sucursalId,
-                                                String identificadorTransaccion, String qrCrudo) {
+                                                String identificadorTransaccion, String qrCrudo,
+                                                String codigoAutorizacion, BigDecimal montoEscaneado,
+                                                Long terminalPosId) {
         if (qrCrudo != null && !qrCrudo.trim().isEmpty()) {
             List<VentaTarjeta> previos = repository.findByQrCrudo(qrCrudo.trim());
             if (previos != null) {
@@ -233,7 +273,64 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
             }
         }
 
+        Optional<String> porCodigo = motivoPorCodigoAutorizacion(
+                ventaTarjetaId, sucursalId, codigoAutorizacion, montoEscaneado, terminalPosId);
+        if (porCodigo.isPresent()) return porCodigo;
+
         return Optional.empty();
+    }
+
+    /**
+     * El mismo codigo de autorizacion, en el mismo aparato, por el mismo monto, dentro de la
+     * ventana configurada.
+     * <p>
+     * <b>Los tres acotamientos existen para no bloquear ventas buenas</b>, que seria peor que el
+     * problema que evitan --el cajero tiene al cliente adelante y el cobro ya paso:
+     * <ul>
+     *   <li><b>Terminal</b>: el codigo lo emite el aparato y solo es unico ahi. Dos maquinitas
+     *       distintas pueden emitir el mismo numero el mismo dia sin que eso signifique nada.</li>
+     *   <li><b>Ventana</b>: varios proveedores usan codigos cortos --4 a 6 caracteres-- que se
+     *       reciclan. Sin ventana, un local con movimiento chocaria consigo mismo en semanas.</li>
+     *   <li><b>Monto</b>: es lo que separa un cupon REPETIDO de una colision de codigo corto. Un
+     *       cupon retipeado repite todo, monto incluido; una colision casi nunca coincide en el
+     *       monto. Si a alguno de los dos le falta el monto, no se usa para descartar: se prefiere
+     *       avisar de mas antes que dejar pasar un duplicado real.</li>
+     * </ul>
+     * Solo mira COMPLETADOS: un PENDIENTE todavia no imputo nada.
+     */
+    private Optional<String> motivoPorCodigoAutorizacion(Long ventaTarjetaId, Long sucursalId,
+                                                         String codigoAutorizacion,
+                                                         BigDecimal montoEscaneado,
+                                                         Long terminalPosId) {
+        if (codigoAutorizacion == null || codigoAutorizacion.trim().isEmpty()) return Optional.empty();
+        if (sucursalId == null) return Optional.empty();
+
+        int horas = configuracionService.findOrDefault().horasVentanaDuplicadoEfectivo();
+        LocalDateTime desde = LocalDateTime.now().minusHours(horas);
+
+        List<VentaTarjeta> previos = repository.buscarPorCodigoAutorizacion(
+                sucursalId, codigoAutorizacion.trim(), terminalPosId, desde);
+        if (previos == null) return Optional.empty();
+
+        for (VentaTarjeta otro : previos) {
+            if (otro.getId() == null || otro.getId().equals(ventaTarjetaId)) continue;
+            if (montosDistintos(montoEscaneado, otro.getMontoEscaneado())) continue;
+
+            return Optional.of("El codigo de autorizacion " + codigoAutorizacion.trim()
+                    + " ya esta registrado en la venta con tarjeta " + otro.getId()
+                    + " (venta " + otro.getVentaId() + "), hace menos de " + horas
+                    + " h y en la misma terminal. Un cupon no se puede usar en dos cobros.");
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Dos montos que se sabe que son distintos. Si a alguno le falta el dato, la respuesta es
+     * `false`: no alcanza para descartar un duplicado, y el chequeo sigue.
+     */
+    private static boolean montosDistintos(BigDecimal a, BigDecimal b) {
+        if (a == null || b == null) return false;
+        return a.compareTo(b) != 0;
     }
 
     /**

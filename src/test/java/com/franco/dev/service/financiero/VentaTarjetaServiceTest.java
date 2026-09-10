@@ -1,5 +1,6 @@
 package com.franco.dev.service.financiero;
 
+import com.franco.dev.domain.financiero.ConfiguracionVentaTarjeta;
 import com.franco.dev.domain.financiero.VentaTarjeta;
 import com.franco.dev.domain.financiero.FormaPago;
 import com.franco.dev.domain.financiero.Moneda;
@@ -19,8 +20,10 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class VentaTarjetaServiceTest {
@@ -31,6 +34,8 @@ class VentaTarjetaServiceTest {
 
     private MonedaService monedaService;
 
+    private ConfiguracionVentaTarjetaService configuracionService;
+
     private VentaTarjetaService service;
 
     @BeforeEach
@@ -38,7 +43,11 @@ class VentaTarjetaServiceTest {
         repository = mock(VentaTarjetaRepository.class);
         cobroDetalleRepository = mock(CobroDetalleRepository.class);
         monedaService = mock(MonedaService.class);
-        service = new VentaTarjetaService(repository, cobroDetalleRepository, monedaService);
+        configuracionService = mock(ConfiguracionVentaTarjetaService.class);
+        // La configuracion real, con sus defaults: la ventana de duplicado sale de aca.
+        when(configuracionService.findOrDefault()).thenReturn(new ConfiguracionVentaTarjeta());
+        service = new VentaTarjetaService(repository, cobroDetalleRepository, monedaService,
+                configuracionService);
     }
 
     @Test
@@ -412,5 +421,132 @@ class VentaTarjetaServiceTest {
 
         assertNull(cds[1].getIdentificadorTransaccion());
         verify(cobroDetalleRepository, never()).save(any(CobroDetalle.class));
+    }
+
+    // ── duplicado por codigo de autorizacion: la unica red de la carga a mano ───────────────
+
+    @Test
+    void completar_conCodigoYaUsadoEnLaMismaTerminalYMonto_loRechaza() {
+        VentaTarjeta vt = pendiente();
+        vt.setTerminalPos(terminal(7L));
+
+        VentaTarjeta previo = new VentaTarjeta();
+        previo.setId(99L);
+        previo.setVentaId(500L);
+        previo.setMontoEscaneado(BigDecimal.TEN);
+        when(repository.buscarPorCodigoAutorizacion(eq(24L), eq("CXF1"), eq(7L), any()))
+                .thenReturn(Collections.singletonList(previo));
+
+        GraphQLException e = assertThrows(GraphQLException.class, () ->
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null));
+
+        assertTrue(e.getMessage().contains("99"));
+        verify(repository, never()).save(any());
+    }
+
+    // Varios proveedores usan codigos de 4 a 6 caracteres que se reciclan. Sin el corte por monto,
+    // una colision legitima bloquearia una venta buena con el cliente adelante.
+    @Test
+    void completar_mismoCodigoPeroOtroMonto_pasa() {
+        pendiente();
+
+        VentaTarjeta previo = new VentaTarjeta();
+        previo.setId(99L);
+        previo.setMontoEscaneado(new BigDecimal("777"));
+        when(repository.buscarPorCodigoAutorizacion(any(), any(), any(), any()))
+                .thenReturn(Collections.singletonList(previo));
+
+        VentaTarjeta r = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null);
+
+        assertEquals("COMPLETADO", r.getEstado());
+    }
+
+    // Si falta el monto de alguno de los dos, no alcanza para descartar: se avisa de mas antes que
+    // dejar pasar un duplicado real.
+    @Test
+    void completar_mismoCodigoSinMontoParaComparar_loRechazaIgual() {
+        pendiente();
+
+        VentaTarjeta previo = new VentaTarjeta();
+        previo.setId(99L);
+        previo.setMontoEscaneado(null);
+        when(repository.buscarPorCodigoAutorizacion(any(), any(), any(), any()))
+                .thenReturn(Collections.singletonList(previo));
+
+        assertThrows(GraphQLException.class, () ->
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null));
+    }
+
+    // Reintentar sobre el MISMO registro no es un duplicado.
+    @Test
+    void completar_elPropioRegistroNoCuentaComoDuplicado() {
+        pendiente();
+
+        VentaTarjeta mismo = new VentaTarjeta();
+        mismo.setId(1L);
+        mismo.setMontoEscaneado(BigDecimal.TEN);
+        when(repository.buscarPorCodigoAutorizacion(any(), any(), any(), any()))
+                .thenReturn(Collections.singletonList(mismo));
+
+        VentaTarjeta r = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null);
+
+        assertEquals("COMPLETADO", r.getEstado());
+    }
+
+    @Test
+    void completar_sinCodigoDeAutorizacion_niConsultaDuplicados() {
+        pendiente();
+
+        service.completar(1L, 24L, "  ", "", BigDecimal.TEN, null, null, null, null);
+
+        verify(repository, never()).buscarPorCodigoAutorizacion(any(), any(), any(), any());
+    }
+
+    // La ventana no puede quedar apagada por un dato mal cargado: un 0 cae al default de 24 h.
+    @Test
+    void ventanaDeDuplicadoEnCero_caeAlDefaultYSigueChequeando() {
+        ConfiguracionVentaTarjeta config = new ConfiguracionVentaTarjeta();
+        config.setHorasVentanaDuplicado(0);
+        when(configuracionService.findOrDefault()).thenReturn(config);
+        pendiente();
+
+        service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null);
+
+        verify(repository).buscarPorCodigoAutorizacion(any(), any(), any(), any());
+    }
+
+    // Un cupon viejo sin montoEscaneado bloquea cualquier codigo igual dentro de la ventana, sin
+    // importar el monto del nuevo. Es el lado elegido a proposito --avisar de mas antes que dejar
+    // pasar un duplicado real-- pero conviene que este fijado por un test, no supuesto.
+    @Test
+    void completar_ambosMontosNulos_loRechazaIgual() {
+        pendiente();
+
+        VentaTarjeta previo = new VentaTarjeta();
+        previo.setId(99L);
+        previo.setMontoEscaneado(null);
+        when(repository.buscarPorCodigoAutorizacion(any(), any(), any(), any()))
+                .thenReturn(Collections.singletonList(previo));
+
+        assertThrows(GraphQLException.class, () ->
+                service.completar(1L, 24L, "CXF1", "", null, null, null, null, null));
+    }
+
+    // ── helpers ────────────────────────────────────────────────────────────────────────────
+
+    private VentaTarjeta pendiente() {
+        VentaTarjeta vt = new VentaTarjeta();
+        vt.setId(1L);
+        vt.setSucursalId(24L);
+        vt.setEstado("PENDIENTE");
+        when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
+        when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
+        return vt;
+    }
+
+    private static TerminalPos terminal(Long id) {
+        TerminalPos t = new TerminalPos();
+        t.setId(id);
+        return t;
     }
 }
