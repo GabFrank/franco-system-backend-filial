@@ -48,6 +48,14 @@ const $ = s => document.querySelector(s);
 const TOKEN = location.pathname.split('/').filter(Boolean).pop();
 const LADO_MAX = 1000;      // punto de trabajo medido: mismos campos que 1600, 28% mas rapido
 const CALIDAD  = 0.9;
+const TIMEOUT  = 30000;     // el OCR tarda hasta 5,5 s en la maquina mas lenta; 30 s es holgado
+
+/* Umbral de nitidez, calibrado sobre 27 cupones que el OCR leyo bien:
+   el PEOR de ellos dio 80,5 y el desenfoque de 5 px no pasa de 47,5.
+   50 queda entre los dos, del lado seguro: rechazar una foto que habria
+   servido es peor que dejar pasar una apenas movida. La medicion viaja al
+   servidor en cada subida para poder ajustarlo con datos reales. */
+const NITIDEZ_MIN = 50;
 
 /* --- EXIF ---------------------------------------------------------------
    La camara de iOS casi siempre guarda el sensor acostado y marca la rotacion
@@ -116,6 +124,34 @@ function enderezarYEscalar(bmp, o){
   return c;
 }
 
+/* Varianza del laplaciano de 4 vecinos: el mismo kernel con el que se calibro el umbral
+   (es el default de cv2.Laplacian). Sobre una foto movida los bordes se aplanan y la
+   varianza se desploma. */
+function nitidez(c){
+  const x = c.getContext('2d'), w = c.width, h = c.height;
+  const d = x.getImageData(0, 0, w, h).data;
+  const g = new Float32Array(w * h);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++)
+    g[j] = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+  let suma = 0, suma2 = 0, n = 0;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x2 = 1; x2 < w - 1; x2++) {
+      const i = y * w + x2;
+      const l = 4 * g[i] - g[i-1] - g[i+1] - g[i-w] - g[i+w];
+      suma += l; suma2 += l * l; n++;
+    }
+  }
+  const m = suma / n;
+  return suma2 / n - m * m;
+}
+
+function reintentar(mensaje){
+  $('#estado').innerHTML = '<span class="bad">' + mensaje + '</span>';
+  $('#boton').removeAttribute('disabled');
+  $('#boton').textContent = '📷 Sacar otra foto';
+  $('#f').value = '';          // sin esto, elegir la MISMA foto no dispara change
+}
+
 function listo(){
   $('#tarjeta').innerHTML =
     '<div class="listo"><div class="tick">✓</div>' +
@@ -143,27 +179,47 @@ $('#f').addEventListener('change', async e => {
     const oEfectivo = (o >= 5 && yaAplicado !== false) ? 1 : o;
 
     const lienzo = enderezarYEscalar(bmp, oEfectivo);
-    const blob = await new Promise(r => lienzo.toBlob(r, 'image/jpeg', CALIDAD));
 
-    $('#vista').src = URL.createObjectURL(blob);
+    $('#vista').src = lienzo.toDataURL('image/jpeg', 0.5);
     $('#vista').style.display = 'block';
+
+    // Se mide ANTES de subir: una foto movida vuelve a la camara sin gastar el token
+    // ni hacerle perder tiempo al cajero esperando un OCR que no va a servir.
+    const n = nitidez(lienzo);
+    if (n < NITIDEZ_MIN) {
+      reintentar('Salió movida. Apoyá el cupón y sacá otra.');
+      return;
+    }
+
+    const blob = await new Promise(r => lienzo.toBlob(r, 'image/jpeg', CALIDAD));
     $('#estado').textContent = 'Leyendo el cupón…';
 
-    const r = await fetch(location.pathname, {
-      method: 'POST',
-      headers: { 'Content-Type': 'image/jpeg' },
-      body: blob
-    });
-    if (!r.ok) {
-      const detalle = await r.text();
-      throw new Error(detalle || ('error ' + r.status));
+    // Sin timeout el fetch cuelga para siempre si la WiFi se corta a mitad de camino.
+    const corte = new AbortController();
+    const reloj = setTimeout(() => corte.abort(), TIMEOUT);
+    let r;
+    try {
+      r = await fetch(location.pathname, {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/jpeg', 'X-Nitidez': n.toFixed(2) },
+        body: blob,
+        signal: corte.signal
+      });
+    } finally {
+      clearTimeout(reloj);
     }
+
+    if (r.status === 422) {           // desenlace previsto: el token sigue vivo
+      reintentar(await r.text());
+      return;
+    }
+    if (!r.ok) throw new Error((await r.text()) || ('error ' + r.status));
     listo();
   } catch (err) {
-    $('#estado').innerHTML = '<span class="bad">No se pudo enviar</span><br>' +
-      (err && err.message ? err.message : err);
-    $('#boton').removeAttribute('disabled');
-    $('#boton').textContent = '📷 Probar de nuevo';
+    const abortado = err && err.name === 'AbortError';
+    reintentar(abortado
+      ? 'Tardó demasiado. Fijate que el teléfono siga en la WiFi del local.'
+      : 'No se pudo enviar. ' + (err && err.message ? err.message : ''));
   }
 });
 </script>

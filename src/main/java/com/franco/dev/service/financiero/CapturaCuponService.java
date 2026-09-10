@@ -1,6 +1,8 @@
 package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.CapturaCupon;
+import com.franco.dev.domain.financiero.PdvCaja;
+import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.repository.financiero.CapturaCuponRepository;
 import com.franco.dev.service.CrudService;
@@ -18,6 +20,7 @@ import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.math.BigDecimal;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -41,6 +44,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
 
     private final CapturaCuponRepository repository;
     private final CuponOcrService ocr;
+    private final PdvCajaService cajas;
 
     /**
      * Relativa al directorio de trabajo del servicio (/opt/frc-filial en produccion). Se crea
@@ -51,9 +55,11 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
     @Autowired
     public CapturaCuponService(CapturaCuponRepository repository,
                                CuponOcrService ocr,
+                               PdvCajaService cajas,
                                @Value("${frc.captura.ruta-imagenes:cupones}") String rutaImagenes) {
         this.repository = repository;
         this.ocr = ocr;
+        this.cajas = cajas;
         this.rutaImagenes = rutaImagenes;
     }
 
@@ -90,15 +96,32 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
      * @return la captura ya actualizada, con el texto o con el error
      */
     @Transactional
-    public CapturaCupon procesar(String token, byte[] jpeg) {
-        CapturaCupon c = repository.findByToken(token)
-                .orElseThrow(() -> new IllegalArgumentException("captura inexistente"));
+    public CapturaCupon procesar(String token, byte[] jpeg, BigDecimal nitidez) {
+        CapturaCupon c = repository.lockByToken(token)
+                .orElseThrow(() -> new IllegalArgumentException("codigo desconocido"));
 
-        if (c.yaSeUso())     throw new IllegalStateException("esta captura ya se uso");
-        if (c.estaVencida()) throw new IllegalStateException("el codigo vencio; genera uno nuevo");
+        // Reintento sobre algo que ya salio bien: se devuelve el resultado en vez de un error.
+        // Sin esto, perder la RESPUESTA --no la request-- deja al cajero trabado con un "ya se
+        // uso" aunque del lado del servidor todo haya funcionado.
+        if (CapturaCupon.LISTO.equals(c.getEstado())) return c;
 
-        c.setUsadoEn(LocalDateTime.now());
+        if (c.yaSeUso())     throw new IllegalStateException("este codigo ya se uso");
+        if (c.estaVencida()) throw new IllegalStateException("el codigo vencio; pedi uno nuevo desde la caja");
+
+        // La caja pudo cerrarse en los minutos que el telefono tuvo la pagina abierta.
+        Optional<PdvCaja> caja = cajas.findById(c.getCajaId());
+        if (!caja.isPresent() || caja.get().getEstado() != PdvCajaEstado.EN_PROCESO) {
+            throw new IllegalStateException("la caja ya no esta abierta");
+        }
+
+        if (!ocr.disponible()) {
+            throw new IllegalStateException("el lector no esta disponible; carga el cupon a mano");
+        }
+
+        c.setIntentos(c.getIntentos() == null ? 1 : c.getIntentos() + 1);
+        c.setNitidez(nitidez);
         c.setEstado(CapturaCupon.PROCESANDO);
+        c.setError(null);
 
         try {
             c.setImagenUrl(guardar(c, jpeg));
@@ -109,9 +132,17 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
 
         try {
             MotorOcr.Resultado r = ocr.leer(jpeg);
-            c.setTextoOcr(r.lineas.stream().map(l -> l.texto).collect(Collectors.joining("\n")));
-            c.setMsOcr((int) r.msTotal);
-            c.setEstado(CapturaCupon.LISTO);
+            if (r.lineas.isEmpty()) {
+                // Leyo cero: casi siempre es que la foto no es del cupon, o esta ilegible.
+                // NO se consume el token: el cajero saca otra sin volver a la caja.
+                c.setEstado(CapturaCupon.ERROR);
+                c.setError("no se leyo nada; asegurate de que la foto sea del cupon");
+            } else {
+                c.setTextoOcr(r.lineas.stream().map(l -> l.texto).collect(Collectors.joining("\n")));
+                c.setMsOcr((int) r.msTotal);
+                c.setEstado(CapturaCupon.LISTO);
+                c.setUsadoEn(LocalDateTime.now());   // el token se consume RECIEN con un resultado bueno
+            }
         } catch (Exception e) {
             log.error("fallo el OCR de la captura {}", c.getId(), e);
             c.setEstado(CapturaCupon.ERROR);

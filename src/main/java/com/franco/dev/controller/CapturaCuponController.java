@@ -72,7 +72,9 @@ public class CapturaCuponController {
 
     /** La foto. El cuerpo es el JPEG crudo: el telefono ya lo enderezo y lo escalo. */
     @PostMapping(value = "/{token}", consumes = MediaType.IMAGE_JPEG_VALUE)
-    public ResponseEntity<?> subir(@PathVariable String token, @RequestBody byte[] jpeg) {
+    public ResponseEntity<?> subir(@PathVariable String token,
+                                   @RequestHeader(value = "X-Nitidez", required = false) String nitidez,
+                                   @RequestBody byte[] jpeg) {
         if (jpeg == null || jpeg.length == 0) {
             return ResponseEntity.badRequest().body("la foto llego vacia");
         }
@@ -80,7 +82,14 @@ public class CapturaCuponController {
             return ResponseEntity.badRequest().body("la foto es demasiado grande");
         }
         try {
-            CapturaCupon c = service.procesar(token, jpeg);
+            CapturaCupon c = service.procesar(token, jpeg, parseNitidez(nitidez));
+
+            // ERROR no es 500: es un desenlace previsto y REINTENTABLE --el token sigue vivo--.
+            // El telefono muestra el motivo y ofrece sacar otra foto sin volver a la caja.
+            if (CapturaCupon.ERROR.equals(c.getEstado())) {
+                return ResponseEntity.unprocessableEntity().body(c.getError());
+            }
+
             Map<String, Object> r = new HashMap<>();
             r.put("estado", c.getEstado());
             r.put("lineas", c.getTextoOcr() == null ? 0 : c.getTextoOcr().split("\n").length);
@@ -93,6 +102,15 @@ public class CapturaCuponController {
             log.error("fallo la subida de la captura", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("no se pudo procesar la foto");
+        }
+    }
+
+    private static java.math.BigDecimal parseNitidez(String v) {
+        if (v == null || v.isEmpty()) return null;
+        try {
+            return new java.math.BigDecimal(v);
+        } catch (NumberFormatException e) {
+            return null;   // dato de telemetria: si viene mal, no vale frenar la captura
         }
     }
 

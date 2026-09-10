@@ -86,6 +86,17 @@ public class CapturaCupon implements Serializable {
     @Column(name = "ms_ocr")
     private Integer msOcr;
 
+    /**
+     * Fotos subidas para este token. El token solo se consume con un resultado bueno, asi que
+     * una foto movida o un fallo del motor se reintentan sin volver a la caja a pedir otro QR.
+     */
+    @Column(name = "intentos", nullable = false)
+    private Integer intentos = 0;
+
+    /** Varianza del laplaciano que midio el telefono, para poder ajustar el umbral con datos. */
+    @Column(name = "nitidez", precision = 10, scale = 2)
+    private java.math.BigDecimal nitidez;
+
     @Column(name = "error", length = 500)
     private String error;
 

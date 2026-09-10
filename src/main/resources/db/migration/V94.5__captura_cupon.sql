@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS financiero.captura_cupon (
     texto_ocr   TEXT,
     campos      JSONB,
     ms_ocr      INTEGER,
+    intentos    INTEGER      NOT NULL DEFAULT 0,
+    nitidez     NUMERIC(10,2),
     error       VARCHAR(500),
     creado_en   TIMESTAMP    NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_captura_cupon_token UNIQUE (token)
@@ -59,5 +61,9 @@ COMMENT ON TABLE  financiero.captura_cupon IS
     'Sesion de captura de foto de cupon entre el desktop y el telefono del cajero. Estado efimero, LOCAL del filial: no se replica al central.';
 COMMENT ON COLUMN financiero.captura_cupon.token IS
     'Unica credencial del telefono. Un solo uso, expira en minutos, atada a una caja.';
+COMMENT ON COLUMN financiero.captura_cupon.intentos IS
+    'Fotos subidas para este token. El token solo se consume con un resultado bueno, asi que una foto movida o un fallo del motor se pueden reintentar sin volver a la caja.';
+COMMENT ON COLUMN financiero.captura_cupon.nitidez IS
+    'Varianza del laplaciano que midio el telefono. Se guarda para poder ajustar el umbral con datos reales en vez de dejarlo como numero magico.';
 COMMENT ON COLUMN financiero.captura_cupon.campos IS
     'Campos extraidos por el OCR, ya mapeados por el formato del proveedor.';
