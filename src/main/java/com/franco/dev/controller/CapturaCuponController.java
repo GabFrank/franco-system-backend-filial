@@ -1,6 +1,8 @@
 package com.franco.dev.controller;
 
 import com.franco.dev.domain.financiero.CapturaCupon;
+import com.franco.dev.graphql.financiero.publisher.CapturaCuponPublisher;
+import com.franco.dev.graphql.financiero.publisher.CapturaCuponUpdate;
 import com.franco.dev.service.financiero.CapturaCuponService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -45,9 +47,11 @@ public class CapturaCuponController {
     private static final int MAX_BYTES = 8 * 1024 * 1024;
 
     private final CapturaCuponService service;
+    private final CapturaCuponPublisher publisher;
 
-    public CapturaCuponController(CapturaCuponService service) {
+    public CapturaCuponController(CapturaCuponService service, CapturaCuponPublisher publisher) {
         this.service = service;
+        this.publisher = publisher;
     }
 
     /** La pagina que abre el telefono al escanear el QR. */
@@ -84,6 +88,11 @@ public class CapturaCuponController {
         try {
             CapturaCupon c = service.procesar(token, jpeg, parseNitidez(nitidez));
 
+            // Se avisa al desktop DESPUES de que procesar volvio, no adentro del servicio: para
+            // entonces la transaccion ya commiteo. Si se publicara antes, el desktop podria
+            // reaccionar al aviso, consultar por token y leer el estado viejo.
+            avisar(c);
+
             // ERROR no es 500: es un desenlace previsto y REINTENTABLE --el token sigue vivo--.
             // El telefono muestra el motivo y ofrece sacar otra foto sin volver a la caja.
             if (CapturaCupon.ERROR.equals(c.getEstado())) {
@@ -102,6 +111,27 @@ public class CapturaCuponController {
             log.error("fallo la subida de la captura", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("no se pudo procesar la foto");
+        }
+    }
+
+    /**
+     * Le cuenta al desktop como termino la captura.
+     *
+     * <p>Nunca hace fallar la subida: el telefono ya cumplio, y si el aviso se pierde el desktop
+     * lo va a ver igual cuando consulte por token.
+     */
+    private void avisar(CapturaCupon c) {
+        try {
+            CapturaCuponUpdate u = new CapturaCuponUpdate();
+            u.setToken(c.getToken());
+            u.setCajaId(c.getCajaId());
+            u.setEstado(c.getEstado());
+            u.setTextoOcr(c.getTextoOcr());
+            u.setError(c.getError());
+            u.setMsOcr(c.getMsOcr());
+            publisher.publish(u);
+        } catch (Exception e) {
+            log.error("no se pudo avisar al desktop de la captura {}", c.getId(), e);
         }
     }
 

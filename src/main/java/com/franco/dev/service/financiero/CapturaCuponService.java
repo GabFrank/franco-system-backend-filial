@@ -14,6 +14,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -22,6 +25,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.math.BigDecimal;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -52,15 +57,27 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
      */
     private final String rutaImagenes;
 
+    /**
+     * Con que direccion se arma el QR. Vacio = se deduce mirando las interfaces de red.
+     * Se configura solo si la deduccion elige mal (varias LAN, NAT de por medio).
+     */
+    private final String baseUrlConfigurada;
+
+    private final int puerto;
+
     @Autowired
     public CapturaCuponService(CapturaCuponRepository repository,
                                CuponOcrService ocr,
                                PdvCajaService cajas,
-                               @Value("${frc.captura.ruta-imagenes:cupones}") String rutaImagenes) {
+                               @Value("${frc.captura.ruta-imagenes:cupones}") String rutaImagenes,
+                               @Value("${frc.captura.base-url:}") String baseUrlConfigurada,
+                               @Value("${server.port:8081}") int puerto) {
         this.repository = repository;
         this.ocr = ocr;
         this.cajas = cajas;
         this.rutaImagenes = rutaImagenes;
+        this.baseUrlConfigurada = baseUrlConfigurada;
+        this.puerto = puerto;
     }
 
     @Override
@@ -163,5 +180,62 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
     private static String recortar(String s) {
         if (s == null) return "error sin detalle";
         return s.length() > 480 ? s.substring(0, 480) : s;
+    }
+
+    /**
+     * La URL que va dentro del QR.
+     *
+     * <p>Tiene que ser la direccion por la que el <b>telefono</b> alcanza a este filial, que no es
+     * necesariamente por donde lo alcanza el desktop. Una maquina de sucursal suele tener tres
+     * direcciones a la vez: la LAN del local, la de tailscale (100.64/10) y la de docker
+     * (172.17/16). Solo la primera le sirve a un telefono en el wifi del local, asi que se
+     * descartan las otras dos por rango y las interfaces virtuales por nombre.
+     *
+     * <p>Es HTTP a proposito: origen privado hacia privado, sin contenido mixto ni permiso de red
+     * local, asi anda igual en Safari que en Chrome sin certificado. Ver §2.8 de
+     * FASE-2-TICKET-FISICO.md.
+     */
+    public String urlDe(CapturaCupon c) {
+        String base = baseUrlConfigurada != null && !baseUrlConfigurada.trim().isEmpty()
+                ? baseUrlConfigurada.trim().replaceAll("/+$", "")
+                : "http://" + ipLan() + ":" + puerto;
+        return base + "/public/captura/" + c.getToken();
+    }
+
+    /** Primera IPv4 privada que no sea de tailscale, docker ni loopback. */
+    private static String ipLan() {
+        try {
+            List<NetworkInterface> nics = Collections.list(NetworkInterface.getNetworkInterfaces());
+            for (NetworkInterface nic : nics) {
+                if (!nic.isUp() || nic.isLoopback() || nic.isVirtual()) continue;
+                String nombre = nic.getName().toLowerCase();
+                if (nombre.startsWith("tailscale") || nombre.startsWith("zt")
+                        || nombre.startsWith("docker") || nombre.startsWith("br-")
+                        || nombre.startsWith("veth") || nombre.startsWith("virbr")) continue;
+
+                for (InetAddress dir : Collections.list(nic.getInetAddresses())) {
+                    if (!(dir instanceof Inet4Address) || dir.isLoopbackAddress()) continue;
+                    String ip = dir.getHostAddress();
+                    if (esCgnat(ip) || ip.startsWith("172.17.")) continue;   // tailscale / docker
+                    if (dir.isSiteLocalAddress()) return ip;
+                }
+            }
+        } catch (Exception e) {
+            log.error("no se pudo deducir la ip de la LAN para el QR de captura", e);
+        }
+        // Ultimo recurso: el desktop va a mostrar un QR que no resuelve y el cajero va a avisar.
+        // Es preferible a no mostrar nada: el sintoma dice donde mirar.
+        return "127.0.0.1";
+    }
+
+    /** 100.64.0.0/10, el rango que usa tailscale. */
+    private static boolean esCgnat(String ip) {
+        if (!ip.startsWith("100.")) return false;
+        try {
+            int segundo = Integer.parseInt(ip.split("\\.")[1]);
+            return segundo >= 64 && segundo <= 127;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
