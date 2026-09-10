@@ -18,6 +18,8 @@ type VentaTarjeta {
     imagenUrl: String
     qrCrudo: String
     estado: String
+    """QR | OCR | MANUAL | API. Origen dominante de los datos; null = anterior a la columna."""
+    origen: String
     usuario: Usuario
     creadoEn: Date
 }
@@ -103,6 +105,12 @@ input CompletarVentaTarjetaInput {
     8.000 R$ da diferencia cero y el registro queda "conciliado" siendo que difiere ~5900x.
     """
     monedaId: Int
+    """
+    De donde salieron estos datos: QR | OCR | MANUAL | API. Lo manda el cliente porque es el
+    unico que sabe por que camino los obtuvo — el backend ve el mismo `completar` en los cuatro
+    casos. Si no viene, el servidor lo deduce del qrCrudo, que solo existe en el camino QR.
+    """
+    origen: String
 }
 
 extend type Mutation {

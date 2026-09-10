@@ -78,6 +78,17 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
      * @param identificadorTransaccion referencia unica del proveedor (el EndToEndId en Pix).
      *                                 Se copia ademas al CobroDetalle de la venta, que es
      *                                 donde vive la conciliacion.
+     * @param origen                   QR | OCR | MANUAL | API. <b>Lo manda el cliente</b>, porque
+     *                                 es el unico que sabe por que camino obtuvo los datos: el
+     *                                 backend ve exactamente el mismo `completar` en los cuatro
+     *                                 casos. Si no viene, se deduce QR cuando hay qrCrudo --que
+     *                                 solo existe si entro por el lector-- y en cualquier otro
+     *                                 caso queda NULL, que dice "no se sabe" en vez de mentir.
+     *                                 <p>
+     *                                 Este es el UNICO metodo que pasa una venta_tarjeta a
+     *                                 COMPLETADO, en los dos backends: por eso el origen se
+     *                                 escribe aca y no en central, que solo tiene un update
+     *                                 generico usado para otras cosas.
      */
     @Transactional
     public VentaTarjeta completar(Long id,
@@ -88,7 +99,8 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                                   String identificadorTransaccion,
                                   String qrCrudo,
                                   Long cobroDetalleId,
-                                  Long monedaId) {
+                                  Long monedaId,
+                                  String origen) {
         VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
         if (vt == null) {
             throw new GraphQLException("No existe la venta con tarjeta " + id + " en la sucursal " + sucursalId);
@@ -111,6 +123,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         vt.setNumeroBoleta(numeroBoleta);
         vt.setMontoEscaneado(montoEscaneado);
         vt.setQrCrudo(qrCrudo);
+        vt.setOrigen(origenEfectivo(origen, qrCrudo));
         vt.setEstado("COMPLETADO");
         VentaTarjeta guardado = repository.save(vt);
 
@@ -185,6 +198,30 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                 });
     }
 
+    /**
+     * De donde salieron los datos, cuando el cliente no lo dice.
+     * <p>
+     * Solo se deduce el caso que el backend PUEDE saber: si hay qrCrudo, entro por el lector. OCR
+     * y MANUAL son indistinguibles desde aca --los dos llegan como campos sueltos-- asi que se
+     * dejan en NULL antes que adivinar. Un 'OCR' inventado sobre una carga a mano haria que la
+     * conciliacion confie en un dato que un humano tipeo.
+     */
+    private static String origenEfectivo(String origen, String qrCrudo) {
+        if (origen != null && !origen.trim().isEmpty()) {
+            String limpio = origen.trim().toUpperCase();
+            if (!VentaTarjeta.ORIGENES.contains(limpio)) {
+                // Se valida ACA y no se deja llegar a la base a proposito. La columna tiene un
+                // CHECK, pero una violacion de CHECK sube como DataIntegrityViolationException, y
+                // el unico @ExceptionHandler del filial atrapa solo GraphQLException: el cajero
+                // veria un error opaco de graphql-java sin ninguna pista de que fallo.
+                throw new GraphQLException("Origen '" + origen.trim() + "' desconocido. Los validos"
+                        + " son: " + String.join(", ", VentaTarjeta.ORIGENES) + ".");
+            }
+            return limpio;
+        }
+        if (qrCrudo != null && !qrCrudo.trim().isEmpty()) return VentaTarjeta.ORIGEN_QR;
+        return null;
+    }
 
     /**
      * El motivo por el que este cupon NO se puede usar, o vacio si esta libre.

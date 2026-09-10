@@ -34,6 +34,24 @@ public class VentaTarjeta implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Leido por el lector del PDV desde el QR impreso en el cupon. */
+    public static final String ORIGEN_QR = "QR";
+    /** Extraido por el OCR de una foto del cupon. */
+    public static final String ORIGEN_OCR = "OCR";
+    /** Tipeado por el cajero. Es la salida universal: existe para todo tipo de terminal. */
+    public static final String ORIGEN_MANUAL = "MANUAL";
+    /** Traido de la API del proveedor. Todavia no hay ninguna integracion asi. */
+    public static final String ORIGEN_API = "API";
+
+    /**
+     * Los cuatro validos, en el mismo orden que el CHECK de la columna (V97.5).
+     * <p>
+     * Existe para poder validar ANTES de guardar: si el valor llega hasta el INSERT, la violacion
+     * del CHECK sube como DataIntegrityViolationException y el cajero ve un error opaco.
+     */
+    public static final java.util.List<String> ORIGENES = java.util.Collections.unmodifiableList(
+            java.util.Arrays.asList(ORIGEN_QR, ORIGEN_OCR, ORIGEN_MANUAL, ORIGEN_API));
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -102,6 +120,26 @@ public class VentaTarjeta implements Serializable {
 
     @Column(nullable = false, length = 20)
     private String estado = "PENDIENTE";
+
+    /**
+     * De donde salieron los datos del cupon: {@link #ORIGEN_QR}, {@link #ORIGEN_OCR},
+     * {@link #ORIGEN_MANUAL} o {@link #ORIGEN_API}.
+     * <p>
+     * No todos los origenes merecen la misma confianza: un codigo leido por OCR puede tener un
+     * caracter mal --el {@code Cargo: 002511} leido {@code 802511} lo fallan los dos motores--,
+     * uno tipeado por un cajero puede tener cualquier cosa, y uno que viene de la API del
+     * proveedor no puede estar mal. Sin esta columna, la conciliacion no puede responder la unica
+     * pregunta que importa: cuales de estas filas necesitan que las mire una persona.
+     * <p>
+     * Es el origen <b>dominante</b> de la fila, no uno por campo: si el cajero corrige a mano un
+     * campo que el OCR leyo mal, la fila es MANUAL. Lo que se quiere saber es si hubo
+     * intervencion humana, no la genealogia de cada dato.
+     * <p>
+     * NULL en las filas anteriores a la columna: historico desconocido, sin backfill. Un 'QR'
+     * inventado mentiria; el NULL dice la verdad.
+     */
+    @Column(length = 20)
+    private String origen;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)

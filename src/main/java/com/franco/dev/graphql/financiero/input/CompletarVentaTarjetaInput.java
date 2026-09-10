@@ -43,4 +43,18 @@ public class CompletarVentaTarjetaInput {
      * cuadra por casualidad en cualquier reporte.
      */
     private Long monedaId;
+
+    /**
+     * De donde salieron estos datos: QR | OCR | MANUAL | API.
+     * <p>
+     * Lo manda el cliente porque es el unico que sabe por que camino los obtuvo: el backend ve
+     * exactamente la misma mutation en los cuatro casos. Si no viene, el servidor deduce QR
+     * cuando hay qrCrudo y deja NULL en el resto --OCR y MANUAL son indistinguibles desde el
+     * backend, y un 'OCR' inventado sobre una carga a mano haria que la conciliacion confie en
+     * un dato que un humano tipeo.
+     * <p>
+     * Opcional, como todo campo nuevo de input en este repo: `mobile` sigue instalada, consume
+     * esta mutation y solo se actualiza por release manual de Play Store.
+     */
+    private String origen;
 }
