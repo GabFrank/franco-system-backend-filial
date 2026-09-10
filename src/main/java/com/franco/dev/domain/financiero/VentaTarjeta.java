@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -76,6 +77,19 @@ public class VentaTarjeta implements Serializable {
 
     @Column(name = "imagen_url")
     private String imagenUrl;
+
+    /**
+     * Campos del cupon que no son canonicos, como clave-valor.
+     *
+     * El mapeo del formato decide que valor extraido va a monto, codigo_autorizacion,
+     * numero_boleta y terminal; todo lo demas cae aca. Asi un proveedor nuevo con campos
+     * propios se resuelve desde el ABM: sin codigo, sin migracion y sin propagar a 24
+     * filiales. PlugPay es el caso que lo motivo: imprime dos montos en dos monedas y cual
+     * es el de la venta es configuracion, no una constante del sistema.
+     */
+    @Column(name = "datos_extra", columnDefinition = "jsonb")
+    @Type(type = "com.vladmihalcea.hibernate.type.json.JsonBinaryType")
+    private String datosExtra;
 
     /**
      * Cadena cruda que entro por el lector cuando el registro se completo escaneando
