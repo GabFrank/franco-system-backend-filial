@@ -218,11 +218,25 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         return base + "/public/captura/" + c.getToken();
     }
 
-    /** La direccion de esta maquina por la que llego la request, o el escaneo si no hay request. */
+    /**
+     * La direccion de esta maquina por la que llego la request, o el escaneo si no hay request.
+     *
+     * <p>Deja dicho en el log de donde salio. Si el resolver corriera fuera del hilo del servlet
+     * --async, un executor propio-- {@code RequestContextHolder} vendria vacio y esto caeria al
+     * escaneo sin que se note: el QR se dibujaria igual, apuntando a la interfaz equivocada. Una
+     * linea por captura, y es lo primero que hay que mirar cuando un telefono no carga la
+     * pagina.
+     */
     private static String host() {
         String delRequest = ipDeLaRequest();
-        if (delRequest != null) return delRequest;
-        return ipLan();
+        if (delRequest != null) {
+            log.info("QR de captura apuntando a {} (de la request)", delRequest);
+            return delRequest;
+        }
+        String escaneada = ipLan();
+        log.info("QR de captura apuntando a {} (del escaneo de interfaces; la request no sirvio)",
+                escaneada);
+        return escaneada;
     }
 
     /**
