@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -185,11 +188,24 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
     /**
      * La URL que va dentro del QR.
      *
-     * <p>Tiene que ser la direccion por la que el <b>telefono</b> alcanza a este filial, que no es
-     * necesariamente por donde lo alcanza el desktop. Una maquina de sucursal suele tener tres
-     * direcciones a la vez: la LAN del local, la de tailscale (100.64/10) y la de docker
-     * (172.17/16). Solo la primera le sirve a un telefono en el wifi del local, asi que se
-     * descartan las otras dos por rango y las interfaces virtuales por nombre.
+     * <p>Tiene que ser la direccion por la que el <b>telefono</b> alcanza a este filial. Se
+     * resuelve en tres pasos, del mas confiable al menos:
+     *
+     * <ol>
+     *   <li><b>{@code frc.captura.base-url}</b>, si esta configurada. Manda siempre.</li>
+     *   <li><b>La direccion por la que entro esta misma request.</b> Quien pide la captura es el
+     *       desktop de la caja, que esta en la misma red que el telefono; la interfaz por la que
+     *       llego es, por definicion, una que funciona desde el piso del local. Es una medicion,
+     *       no una deduccion.</li>
+     *   <li><b>El escaneo de interfaces</b>, como ultimo recurso.</li>
+     * </ol>
+     *
+     * <p><b>Por que el escaneo quedo de ultimo.</b> Un filial convive con la LAN del local y con
+     * una o dos redes overlay, y <b>ni el rango ni el nombre las distinguen</b>. Verificado el
+     * 2026-09-10: en esta red 172.25/16 es ZeroTier, no la LAN --y ZeroTier se presenta como
+     * {@code zt*} en Linux, {@code feth*} en macOS y con un nombre cualquiera en Windows, con
+     * direccion privada y broadcast, indistinguible de una placa de red de verdad. Elegir mal no
+     * da error: el QR se dibuja igual y el telefono no carga nada.
      *
      * <p>Es HTTP a proposito: origen privado hacia privado, sin contenido mixto ni permiso de red
      * local, asi anda igual en Safari que en Chrome sin certificado. Ver §2.8 de
@@ -198,8 +214,38 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
     public String urlDe(CapturaCupon c) {
         String base = baseUrlConfigurada != null && !baseUrlConfigurada.trim().isEmpty()
                 ? baseUrlConfigurada.trim().replaceAll("/+$", "")
-                : "http://" + ipLan() + ":" + puerto;
+                : "http://" + host() + ":" + puerto;
         return base + "/public/captura/" + c.getToken();
+    }
+
+    /** La direccion de esta maquina por la que llego la request, o el escaneo si no hay request. */
+    private static String host() {
+        String delRequest = ipDeLaRequest();
+        if (delRequest != null) return delRequest;
+        return ipLan();
+    }
+
+    /**
+     * La IP local del socket de la request en curso.
+     *
+     * <p>Devuelve null cuando no hay request (un test, un scheduler) o cuando la que hay no
+     * sirve: loopback --el desktop corriendo en la misma maquina-- o una direccion publica.
+     */
+    private static String ipDeLaRequest() {
+        try {
+            RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
+            if (!(attrs instanceof ServletRequestAttributes)) return null;
+
+            String ip = ((ServletRequestAttributes) attrs).getRequest().getLocalAddr();
+            if (ip == null) return null;
+
+            InetAddress dir = InetAddress.getByName(ip);
+            if (!(dir instanceof Inet4Address) || dir.isLoopbackAddress()) return null;
+            if (!dir.isSiteLocalAddress() || esCgnat(ip)) return null;
+            return ip;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** Primera IPv4 privada que no sea de tailscale, docker ni loopback. */
@@ -228,11 +274,15 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
     /**
      * Si una interfaz puede ser la del wifi del local.
      *
-     * <p>Se descartan por nombre las que sabemos que no lo son. Las tres primeras son las que de
-     * verdad aparecen en una filial: {@code tailscale0} en las que ya migraron de ZeroTier,
-     * {@code zt*} en las que no, y {@code docker0} donde corre algo en contenedor. Las otras
-     * ({@code br-*}, {@code veth*}, {@code virbr*}) son bridges que Docker y libvirt crean solos
-     * y que {@code isVirtual()} no siempre marca.
+     * <p>Se descartan por nombre las que sabemos que no lo son: {@code tailscale0} en las que ya
+     * migraron de ZeroTier, {@code zt*} (Linux) y {@code feth*} (macOS) en las que todavia lo
+     * usan, {@code docker0} donde corre algo en contenedor, y los bridges que Docker y libvirt
+     * crean solos ({@code br-*}, {@code veth*}, {@code virbr*}) y que {@code isVirtual()} no
+     * siempre marca.
+     *
+     * <p><b>El filtro por nombre es debil y por eso este camino es el ultimo.</b> ZeroTier se
+     * llama distinto en cada sistema y en Windows ni siquiera empieza por {@code zt}. Lo que de
+     * verdad decide es la direccion por la que entro la request; ver {@code urlDe}.
      *
      * <p>Package-private para poder testearla: es la parte con criterio, y no se puede ejercitar
      * pidiendole a la maquina de turno que tenga las interfaces del caso.
@@ -240,7 +290,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
     static boolean interfazUtil(String nombre) {
         if (nombre == null) return false;
         String n = nombre.toLowerCase();
-        return !(n.startsWith("tailscale") || n.startsWith("zt")
+        return !(n.startsWith("tailscale") || n.startsWith("zt") || n.startsWith("feth")
                 || n.startsWith("docker") || n.startsWith("br-")
                 || n.startsWith("veth") || n.startsWith("virbr"));
     }

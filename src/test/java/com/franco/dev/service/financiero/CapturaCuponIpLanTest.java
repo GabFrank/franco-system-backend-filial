@@ -31,7 +31,22 @@ class CapturaCuponIpLanTest {
     void descartaLaVpnCualquieraSeaLaGeneracion() {
         assertTrue(CapturaCuponService.interfazUtil("eth0"));
         assertFalse(CapturaCuponService.interfazUtil("tailscale0"));
-        assertFalse(CapturaCuponService.interfazUtil("ztppmkrvsu"));   // ZeroTier, filiales viejas
+        assertFalse(CapturaCuponService.interfazUtil("ztppmkrvsu"));   // ZeroTier en Linux
+        assertFalse(CapturaCuponService.interfazUtil("feth1895"));     // ZeroTier en macOS
+    }
+
+    /**
+     * El filtro por nombre no alcanza, y el test lo dice para que nadie lo tome por suficiente.
+     *
+     * <p>El 2026-09-10, en la red de FRC, 172.25/16 resulto ser ZeroTier y no la LAN: una
+     * direccion privada, con broadcast, sobre una interfaz que en Windows ni siquiera se llama
+     * `zt`. Por eso `urlDe` prefiere la direccion por la que entro la request y deja el escaneo
+     * como ultimo recurso.
+     */
+    @Test
+    void unaDireccionDeOverlayNoSeDistingueDeLaLan() {
+        assertTrue(CapturaCuponService.direccionUtil("172.25.0.36", true));   // era ZeroTier
+        assertTrue(CapturaCuponService.direccionUtil("192.168.0.106", true)); // era la LAN
     }
 
     @Test
@@ -60,7 +75,7 @@ class CapturaCuponIpLanTest {
     void aceptaLosTresRangosPrivados() {
         assertTrue(CapturaCuponService.direccionUtil("192.168.0.15", true));
         assertTrue(CapturaCuponService.direccionUtil("10.0.0.8", true));
-        assertTrue(CapturaCuponService.direccionUtil("172.25.3.4", true));   // la LAN real de las filiales
+        assertTrue(CapturaCuponService.direccionUtil("172.25.3.4", true));
     }
 
     @Test
