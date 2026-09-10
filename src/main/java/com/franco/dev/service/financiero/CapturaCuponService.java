@@ -208,16 +208,13 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
             List<NetworkInterface> nics = Collections.list(NetworkInterface.getNetworkInterfaces());
             for (NetworkInterface nic : nics) {
                 if (!nic.isUp() || nic.isLoopback() || nic.isVirtual()) continue;
-                String nombre = nic.getName().toLowerCase();
-                if (nombre.startsWith("tailscale") || nombre.startsWith("zt")
-                        || nombre.startsWith("docker") || nombre.startsWith("br-")
-                        || nombre.startsWith("veth") || nombre.startsWith("virbr")) continue;
+                if (!interfazUtil(nic.getName())) continue;
 
                 for (InetAddress dir : Collections.list(nic.getInetAddresses())) {
                     if (!(dir instanceof Inet4Address) || dir.isLoopbackAddress()) continue;
-                    String ip = dir.getHostAddress();
-                    if (esCgnat(ip) || ip.startsWith("172.17.")) continue;   // tailscale / docker
-                    if (dir.isSiteLocalAddress()) return ip;
+                    if (direccionUtil(dir.getHostAddress(), dir.isSiteLocalAddress())) {
+                        return dir.getHostAddress();
+                    }
                 }
             }
         } catch (Exception e) {
@@ -226,6 +223,39 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         // Ultimo recurso: el desktop va a mostrar un QR que no resuelve y el cajero va a avisar.
         // Es preferible a no mostrar nada: el sintoma dice donde mirar.
         return "127.0.0.1";
+    }
+
+    /**
+     * Si una interfaz puede ser la del wifi del local.
+     *
+     * <p>Se descartan por nombre las que sabemos que no lo son. Las tres primeras son las que de
+     * verdad aparecen en una filial: {@code tailscale0} en las que ya migraron de ZeroTier,
+     * {@code zt*} en las que no, y {@code docker0} donde corre algo en contenedor. Las otras
+     * ({@code br-*}, {@code veth*}, {@code virbr*}) son bridges que Docker y libvirt crean solos
+     * y que {@code isVirtual()} no siempre marca.
+     *
+     * <p>Package-private para poder testearla: es la parte con criterio, y no se puede ejercitar
+     * pidiendole a la maquina de turno que tenga las interfaces del caso.
+     */
+    static boolean interfazUtil(String nombre) {
+        if (nombre == null) return false;
+        String n = nombre.toLowerCase();
+        return !(n.startsWith("tailscale") || n.startsWith("zt")
+                || n.startsWith("docker") || n.startsWith("br-")
+                || n.startsWith("veth") || n.startsWith("virbr"));
+    }
+
+    /**
+     * Si una direccion sirve para que un telefono del local alcance a este filial.
+     *
+     * <p>Tiene que ser privada --una publica no la va a alcanzar el telefono, y ademas no
+     * queremos publicar la pagina hacia afuera-- y no puede ser de las dos redes privadas que
+     * conviven con la LAN sin ser la LAN: tailscale (100.64/10, que Java ni siquiera considera
+     * site-local) y la de docker (172.17/16, que si lo es y por eso hay que nombrarla).
+     */
+    static boolean direccionUtil(String ip, boolean siteLocal) {
+        if (ip == null || !siteLocal) return false;
+        return !esCgnat(ip) && !ip.startsWith("172.17.");
     }
 
     /** 100.64.0.0/10, el rango que usa tailscale. */
