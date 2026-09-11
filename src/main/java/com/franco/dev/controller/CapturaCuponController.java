@@ -121,8 +121,9 @@ public class CapturaCuponController {
     /**
      * Toca el timbre para que el desktop vaya a buscar el resultado.
      *
-     * <p>Va sin el texto del cupon: la subscription del filial es anonima --por WebSocket no hay
-     * sesion-- y el contenido sale por la query, que si exige login. Ver {@code CapturaCuponUpdate}.
+     * <p>Va sin el texto del cupon <b>y sin el token</b>: la subscription del filial es anonima
+     * --por WebSocket no hay sesion-- y el token es la credencial con la que se pide el contenido.
+     * Lo unico que viaja es de que caja es la novedad. Ver {@code CapturaCuponUpdate}.
      *
      * <p>Nunca hace fallar la subida: el telefono ya cumplio, y si el aviso se pierde el desktop
      * lo va a ver igual cuando consulte por token.
@@ -130,7 +131,6 @@ public class CapturaCuponController {
     private void avisar(CapturaCupon c) {
         try {
             CapturaCuponUpdate u = new CapturaCuponUpdate();
-            u.setToken(c.getToken());
             u.setCajaId(c.getCajaId());
             u.setEstado(c.getEstado());
             publisher.publish(u);

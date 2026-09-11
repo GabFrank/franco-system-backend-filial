@@ -18,11 +18,12 @@ type CapturaCuponQr {
     expiraEn: String
 }
 
-# El aviso que sale cuando el OCR termina: un TIMBRE, no el contenido. El texto del cupon se
-# pide con capturaCupon(token), que pasa por login; esta subscription es anonima porque por
-# WebSocket no hay sesion. Se emite tambien en ERROR: el cajero mira la caja, no el telefono.
+# El aviso que sale cuando el OCR termina: un TIMBRE, no el contenido. Esta subscription es
+# anonima porque por WebSocket no hay sesion, asi que NO lleva el token: con el token cualquiera
+# con sesion abierta leeria el cupon de otra caja via capturaCupon(token). El desktop ya tiene el
+# suyo desde que pidio la captura; le alcanza con saber de que caja es la novedad.
+# Se emite tambien en ERROR: el cajero mira la caja, no el telefono.
 type CapturaCuponUpdate {
-    token: String
     cajaId: ID
     estado: String
 }

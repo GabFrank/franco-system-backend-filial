@@ -44,10 +44,11 @@ public class CapturaCuponPublisher {
             // No deberia pasar: connect() en el constructor deja el emitter listo desde el
             // arranque. Si pasa, el desktop no se entera por subscription y solo lo ve cuando
             // sondea --y eso, sin este aviso, es indistinguible de un OCR lento.
-            log.warn("captura {} lista pero el canal de avisos no esta armado", entity.getToken());
+            log.warn("captura de la caja {} lista pero el canal de avisos no esta armado", entity.getCajaId());
             return;
         }
-        log.info("aviso de captura {} -> {}", entity.getToken(), entity.getEstado());
+        // Sin el token, tambien aca: un token en el log es una credencial en el log.
+        log.info("aviso de captura de la caja {} -> {}", entity.getCajaId(), entity.getEstado());
         emitter.onNext(entity);
     }
 
