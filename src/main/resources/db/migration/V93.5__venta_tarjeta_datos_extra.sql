@@ -28,6 +28,13 @@
 --
 -- Aditiva y nullable: las filas existentes quedan en NULL y el codigo anterior las ignora, asi
 -- que el rollback al JAR previo sigue funcionando contra este esquema.
+--
+-- ⚠️ SIN LECTOR TODAVIA. La columna se adelanta, el mecanismo que la llena no esta en esta
+-- entrega: hoy `datos_extra` no la escribe ni la lee nadie --cero usos en Java, y no esta
+-- expuesta en ningun .graphqls--. El texto de arriba describe como VA a funcionar cuando la
+-- etapa 4 implemente el mapeo por campo, no lo que corre hoy. Misma situacion que
+-- dias_retencion_imagenes y mb_libres_minimos, y por el mismo motivo: adelantar la columna es
+-- mas barato que coordinar un segundo despliegue sobre 24 filiales.
 -- =====================================================================
 ALTER TABLE financiero.venta_tarjeta
     ADD COLUMN IF NOT EXISTS datos_extra JSONB;
