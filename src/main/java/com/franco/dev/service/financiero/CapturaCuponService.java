@@ -7,7 +7,11 @@ import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.repository.financiero.CapturaCuponRepository;
 import com.franco.dev.service.CrudService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.franco.dev.domain.financiero.FormatoTerminalPosRegion;
 import com.franco.dev.domain.financiero.TerminalPos;
+import com.franco.dev.repository.financiero.FormatoTerminalPosRegionRepository;
+import com.franco.dev.service.financiero.ocr.DerivadorMapa;
+import com.franco.dev.service.financiero.ocr.MotorOcr;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.ocr.CuponOcrService;
 import com.franco.dev.service.financiero.ocr.ExtractorCupon;
@@ -29,7 +33,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.time.format.DateTimeFormatter;
 import java.math.BigDecimal;
@@ -69,6 +75,11 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
 
     /** Para no confiar en el sucursalId que manda el cliente. */
     private final SucursalService sucursales;
+
+    /** El mapa del formato, para acotar el reconocimiento. */
+    private final FormatoTerminalPosRegionRepository regiones;
+
+    private final DerivadorMapa derivador;
     private final PdvCajaService cajas;
 
     /** De aca sale la vida del token. Ver {@link #MINUTOS_VALIDEZ}. */
@@ -93,6 +104,8 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
                                CuponOcrService ocr,
                                ExtractorCupon extractor,
                                SucursalService sucursales,
+                               FormatoTerminalPosRegionRepository regiones,
+                               DerivadorMapa derivador,
                                PdvCajaService cajas,
                                ConfiguracionVentaTarjetaService configuracion,
                                @Value("${frc.captura.ruta-imagenes:cupones}") String rutaImagenes,
@@ -102,6 +115,8 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         this.ocr = ocr;
         this.extractor = extractor;
         this.sucursales = sucursales;
+        this.regiones = regiones;
+        this.derivador = derivador;
         this.cajas = cajas;
         this.configuracion = configuracion;
         this.rutaImagenes = rutaImagenes;
@@ -221,7 +236,10 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         }
 
         try {
-            MotorOcr.Resultado r = ocr.leer(jpeg);
+            // Acotado al mapa del formato, si tiene. Es la palanca de rendimiento: reconocer 6
+            // cajas en vez de 26 baja `rec` de 3.841 a ~900 ms. Sin mapa se lee el cupon entero,
+            // que es lo que el modulo hacia hasta ahora.
+            MotorOcr.Resultado r = ocr.leer(jpeg, zonasDe(c));
             if (r.lineas.isEmpty()) {
                 // Leyo cero: casi siempre es que la foto no es del cupon, o esta ilegible.
                 // NO se consume el token: el cajero saca otra sin volver a la caja.
@@ -245,6 +263,30 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
             c.setError(recortar(e.getMessage()));
         }
         return repository.save(c);
+    }
+
+    /**
+     * Las zonas del mapa del formato de esta captura, para acotar el reconocimiento.
+     *
+     * <p>Solo las regiones que tienen las cuatro coordenadas: una region anclada solo por
+     * etiqueta no dice donde mirar, y mezclarla acotaria mal.
+     *
+     * <p>Devuelve {@code null} --y no una lista vacia-- cuando no hay nada que acotar, porque
+     * vacia y "sin filtro" tienen que significar lo mismo del lado del motor y es mas claro
+     * decirlo aca.
+     */
+    private List<MotorOcr.Zona> zonasDe(CapturaCupon c) {
+        if (c.getTerminalPos() == null || c.getTerminalPos().getFormatoTerminalPos() == null) return null;
+        Long formatoId = c.getTerminalPos().getFormatoTerminalPos().getId();
+        if (formatoId == null) return null;
+
+        List<MotorOcr.Zona> zonas = new ArrayList<MotorOcr.Zona>();
+        for (FormatoTerminalPosRegion r : regiones.findByFormatoTerminalPos_IdOrderByOrdenAscIdAsc(formatoId)) {
+            if (!r.tienePista()) continue;
+            zonas.add(new MotorOcr.Zona(r.getX1().doubleValue(), r.getY1().doubleValue(),
+                                        r.getX2().doubleValue(), r.getY2().doubleValue()));
+        }
+        return zonas.isEmpty() ? null : zonas;
     }
 
     /**
@@ -275,6 +317,39 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
             c.setCampos(new ObjectMapper().writeValueAsString(salida));
         } catch (Exception e) {
             log.error("captura {}: fallo la extraccion de campos", c.getId(), e);
+        }
+    }
+
+    /**
+     * Deriva el mapa del formato a partir de una captura ya tomada.
+     *
+     * <p>Vuelve a correr el OCR sobre la imagen guardada, y a proposito: lo que quedo en la base
+     * es el <b>texto</b>, y para derivar hacen falta las <b>coordenadas</b>. Es una pasada mas,
+     * pero ocurre una vez, cuando se configura un formato, no en cada cobro.
+     *
+     * <p>Deliberadamente <b>no persiste nada</b>. Ver {@code RegionDerivada}: las regiones son de
+     * central.
+     */
+    public DerivadorMapa.Resultado derivarMapa(String token) {
+        CapturaCupon c = repository.findByToken(token)
+                .orElseThrow(() -> new IllegalArgumentException("no existe esa captura"));
+        if (c.getTerminalPos() == null || c.getTerminalPos().getFormatoTerminalPos() == null) {
+            return DerivadorMapa.Resultado.fallo("la captura no tiene formato asociado");
+        }
+        if (c.getImagenUrl() == null) {
+            return DerivadorMapa.Resultado.fallo("la foto de esa captura ya no esta en el disco");
+        }
+        try {
+            byte[] jpeg = Files.readAllBytes(Paths.get(c.getImagenUrl()));
+            int[] tam = ocr.tamano(jpeg);
+            // Sin acotar: para derivar el mapa hay que ver el cupon entero, justamente porque
+            // todavia no hay mapa.
+            MotorOcr.Resultado r = ocr.leer(jpeg, null);
+            return derivador.derivar(r.lineas, c.getTerminalPos().getFormatoTerminalPos().getPatron(),
+                    tam[0], tam[1]);
+        } catch (Exception e) {
+            log.error("no se pudo derivar el mapa de la captura {}", c.getId(), e);
+            return DerivadorMapa.Resultado.fallo("no se pudo leer la foto guardada");
         }
     }
 

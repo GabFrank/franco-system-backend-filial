@@ -72,7 +72,8 @@ public class DerivadorMapa {
 
         public boolean ok() { return error == null; }
 
-        static Resultado fallo(String e) {
+        /** Publico porque el servicio de captura tambien reporta fallos antes de llegar al OCR. */
+        public static Resultado fallo(String e) {
             return new Resultado(new ArrayList<RegionPropuesta>(), e);
         }
 

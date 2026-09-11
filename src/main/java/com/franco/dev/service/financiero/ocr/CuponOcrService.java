@@ -68,10 +68,30 @@ public class CuponOcrService {
      * @return las lineas leidas, en orden de lectura, con su confianza
      */
     public MotorOcr.Resultado leer(byte[] jpeg) throws OrtException, IOException {
+        return leer(jpeg, null);
+    }
+
+    /**
+     * Lee acotando el reconocimiento a las zonas del mapa, si el formato tiene uno.
+     *
+     * <p>Es la palanca de rendimiento: reconocer 6 cajas en vez de 26 baja {@code rec} de 3.841 a
+     * ~900 ms. Con {@code zonas} en null se lee el cupon entero, que es lo que pasa cuando el
+     * formato no tiene mapa todavia.
+     */
+    public MotorOcr.Resultado leer(byte[] jpeg, List<MotorOcr.Zona> zonas)
+            throws OrtException, IOException {
         MotorOcr m = motor;
         if (m == null) throw new IllegalStateException("el motor de OCR no esta disponible");
         try (InputStream in = new ByteArrayInputStream(jpeg)) {
-            return m.reconocer(Imagen.leer(in));
+            return m.reconocer(Imagen.leer(in), zonas);
+        }
+    }
+
+    /** El tamano de la imagen, que la derivacion necesita para normalizar. */
+    public int[] tamano(byte[] jpeg) throws IOException {
+        try (InputStream in = new ByteArrayInputStream(jpeg)) {
+            Imagen i = Imagen.leer(in);
+            return new int[]{i.ancho, i.alto};
         }
     }
 

@@ -1,5 +1,26 @@
 extend type Query {
     capturaCupon(token: String!): CapturaCupon
+    """
+    Propone el mapa del formato a partir de una captura ya tomada. NO guarda nada: las regiones
+    viven en central, que es el publisher. El administrador revisa esto y central lo persiste.
+    Un campo con `sinRegion` se resuelve por patron, sin restriccion espacial.
+    """
+    derivarMapaDeCaptura(token: String!): [RegionDerivada]
+}
+
+type RegionDerivada {
+    campo: String
+    etiqueta: String
+    "DERECHA | ABAJO | DENTRO"
+    posicion: String
+    "Lo que se leyo en el cupon de muestra, para verificar de un vistazo"
+    valorLeido: String
+    x1: Float
+    y1: Float
+    x2: Float
+    y2: Float
+    "Null si se derivo bien; si no, por que no se pudo"
+    sinRegion: String
 }
 
 extend type Mutation {

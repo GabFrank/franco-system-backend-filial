@@ -2,6 +2,12 @@ package com.franco.dev.graphql.financiero;
 
 import com.franco.dev.domain.financiero.CapturaCupon;
 import com.franco.dev.graphql.financiero.dto.CapturaCuponQr;
+import com.franco.dev.graphql.financiero.dto.RegionDerivada;
+import com.franco.dev.service.financiero.ocr.DerivadorMapa;
+import graphql.GraphQLException;
+
+import java.util.ArrayList;
+import java.util.List;
 import com.franco.dev.service.financiero.CapturaCuponService;
 import com.franco.dev.service.financiero.TerminalPosService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -51,6 +57,29 @@ public class CapturaCuponGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 usuarioId == null ? null : usuarioService.findById(usuarioId).orElse(null),
                 terminalPosId == null ? null : terminalPosService.findById(terminalPosId).orElse(null));
         return new CapturaCuponQr(c.getToken(), service.urlDe(c), c.getExpiraEn().toString());
+    }
+
+    /**
+     * Propone el mapa del formato a partir de una captura ya tomada.
+     *
+     * <p>Es lo que reemplaza al editor drag-and-drop: el administrador saca una foto del cupon
+     * desde la caja, dispara esto, y revisa lo que salio. <b>No guarda nada</b> — las regiones son
+     * de central, que es el publisher.
+     *
+     * <p>Los campos con {@code sinRegion} no son un fallo: son los que el patron capturo pero cuya
+     * posicion no se pudo determinar sin inventarla. Se resuelven por patron, sin restriccion
+     * espacial.
+     */
+    public List<RegionDerivada> derivarMapaDeCaptura(String token) {
+        DerivadorMapa.Resultado r = service.derivarMapa(token);
+        if (!r.ok()) throw new GraphQLException(r.error);
+
+        List<RegionDerivada> out = new ArrayList<>();
+        for (DerivadorMapa.RegionPropuesta p : r.regiones) {
+            out.add(new RegionDerivada(p.campo, p.etiqueta, p.posicion, p.valorLeido,
+                    p.x1, p.y1, p.x2, p.y2, p.sinRegion));
+        }
+        return out;
     }
 
     /** Estado actual de una captura. Es la via de respaldo de la subscription. */

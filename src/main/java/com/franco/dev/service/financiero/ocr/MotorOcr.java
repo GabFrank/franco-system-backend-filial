@@ -11,6 +11,20 @@ import java.util.*;
  */
 public final class MotorOcr implements AutoCloseable {
 
+    /**
+     * Un rectangulo del cupon, normalizado 0..1, donde se espera encontrar algo.
+     *
+     * <p>Sirve para <b>acotar el reconocimiento</b>: el detector encuentra ~26 cajas en un cupon
+     * tipico y reconocer cada una es la etapa cara. Si el formato tiene mapa, se sabe de antemano
+     * que solo importan unas pocas.
+     */
+    public static final class Zona {
+        public final double x1, y1, x2, y2;
+        public Zona(double x1, double y1, double x2, double y2) {
+            this.x1 = x1; this.y1 = y1; this.x2 = x2; this.y2 = y2;
+        }
+    }
+
     public static final class Linea {
         public final String texto; public final float confianza; public final double[][] caja;
         Linea(String t, float c, double[][] b) { texto=t; confianza=c; caja=b; }
@@ -29,6 +43,15 @@ public final class MotorOcr implements AutoCloseable {
      * orden distinto al que sugiere su propia separacion en lineas.
      */
     static final double TOLERANCIA_RENGLON = 10;
+
+    /**
+     * Cuanto se agranda cada zona antes de filtrar, en proporcion del lado de la imagen.
+     * <p>
+     * El mapa salio de otra foto del mismo modelo de aparato, asi que la posicion nunca coincide
+     * exacta: la impresion se corre, el papel entra torcido, el telefono encuadra distinto. 4% de
+     * cada lado cubre ese desvio sin volver a meter medio cupon adentro.
+     */
+    private static final double MARGEN_ZONA = 0.04;
 
     private final OrtEnvironment env;
     private final OrtSession sDet, sCls, sRec;
@@ -111,6 +134,24 @@ public final class MotorOcr implements AutoCloseable {
     }
 
     public Resultado reconocer(Imagen img) throws OrtException {
+        return reconocer(img, null);
+    }
+
+    /**
+     * Reconoce, opcionalmente acotado a unas zonas del cupon.
+     *
+     * <p><b>Es la palanca de rendimiento del modulo.</b> Medido: reconocer 6 cajas en vez de 26
+     * baja {@code rec} de 3.841 a ~900 ms, y deja a la peor maquina de la flota en ~2,3 s. El
+     * filtro se aplica <b>despues de detectar</b> y antes de recortar, asi que ahorra las tres
+     * etapas caras de una: recorte, clasificador de angulo y reconocimiento.
+     *
+     * <p><b>Si el filtro deja cero cajas, no se filtra.</b> Un mapa desfasado --el proveedor
+     * movio el ticket, la foto salio corrida-- haria desaparecer todos los campos, que es mucho
+     * peor que tardar de mas. Ante la duda, se lee todo: el patron sigue estando como red.
+     *
+     * @param zonas rectangulos normalizados 0..1, o {@code null} para leer el cupon entero
+     */
+    public Resultado reconocer(Imagen img, List<Zona> zonas) throws OrtException {
         long msPre = 0, msDet = 0, msPost = 0, msCls = 0, msRec = 0;
         long t0 = System.nanoTime();
 
@@ -137,6 +178,7 @@ public final class MotorOcr implements AutoCloseable {
                 DET_UMBRAL, DET_UMBRAL_CAJA, DET_EXPANSION, 1000, true)
                 .cajas(prob, rw, rh, w, h);
         ordenarCajas(cajas);
+        cajas = acotar(cajas, zonas, w, h);
         msPost = (System.nanoTime()-t2)/1_000_000;
 
         if (cajas.isEmpty())
@@ -261,6 +303,41 @@ public final class MotorOcr implements AutoCloseable {
     }
 
     /** Orden de lectura: por fila, con tolerancia vertical — igual que sorted_boxes. */
+    /**
+     * Deja solo las cajas que caen dentro de alguna zona.
+     *
+     * <p>Con margen, porque la zona salio de OTRA foto del mismo modelo de aparato: la impresion
+     * se corre, el papel entra torcido, el telefono encuadra distinto. Sin margen, un desvio de
+     * milimetros deja el campo afuera.
+     *
+     * <p>Alcanza con que la caja <b>se solape</b> con la zona, no con que este contenida: el
+     * detector expande las cajas y una etiqueta larga puede asomar del rectangulo derivado.
+     */
+    private static List<DetectorCajas.Caja> acotar(List<DetectorCajas.Caja> cajas,
+                                                   List<Zona> zonas, int w, int h) {
+        if (zonas == null || zonas.isEmpty()) return cajas;
+
+        List<DetectorCajas.Caja> dentro = new ArrayList<>(cajas.size());
+        for (DetectorCajas.Caja c : cajas) {
+            double cx1 = Double.MAX_VALUE, cy1 = Double.MAX_VALUE, cx2 = -1, cy2 = -1;
+            for (double[] p : c.p) {
+                cx1 = Math.min(cx1, p[0]); cx2 = Math.max(cx2, p[0]);
+                cy1 = Math.min(cy1, p[1]); cy2 = Math.max(cy2, p[1]);
+            }
+            for (Zona z : zonas) {
+                double zx1 = (z.x1 - MARGEN_ZONA) * w, zx2 = (z.x2 + MARGEN_ZONA) * w;
+                double zy1 = (z.y1 - MARGEN_ZONA) * h, zy2 = (z.y2 + MARGEN_ZONA) * h;
+                if (cx2 >= zx1 && cx1 <= zx2 && cy2 >= zy1 && cy1 <= zy2) {
+                    dentro.add(c);
+                    break;
+                }
+            }
+        }
+        // Cero cajas significa que el mapa no corresponde a esta foto. Leer todo es lento; leer
+        // nada es inservible.
+        return dentro.isEmpty() ? cajas : dentro;
+    }
+
     private static void ordenarCajas(List<DetectorCajas.Caja> c) {
         c.sort((a, b) -> {
             double dy = a.p[0][1] - b.p[0][1];
