@@ -33,4 +33,7 @@ public interface CapturaCuponRepository extends HelperRepository<CapturaCupon, L
 
     /** Para el job de purga: capturas que nadie uso y ya vencieron. */
     List<CapturaCupon> findByUsadoEnIsNullAndExpiraEnBefore(LocalDateTime limite);
+
+    /** Capturas con foto guardada anteriores al corte. Lo que la purga mira. */
+    java.util.List<CapturaCupon> findByCreadoEnBeforeAndImagenUrlIsNotNull(java.time.LocalDateTime corte);
 }

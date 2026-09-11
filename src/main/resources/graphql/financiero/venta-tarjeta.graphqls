@@ -111,6 +111,13 @@ input CompletarVentaTarjetaInput {
     casos. Si no viene, el servidor lo deduce del qrCrudo, que solo existe en el camino QR.
     """
     origen: String
+    """
+    Token de la captura de la que salieron estos datos, cuando vinieron de una foto. Es lo que ata
+    la imagen a la venta: al completar se copia la ruta a venta_tarjeta.imagen_url. Sin esto la
+    foto queda huerfana en captura_cupon y la purga no puede distinguirla de la evidencia de un
+    cobro. Opcional, como todo campo nuevo de input.
+    """
+    capturaToken: String
 }
 
 extend type Mutation {

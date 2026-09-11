@@ -2,6 +2,7 @@ package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.VentaTarjeta;
 import com.franco.dev.domain.operaciones.CobroDetalle;
+import com.franco.dev.repository.financiero.CapturaCuponRepository;
 import com.franco.dev.repository.financiero.VentaTarjetaRepository;
 import com.franco.dev.repository.operaciones.CobroDetalleRepository;
 import com.franco.dev.service.CrudService;
@@ -36,6 +37,9 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
 
     /** De aca sale la ventana del chequeo de duplicado por codigo de autorizacion. */
     private final ConfiguracionVentaTarjetaService configuracionService;
+
+    /** Para copiar la ruta de la foto a la venta, y que deje de ser un archivo huerfano. */
+    private final CapturaCuponRepository capturas;
 
     @Override
     public VentaTarjetaRepository getRepository() {
@@ -100,7 +104,8 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                                   String qrCrudo,
                                   Long cobroDetalleId,
                                   Long monedaId,
-                                  String origen) {
+                                  String origen,
+                                  String capturaToken) {
         VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
         if (vt == null) {
             throw new GraphQLException("No existe la venta con tarjeta " + id + " en la sucursal " + sucursalId);
@@ -125,6 +130,16 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         vt.setQrCrudo(qrCrudo);
         vt.setOrigen(origenEfectivo(origen, qrCrudo));
         vt.setEstado("COMPLETADO");
+        // La foto pasa a ser evidencia del cobro, no un subproducto del OCR. venta_tarjeta.
+        // imagen_url ya existia y estaba muerta: nadie la llenaba en este flujo. Sin esto la
+        // imagen queda colgando en captura_cupon sin ninguna relacion con la venta --no hay FK ni
+        // columna-- y el job de purga no puede distinguir una foto huerfana de la evidencia de un
+        // cobro que manana se discute.
+        if (capturaToken != null && !capturaToken.trim().isEmpty()) {
+            capturas.findByToken(capturaToken.trim())
+                    .filter(c -> c.getImagenUrl() != null)
+                    .ifPresent(c -> vt.setImagenUrl(c.getImagenUrl()));
+        }
         VentaTarjeta guardado = repository.save(vt);
 
         vincularIdentificadorAlCobro(vt, identificadorTransaccion, cobroDetalleId);

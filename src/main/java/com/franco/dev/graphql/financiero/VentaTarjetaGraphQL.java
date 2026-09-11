@@ -147,7 +147,8 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 input.getQrCrudo(),
                 input.getCobroDetalleId(),
                 input.getMonedaId(),
-                input.getOrigen());
+                input.getOrigen(),
+                input.getCapturaToken());
     }
 
     public Boolean cancelarVentaTarjetaPorVentaId(Long ventaId, Long sucId) {

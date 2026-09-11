@@ -57,4 +57,17 @@ public class CompletarVentaTarjetaInput {
      * esta mutation y solo se actualiza por release manual de Play Store.
      */
     private String origen;
+
+    /**
+     * Token de la captura de la que salieron estos datos, cuando vinieron de una foto.
+     * <p>
+     * <b>Es lo que ata la foto a la venta.</b> Sin esto la imagen queda colgando en
+     * {@code captura_cupon} sin ninguna relacion con el cobro: no hay FK, no hay columna, y el
+     * job de purga no tiene forma de distinguir una foto huerfana de la evidencia de una venta
+     * que manana se discute. Al completar se copia la ruta a {@code venta_tarjeta.imagen_url},
+     * que ya existia y estaba muerta.
+     * <p>
+     * Opcional, como todo campo nuevo de input en este repo.
+     */
+    private String capturaToken;
 }

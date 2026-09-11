@@ -89,4 +89,10 @@ public interface VentaTarjetaRepository extends HelperRepository<VentaTarjeta, L
             @Param("montoDesde") BigDecimal montoDesde,
             @Param("montoHasta") BigDecimal montoHasta,
             Pageable pageable);
+
+    /**
+     * Si alguna venta referencia esta imagen. Es lo que protege a la foto de la purga: una
+     * imagen atada a un cobro es evidencia, por vieja que sea.
+     */
+    boolean existsByImagenUrl(String imagenUrl);
 }
