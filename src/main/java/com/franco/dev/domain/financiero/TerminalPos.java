@@ -83,4 +83,48 @@ public class TerminalPos implements Identifiable<Long> {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
+
+    /**
+     * En que sucursal esta fisicamente el aparato.
+     * <p>
+     * Es un {@code Long} pelado y no un {@code @ManyToOne}: la filial ya sabe en que sucursal
+     * esta --lo dice su propia configuracion-- y lo unico que necesita de este campo es
+     * comparar. Un @ManyToOne traeria la entidad Sucursal completa en cada consulta de
+     * terminales para no usarla nunca.
+     * <p>
+     * NULL en las filas viejas y no se puede adivinar: se completa a mano desde el ABM de
+     * central. Ver V98.5.
+     */
+    @Column(name = "sucursal_id")
+    private Long sucursalId;
+
+    /**
+     * Identificador propio de la maquina: el que viene de fabrica y el que el cupon imprime.
+     * <p>
+     * <b>No confundir con {@link #codigo}</b>, que es la etiqueta interna que el negocio le pega
+     * al aparato para que el cajero la escanee con el lector. Son dos cosas con vidas distintas:
+     * la etiqueta se puede reimprimir, la serie no cambia nunca.
+     * <p>
+     * Es lo que permite cotejar el campo {@code terminal} que el OCR extrae del cupon contra la
+     * maquina registrada, y por lo tanto detectar un cupon que salio de otra sucursal.
+     */
+    @Column(name = "serie", length = 60)
+    private String serie;
+
+    /**
+     * Si en esta terminal se permite tipear el cupon a mano.
+     * <p>
+     * {@code NULL} no es "false": significa <b>heredar la configuracion general</b>. La
+     * distincion importa porque una fila que todavia no bajo de central llega con NULL, y no
+     * tiene que cambiar de comportamiento sola.
+     */
+    @Column(name = "carga_manual_permitida")
+    private Boolean cargaManualPermitida;
+
+    /**
+     * JSON con los campos que no se pueden dejar vacios al registrar la venta de este aparato.
+     * NULL = se deduce del {@code mapeo} del formato.
+     */
+    @Column(name = "campos_obligatorios", columnDefinition = "text")
+    private String camposObligatorios;
 }
