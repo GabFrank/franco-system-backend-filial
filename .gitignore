@@ -47,3 +47,5 @@ certificados/
 # Archivos de configuración personal de desarrolladores
 **/application-user-*.properties
 bin/
+# Logs generados en runtime
+*.log
