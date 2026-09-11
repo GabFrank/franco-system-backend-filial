@@ -1,3 +1,8 @@
+type VentaTarjetaPage {
+    getContent: [VentaTarjeta]
+    getTotalElements: Int
+}
+
 type VentaTarjeta {
     id: ID!
     sucursalId: Int
@@ -38,6 +43,32 @@ extend type Query {
     ventaTarjetaPorVentaId(ventaId: ID!, sucId: ID!): VentaTarjeta
     ventasTarjetaPorCaja(cajaId: ID!, sucId: ID!): [VentaTarjeta]
     countVentasTarjetaSinRegistrar(cajaId: ID!, sucId: ID!): Int
+    """
+    El motivo por el que este cupon NO se puede usar, o null si esta libre.
+
+    Existe para que el PDV pueda preguntar ANTES de dar el escaneo por bueno. La misma validacion
+    corre igual al guardar (no se confia en el cliente); esto solo adelanta el aviso, que es la
+    diferencia entre que el cajero rehaga el escaneo con el ticket en la mano o que se entere
+    cuando la venta ya se guardo y el dato escaneado se perdio.
+    """
+    motivoCuponNoUsable(qrCrudo: String, identificadorTransaccion: String, sucId: ID!): String
+    """
+    Ventas con tarjeta de UNA caja, paginadas y filtradas.
+
+    `cajaId` y `sucId` acotan el universo y no son opcionales: por eso esta consulta no puede
+    devolver datos de otra caja ni de otra sucursal, sin depender de que el cliente filtre bien.
+    """
+    filtrarVentasTarjetaPorCaja(
+        cajaId: ID!
+        sucId: ID!
+        estado: String
+        terminalPosId: ID
+        monedaId: ID
+        montoDesde: Float
+        montoHasta: Float
+        page: Int
+        size: Int
+    ): VentaTarjetaPage
 }
 
 input CompletarVentaTarjetaInput {
