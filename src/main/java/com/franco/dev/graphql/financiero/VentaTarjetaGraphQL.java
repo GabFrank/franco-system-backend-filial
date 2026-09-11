@@ -5,6 +5,7 @@ import com.franco.dev.graphql.financiero.input.CompletarVentaTarjetaInput;
 import com.franco.dev.graphql.financiero.input.VentaTarjetaInput;
 import com.franco.dev.service.financiero.MonedaService;
 import com.franco.dev.service.financiero.TerminalPosService;
+import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.VentaTarjetaService;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
@@ -27,6 +28,18 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private VentaTarjetaService service;
+
+    /**
+     * Para no confiar en el {@code sucId} que manda el cliente.
+     * <p>
+     * Un filial atiende una sola sucursal y lo sabe sin preguntarle a nadie. Aceptar el valor del
+     * cliente tal cual es lo que hacia este resolver, al reves de lo que hacen
+     * {@code VentaGraphQL} y {@code GastoGraphQL} en este mismo repo. Importa porque
+     * {@code venta_tarjeta} es BRANCH_TO_MAIN con PK compuesta {@code (id, sucursal_id)}: una
+     * fila escrita con la sucursal de otro filial sube a central con atribucion falsa.
+     */
+    @Autowired
+    private SucursalService sucursalService;
 
     @Autowired
     private TerminalPosService terminalPosService;
@@ -79,8 +92,8 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     public String motivoCuponNoUsable(String qrCrudo, String identificadorTransaccion,
                                       String codigoAutorizacion, Long terminalPosId, Long sucId) {
-        return service.motivoCuponNoUsable(null, null, sucId, identificadorTransaccion, qrCrudo,
-                        codigoAutorizacion, null, terminalPosId)
+        return service.motivoCuponNoUsable(null, null, sucursalService.exigirSucursalPropia(sucId),
+                        identificadorTransaccion, qrCrudo, codigoAutorizacion, null, terminalPosId)
                 .orElse(null);
     }
 
@@ -126,7 +139,7 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     public VentaTarjeta completarVentaTarjeta(CompletarVentaTarjetaInput input) {
         return service.completar(
                 input.getId(),
-                input.getSucursalId(),
+                sucursalService.exigirSucursalPropia(input.getSucursalId()),
                 input.getCodigoAutorizacion(),
                 input.getNumeroBoleta(),
                 input.getMontoEscaneado(),

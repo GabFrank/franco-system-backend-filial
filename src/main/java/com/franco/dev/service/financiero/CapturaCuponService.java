@@ -8,6 +8,7 @@ import com.franco.dev.repository.financiero.CapturaCuponRepository;
 import com.franco.dev.service.CrudService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.franco.dev.domain.financiero.TerminalPos;
+import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.ocr.CuponOcrService;
 import com.franco.dev.service.financiero.ocr.ExtractorCupon;
 import com.franco.dev.service.financiero.ocr.MotorOcr;
@@ -65,6 +66,9 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
     private final CuponOcrService ocr;
 
     private final ExtractorCupon extractor;
+
+    /** Para no confiar en el sucursalId que manda el cliente. */
+    private final SucursalService sucursales;
     private final PdvCajaService cajas;
 
     /** De aca sale la vida del token. Ver {@link #MINUTOS_VALIDEZ}. */
@@ -88,6 +92,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
     public CapturaCuponService(CapturaCuponRepository repository,
                                CuponOcrService ocr,
                                ExtractorCupon extractor,
+                               SucursalService sucursales,
                                PdvCajaService cajas,
                                ConfiguracionVentaTarjetaService configuracion,
                                @Value("${frc.captura.ruta-imagenes:cupones}") String rutaImagenes,
@@ -96,6 +101,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         this.repository = repository;
         this.ocr = ocr;
         this.extractor = extractor;
+        this.sucursales = sucursales;
         this.cajas = cajas;
         this.configuracion = configuracion;
         this.rutaImagenes = rutaImagenes;
@@ -117,13 +123,28 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
      */
     @Transactional
     public CapturaCupon crear(Long cajaId, Long sucursalId, Usuario usuario, TerminalPos terminalPos) {
+        // La sucursal la decide el servidor, no el cliente. captura_cupon no se replica, asi que
+        // aca no hay fuga cross-tenant --el campo es de auditoria-- pero una auditoria que miente
+        // no sirve, y este es codigo nuevo: no tiene por que nacer con el defecto que el resto
+        // del modulo arrastra.
+        Long suc = sucursales.exigirSucursalPropia(sucursalId);
+
+        // La caja tiene que estar abierta YA, no solo cuando llegue la foto. Se validaba al
+        // consumir el token y no al emitirlo: eso dejaba al cajero escanear el QR, ir hasta el
+        // aparato, sacar la foto y recien ahi enterarse de que la caja estaba cerrada. Es el
+        // mismo chequeo, adelantado al momento en que todavia se puede hacer algo.
+        Optional<PdvCaja> caja = cajas.findById(cajaId);
+        if (!caja.isPresent() || caja.get().getEstado() != PdvCajaEstado.EN_PROCESO) {
+            throw new IllegalStateException("la caja no esta abierta");
+        }
+
         byte[] bytes = new byte[BYTES_TOKEN];
         RANDOM.nextBytes(bytes);
 
         CapturaCupon c = new CapturaCupon();
         c.setToken(Base64.getUrlEncoder().withoutPadding().encodeToString(bytes));
         c.setCajaId(cajaId);
-        c.setSucursalId(sucursalId);
+        c.setSucursalId(suc);
         c.setUsuario(usuario);
         c.setTerminalPos(terminalPos);
         c.setEstado(CapturaCupon.ESPERANDO);
