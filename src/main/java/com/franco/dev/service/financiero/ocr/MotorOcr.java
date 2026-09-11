@@ -22,6 +22,14 @@ public final class MotorOcr implements AutoCloseable {
     private static final int CLS_ALTO = 48, CLS_ANCHO = 192;
     private static final double CLS_UMBRAL = 0.9, PUNTAJE_TEXTO = 0.5;
 
+    /**
+     * Cuanta diferencia en Y se tolera para considerar que dos cajas estan en el mismo renglon
+     * del papel. Lo usan {@link #ordenarCajas} para ordenar y
+     * {@link Resultado#textoPorRenglones()} para unir: si discreparan, el texto saldria en un
+     * orden distinto al que sugiere su propia separacion en lineas.
+     */
+    static final double TOLERANCIA_RENGLON = 10;
+
     private final OrtEnvironment env;
     private final OrtSession sDet, sCls, sRec;
     private final String eDet, eCls, eRec;
@@ -35,6 +43,37 @@ public final class MotorOcr implements AutoCloseable {
             this.lineas = l; this.msPre = pre; this.msDet = det; this.msPost = post;
             this.msCls = cls; this.msRec = rec;
             this.msTotal = pre + det + post + cls + rec;
+        }
+
+        /**
+         * El texto respetando los renglones del papel.
+         *
+         * <p><b>Por que no alcanza con unir todo con {@code \n}.</b> El detector separa por
+         * componentes conexos, asi que una etiqueta y su valor --{@code MONTO:} y
+         * {@code 150.000}, uno al lado del otro en el ticket-- salen como <b>cajas distintas</b>.
+         * Es el mismo motivo por el que un cupon da 26 cajas y no 6. Unirlas todas con un salto
+         * mete un {@code \n} entre la etiqueta y su valor que en el papel no existe, y un patron
+         * escrito contra la cadena de un QR --que nunca trae saltos-- deja de matchear.
+         *
+         * <p>El criterio de "mismo renglon" es el que {@link #ordenarCajas} ya usa para ordenar:
+         * {@value #TOLERANCIA_RENGLON} px de diferencia en Y. Se reusa a proposito, para que
+         * ordenar y unir no puedan discrepar.
+         *
+         * <p>Las lineas ya vienen ordenadas de arriba hacia abajo y de izquierda a derecha, asi
+         * que alcanza con comparar cada una contra la anterior.
+         */
+        public String textoPorRenglones() {
+            StringBuilder sb = new StringBuilder();
+            double yAnterior = Double.NaN;
+            for (Linea l : lineas) {
+                double y = l.caja[0][1];
+                if (sb.length() > 0) {
+                    sb.append(Math.abs(y - yAnterior) < TOLERANCIA_RENGLON ? ' ' : '\n');
+                }
+                sb.append(l.texto);
+                yAnterior = y;
+            }
+            return sb.toString();
         }
     }
 
@@ -225,7 +264,7 @@ public final class MotorOcr implements AutoCloseable {
     private static void ordenarCajas(List<DetectorCajas.Caja> c) {
         c.sort((a, b) -> {
             double dy = a.p[0][1] - b.p[0][1];
-            if (Math.abs(dy) < 10) return Double.compare(a.p[0][0], b.p[0][0]);
+            if (Math.abs(dy) < TOLERANCIA_RENGLON) return Double.compare(a.p[0][0], b.p[0][0]);
             return Double.compare(a.p[0][1], b.p[0][1]);
         });
     }

@@ -3,7 +3,10 @@ extend type Query {
 }
 
 extend type Mutation {
-    crearCapturaCupon(cajaId: ID!, sucursalId: ID!, usuarioId: ID): CapturaCuponQr
+    # terminalPosId es opcional a proposito: sin el la captura guarda el texto leido y no
+    # extrae campos, que es como funcionaba antes de la etapa 4. Un desktop viejo degrada,
+    # no se rompe.
+    crearCapturaCupon(cajaId: ID!, sucursalId: ID!, usuarioId: ID, terminalPosId: ID): CapturaCuponQr
 }
 
 extend type Subscription {

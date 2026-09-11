@@ -6,7 +6,10 @@ import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.repository.financiero.CapturaCuponRepository;
 import com.franco.dev.service.CrudService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.franco.dev.domain.financiero.TerminalPos;
 import com.franco.dev.service.financiero.ocr.CuponOcrService;
+import com.franco.dev.service.financiero.ocr.ExtractorCupon;
 import com.franco.dev.service.financiero.ocr.MotorOcr;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.time.format.DateTimeFormatter;
 import java.math.BigDecimal;
 import java.util.Base64;
@@ -58,6 +63,8 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
 
     private final CapturaCuponRepository repository;
     private final CuponOcrService ocr;
+
+    private final ExtractorCupon extractor;
     private final PdvCajaService cajas;
 
     /** De aca sale la vida del token. Ver {@link #MINUTOS_VALIDEZ}. */
@@ -80,6 +87,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
     @Autowired
     public CapturaCuponService(CapturaCuponRepository repository,
                                CuponOcrService ocr,
+                               ExtractorCupon extractor,
                                PdvCajaService cajas,
                                ConfiguracionVentaTarjetaService configuracion,
                                @Value("${frc.captura.ruta-imagenes:cupones}") String rutaImagenes,
@@ -87,6 +95,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
                                @Value("${server.port:8081}") int puerto) {
         this.repository = repository;
         this.ocr = ocr;
+        this.extractor = extractor;
         this.cajas = cajas;
         this.configuracion = configuracion;
         this.rutaImagenes = rutaImagenes;
@@ -99,8 +108,15 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         return repository;
     }
 
+    /**
+     * Abre una captura.
+     *
+     * @param terminalPos de que aparato es la foto. Puede venir {@code null} --un cliente viejo
+     *                    no lo manda-- y en ese caso se guarda el texto leido sin extraer campos,
+     *                    que es lo que el modulo hacia antes de la etapa 4.
+     */
     @Transactional
-    public CapturaCupon crear(Long cajaId, Long sucursalId, Usuario usuario) {
+    public CapturaCupon crear(Long cajaId, Long sucursalId, Usuario usuario, TerminalPos terminalPos) {
         byte[] bytes = new byte[BYTES_TOKEN];
         RANDOM.nextBytes(bytes);
 
@@ -109,6 +125,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         c.setCajaId(cajaId);
         c.setSucursalId(sucursalId);
         c.setUsuario(usuario);
+        c.setTerminalPos(terminalPos);
         c.setEstado(CapturaCupon.ESPERANDO);
         c.setExpiraEn(LocalDateTime.now().plusMinutes(minutosValidez()));
         return repository.save(c);
@@ -190,10 +207,16 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
                 c.setEstado(CapturaCupon.ERROR);
                 c.setError("no se leyo nada; asegurate de que la foto sea del cupon");
             } else {
-                c.setTextoOcr(r.lineas.stream().map(l -> l.texto).collect(Collectors.joining("\n")));
+                // textoPorRenglones y no joining("\n"): el detector separa por componentes
+                // conexos, asi que la etiqueta y su valor salen en cajas distintas aunque esten
+                // en el mismo renglon del papel. Unirlas todas con un salto mete un \n que en el
+                // ticket no existe, y el patron --escrito contra una cadena de QR, que nunca trae
+                // saltos-- deja de matchear.
+                c.setTextoOcr(r.textoPorRenglones());
                 c.setMsOcr((int) r.msTotal);
                 c.setEstado(CapturaCupon.LISTO);
                 c.setUsadoEn(LocalDateTime.now());   // el token se consume RECIEN con un resultado bueno
+                extraerCampos(c);
             }
         } catch (Exception e) {
             log.error("fallo el OCR de la captura {}", c.getId(), e);
@@ -201,6 +224,37 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
             c.setError(recortar(e.getMessage()));
         }
         return repository.save(c);
+    }
+
+    /**
+     * Separa el texto leido en campos, usando el formato del aparato.
+     *
+     * <p><b>Nunca cambia el estado de la captura.</b> Que no se pueda extraer no es un error de
+     * la captura: la foto se leyo, el texto esta, y el cajero lo tiene en pantalla para cargar a
+     * mano. Degradar a "texto sin campos" es exactamente lo que el modulo hacia antes de esta
+     * etapa, asi que es un piso conocido y no una regresion.
+     *
+     * <p>Por eso el motivo del fallo va al log y no a {@code error}: ese campo es lo que el
+     * desktop le muestra al cajero como "saca otra foto", y una foto perfecta con un patron mal
+     * cargado no se arregla sacando otra.
+     */
+    private void extraerCampos(CapturaCupon c) {
+        if (c.getTerminalPos() == null || c.getTerminalPos().getFormatoTerminalPos() == null) {
+            return;   // cliente viejo, o terminal sin formato: se queda con el texto
+        }
+        try {
+            ExtractorCupon.Resultado r = extractor.extraer(c.getTextoOcr(),
+                    c.getTerminalPos().getFormatoTerminalPos());
+            if (!r.ok()) {
+                log.info("captura {}: no se extrajeron campos ({})", c.getId(), r.error);
+                return;
+            }
+            Map<String, Object> salida = new LinkedHashMap<String, Object>(r.campos);
+            if (!r.extras.isEmpty()) salida.put("datosExtra", r.extras);
+            c.setCampos(new ObjectMapper().writeValueAsString(salida));
+        } catch (Exception e) {
+            log.error("captura {}: fallo la extraccion de campos", c.getId(), e);
+        }
     }
 
     /** {@code <ruta>/yyyy/MM/<id>.jpg}, con el directorio creado al vuelo. */

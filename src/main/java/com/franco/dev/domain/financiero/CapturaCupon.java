@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
+
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -75,6 +78,23 @@ public class CapturaCupon implements Serializable {
     private String imagenUrl;
 
     /** El texto crudo que devolvio el OCR, una linea por caja detectada. */
+    /**
+     * De que aparato es la foto. De aca sale el formato, y del formato el patron y el mapeo con
+     * los que se extraen los campos.
+     * <p>
+     * {@code NULL} = la captura la abrio un cliente que todavia no manda la terminal: se guarda
+     * el texto leido y no se extrae nada, que es lo que el modulo hacia antes de la etapa 4.
+     * Degrada, no rompe.
+     * <p>
+     * Sin FK en la base y con {@code @NotFound(IGNORE)}: {@code terminal_pos} es un espejo que
+     * baja por replicacion, y una FK convertiria un desfasaje de segundos entre streams en un
+     * error que voltea la subida de la foto.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "terminal_pos_id", nullable = true)
+    @NotFound(action = NotFoundAction.IGNORE)
+    private TerminalPos terminalPos;
+
     @Column(name = "texto_ocr", columnDefinition = "text")
     private String textoOcr;
 

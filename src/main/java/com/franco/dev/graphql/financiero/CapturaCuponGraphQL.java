@@ -3,6 +3,7 @@ package com.franco.dev.graphql.financiero;
 import com.franco.dev.domain.financiero.CapturaCupon;
 import com.franco.dev.graphql.financiero.dto.CapturaCuponQr;
 import com.franco.dev.service.financiero.CapturaCuponService;
+import com.franco.dev.service.financiero.TerminalPosService;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -32,15 +33,23 @@ public class CapturaCuponGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private UsuarioService usuarioService;
 
+    @Autowired
+    private TerminalPosService terminalPosService;
+
     /**
      * Abre una captura y devuelve lo necesario para el QR.
      *
      * <p>Va con seguridad normal: lo pide un desktop logueado. La puerta del telefono es otra
      * --el token-- y se apoya justamente en que esta mutation ya exigio sesion.
      */
-    public CapturaCuponQr crearCapturaCupon(Long cajaId, Long sucursalId, Long usuarioId) {
+    public CapturaCuponQr crearCapturaCupon(Long cajaId, Long sucursalId, Long usuarioId,
+                                           Long terminalPosId) {
+        // terminalPosId es OPCIONAL: un desktop que todavia no lo manda sigue pudiendo sacar la
+        // foto, solo que la captura se queda con el texto leido y no extrae campos --que es lo
+        // que el modulo hacia antes de la etapa 4--.
         CapturaCupon c = service.crear(cajaId, sucursalId,
-                usuarioId == null ? null : usuarioService.findById(usuarioId).orElse(null));
+                usuarioId == null ? null : usuarioService.findById(usuarioId).orElse(null),
+                terminalPosId == null ? null : terminalPosService.findById(terminalPosId).orElse(null));
         return new CapturaCuponQr(c.getToken(), service.urlDe(c), c.getExpiraEn().toString());
     }
 
