@@ -55,3 +55,6 @@ bin/
 # autorizacion, monto-- y ESTE REPO ES PUBLICO. Sin esta linea, un `git add -A` distraido las
 # publica.
 cupones/
+
+# Logs generados en runtime
+*.log
