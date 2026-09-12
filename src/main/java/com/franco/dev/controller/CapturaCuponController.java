@@ -12,6 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -78,16 +81,31 @@ public class CapturaCuponController {
     @PostMapping(value = "/{token}", consumes = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<?> subir(@PathVariable String token,
                                    @RequestHeader(value = "X-Nitidez", required = false) String nitidez,
-                                   @RequestBody(required = false) byte[] jpeg) {
-        // `required = false` para que el chequeo de abajo sea el que conteste. Con el default
-        // (`true`) Spring rechaza la request ANTES del handler y responde el JSON de error del
-        // framework --con el stack trace completo-- en un endpoint sin autenticacion. El
-        // telefono muestra ese cuerpo tal cual. Verificado el 2026-09-10 mandando un POST vacio.
-        if (jpeg == null || jpeg.length == 0) {
-            return ResponseEntity.badRequest().body("la foto llego vacia");
+                                   HttpServletRequest request) {
+        // ⚠️ EL TOKEN SE VALIDA ANTES DE LEER UN SOLO BYTE DEL CUERPO.
+        //
+        // Este endpoint cuelga de /public, o sea sin autenticacion, y el token es toda la
+        // credencial. Si primero se leyera la foto, cualquiera en la LAN podria hacer que el
+        // filial bufferee megabytes mandando POSTs con un token inventado.
+        Optional<CapturaCupon> previa = service.porToken(token);
+        if (!previa.isPresent()) {
+            return ResponseEntity.status(HttpStatus.GONE).body("codigo desconocido");
         }
-        if (jpeg.length > MAX_BYTES) {
+
+        byte[] jpeg;
+        try {
+            jpeg = leerAcotado(request.getInputStream());
+        } catch (CuerpoDemasiadoGrande e) {
             return ResponseEntity.badRequest().body("la foto es demasiado grande");
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body("no se pudo leer la foto");
+        }
+
+        // Sigue contestando el handler y no el framework: con `@RequestBody(required = true)`
+        // Spring rechazaba ANTES del handler y respondia el JSON de error con el stack trace
+        // completo, que el telefono mostraba tal cual. Verificado el 2026-09-10 con un POST vacio.
+        if (jpeg.length == 0) {
+            return ResponseEntity.badRequest().body("la foto llego vacia");
         }
         try {
             CapturaCupon c = service.procesar(token, jpeg, parseNitidez(nitidez));
@@ -146,6 +164,39 @@ public class CapturaCuponController {
         } catch (NumberFormatException e) {
             return null;   // dato de telemetria: si viene mal, no vale frenar la captura
         }
+    }
+
+    /** El cuerpo se paso del tope. Se corta la lectura y se contesta, sin retener lo leido. */
+    private static final class CuerpoDemasiadoGrande extends IOException {
+    }
+
+    /**
+     * Lee el cuerpo hasta el tope y aborta apenas lo pasa.
+     *
+     * <p><b>Por que a mano y no con {@code @RequestBody byte[]}.</b> Ese binding hace que Spring
+     * bufferee el cuerpo ENTERO en memoria antes de que el handler corra, asi que un chequeo de
+     * tamano dentro del metodo llega tarde: para cuando se ejecuta, los bytes ya estan en el heap.
+     * En un endpoint sin autenticacion eso es un camino directo a tumbar el proceso mandando
+     * cuerpos de cientos de MB.
+     *
+     * <p>Y no alcanza con configurar el limite del contenedor:
+     * {@code spring.servlet.multipart.max-request-size} no aplica —esto no es multipart, es un
+     * {@code image/jpeg} crudo—.
+     *
+     * <p>Leyendo de a bloques y cortando en el tope, lo maximo que se retiene son los 8 MB del
+     * limite mas un bloque.
+     */
+    private static byte[] leerAcotado(InputStream in) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int leidos;
+        int total = 0;
+        while ((leidos = in.read(buffer)) != -1) {
+            total += leidos;
+            if (total > MAX_BYTES) throw new CuerpoDemasiadoGrande();
+            out.write(buffer, 0, leidos);
+        }
+        return out.toByteArray();
     }
 
     private static String aviso(String titulo, String detalle) {
