@@ -105,7 +105,8 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                                   Long cobroDetalleId,
                                   Long monedaId,
                                   String origen,
-                                  String capturaToken) {
+                                  String capturaToken,
+                                  String datosExtra) {
         VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
         if (vt == null) {
             throw new GraphQLException("No existe la venta con tarjeta " + id + " en la sucursal " + sucursalId);
@@ -129,6 +130,12 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         vt.setMontoEscaneado(montoEscaneado);
         vt.setQrCrudo(qrCrudo);
         vt.setOrigen(origenEfectivo(origen, qrCrudo));
+        // Lo que el cupon trae y no tiene columna propia. Se pisa solo si viene: completar se
+        // puede llamar de nuevo sobre el mismo registro, y un segundo intento sin datos extra no
+        // tiene por que borrar los del primero.
+        if (datosExtra != null && !datosExtra.trim().isEmpty()) {
+            vt.setDatosExtra(datosExtra);
+        }
         vt.setEstado("COMPLETADO");
         // La foto pasa a ser evidencia del cobro, no un subproducto del OCR. venta_tarjeta.
         // imagen_url ya existia y estaba muerta: nadie la llenaba en este flujo. Sin esto la

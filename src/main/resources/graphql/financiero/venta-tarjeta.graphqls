@@ -118,6 +118,13 @@ input CompletarVentaTarjetaInput {
     cobro. Opcional, como todo campo nuevo de input.
     """
     capturaToken: String
+    """
+    Los campos que el cupón trae y que NO tienen columna propia, como JSON.
+
+    Es lo que `venta_tarjeta.datos_extra` existe para guardar: un proveedor que imprime un segundo
+    monto en otra moneda, un STONEID, un código de comercio. El OCR ya los separa.
+    """
+    datosExtra: String
 }
 
 extend type Mutation {

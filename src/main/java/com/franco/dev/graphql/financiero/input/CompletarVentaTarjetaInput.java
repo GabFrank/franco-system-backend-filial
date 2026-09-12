@@ -70,4 +70,14 @@ public class CompletarVentaTarjetaInput {
      * Opcional, como todo campo nuevo de input en este repo.
      */
     private String capturaToken;
+
+    /**
+     * Los campos que el cupon trae y que NO tienen columna propia, como JSON.
+     *
+     * <p>Es lo que {@code venta_tarjeta.datos_extra} existe para guardar: un proveedor que imprime
+     * un segundo monto en otra moneda, un {@code STONEID}, un codigo de comercio. El OCR ya los
+     * separa; sin este campo se perdian, y la columna quedaba vacia para siempre — justo el defecto
+     * que el modulo ya habia arrastrado y que esta entrega vino a cerrar.
+     */
+    private String datosExtra;
 }
