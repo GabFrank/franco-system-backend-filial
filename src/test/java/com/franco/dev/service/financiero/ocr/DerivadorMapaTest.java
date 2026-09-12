@@ -201,4 +201,93 @@ public class DerivadorMapaTest {
             assertEquals(a.regiones.get(i).y2, b.regiones.get(i).y2);
         }
     }
+
+    // ── Lo que encontro la prueba de punta a punta (2026-09-12) ────────────────────────────
+
+    /** Un ticket termico real: el detector pega la etiqueta al valor en una sola caja. */
+    private static List<MotorOcr.Linea> cuponTermico() {
+        return new ArrayList<MotorOcr.Linea>(Arrays.asList(
+                linea("FECHA:12/09/2026", 60, 250, 380, 285),
+                linea("TERMINAL:JF798SJJ", 60, 300, 430, 335),
+                linea("COMERCI0:00451233", 60, 350, 440, 385),
+                linea("AUT:883921", 60, 405, 290, 440),
+                linea("BOLETA:00045", 60, 455, 300, 490),
+                linea("MONTO:150.000", 60, 520, 350, 555)
+        ));
+    }
+
+    private static final String MAPEO_REAL =
+            "{\"terminal\":{\"de\":\"terminal\"},"
+            + "\"codigoAutorizacion\":{\"de\":\"auth\"},"
+            + "\"numeroBoleta\":{\"de\":\"boleta\"},"
+            + "\"monto\":{\"de\":\"monto\"}}";
+
+    private static final String PATRON_REAL =
+            "^[\\s\\S]*TERMINAL:\\s*(?<terminal>[A-Z0-9]+)"
+            + "[\\s\\S]*AUT:\\s*(?<auth>[0-9]+)"
+            + "[\\s\\S]*BOLETA:\\s*(?<boleta>[0-9]+)"
+            + "[\\s\\S]*MONTO:\\s*(?<monto>[0-9.]+)[\\s\\S]*$";
+
+    @Test
+    public void la_region_se_nombra_con_el_campo_del_MAPEO_no_con_el_grupo_del_patron() {
+        // EL defecto que encontro la prueba punta a punta. Sin el mapeo, la region salia como
+        // "auth" y el ABM la rechazaba con "el mapeo no produce el campo auth": la derivacion
+        // quedaba inservible salvo que alguien nombrara los grupos igual que las columnas.
+        DerivadorMapa.Resultado r = derivador.derivar(
+                cuponTermico(), PATRON_REAL, MAPEO_REAL, 720, 1000);
+
+        assertTrue(r.ok(), r.error);
+        List<String> campos = new ArrayList<String>();
+        for (DerivadorMapa.RegionPropuesta p : r.regiones) campos.add(p.campo);
+
+        assertTrue(campos.contains("codigoAutorizacion"), "esperaba el campo del mapeo, no el grupo: " + campos);
+        assertTrue(campos.contains("numeroBoleta"), campos.toString());
+        assertFalse(campos.contains("auth"), "el nombre del grupo no puede llegar como campo");
+        assertFalse(campos.contains("boleta"), campos.toString());
+    }
+
+    @Test
+    public void un_grupo_que_el_mapeo_no_menciona_conserva_su_nombre() {
+        // Es un campo propio del proveedor: cae a datos_extra y el ABM decide si lo acepta.
+        DerivadorMapa.Resultado r = derivador.derivar(
+                cuponTermico(), PATRON_REAL, "{\"monto\":{\"de\":\"monto\"}}", 720, 1000);
+
+        assertTrue(r.ok(), r.error);
+        List<String> campos = new ArrayList<String>();
+        for (DerivadorMapa.RegionPropuesta p : r.regiones) campos.add(p.campo);
+        assertTrue(campos.contains("auth"), campos.toString());
+        assertTrue(campos.contains("monto"), campos.toString());
+    }
+
+    @Test
+    public void la_etiqueta_pegada_al_valor_gana_sobre_la_linea_de_arriba() {
+        // El otro defecto de la prueba punta a punta. "TERMINAL:JF798SJJ" sale como UNA caja, y
+        // antes el ancla se iba a la linea de arriba --"FECHA:12/09/2026"--, que es fragil y
+        // ademas equivocada: la etiqueta correcta estaba en la misma caja.
+        DerivadorMapa.Resultado r = derivador.derivar(
+                cuponTermico(), PATRON_REAL, MAPEO_REAL, 720, 1000);
+
+        DerivadorMapa.RegionPropuesta terminal = null, auth = null;
+        for (DerivadorMapa.RegionPropuesta p : r.regiones) {
+            if ("terminal".equals(p.campo)) terminal = p;
+            if ("codigoAutorizacion".equals(p.campo)) auth = p;
+        }
+
+        assertNotNull(terminal);
+        assertEquals("TERMINAL:", terminal.etiqueta);
+        assertEquals("DENTRO", terminal.posicion);
+
+        assertNotNull(auth);
+        assertEquals("AUT:", auth.etiqueta);
+        assertEquals("DENTRO", auth.posicion);
+    }
+
+    @Test
+    public void sin_mapeo_sigue_andando_con_los_nombres_de_grupo() {
+        // Compatibilidad: la firma vieja no se rompe.
+        DerivadorMapa.Resultado r = derivador.derivar(cuponTermico(), PATRON_REAL, 720, 1000);
+
+        assertTrue(r.ok(), r.error);
+        assertEquals(4, r.regiones.size());
+    }
 }

@@ -378,7 +378,12 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
             // Sin acotar: para derivar el mapa hay que ver el cupon entero, justamente porque
             // todavia no hay mapa.
             MotorOcr.Resultado r = ocr.leer(jpeg, null);
-            return derivador.derivar(r.lineas, c.getTerminalPos().getFormatoTerminalPos().getPatron(),
+            // El mapeo va junto con el patron: sin el, la region saldria nombrada con el GRUPO
+            // --`auth`-- y no con la clave del mapeo --`codigoAutorizacion`--, y el ABM del central
+            // la rechazaria. Medido de punta a punta el 2026-09-12.
+            return derivador.derivar(r.lineas,
+                    c.getTerminalPos().getFormatoTerminalPos().getPatron(),
+                    c.getTerminalPos().getFormatoTerminalPos().getMapeo(),
                     tam[0], tam[1]);
         } catch (Exception e) {
             log.error("no se pudo derivar el mapa de la captura {}", c.getId(), e);

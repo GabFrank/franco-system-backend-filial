@@ -94,6 +94,21 @@ public class DerivadorMapa {
      * @param alto   alto de la imagen en px
      */
     public Resultado derivar(List<MotorOcr.Linea> lineas, String patron, int ancho, int alto) {
+        return derivar(lineas, patron, null, ancho, alto);
+    }
+
+    /**
+     * Deriva el mapa traduciendo cada grupo del patron al campo destino que declara el mapeo.
+     *
+     * <p><b>El mapeo no es opcional en la practica, y esto costo descubrirlo corriendo el flujo
+     * completo.</b> Sin el, la region salia nombrada con el GRUPO del patron --{@code auth},
+     * {@code boleta}-- y no con la clave del mapeo --{@code codigoAutorizacion},
+     * {@code numeroBoleta}--. Esos nombres difieren siempre, salvo que alguien nombre los grupos
+     * igual que las columnas, asi que el ABM rechazaba el mapa con "el mapeo no produce el campo
+     * auth" y la derivacion quedaba inservible. Verificado de punta a punta el 2026-09-12.
+     */
+    public Resultado derivar(List<MotorOcr.Linea> lineas, String patron, String mapeo,
+                             int ancho, int alto) {
         if (lineas == null || lineas.isEmpty()) {
             return Resultado.fallo("el cupon de muestra no dejo ninguna linea leida");
         }
@@ -115,9 +130,14 @@ public class DerivadorMapa {
             return Resultado.fallo("el patron no reconoce este cupon; probalo antes de derivar el mapa");
         }
 
+        // grupo del patron -> campo destino del mapeo. Lo que el mapeo no menciona conserva el
+        // nombre del grupo: es un campo propio del proveedor, y el ABM decide si lo acepta.
+        Map<String, String> destinos = destinosPorGrupo(mapeo);
+
         List<RegionPropuesta> out = new ArrayList<RegionPropuesta>();
         for (Map.Entry<String, String> g : capturas(patron, m).entrySet()) {
-            out.add(derivarUno(g.getKey(), g.getValue(), lineas, ancho, alto));
+            String campo = destinos.containsKey(g.getKey()) ? destinos.get(g.getKey()) : g.getKey();
+            out.add(derivarUno(campo, g.getValue(), lineas, ancho, alto));
         }
         if (out.isEmpty()) {
             return Resultado.fallo("el patron matcheo pero no tiene grupos nombrados que derivar");
@@ -150,6 +170,22 @@ public class DerivadorMapa {
         }
 
         MotorOcr.Linea caja = contienen.get(0);
+
+        // ⚠️ PRIMERO se mira si la etiqueta vino PEGADA al valor, en la misma caja.
+        //
+        // El detector separa por componentes conexos, y en un ticket termico "TERMINAL:JF798SJJ"
+        // sale como UNA sola caja. Antes esto se preguntaba recien cuando `anclaDe` devolvia null,
+        // y `anclaDe` casi nunca devuelve null: encuentra la linea de ARRIBA. Resultado medido el
+        // 2026-09-12: el campo `terminal` quedaba anclado a "FECHA:12/09/2026" y `auth` a
+        // "COMERCI0:00451233" -- anclas fragiles y ademas equivocadas, cuando la etiqueta correcta
+        // estaba en la misma caja.
+        String propia = etiquetaPegada(caja, valor);
+        if (propia != null) {
+            return new RegionPropuesta(campo, propia, "DENTRO", valor,
+                    norm(minX(caja), ancho), norm(minY(caja), alto),
+                    norm(maxX(caja), ancho), norm(maxY(caja), alto), null);
+        }
+
         MotorOcr.Linea ancla = anclaDe(caja, lineas);
 
         String posicion;
@@ -167,19 +203,25 @@ public class DerivadorMapa {
             etiqueta = ancla.texto.trim();
         }
 
-        // Si la etiqueta y el valor salieron en la MISMA caja, el ancla es el propio texto de la
-        // caja menos el valor: "AUT: 883921" -> etiqueta "AUT:".
-        if (ancla == null && caja.texto.trim().length() > valor.length()) {
-            String sinValor = caja.texto.replace(valor, "").trim();
-            if (!sinValor.isEmpty()) {
-                etiqueta = sinValor;
-                posicion = "DENTRO";
-            }
-        }
-
         return new RegionPropuesta(campo, etiqueta, posicion, valor,
                 norm(minX(caja), ancho), norm(minY(caja), alto),
                 norm(maxX(caja), ancho), norm(maxY(caja), alto), null);
+    }
+
+    /**
+     * La etiqueta que vino en la MISMA caja que el valor, si la hay.
+     *
+     * <p>{@code "AUT:883921"} con valor {@code "883921"} da {@code "AUT:"}. Es el ancla mas fuerte
+     * que existe --no depende de ninguna otra linea-- y por eso se prueba antes que cualquier otra.
+     *
+     * <p>{@code null} si la caja es solo el valor, o si lo que sobra no dice nada.
+     */
+    private static String etiquetaPegada(MotorOcr.Linea caja, String valor) {
+        if (caja.texto == null) return null;
+        String completo = caja.texto.trim();
+        if (completo.length() <= valor.length()) return null;
+        String sinValor = completo.replace(valor, "").trim();
+        return sinValor.isEmpty() ? null : sinValor;
     }
 
     /**
@@ -226,6 +268,28 @@ public class DerivadorMapa {
             yAnterior = y;
         }
         return sb.toString();
+    }
+
+    /**
+     * De que grupo sale cada campo del mapeo, invertido: {@code grupo -> campo}.
+     *
+     * <p>Se lee con regex y no con un parser de JSON a proposito: es el mismo criterio que ya usa
+     * {@code FormatoTerminalPosService.validarMapeo} del central, y evita arrastrar una dependencia
+     * de parseo a un metodo que corre dentro del filial.
+     *
+     * <p>Si dos campos salieran del mismo grupo gana el primero, que es el orden en que estan
+     * declarados. No se puede hacer mejor: la region es una sola y hay que elegir.
+     */
+    private static Map<String, String> destinosPorGrupo(String mapeo) {
+        Map<String, String> out = new LinkedHashMap<String, String>();
+        if (mapeo == null || mapeo.trim().isEmpty()) return out;
+        Matcher m = Pattern.compile(
+                "\"([A-Za-z][A-Za-z0-9]*)\"\\s*:\\s*\\{[^{}]*?\"de\"\\s*:\\s*\"([A-Za-z][A-Za-z0-9]*)\"")
+                .matcher(mapeo);
+        while (m.find()) {
+            if (!out.containsKey(m.group(2))) out.put(m.group(2), m.group(1));
+        }
+        return out;
     }
 
     private Map<String, String> capturas(String patron, Matcher m) {
