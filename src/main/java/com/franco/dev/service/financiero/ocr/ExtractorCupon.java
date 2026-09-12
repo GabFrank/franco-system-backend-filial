@@ -63,18 +63,28 @@ public class ExtractorCupon {
         public final Map<String, Object> campos;
         /** Todo lo demas que el patron capturo. Va a {@code datos_extra}. */
         public final Map<String, Object> extras;
+        /**
+         * En que tramo {@code [inicio, fin)} del texto leido cayo cada campo canonico.
+         *
+         * <p>Existe para el semaforo por campo: el valor final ya paso por el mapeo --escala,
+         * mapa, mayusculas-- asi que buscarlo de vuelta dentro del texto del OCR fallaria justo
+         * en los campos transformados, que suelen ser los que mas importan (el monto). Los
+         * offsets del match, en cambio, son exactos y no dependen de la transformacion.
+         */
+        public final Map<String, int[]> rangos;
         /** Null si salio bien. */
         public final String error;
 
-        Resultado(Map<String, Object> c, Map<String, Object> e, String err) {
-            campos = c; extras = e; error = err;
+        Resultado(Map<String, Object> c, Map<String, Object> e, Map<String, int[]> r, String err) {
+            campos = c; extras = e; rangos = r; error = err;
         }
 
         public boolean ok() { return error == null; }
 
         static Resultado fallo(String e) {
             return new Resultado(Collections.<String, Object>emptyMap(),
-                                 Collections.<String, Object>emptyMap(), e);
+                                 Collections.<String, Object>emptyMap(),
+                                 Collections.<String, int[]>emptyMap(), e);
         }
     }
 
@@ -121,6 +131,9 @@ public class ExtractorCupon {
 
         Map<String, Object> campos = new LinkedHashMap<String, Object>();
         Map<String, Object> extras = new LinkedHashMap<String, Object>();
+        // Solo de los canonicos: son los que el desktop confirma campo por campo. Lo que cae en
+        // datos_extra no tiene formulario donde mostrar un semaforo.
+        Map<String, int[]> rangos = new LinkedHashMap<String, int[]>();
 
         // Los grupos que alguna regla del mapeo ya consumio. Sin esto, un grupo `auth` mapeado a
         // `codigoAutorizacion` volveria a aparecer en datos_extra como "auth": el mismo valor
@@ -135,8 +148,16 @@ public class ExtractorCupon {
                 if (regla != null && regla.hasNonNull("de")) consumidos.add(regla.get("de").asText());
                 Object valor = aplicarRegla(m, regla);
                 if (valor == null) continue;
-                if (esCanonico(destino)) campos.put(destino, valor);
-                else extras.put(destino, valor);
+                if (esCanonico(destino)) {
+                    campos.put(destino, valor);
+                    // El rango sale del grupo CRUDO, no del valor ya transformado.
+                    if (regla.hasNonNull("de")) {
+                        int[] r = rango(m, regla.get("de").asText());
+                        if (r != null) rangos.put(destino, r);
+                    }
+                } else {
+                    extras.put(destino, valor);
+                }
             }
         }
 
@@ -149,14 +170,35 @@ public class ExtractorCupon {
         for (Map.Entry<String, String> g : gruposNombrados(formato.getPatron(), m).entrySet()) {
             if (consumidos.contains(g.getKey())) continue;
             if (campos.containsKey(g.getKey()) || extras.containsKey(g.getKey())) continue;
-            if (esCanonico(g.getKey())) campos.put(g.getKey(), g.getValue());
-            else extras.put(g.getKey(), g.getValue());
+            if (esCanonico(g.getKey())) {
+                campos.put(g.getKey(), g.getValue());
+                int[] r = rango(m, g.getKey());
+                if (r != null) rangos.put(g.getKey(), r);
+            } else {
+                extras.put(g.getKey(), g.getValue());
+            }
         }
 
         if (campos.isEmpty() && extras.isEmpty()) {
             return Resultado.fallo("el formato reconocio el cupon pero no se extrajo ningun campo");
         }
-        return new Resultado(campos, extras, null);
+        return new Resultado(campos, extras, rangos, null);
+    }
+
+    /**
+     * Donde empieza y termina un grupo dentro del texto sobre el que corrio el patron.
+     *
+     * <p>{@code null} si el grupo no existe en el patron o no participo del match — el mismo caso
+     * que un campo opcional que este cupon no trae.
+     */
+    private static int[] rango(Matcher m, String grupo) {
+        try {
+            int inicio = m.start(grupo);
+            int fin = m.end(grupo);
+            return inicio >= 0 && fin > inicio ? new int[]{inicio, fin} : null;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**

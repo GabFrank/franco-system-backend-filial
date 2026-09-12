@@ -255,7 +255,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
                 c.setMsOcr((int) r.msTotal);
                 c.setEstado(CapturaCupon.LISTO);
                 c.setUsadoEn(LocalDateTime.now());   // el token se consume RECIEN con un resultado bueno
-                extraerCampos(c);
+                extraerCampos(c, r);
             }
         } catch (Exception e) {
             log.error("fallo el OCR de la captura {}", c.getId(), e);
@@ -301,7 +301,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
      * desktop le muestra al cajero como "saca otra foto", y una foto perfecta con un patron mal
      * cargado no se arregla sacando otra.
      */
-    private void extraerCampos(CapturaCupon c) {
+    private void extraerCampos(CapturaCupon c, MotorOcr.Resultado lectura) {
         if (c.getTerminalPos() == null || c.getTerminalPos().getFormatoTerminalPos() == null) {
             return;   // cliente viejo, o terminal sin formato: se queda con el texto
         }
@@ -314,10 +314,43 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
             }
             Map<String, Object> salida = new LinkedHashMap<String, Object>(r.campos);
             if (!r.extras.isEmpty()) salida.put("datosExtra", r.extras);
+
+            Map<String, Object> confianzas = confianzaPorCampo(r, lectura);
+            if (!confianzas.isEmpty()) salida.put("confianzas", confianzas);
+
             c.setCampos(new ObjectMapper().writeValueAsString(salida));
         } catch (Exception e) {
             log.error("captura {}: fallo la extraccion de campos", c.getId(), e);
         }
+    }
+
+    /**
+     * Cuanta confianza tiene cada campo, para el semaforo del desktop.
+     *
+     * <p><b>Por que no alcanza con la confianza de la foto.</b> Esta medido que el promedio por
+     * foto no distingue una linea buena de una mala: un cupon con el monto ilegible y el resto
+     * perfecto promedia alto. Sabiendo en que tramo del texto cayo cada campo, la confianza deja
+     * de ser un numero decorativo y pasa a decir <b>que dato hay que preguntar</b>.
+     *
+     * <p><b>Va como mapa aparte y no adentro de cada campo.</b> {@code campos} es el objeto que el
+     * desktop ya lee para llenar el formulario; meterle un nivel --{@code monto: {valor, confianza}}--
+     * romperia a cualquier cliente que hoy lee {@code campos.monto}. Un {@code confianzas} paralelo
+     * es aditivo: el que no lo conoce lo ignora y sigue funcionando igual.
+     *
+     * <p>Un campo <b>sin</b> entrada aca es un campo del que no se sabe, y el desktop lo tiene que
+     * tratar como dudoso. No confundir con confianza baja: son distintos motivos para preguntar,
+     * pero la accion es la misma.
+     */
+    private Map<String, Object> confianzaPorCampo(ExtractorCupon.Resultado extraido,
+                                                  MotorOcr.Resultado lectura) {
+        Map<String, Object> out = new LinkedHashMap<String, Object>();
+        if (lectura == null) return out;
+        for (Map.Entry<String, int[]> e : extraido.rangos.entrySet()) {
+            int[] rango = e.getValue();
+            Float conf = lectura.confianzaEnRango(rango[0], rango[1]);
+            if (conf != null) out.put(e.getKey(), conf);
+        }
+        return out;
     }
 
     /**

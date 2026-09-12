@@ -209,4 +209,77 @@ public class ExtractorCuponTest {
         for (Map.Entry<String, Object> e : r.campos.entrySet()) claves.append(e.getKey()).append(',');
         assertEquals("codigoAutorizacion,numeroBoleta,monto,", claves.toString());
     }
+
+    // ── Rangos: de donde salio cada campo, para el semaforo por confianza ────────────────────
+
+    @Test
+    public void el_rango_apunta_al_grupo_CRUDO_aunque_el_mapeo_transforme_el_valor() {
+        // EL caso que justifica guardar offsets en vez de buscar el valor final dentro del texto.
+        // `escala` convierte "150.000" en 150000: buscar 150000 en el texto del OCR no lo
+        // encuentra, y el monto --el campo que mas importa-- se quedaria sin semaforo.
+        FormatoTerminalPos f = formato(
+                ".*MONTO: (?<monto>[0-9.]+).*",
+                "{\"monto\":{\"de\":\"monto\",\"escala\":0}}");
+        String texto = "COMERCIO X\nMONTO: 150.000";
+
+        ExtractorCupon.Resultado r = extractor.extraer(texto, f);
+
+        assertTrue(r.ok(), r.error);
+        int[] rango = r.rangos.get("monto");
+        assertNotNull(rango, "el monto tiene que traer rango");
+        assertEquals("150.000", texto.substring(rango[0], rango[1]),
+                "el rango tiene que senalar el texto tal como se leyo");
+    }
+
+    @Test
+    public void cada_campo_canonico_trae_su_propio_rango() {
+        FormatoTerminalPos f = formato(
+                ".*AUT: (?<auth>[0-9]+).*MONTO: (?<monto>[0-9.]+).*",
+                "{\"codigoAutorizacion\":{\"de\":\"auth\"},\"monto\":{\"de\":\"monto\"}}");
+        String texto = "AUT: 883921\nMONTO: 150.000";
+
+        ExtractorCupon.Resultado r = extractor.extraer(texto, f);
+
+        assertEquals("883921", texto.substring(r.rangos.get("codigoAutorizacion")[0],
+                                               r.rangos.get("codigoAutorizacion")[1]));
+        assertEquals("150.000", texto.substring(r.rangos.get("monto")[0],
+                                                r.rangos.get("monto")[1]));
+    }
+
+    @Test
+    public void un_campo_canonico_sin_mapeo_tambien_trae_rango() {
+        // El grupo se llama igual que la columna, asi que el mapeo no lo menciona.
+        FormatoTerminalPos f = formato(
+                ".*T: (?<terminal>[A-Z0-9]+).*AUT: (?<auth>[0-9]+).*",
+                "{\"codigoAutorizacion\":{\"de\":\"auth\"}}");
+        String texto = "T: JF798SJJ\nAUT: 883921";
+
+        ExtractorCupon.Resultado r = extractor.extraer(texto, f);
+
+        assertEquals("JF798SJJ", texto.substring(r.rangos.get("terminal")[0],
+                                                 r.rangos.get("terminal")[1]));
+    }
+
+    @Test
+    public void los_extras_no_llevan_rango() {
+        // datos_extra no tiene formulario donde mostrar un semaforo; calcularlo seria trabajo
+        // que nadie consume.
+        FormatoTerminalPos f = formato(
+                ".*STONEID: (?<stoneId>[A-Z0-9]+).*AUT: (?<auth>[0-9]+).*",
+                "{\"codigoAutorizacion\":{\"de\":\"auth\"},\"stoneId\":{\"de\":\"stoneId\"}}");
+
+        ExtractorCupon.Resultado r = extractor.extraer("STONEID: XR44B\nAUT: 12345", f);
+
+        assertFalse(r.rangos.containsKey("stoneId"));
+        assertTrue(r.rangos.containsKey("codigoAutorizacion"));
+    }
+
+    @Test
+    public void un_fallo_devuelve_rangos_vacios_y_no_null() {
+        ExtractorCupon.Resultado r = extractor.extraer("cualquier cosa", formato("^NADA$", "{}"));
+
+        assertFalse(r.ok());
+        assertNotNull(r.rangos);
+        assertTrue(r.rangos.isEmpty());
+    }
 }

@@ -98,6 +98,58 @@ public final class MotorOcr implements AutoCloseable {
             }
             return sb.toString();
         }
+
+        /**
+         * Que tan confiable es el tramo {@code [desde, hasta)} del texto que devolvio
+         * {@link #textoPorRenglones()}.
+         *
+         * <p><b>Para que sirve.</b> Es lo que convierte la confianza en un semaforo por campo. El
+         * promedio por foto esta medido y no sirve: no distingue una linea buena de una mala, asi
+         * que una foto con el monto ilegible y el resto perfecto da un promedio alto. Sabiendo en
+         * que tramo del texto cayo cada campo, la pregunta deja de ser "¿esta foto salio bien?" y
+         * pasa a ser "¿puedo confiar en ESTE dato?".
+         *
+         * <p><b>Devuelve el MINIMO, no el promedio.</b> Si un valor se repartio entre dos cajas y
+         * una se leyo mal, el valor esta mal: un caracter equivocado en un codigo de autorizacion
+         * lo invalida entero. Promediar lo escondería detras de la caja buena.
+         *
+         * <p>{@code null} = ninguna linea cae en ese tramo, o sea que no se sabe. El que lo
+         * consuma tiene que tratarlo como "preguntar", nunca como "confiable".
+         */
+        public Float confianzaEnRango(int desde, int hasta) {
+            if (desde < 0 || hasta <= desde) return null;
+            int[][] limites = limites();
+            float minimo = Float.MAX_VALUE;
+            boolean alguna = false;
+            for (int i = 0; i < lineas.size(); i++) {
+                // Se solapan: el tramo empieza antes de que la linea termine y viceversa.
+                if (limites[i][0] < hasta && desde < limites[i][1]) {
+                    minimo = Math.min(minimo, lineas.get(i).confianza);
+                    alguna = true;
+                }
+            }
+            return alguna ? Float.valueOf(minimo) : null;
+        }
+
+        /**
+         * Donde empieza y termina cada linea dentro de {@link #textoPorRenglones()}.
+         *
+         * <p>No hace falta repetir el criterio de renglon: los dos separadores que ese metodo
+         * puede meter --espacio y salto-- ocupan <b>exactamente un caracter</b>, asi que las
+         * posiciones no dependen de cual se eligio. Es la razon por la que esto no puede
+         * desincronizarse de aquel, que es el riesgo obvio de tener dos recorridos.
+         */
+        private int[][] limites() {
+            int[][] out = new int[lineas.size()][2];
+            int pos = 0;
+            for (int i = 0; i < lineas.size(); i++) {
+                if (pos > 0) pos++;              // el separador
+                out[i][0] = pos;
+                pos += lineas.get(i).texto.length();
+                out[i][1] = pos;
+            }
+            return out;
+        }
     }
 
     /**

@@ -65,6 +65,14 @@ type CapturaCupon {
     usadoEn: Date
     imagenUrl: String
     textoOcr: String
+    """
+    JSON con los campos ya separados: las claves canonicas (codigoAutorizacion, numeroBoleta,
+    monto, terminal, identificadorTransaccion, moneda), mas `datosExtra` con lo que el patron
+    capturo y no es canonico, mas `confianzas` con un numero 0..1 por campo canonico.
+
+    El semaforo del desktop se arma con `confianzas`. Un campo que NO aparece ahi es un campo del
+    que no se sabe, y se trata como dudoso: la accion es la misma que con confianza baja.
+    """
     campos: String
     msOcr: Int
     intentos: Int
