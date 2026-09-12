@@ -67,6 +67,13 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     public Gasto saveGasto(GastoInput input, String printerName, String local) throws GraphQLException {
+        if (input.getId() == null) {
+            String observacion = input.getObservacion() != null ? input.getObservacion().trim() : "";
+            if (observacion.isEmpty()) {
+                throw new GraphQLException("La observación es obligatoria para registrar un gasto.");
+            }
+            input.setObservacion(observacion);
+        }
         ModelMapper m = new ModelMapper();
         Gasto e = m.map(input, Gasto.class);
 
