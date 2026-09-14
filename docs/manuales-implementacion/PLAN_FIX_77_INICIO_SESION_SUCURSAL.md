@@ -96,6 +96,16 @@ ignora). La query derivada nueva lee columnas existentes.
 | B | Resolver con `@Autowired` en campos: el test no puede usar constructor | baja | `ReflectionTestUtils.setField` |
 | B | «desktop viejo + filial nuevo produce error» | — | descartado: la sucursal del input se ignora, no hay error |
 
+## Implementación (paso 7)
+
+- Test contra el resolver viejo: **7/7 en rojo** por las causas esperadas (sucursal `null` en altas y
+  update; ninguna excepción en los rechazos).
+- `token` al cerrar: el desktop manda `token = null` en el cierre; con «solo campos no nulos» el token
+  queda en la fila cerrada. Inofensivo: todas las consultas de push de central filtran
+  `horaFin IS NULL` (`findUsuarioIdInWithValidTokens`, `findAllWithValidTokens`,
+  `findActiveSessionsByTokens`, central `InicioSesionRepository.java:61-75`) y central libera tokens
+  por valor (`clearTokenByToken`, `liberarTokenDeOtras*`).
+
 ## Impacto
 
 - Migraciones: ninguna. Schema GraphQL: sin cambios.
