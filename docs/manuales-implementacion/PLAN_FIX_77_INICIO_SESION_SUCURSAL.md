@@ -106,6 +106,21 @@ ignora). La query derivada nueva lee columnas existentes.
   `findActiveSessionsByTokens`, central `InicioSesionRepository.java:61-75`) y central libera tokens
   por valor (`clearTokenByToken`, `liberarTokenDeOtras*`).
 
+## Auditoría del diff (paso 8)
+
+- Fijo 1 (autorización): sin riesgo nuevo. `saveInicioSesion` sigue pasando por `SecurityGraphQLAspect`
+  (solo sesión). Preexistente y **acotado** por el diff: un usuario logueado puede actualizar la sesión
+  de otro usuario de la misma sucursal (antes, de cualquier sucursal). Fix aparte, fuera de #77.
+- Fijo 2 (esquema/migración): N/A — sin migración, `.graphqls` ni enum.
+- Condicionales A y B: no disparados por globs.
+- Fijo 3 (contrato): **cambio de diseño**. El desktop sin #297 espera el cierre de sesión sin manejar
+  errores (`onLogout` resuelve solo en `next`; `onSave` emite `error` si hay `errors`). Una sesión
+  `(id, 0)` abierta antes de que el filial se actualice haría colgar el logout al rechazarse. Por eso
+  el update de una sesión que no es de la sucursal propia **no escribe y devuelve `null`** en vez de
+  `GraphQLException`: `onSave` lo trata como éxito (`sinRespuestaVacia` solo actúa sobre respuesta
+  `null` entera) y el logout sigue. Test 4 ajustado. `token` retenido y mobile (habla con central):
+  sin riesgo.
+
 ## Impacto
 
 - Migraciones: ninguna. Schema GraphQL: sin cambios.

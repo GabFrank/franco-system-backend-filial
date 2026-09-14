@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -88,14 +89,14 @@ class InicioSesionGraphQLTest {
     }
 
     @Test
-    void actualizacionDeSesionDeOtraSucursal_seRechazaSinGuardar() {
+    void actualizacionDeSesionDeOtraSucursal_noGuardaYDevuelveNull() {
         when(sucursalService.sucursalActual()).thenReturn(sucursal(24L));
         when(service.findByIdAndSucursalId(99L, 24L)).thenReturn(Optional.empty());
         InicioSesionInput input = new InicioSesionInput();
         input.setId(99L);
         input.setSucursalId(0L);
 
-        assertThrows(GraphQLException.class, () -> resolver.saveInicioSesion(input));
+        assertNull(resolver.saveInicioSesion(input));
         verify(service, never()).saveAndSend(any(InicioSesion.class), anyBoolean());
     }
 

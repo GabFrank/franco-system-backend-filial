@@ -57,8 +57,13 @@ public class InicioSesionGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (input.getId() == null) {
             e = new InicioSesion();
         } else {
-            e = service.findByIdAndSucursalId(input.getId(), sucursal.getId())
-                    .orElseThrow(() -> new GraphQLException("Sesión no encontrada en esta sucursal"));
+            Optional<InicioSesion> existente = service.findByIdAndSucursalId(input.getId(), sucursal.getId());
+            if (!existente.isPresent()) {
+                // Sesion ajena o legacy (id, 0): no se toca. Se devuelve null y no un error porque los
+                // desktops sin actualizar esperan el cierre sin manejar errores y el logout se colgaria.
+                return null;
+            }
+            e = existente.get();
         }
         e.setSucursal(sucursal);
         // Solo lo que llega: el input no trae todos los campos y antes se pisaban con null.
