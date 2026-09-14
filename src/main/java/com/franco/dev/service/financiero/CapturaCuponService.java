@@ -316,12 +316,65 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
             if (!r.extras.isEmpty()) salida.put("datosExtra", r.extras);
 
             Map<String, Object> confianzas = confianzaPorCampo(r, lectura);
+            descontarPorTipo(c, r, confianzas);
             if (!confianzas.isEmpty()) salida.put("confianzas", confianzas);
 
             c.setCampos(new ObjectMapper().writeValueAsString(salida));
         } catch (Exception e) {
             log.error("captura {}: fallo la extraccion de campos", c.getId(), e);
         }
+    }
+
+    /**
+     * Saca del mapa de confianzas los campos cuyo valor no encaja con el tipo que el mapa declara.
+     *
+     * <p><b>Contra que defiende.</b> El modo de falla caro del OCR no es no leer: es <b>leer
+     * plausible y mal</b>. Un {@code O} por {@code 0} en un codigo de autorizacion sale con
+     * confianza optica alta --el caracter se vio nitido, solo que era otro-- y el semaforo lo
+     * pintaria verde. Despues ese cobro se concilia contra un codigo que no existe.
+     *
+     * <p><b>Por que sacarlo y no bajarlo a un numero.</b> Un campo sin entrada en {@code confianzas}
+     * ya significa "de este no se sabe" y el desktop lo trata como dudoso; esta documentado en
+     * {@link #confianzaPorCampo}. Inventar un 0.0 diria que el OCR leyo mal, y no es cierto: leyo
+     * bien algo que no corresponde. El motivo es distinto, la accion del cajero es la misma.
+     *
+     * <p><b>Y por que no se rechaza la lectura.</b> Porque el tipo se dedujo de una sola foto de
+     * muestra. Si esa muestra mintio --un numero de boleta que en ese cupon salio sin letras pero
+     * en otros las tiene-- rechazar convertiria un formato util en uno inservible. Mandar a revisar
+     * es reversible; rechazar, no.
+     */
+    private void descontarPorTipo(CapturaCupon c, ExtractorCupon.Resultado extraido,
+                                  Map<String, Object> confianzas) {
+        if (confianzas.isEmpty()) return;
+        if (c.getTerminalPos() == null || c.getTerminalPos().getFormatoTerminalPos() == null) return;
+        Long formatoId = c.getTerminalPos().getFormatoTerminalPos().getId();
+        if (formatoId == null) return;
+
+        for (FormatoTerminalPosRegion r : regiones.findByFormatoTerminalPos_IdOrderByOrdenAscIdAsc(formatoId)) {
+            String tipo = r.getTipo();
+            if (tipo == null || "TEXTO".equals(tipo)) continue;   // TEXTO no restringe nada
+            if (!confianzas.containsKey(r.getCampo())) continue;
+
+            Object valor = extraido.campos.get(r.getCampo());
+            if (valor == null) continue;
+            if (encaja(valor.toString(), tipo)) continue;
+
+            confianzas.remove(r.getCampo());
+            log.info("captura {}: el campo {} vino \"{}\" y el mapa lo declara {}; va a revision",
+                    c.getId(), r.getCampo(), valor, tipo);
+        }
+    }
+
+    /** Si un valor leido encaja con el tipo que el mapa declara para ese campo. */
+    private static boolean encaja(String valor, String tipo) {
+        String v = valor == null ? "" : valor.trim();
+        if (v.isEmpty()) return true;   // vacio es problema de otro control, no de tipo
+        if ("NUMERO".equals(tipo)) return v.matches("\\d[\\d.,]*");
+        if ("FECHA".equals(tipo)) {
+            return v.matches("\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}")
+                    || v.matches("\\d{4}[/-]\\d{1,2}[/-]\\d{1,2}");
+        }
+        return true;
     }
 
     /**
