@@ -77,7 +77,7 @@ public class CapturaCuponGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         List<RegionDerivada> out = new ArrayList<>();
         for (DerivadorMapa.RegionPropuesta p : r.regiones) {
             out.add(new RegionDerivada(p.campo, p.etiqueta, p.posicion, p.valorLeido,
-                    p.x1, p.y1, p.x2, p.y2, p.sinRegion));
+                    p.x1, p.y1, p.x2, p.y2, p.sinRegion, p.tipo));
         }
         return out;
     }

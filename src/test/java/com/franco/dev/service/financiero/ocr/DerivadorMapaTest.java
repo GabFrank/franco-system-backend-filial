@@ -290,4 +290,80 @@ public class DerivadorMapaTest {
         assertTrue(r.ok(), r.error);
         assertEquals(4, r.regiones.size());
     }
+
+    // ---- El tipo del campo lo declara el MAPEO, no la muestra ----
+    //
+    // Se intento deducirlo del valor leido y esta medido que falla: el codigo de autorizacion de
+    // INFONET sale alfanumerico en credito (D380AD) y numerico en debito y QR (467769), por la
+    // misma terminal. Deducir NUMERO desde un ticket de debito mandaria a revision toda venta con
+    // credito. Una muestra no alcanza para afirmar el tipo de un campo.
+
+    @Test
+    void el_tipo_sale_del_mapeo() {
+        String mapeo = "{\"codigoAutorizacion\":{\"de\":\"auth\",\"tipo\":\"TEXTO\"},"
+                     + "\"numeroBoleta\":{\"de\":\"boleta\",\"tipo\":\"NUMERO\"}}";
+        DerivadorMapa.Resultado r = derivador.derivar(cuponTermico(), PATRON_REAL, mapeo, 720, 1000);
+
+        assertTrue(r.ok(), r.error);
+        assertEquals("TEXTO", tipoDe(r, "codigoAutorizacion"));
+        assertEquals("NUMERO", tipoDe(r, "numeroBoleta"));
+    }
+
+    @Test
+    void un_campo_sin_tipo_declarado_queda_en_null() {
+        // El default seguro: el filial no valida nada para ese campo. Declarar de mas cuesta una
+        // lectura correcta convertida en sospecha; declarar de menos solo pierde una defensa.
+        DerivadorMapa.Resultado r = derivador.derivar(
+                cuponTermico(), PATRON_REAL, MAPEO_REAL, 720, 1000);
+
+        assertTrue(r.ok(), r.error);
+        assertNull(tipoDe(r, "codigoAutorizacion"),
+                "MAPEO_REAL no declara tipo: no se puede inventar uno");
+    }
+
+    @Test
+    void sin_mapeo_ningun_campo_tiene_tipo() {
+        DerivadorMapa.Resultado r = derivador.derivar(cupon(),
+                "^[\\s\\S]*AUT: (?<auth>[0-9]+)[\\s\\S]*$", 400, 200);
+
+        assertTrue(r.ok(), r.error);
+        for (DerivadorMapa.RegionPropuesta pr : r.regiones) assertNull(pr.tipo);
+    }
+
+    @Test
+    void el_tipo_se_lee_aunque_venga_antes_que_el_de() {
+        // El orden de las claves dentro del objeto es libre en JSON y el parseo es por regex: si
+        // dependiera del orden, un mapeo valido perderia el tipo sin decir nada.
+        String mapeo = "{\"codigoAutorizacion\":{\"tipo\":\"TEXTO\",\"de\":\"auth\"}}";
+        DerivadorMapa.Resultado r = derivador.derivar(cuponTermico(), PATRON_REAL, mapeo, 720, 1000);
+
+        assertTrue(r.ok(), r.error);
+        assertEquals("TEXTO", tipoDe(r, "codigoAutorizacion"));
+    }
+
+    @Test
+    void el_tipo_en_minuscula_se_normaliza() {
+        String mapeo = "{\"codigoAutorizacion\":{\"de\":\"auth\",\"tipo\":\"numero\"}}";
+        DerivadorMapa.Resultado r = derivador.derivar(cuponTermico(), PATRON_REAL, mapeo, 720, 1000);
+
+        assertTrue(r.ok(), r.error);
+        assertEquals("NUMERO", tipoDe(r, "codigoAutorizacion"),
+                "el filial compara contra NUMERO en mayuscula; sin normalizar, no validaria nada");
+    }
+
+    @Test
+    void un_tipo_mal_escrito_degrada_a_null_y_no_revienta() {
+        // Es el motivo por el que el ABM del formato confronta este parseo contra el JSON real
+        // antes de guardar: aca abajo el typo es indistinguible de "no declaro tipo".
+        String mapeo = "{\"codigoAutorizacion\":{\"de\":\"auth\",\"tipo\":\"NUMER0\"}}";
+        DerivadorMapa.Resultado r = derivador.derivar(cuponTermico(), PATRON_REAL, mapeo, 720, 1000);
+
+        assertTrue(r.ok(), r.error);
+        assertNull(tipoDe(r, "codigoAutorizacion"));
+    }
+
+    private static String tipoDe(DerivadorMapa.Resultado r, String campo) {
+        for (DerivadorMapa.RegionPropuesta p : r.regiones) if (campo.equals(p.campo)) return p.tipo;
+        return null;
+    }
 }

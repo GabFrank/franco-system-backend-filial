@@ -21,6 +21,13 @@ type RegionDerivada {
     y2: Float
     "Null si se derivo bien; si no, por que no se pudo"
     sinRegion: String
+    """
+    TEXTO | NUMERO | FECHA, tomado del `mapeo` del formato -- NO deducido del valor de la muestra:
+    el codigo de autorizacion de INFONET sale alfanumerico con credito y numerico con debito, por
+    la misma terminal el mismo dia, asi que deducirlo mandaria a revision toda venta con credito.
+    Viaja con la propuesta para que central lo guarde tal cual.
+    """
+    tipo: String
 }
 
 extend type Mutation {

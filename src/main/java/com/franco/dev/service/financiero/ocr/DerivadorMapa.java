@@ -47,19 +47,38 @@ public class DerivadorMapa {
         public final BigDecimal x1, y1, x2, y2;
         /** Null si se derivo bien. Si no, por que no se pudo. */
         public final String sinRegion;
+        /**
+         * TEXTO | NUMERO | FECHA, <b>tomado del mapeo del formato</b>. Lo consume el filial al leer
+         * un cupon: un valor que no encaja con su tipo se marca como dudoso y el semaforo lo
+         * levanta.
+         *
+         * <p><b>Por que NO se deduce del valor de la muestra.</b> Se intento y esta medido que
+         * falla: el codigo de autorizacion de INFONET sale alfanumerico en las ventas con tarjeta
+         * de credito ({@code D380AD}, {@code 0HNDMK}) y numerico en las de debito y QR
+         * ({@code 467769}, {@code 038116}) --por la misma terminal, el mismo dia--. Derivar desde
+         * un ticket numerico deduciria {@code NUMERO}, y despues <b>toda venta con credito iria a
+         * revision</b>: una lectura correcta convertida en sospecha, en cada venta.
+         *
+         * <p>Una sola muestra no alcanza para afirmar el tipo de un campo. Quien registra el
+         * formato conoce al proveedor; la foto solo conoce esa transaccion.
+         */
+        public final String tipo;
 
         RegionPropuesta(String campo, String etiqueta, String posicion, String valorLeido,
-                        BigDecimal x1, BigDecimal y1, BigDecimal x2, BigDecimal y2, String sinRegion) {
+                        BigDecimal x1, BigDecimal y1, BigDecimal x2, BigDecimal y2, String sinRegion,
+                        String tipo) {
             this.campo = campo; this.etiqueta = etiqueta; this.posicion = posicion;
             this.valorLeido = valorLeido;
             this.x1 = x1; this.y1 = y1; this.x2 = x2; this.y2 = y2;
             this.sinRegion = sinRegion;
+            this.tipo = tipo;
         }
 
         public boolean derivada() { return sinRegion == null; }
 
-        static RegionPropuesta noDerivada(String campo, String valor, String motivo) {
-            return new RegionPropuesta(campo, null, null, valor, null, null, null, null, motivo);
+
+        static RegionPropuesta noDerivada(String campo, String valor, String motivo, String tipo) {
+            return new RegionPropuesta(campo, null, null, valor, null, null, null, null, motivo, tipo);
         }
     }
 
@@ -133,11 +152,12 @@ public class DerivadorMapa {
         // grupo del patron -> campo destino del mapeo. Lo que el mapeo no menciona conserva el
         // nombre del grupo: es un campo propio del proveedor, y el ABM decide si lo acepta.
         Map<String, String> destinos = destinosPorGrupo(mapeo);
+        Map<String, String> tipos = tiposPorCampo(mapeo);
 
         List<RegionPropuesta> out = new ArrayList<RegionPropuesta>();
         for (Map.Entry<String, String> g : capturas(patron, m).entrySet()) {
             String campo = destinos.containsKey(g.getKey()) ? destinos.get(g.getKey()) : g.getKey();
-            out.add(derivarUno(campo, g.getValue(), lineas, ancho, alto));
+            out.add(derivarUno(campo, g.getValue(), lineas, tipos.get(campo), ancho, alto));
         }
         if (out.isEmpty()) {
             return Resultado.fallo("el patron matcheo pero no tiene grupos nombrados que derivar");
@@ -155,6 +175,7 @@ public class DerivadorMapa {
      * acota el reconocimiento y hace desaparecer un campo que hoy se lee bien.
      */
     private RegionPropuesta derivarUno(String campo, String valor, List<MotorOcr.Linea> lineas,
+                                       String tipo,
                                        int ancho, int alto) {
         List<MotorOcr.Linea> contienen = new ArrayList<MotorOcr.Linea>();
         for (MotorOcr.Linea l : lineas) {
@@ -162,11 +183,11 @@ public class DerivadorMapa {
         }
         if (contienen.isEmpty()) {
             return RegionPropuesta.noDerivada(campo, valor,
-                    "el valor quedo repartido entre varias cajas del OCR; este campo se resuelve por patron");
+                    "el valor quedo repartido entre varias cajas del OCR; este campo se resuelve por patron", tipo);
         }
         if (contienen.size() > 1) {
             return RegionPropuesta.noDerivada(campo, valor,
-                    "el valor aparece en " + contienen.size() + " lugares del cupon; no se puede saber cual es");
+                    "el valor aparece en " + contienen.size() + " lugares del cupon; no se puede saber cual es", tipo);
         }
 
         MotorOcr.Linea caja = contienen.get(0);
@@ -183,7 +204,7 @@ public class DerivadorMapa {
         if (propia != null) {
             return new RegionPropuesta(campo, propia, "DENTRO", valor,
                     norm(minX(caja), ancho), norm(minY(caja), alto),
-                    norm(maxX(caja), ancho), norm(maxY(caja), alto), null);
+                    norm(maxX(caja), ancho), norm(maxY(caja), alto), null, tipo);
         }
 
         MotorOcr.Linea ancla = anclaDe(caja, lineas);
@@ -205,7 +226,7 @@ public class DerivadorMapa {
 
         return new RegionPropuesta(campo, etiqueta, posicion, valor,
                 norm(minX(caja), ancho), norm(minY(caja), alto),
-                norm(maxX(caja), ancho), norm(maxY(caja), alto), null);
+                norm(maxX(caja), ancho), norm(maxY(caja), alto), null, tipo);
     }
 
     /**
@@ -280,6 +301,33 @@ public class DerivadorMapa {
      * <p>Si dos campos salieran del mismo grupo gana el primero, que es el orden en que estan
      * declarados. No se puede hacer mejor: la region es una sola y hay que elegir.
      */
+    /**
+     * campo destino -> TEXTO | NUMERO | FECHA, segun lo declare el mapeo.
+     *
+     * <p>Un campo sin {@code tipo} queda en null, y el filial entonces no valida nada para el: es
+     * el default seguro. Declarar de mas cuesta caro --una lectura correcta que no encaja con un
+     * tipo mal puesto va a revision en cada venta-- y declarar de menos solo pierde una defensa.
+     *
+     * <p>Mismo parseo por regex que {@link #destinosPorGrupo} y por el mismo motivo: no arrastrar
+     * una dependencia de JSON a un metodo que tambien corre dentro del filial.
+     *
+     * <p>Publico porque el ABM del formato lo usa para <b>verificar que lo que el administrador
+     * declaro es lo que este parseo va a leer</b>. Un tipo mal tipeado no matchea el regex y el
+     * campo queda sin tipo en silencio, que es exactamente el estado que la declaracion venia a
+     * evitar; confrontar las dos lecturas en el alta es lo que lo convierte en un error visible.
+     */
+    public static Map<String, String> tiposPorCampo(String mapeo) {
+        Map<String, String> out = new LinkedHashMap<String, String>();
+        if (mapeo == null || mapeo.trim().isEmpty()) return out;
+        Matcher m = Pattern.compile(
+                "\"([A-Za-z][A-Za-z0-9]*)\"\\s*:\\s*\\{[^{}]*?\"tipo\"\\s*:\\s*\"([A-Za-z]+)\"")
+                .matcher(mapeo);
+        while (m.find()) {
+            if (!out.containsKey(m.group(1))) out.put(m.group(1), m.group(2).toUpperCase());
+        }
+        return out;
+    }
+
     private static Map<String, String> destinosPorGrupo(String mapeo) {
         Map<String, String> out = new LinkedHashMap<String, String>();
         if (mapeo == null || mapeo.trim().isEmpty()) return out;

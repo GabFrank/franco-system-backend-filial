@@ -41,4 +41,12 @@ public class RegionDerivada {
 
     /** Null si se derivo bien; si no, por que no se pudo. */
     private String sinRegion;
+
+    /**
+     * TEXTO | NUMERO | FECHA, tomado del mapeo del formato --no deducido del valor de la muestra,
+     * ver {@code DerivadorMapa.RegionPropuesta#tipo}--. Viaja con la propuesta para que central lo
+     * guarde tal cual: si se perdiera en el camino, la region quedaria sin tipo y el campo sin
+     * validacion, en silencio.
+     */
+    private String tipo;
 }
