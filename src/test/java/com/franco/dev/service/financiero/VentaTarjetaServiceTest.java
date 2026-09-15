@@ -1,10 +1,12 @@
 package com.franco.dev.service.financiero;
 
+import com.franco.dev.domain.financiero.ConfiguracionVentaTarjeta;
 import com.franco.dev.domain.financiero.VentaTarjeta;
 import com.franco.dev.domain.financiero.FormaPago;
 import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.domain.financiero.TerminalPos;
 import com.franco.dev.domain.operaciones.CobroDetalle;
+import com.franco.dev.repository.financiero.CapturaCuponRepository;
 import com.franco.dev.repository.financiero.VentaTarjetaRepository;
 import com.franco.dev.repository.operaciones.CobroDetalleRepository;
 import com.franco.dev.service.financiero.MonedaService;
@@ -19,8 +21,10 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class VentaTarjetaServiceTest {
@@ -31,6 +35,9 @@ class VentaTarjetaServiceTest {
 
     private MonedaService monedaService;
 
+    private ConfiguracionVentaTarjetaService configuracionService;
+    private CapturaCuponRepository capturaCuponRepository;
+
     private VentaTarjetaService service;
 
     @BeforeEach
@@ -38,7 +45,12 @@ class VentaTarjetaServiceTest {
         repository = mock(VentaTarjetaRepository.class);
         cobroDetalleRepository = mock(CobroDetalleRepository.class);
         monedaService = mock(MonedaService.class);
-        service = new VentaTarjetaService(repository, cobroDetalleRepository, monedaService);
+        configuracionService = mock(ConfiguracionVentaTarjetaService.class);
+        // La configuracion real, con sus defaults: la ventana de duplicado sale de aca.
+        when(configuracionService.findOrDefault()).thenReturn(new ConfiguracionVentaTarjeta());
+        capturaCuponRepository = mock(CapturaCuponRepository.class);
+        service = new VentaTarjetaService(repository, cobroDetalleRepository, monedaService,
+                configuracionService, capturaCuponRepository);
     }
 
     @Test
@@ -79,7 +91,7 @@ class VentaTarjetaServiceTest {
         when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
 
         VentaTarjeta resultado = service.completar(
-                1L, 24L, "CXF1", "", new BigDecimal("94.55"), "E60701190202608271700DY5BCKNPMBQ", "FRCP1*...", null, null);
+                1L, 24L, "CXF1", "", new BigDecimal("94.55"), "E60701190202608271700DY5BCKNPMBQ", "FRCP1*...", null, null, null, null, null);
 
         assertEquals("COMPLETADO", resultado.getEstado());
         assertEquals("CXF1", resultado.getCodigoAutorizacion());
@@ -98,7 +110,7 @@ class VentaTarjetaServiceTest {
         when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
 
         assertThrows(GraphQLException.class, () ->
-                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF", "cruda", null, null));
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF", "cruda", null, null, null, null, null));
         verify(repository, never()).save(any());
     }
 
@@ -107,7 +119,7 @@ class VentaTarjetaServiceTest {
         when(repository.findByIdAndSucursalId(99L, 24L)).thenReturn(null);
 
         assertThrows(GraphQLException.class, () ->
-                service.completar(99L, 24L, "CXF1", "", BigDecimal.TEN, "REF", "cruda", null, null));
+                service.completar(99L, 24L, "CXF1", "", BigDecimal.TEN, "REF", "cruda", null, null, null, null, null));
         verify(repository, never()).save(any());
     }
 
@@ -123,7 +135,7 @@ class VentaTarjetaServiceTest {
         when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
         when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        VentaTarjeta resultado = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, "cruda", null, null);
+        VentaTarjeta resultado = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, "cruda", null, null, null, null, null);
 
         assertEquals("COMPLETADO", resultado.getEstado());
         verify(cobroDetalleRepository, never()).findByVentaIdAndSucursalId(any(), any());
@@ -155,7 +167,7 @@ class VentaTarjetaServiceTest {
         when(cobroDetalleRepository.findByVentaIdAndSucursalId(500L, 24L))
                 .thenReturn(Arrays.asList(cd1, cd2));
 
-        service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF-UNICA", "cruda", null, null);
+        service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF-UNICA", "cruda", null, null, null, null, null);
 
         verify(cobroDetalleRepository, never()).save(any(CobroDetalle.class));
     }
@@ -179,7 +191,7 @@ class VentaTarjetaServiceTest {
         when(cobroDetalleRepository.findByVentaIdAndSucursalId(500L, 24L))
                 .thenReturn(Collections.singletonList(cd));
 
-        service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF-UNICA", "cruda", null, null);
+        service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF-UNICA", "cruda", null, null, null, null, null);
 
         verify(cobroDetalleRepository).save(cd);
         assertEquals("REF-UNICA", cd.getIdentificadorTransaccion());
@@ -219,7 +231,7 @@ class VentaTarjetaServiceTest {
         VentaTarjeta vt = new VentaTarjeta();
         CobroDetalle[] cds = dosTarjetasDelMismoMonto(vt);
 
-        service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF-ELEGIDA", "cruda", 11L, null);
+        service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF-ELEGIDA", "cruda", 11L, null, null, null, null);
 
         assertEquals("REF-ELEGIDA", cds[1].getIdentificadorTransaccion());
         assertNull(cds[0].getIdentificadorTransaccion());
@@ -234,7 +246,7 @@ class VentaTarjetaServiceTest {
         dosTarjetasDelMismoMonto(vt);
 
         assertThrows(GraphQLException.class, () ->
-                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF", "cruda", 999L, null));
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF", "cruda", 999L, null, null, null, null));
     }
 
     @Test
@@ -244,7 +256,7 @@ class VentaTarjetaServiceTest {
         cds[0].setIdentificadorTransaccion("REF-DE-OTRO-CUPON");
 
         assertThrows(GraphQLException.class, () ->
-                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF-NUEVA", "cruda", 10L, null));
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF-NUEVA", "cruda", 10L, null, null, null, null));
     }
 
     // 8.000 R$ contra un cobro de 8.000 Gs da diferencia CERO en cualquier reporte: el error
@@ -268,7 +280,7 @@ class VentaTarjetaServiceTest {
 
         // El cupon viene en GUARANI (1) y la terminal cobra en REAL (2).
         assertThrows(GraphQLException.class, () ->
-                service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF", "cruda", null, 1L));
+                service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF", "cruda", null, 1L, null, null, null));
 
         verify(repository, never()).save(any(VentaTarjeta.class));
     }
@@ -290,7 +302,7 @@ class VentaTarjetaServiceTest {
         when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
         when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        VentaTarjeta r = service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF", "cruda", null, 2L);
+        VentaTarjeta r = service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF", "cruda", null, 2L, null, null, null);
 
         assertEquals("COMPLETADO", r.getEstado());
     }
@@ -314,7 +326,7 @@ class VentaTarjetaServiceTest {
         when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
         when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        VentaTarjeta r = service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF", "cruda", null, null);
+        VentaTarjeta r = service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF", "cruda", null, null, null, null, null);
 
         assertEquals("COMPLETADO", r.getEstado());
     }
@@ -339,7 +351,7 @@ class VentaTarjetaServiceTest {
 
         assertThrows(GraphQLException.class, () ->
                 service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF",
-                        "FRCP1*X*Y*PYG*5000*REF*202609041100", null, null));
+                        "FRCP1*X*Y*PYG*5000*REF*202609041100", null, null, null, null, null));
 
         // Y no se escribio nada: el registro sigue como estaba.
         verify(repository, never()).save(any(VentaTarjeta.class));
@@ -364,7 +376,7 @@ class VentaTarjetaServiceTest {
                 .thenReturn(Collections.emptyList());
 
         assertThrows(GraphQLException.class, () ->
-                service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF-USADA", "cruda", null, null));
+                service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF-USADA", "cruda", null, null, null, null, null));
 
         verify(repository, never()).save(any(VentaTarjeta.class));
     }
@@ -395,7 +407,7 @@ class VentaTarjetaServiceTest {
         when(cobroDetalleRepository.findByVentaIdAndSucursalId(500L, 24L))
                 .thenReturn(Collections.singletonList(propio));
 
-        VentaTarjeta r = service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF-PROPIA", "cruda", null, null);
+        VentaTarjeta r = service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF-PROPIA", "cruda", null, null, null, null, null);
 
         assertEquals("COMPLETADO", r.getEstado());
     }
@@ -408,9 +420,229 @@ class VentaTarjetaServiceTest {
         CobroDetalle[] cds = dosTarjetasDelMismoMonto(vt);
         cds[0].setIdentificadorTransaccion("REF-YA-PUESTA");
 
-        service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF-YA-PUESTA", "cruda", null, null);
+        service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF-YA-PUESTA", "cruda", null, null, null, null, null);
 
         assertNull(cds[1].getIdentificadorTransaccion());
         verify(cobroDetalleRepository, never()).save(any(CobroDetalle.class));
+    }
+
+    // ── origen: de donde salieron los datos ────────────────────────────────────────────────
+
+    @Test
+    void completar_conOrigenExplicito_loGuardaTalCual() {
+        VentaTarjeta vt = pendiente();
+
+        VentaTarjeta r = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null,
+                VentaTarjeta.ORIGEN_MANUAL, null, null);
+
+        assertEquals(VentaTarjeta.ORIGEN_MANUAL, r.getOrigen());
+    }
+
+    // Es lo unico que el backend PUEDE deducir: qrCrudo solo existe si entro por el lector.
+    @Test
+    void completar_sinOrigenPeroConQrCrudo_deduceQR() {
+        pendiente();
+
+        VentaTarjeta r = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, "FRCP1*...", null, null, null, null, null);
+
+        assertEquals(VentaTarjeta.ORIGEN_QR, r.getOrigen());
+    }
+
+    // OCR y MANUAL llegan igual desde el backend. Inventar 'OCR' sobre una carga a mano haria que
+    // la conciliacion confie en un dato que tipeo una persona: mejor NULL, que dice "no se sabe".
+    @Test
+    void completar_sinOrigenNiQrCrudo_dejaNullEnVezDeAdivinar() {
+        pendiente();
+
+        VentaTarjeta r = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null, null, null, null);
+
+        assertNull(r.getOrigen());
+    }
+
+    // ── duplicado por codigo de autorizacion: la unica red de la carga a mano ───────────────
+
+    @Test
+    void completar_conCodigoYaUsadoEnLaMismaTerminalYMonto_loRechaza() {
+        VentaTarjeta vt = pendiente();
+        vt.setTerminalPos(terminal(7L));
+
+        VentaTarjeta previo = new VentaTarjeta();
+        previo.setId(99L);
+        previo.setVentaId(500L);
+        previo.setMontoEscaneado(BigDecimal.TEN);
+        when(repository.buscarPorCodigoAutorizacion(eq(24L), eq("CXF1"), eq(7L), any()))
+                .thenReturn(Collections.singletonList(previo));
+
+        GraphQLException e = assertThrows(GraphQLException.class, () ->
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null,
+                        VentaTarjeta.ORIGEN_MANUAL, null, null));
+
+        assertTrue(e.getMessage().contains("99"));
+        verify(repository, never()).save(any());
+    }
+
+    // Varios proveedores usan codigos de 4 a 6 caracteres que se reciclan. Sin el corte por monto,
+    // una colision legitima bloquearia una venta buena con el cliente adelante.
+    @Test
+    void completar_mismoCodigoPeroOtroMonto_pasa() {
+        pendiente();
+
+        VentaTarjeta previo = new VentaTarjeta();
+        previo.setId(99L);
+        previo.setMontoEscaneado(new BigDecimal("777"));
+        when(repository.buscarPorCodigoAutorizacion(any(), any(), any(), any()))
+                .thenReturn(Collections.singletonList(previo));
+
+        VentaTarjeta r = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null,
+                VentaTarjeta.ORIGEN_MANUAL, null, null);
+
+        assertEquals("COMPLETADO", r.getEstado());
+    }
+
+    // Si falta el monto de alguno de los dos, no alcanza para descartar: se avisa de mas antes que
+    // dejar pasar un duplicado real.
+    @Test
+    void completar_mismoCodigoSinMontoParaComparar_loRechazaIgual() {
+        pendiente();
+
+        VentaTarjeta previo = new VentaTarjeta();
+        previo.setId(99L);
+        previo.setMontoEscaneado(null);
+        when(repository.buscarPorCodigoAutorizacion(any(), any(), any(), any()))
+                .thenReturn(Collections.singletonList(previo));
+
+        assertThrows(GraphQLException.class, () ->
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null,
+                        VentaTarjeta.ORIGEN_MANUAL, null, null));
+    }
+
+    // Reintentar sobre el MISMO registro no es un duplicado.
+    @Test
+    void completar_elPropioRegistroNoCuentaComoDuplicado() {
+        pendiente();
+
+        VentaTarjeta mismo = new VentaTarjeta();
+        mismo.setId(1L);
+        mismo.setMontoEscaneado(BigDecimal.TEN);
+        when(repository.buscarPorCodigoAutorizacion(any(), any(), any(), any()))
+                .thenReturn(Collections.singletonList(mismo));
+
+        VentaTarjeta r = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null,
+                VentaTarjeta.ORIGEN_MANUAL, null, null);
+
+        assertEquals("COMPLETADO", r.getEstado());
+    }
+
+    @Test
+    void completar_sinCodigoDeAutorizacion_niConsultaDuplicados() {
+        pendiente();
+
+        service.completar(1L, 24L, "  ", "", BigDecimal.TEN, null, null, null, null, VentaTarjeta.ORIGEN_MANUAL, null, null);
+
+        verify(repository, never()).buscarPorCodigoAutorizacion(any(), any(), any(), any());
+    }
+
+    // La ventana no puede quedar apagada por un dato mal cargado: un 0 cae al default de 24 h.
+    @Test
+    void ventanaDeDuplicadoEnCero_caeAlDefaultYSigueChequeando() {
+        ConfiguracionVentaTarjeta config = new ConfiguracionVentaTarjeta();
+        config.setHorasVentanaDuplicado(0);
+        when(configuracionService.findOrDefault()).thenReturn(config);
+        pendiente();
+
+        service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null, VentaTarjeta.ORIGEN_MANUAL, null, null);
+
+        verify(repository).buscarPorCodigoAutorizacion(any(), any(), any(), any());
+    }
+
+    // Un cupon viejo sin montoEscaneado bloquea cualquier codigo igual dentro de la ventana, sin
+    // importar el monto del nuevo. Es el lado elegido a proposito --avisar de mas antes que dejar
+    // pasar un duplicado real-- pero conviene que este fijado por un test, no supuesto.
+    @Test
+    void completar_ambosMontosNulos_loRechazaIgual() {
+        pendiente();
+
+        VentaTarjeta previo = new VentaTarjeta();
+        previo.setId(99L);
+        previo.setMontoEscaneado(null);
+        when(repository.buscarPorCodigoAutorizacion(any(), any(), any(), any()))
+                .thenReturn(Collections.singletonList(previo));
+
+        assertThrows(GraphQLException.class, () ->
+                service.completar(1L, 24L, "CXF1", "", null, null, null, null, null,
+                        VentaTarjeta.ORIGEN_MANUAL, null, null));
+    }
+
+    // ── origen: valores invalidos ──────────────────────────────────────────────────────────
+
+    // Sin esta validacion el valor llega al INSERT, lo rechaza el CHECK de la columna, y como el
+    // unico @ExceptionHandler del filial atrapa solo GraphQLException, el cajero ve un error opaco.
+    @Test
+    void completar_conOrigenDesconocido_avisaAntesDeGuardar() {
+        pendiente();
+
+        GraphQLException e = assertThrows(GraphQLException.class, () ->
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null, "FOTO", null, null));
+
+        assertTrue(e.getMessage().contains("FOTO"));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void completar_conOrigenEnMinuscula_loNormaliza() {
+        pendiente();
+
+        VentaTarjeta r = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, null, null, null,
+                "  manual  ", null, null);
+
+        assertEquals(VentaTarjeta.ORIGEN_MANUAL, r.getOrigen());
+    }
+
+    // ── helpers ────────────────────────────────────────────────────────────────────────────
+
+    private VentaTarjeta pendiente() {
+        VentaTarjeta vt = new VentaTarjeta();
+        vt.setId(1L);
+        vt.setSucursalId(24L);
+        vt.setEstado("PENDIENTE");
+        when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
+        when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
+        return vt;
+    }
+
+    private static TerminalPos terminal(Long id) {
+        TerminalPos t = new TerminalPos();
+        t.setId(id);
+        return t;
+    }
+
+    @Test
+    public void los_campos_sin_columna_propia_se_guardan_en_datos_extra() {
+        // La columna existia desde la etapa 3 y NADIE la escribia: el OCR separaba los campos
+        // propios del proveedor --un segundo monto en otra moneda, un STONEID-- y el desktop los
+        // descartaba antes de completar. Lo encontro la auditoria general del 2026-09-12.
+        String extras = "{\"stoneId\":\"XR44B\",\"montoOtraMoneda\":\"8000\"}";
+        pendiente();
+
+        VentaTarjeta r = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF", "cruda",
+                null, null, null, null, extras);
+
+        assertEquals(extras, r.getDatosExtra());
+    }
+
+    @Test
+    public void un_segundo_completar_sin_extras_no_borra_los_que_ya_estaban() {
+        // completar se puede volver a llamar sobre el mismo registro. Un intento posterior sin
+        // datos extra no tiene por que llevarse puestos los del primero.
+        VentaTarjeta vt = pendiente();
+        service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF", "cruda", null, null, null,
+                null, "{\"stoneId\":\"XR44B\"}");
+
+        // El segundo intento corre sobre la MISMA fila, que ya quedo COMPLETADA.
+        vt.setEstado("PENDIENTE");
+        VentaTarjeta r = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF", "cruda",
+                null, null, null, null, null);
+
+        assertEquals("{\"stoneId\":\"XR44B\"}", r.getDatosExtra());
     }
 }

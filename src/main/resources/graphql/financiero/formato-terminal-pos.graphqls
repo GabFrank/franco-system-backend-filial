@@ -1,0 +1,19 @@
+type FormatoTerminalPos {
+    id: ID!
+    nombre: String
+    proveedorServicioId: Int
+    "MAQUINA | WEB | API. Decide que camino se le ofrece al cajero y cual se le cierra."
+    tipo: String
+    "Regex con grupos nombrados. NULL solo para tipo API."
+    patron: String
+    "JSON: campo destino -> {de, obligatorio, ...}. Los obligatorios definen tambien el formulario de carga a mano."
+    mapeo: String
+    ejemplo: String
+    "false = no elegible para asignar a terminales nuevas. Las que ya lo tienen siguen operando."
+    activo: Boolean
+    creadoEn: Date
+}
+
+extend type Query {
+    formatosTerminalPosActivos: [FormatoTerminalPos]
+}

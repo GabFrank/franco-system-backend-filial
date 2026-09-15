@@ -18,6 +18,8 @@ type VentaTarjeta {
     imagenUrl: String
     qrCrudo: String
     estado: String
+    """QR | OCR | MANUAL | API. Origen dominante de los datos; null = anterior a la columna."""
+    origen: String
     usuario: Usuario
     creadoEn: Date
 }
@@ -51,7 +53,20 @@ extend type Query {
     diferencia entre que el cajero rehaga el escaneo con el ticket en la mano o que se entere
     cuando la venta ya se guardo y el dato escaneado se perdio.
     """
-    motivoCuponNoUsable(qrCrudo: String, identificadorTransaccion: String, sucId: ID!): String
+    motivoCuponNoUsable(
+        qrCrudo: String
+        identificadorTransaccion: String
+        """
+        Codigo de autorizacion. Es el unico identificador que la carga a mano garantiza para
+        todos los proveedores: qrCrudo solo existe si entro por el lector, e
+        identificadorTransaccion solo lo llenan los formatos que tienen un campo aparte
+        (el EndToEndId de Pix si; Dinelco, Infonet, Stone, BXX y PlugPay no).
+        """
+        codigoAutorizacion: String
+        """Acota el chequeo del codigo de autorizacion, que solo es unico por aparato."""
+        terminalPosId: ID
+        sucId: ID!
+    ): String
     """
     Ventas con tarjeta de UNA caja, paginadas y filtradas.
 
@@ -90,6 +105,26 @@ input CompletarVentaTarjetaInput {
     8.000 R$ da diferencia cero y el registro queda "conciliado" siendo que difiere ~5900x.
     """
     monedaId: Int
+    """
+    De donde salieron estos datos: QR | OCR | MANUAL | API. Lo manda el cliente porque es el
+    unico que sabe por que camino los obtuvo — el backend ve el mismo `completar` en los cuatro
+    casos. Si no viene, el servidor lo deduce del qrCrudo, que solo existe en el camino QR.
+    """
+    origen: String
+    """
+    Token de la captura de la que salieron estos datos, cuando vinieron de una foto. Es lo que ata
+    la imagen a la venta: al completar se copia la ruta a venta_tarjeta.imagen_url. Sin esto la
+    foto queda huerfana en captura_cupon y la purga no puede distinguirla de la evidencia de un
+    cobro. Opcional, como todo campo nuevo de input.
+    """
+    capturaToken: String
+    """
+    Los campos que el cupón trae y que NO tienen columna propia, como JSON.
+
+    Es lo que `venta_tarjeta.datos_extra` existe para guardar: un proveedor que imprime un segundo
+    monto en otra moneda, un STONEID, un código de comercio. El OCR ya los separa.
+    """
+    datosExtra: String
 }
 
 extend type Mutation {

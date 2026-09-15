@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -32,6 +33,24 @@ import java.time.LocalDateTime;
 public class VentaTarjeta implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    /** Leido por el lector del PDV desde el QR impreso en el cupon. */
+    public static final String ORIGEN_QR = "QR";
+    /** Extraido por el OCR de una foto del cupon. */
+    public static final String ORIGEN_OCR = "OCR";
+    /** Tipeado por el cajero. Es la salida universal: existe para todo tipo de terminal. */
+    public static final String ORIGEN_MANUAL = "MANUAL";
+    /** Traido de la API del proveedor. Todavia no hay ninguna integracion asi. */
+    public static final String ORIGEN_API = "API";
+
+    /**
+     * Los cuatro validos, en el mismo orden que el CHECK de la columna (V97.5).
+     * <p>
+     * Existe para poder validar ANTES de guardar: si el valor llega hasta el INSERT, la violacion
+     * del CHECK sube como DataIntegrityViolationException y el cajero ve un error opaco.
+     */
+    public static final java.util.List<String> ORIGENES = java.util.Collections.unmodifiableList(
+            java.util.Arrays.asList(ORIGEN_QR, ORIGEN_OCR, ORIGEN_MANUAL, ORIGEN_API));
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -78,6 +97,19 @@ public class VentaTarjeta implements Serializable {
     private String imagenUrl;
 
     /**
+     * Campos del cupon que no son canonicos, como clave-valor.
+     *
+     * El mapeo del formato decide que valor extraido va a monto, codigo_autorizacion,
+     * numero_boleta y terminal; todo lo demas cae aca. Asi un proveedor nuevo con campos
+     * propios se resuelve desde el ABM: sin codigo, sin migracion y sin propagar a 24
+     * filiales. PlugPay es el caso que lo motivo: imprime dos montos en dos monedas y cual
+     * es el de la venta es configuracion, no una constante del sistema.
+     */
+    @Column(name = "datos_extra", columnDefinition = "jsonb")
+    @Type(type = "com.vladmihalcea.hibernate.type.json.JsonBinaryType")
+    private String datosExtra;
+
+    /**
      * Cadena cruda que entro por el lector cuando el registro se completo escaneando
      * el QR del cupon. Se guarda sin normalizar: es la unica evidencia para diagnosticar
      * un cupon que parseo mal despues de que el ticket termico se borro.
@@ -88,6 +120,26 @@ public class VentaTarjeta implements Serializable {
 
     @Column(nullable = false, length = 20)
     private String estado = "PENDIENTE";
+
+    /**
+     * De donde salieron los datos del cupon: {@link #ORIGEN_QR}, {@link #ORIGEN_OCR},
+     * {@link #ORIGEN_MANUAL} o {@link #ORIGEN_API}.
+     * <p>
+     * No todos los origenes merecen la misma confianza: un codigo leido por OCR puede tener un
+     * caracter mal --el {@code Cargo: 002511} leido {@code 802511} lo fallan los dos motores--,
+     * uno tipeado por un cajero puede tener cualquier cosa, y uno que viene de la API del
+     * proveedor no puede estar mal. Sin esta columna, la conciliacion no puede responder la unica
+     * pregunta que importa: cuales de estas filas necesitan que las mire una persona.
+     * <p>
+     * Es el origen <b>dominante</b> de la fila, no uno por campo: si el cajero corrige a mano un
+     * campo que el OCR leyo mal, la fila es MANUAL. Lo que se quiere saber es si hubo
+     * intervencion humana, no la genealogia de cada dato.
+     * <p>
+     * NULL en las filas anteriores a la columna: historico desconocido, sin backfill. Un 'QR'
+     * inventado mentiria; el NULL dice la verdad.
+     */
+    @Column(length = 20)
+    private String origen;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)

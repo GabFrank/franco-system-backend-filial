@@ -43,4 +43,41 @@ public class CompletarVentaTarjetaInput {
      * cuadra por casualidad en cualquier reporte.
      */
     private Long monedaId;
+
+    /**
+     * De donde salieron estos datos: QR | OCR | MANUAL | API.
+     * <p>
+     * Lo manda el cliente porque es el unico que sabe por que camino los obtuvo: el backend ve
+     * exactamente la misma mutation en los cuatro casos. Si no viene, el servidor deduce QR
+     * cuando hay qrCrudo y deja NULL en el resto --OCR y MANUAL son indistinguibles desde el
+     * backend, y un 'OCR' inventado sobre una carga a mano haria que la conciliacion confie en
+     * un dato que un humano tipeo.
+     * <p>
+     * Opcional, como todo campo nuevo de input en este repo: `mobile` sigue instalada, consume
+     * esta mutation y solo se actualiza por release manual de Play Store.
+     */
+    private String origen;
+
+    /**
+     * Token de la captura de la que salieron estos datos, cuando vinieron de una foto.
+     * <p>
+     * <b>Es lo que ata la foto a la venta.</b> Sin esto la imagen queda colgando en
+     * {@code captura_cupon} sin ninguna relacion con el cobro: no hay FK, no hay columna, y el
+     * job de purga no tiene forma de distinguir una foto huerfana de la evidencia de una venta
+     * que manana se discute. Al completar se copia la ruta a {@code venta_tarjeta.imagen_url},
+     * que ya existia y estaba muerta.
+     * <p>
+     * Opcional, como todo campo nuevo de input en este repo.
+     */
+    private String capturaToken;
+
+    /**
+     * Los campos que el cupon trae y que NO tienen columna propia, como JSON.
+     *
+     * <p>Es lo que {@code venta_tarjeta.datos_extra} existe para guardar: un proveedor que imprime
+     * un segundo monto en otra moneda, un {@code STONEID}, un codigo de comercio. El OCR ya los
+     * separa; sin este campo se perdian, y la columna quedaba vacia para siempre — justo el defecto
+     * que el modulo ya habia arrastrado y que esta entrega vino a cerrar.
+     */
+    private String datosExtra;
 }

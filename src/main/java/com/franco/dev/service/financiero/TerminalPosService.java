@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -22,6 +23,17 @@ public class TerminalPosService extends CrudService<TerminalPos, TerminalPosRepo
         return repository;
     }
 
+    /**
+     * Las terminales activas con exactamente esta serie. Devuelve la lista y no una sola porque
+     * quien llama tiene que poder distinguir "ninguna" de "mas de una": ante ambiguedad no se
+     * elige, se pregunta.
+     */
+    public List<TerminalPos> findPorSerie(String serie) {
+        String s = serie == null ? null : serie.trim();
+        if (s == null || s.isEmpty()) return new ArrayList<TerminalPos>();
+        return repository.findBySerieIgnoreCaseAndActivoTrue(s);
+    }
+
     public TerminalPos findByCodigo(String codigo) {
         return repository.findByCodigoIgnoreCase(codigo);
     }
@@ -31,10 +43,13 @@ public class TerminalPosService extends CrudService<TerminalPos, TerminalPosRepo
         return repository.findByAll(texto);
     }
 
-    public Page<TerminalPos> filter(String descripcion, String codigo, Boolean activo, int page, int size) {
+    public Page<TerminalPos> filter(String descripcion, String codigo, String serie, Long sucursalId,
+                                    Boolean activo, int page, int size) {
         descripcion = (descripcion != null && !descripcion.trim().isEmpty()) ? descripcion.toUpperCase() : null;
         codigo = (codigo != null && !codigo.trim().isEmpty()) ? codigo.toUpperCase() : null;
-        return repository.filterTerminalPos(descripcion, codigo, activo, PageRequest.of(page, size));
+        serie = (serie != null && !serie.trim().isEmpty()) ? serie.trim().toUpperCase() : null;
+        return repository.filterTerminalPos(descripcion, codigo, serie, sucursalId,
+                activo, PageRequest.of(page, size));
     }
 
     @Override
