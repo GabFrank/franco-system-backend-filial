@@ -181,6 +181,26 @@ public class DerivadorMapa {
         for (MotorOcr.Linea l : lineas) {
             if (l.texto != null && l.texto.contains(valor)) contienen.add(l);
         }
+
+        // Si aparece en varias cajas, las que lo tienen COMPLETO le ganan a las que lo tienen como
+        // pedazo de algo mas largo.
+        //
+        // No es una sutileza: en INFONET el codigo de autorizacion es la cola del numero de boleta
+        // --`BOLETA:5671436954` y `C.AUT:436954`-- asi que buscar por `contains` encuentra dos
+        // cajas, la derivacion se declara ambigua y el campo se queda sin region. Medido el
+        // 2026-09-15 con un ticket real.
+        //
+        // Se filtra y no se elige "la mejor": si el filtro deja mas de una, sigue siendo ambiguo de
+        // verdad y el campo cae al patron, que es lo correcto. Solo desempata lo que hoy se
+        // descarta por una coincidencia de digitos.
+        if (contienen.size() > 1) {
+            List<MotorOcr.Linea> completas = new ArrayList<MotorOcr.Linea>();
+            for (MotorOcr.Linea l : contienen) {
+                if (contieneEntero(l.texto, valor)) completas.add(l);
+            }
+            if (completas.size() == 1) contienen = completas;
+        }
+
         if (contienen.isEmpty()) {
             return RegionPropuesta.noDerivada(campo, valor,
                     "el valor quedo repartido entre varias cajas del OCR; este campo se resuelve por patron", tipo);
@@ -301,6 +321,30 @@ public class DerivadorMapa {
      * <p>Si dos campos salieran del mismo grupo gana el primero, que es el orden en que estan
      * declarados. No se puede hacer mejor: la region es una sola y hay que elegir.
      */
+    /**
+     * Si {@code valor} aparece en {@code texto} como pedazo entero y no como parte de algo mas
+     * largo.
+     *
+     * <p>"Entero" se mide contra caracteres alfanumericos a los costados: en
+     * {@code BOLETA:5671436954} el valor {@code 436954} viene pegado a un digito por la izquierda,
+     * asi que es cola de otro numero; en {@code C.AUT:436954} lo precede un {@code :} y es el valor
+     * mismo. Los signos de puntuacion no cuentan como pegote porque son justamente los separadores
+     * que usan los tickets.
+     */
+    private static boolean contieneEntero(String texto, String valor) {
+        if (texto == null || valor == null || valor.isEmpty()) return false;
+        int desde = 0;
+        while (true) {
+            int i = texto.indexOf(valor, desde);
+            if (i < 0) return false;
+            int fin = i + valor.length();
+            boolean izquierdaLibre = i == 0 || !Character.isLetterOrDigit(texto.charAt(i - 1));
+            boolean derechaLibre = fin >= texto.length() || !Character.isLetterOrDigit(texto.charAt(fin));
+            if (izquierdaLibre && derechaLibre) return true;
+            desde = i + 1;
+        }
+    }
+
     /**
      * campo destino -> TEXTO | NUMERO | FECHA, segun lo declare el mapeo.
      *

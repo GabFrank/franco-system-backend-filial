@@ -362,6 +362,41 @@ public class DerivadorMapaTest {
         assertNull(tipoDe(r, "codigoAutorizacion"));
     }
 
+    // ---- El valor que es cola de otro numero ----
+
+    @Test
+    void el_valor_que_es_COLA_de_otro_numero_no_es_ambiguo() {
+        // Caso real de INFONET, 2026-09-15: el codigo de autorizacion es la cola del numero de
+        // boleta --BOLETA:5671436954 y C.AUT:436954-- asi que buscar por "contiene" encontraba dos
+        // cajas y el campo se quedaba sin region por una ambiguedad que no existe.
+        List<MotorOcr.Linea> lineas = Arrays.asList(
+                linea("BOLETA:5671436954", 40, 100, 300, 130),
+                linea("C.AUT:436954", 40, 160, 260, 190));
+
+        DerivadorMapa.Resultado r = derivador.derivar(lineas,
+                "^[\\s\\S]*C\\.AUT:(?<auth>[0-9]+)[\\s\\S]*$", null, 400, 300);
+
+        assertTrue(r.ok(), r.error);
+        DerivadorMapa.RegionPropuesta p = r.regiones.get(0);
+        assertNull(p.sinRegion, "no deberia declararse ambiguo: " + p.sinRegion);
+        assertEquals(160 / 300.0, p.y1.doubleValue(), 0.01, "tiene que ser la caja de C.AUT");
+    }
+
+    @Test
+    void si_aparece_entero_en_DOS_cajas_sigue_siendo_ambiguo() {
+        // El desempate solo rescata lo que se descartaba por una coincidencia de digitos. Cuando la
+        // ambiguedad es real, el campo tiene que seguir cayendo al patron.
+        List<MotorOcr.Linea> lineas = Arrays.asList(
+                linea("C.AUT:436954", 40, 100, 260, 130),
+                linea("REF:436954", 40, 160, 240, 190));
+
+        DerivadorMapa.Resultado r = derivador.derivar(lineas,
+                "^[\\s\\S]*C\\.AUT:(?<auth>[0-9]+)[\\s\\S]*$", null, 400, 300);
+
+        assertTrue(r.ok(), r.error);
+        assertNotNull(r.regiones.get(0).sinRegion);
+    }
+
     private static String tipoDe(DerivadorMapa.Resultado r, String campo) {
         for (DerivadorMapa.RegionPropuesta p : r.regiones) if (campo.equals(p.campo)) return p.tipo;
         return null;
