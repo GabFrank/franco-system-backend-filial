@@ -29,7 +29,8 @@ import java.util.regex.PatternSyntaxException;
  * <p><b>Mismo vocabulario que el lector de QR del desktop</b> ({@code qr-pos-parser.ts}), y a
  * proposito: un cupon con QR y uno fotografiado tienen que producir los mismos campos, si no el
  * modulo tiene dos verdades. El vocabulario del {@code mapeo} es <b>cerrado</b> — {@code de},
- * {@code escala}, {@code mapa}, {@code mayusculas} — porque en cuanto se admiten expresiones el
+ * {@code escala}, {@code mapa}, {@code mayusculas}, {@code formato}, {@code deHora} — porque en
+ * cuanto se admiten expresiones el
  * ABM se convierte en un lenguaje de programacion dentro de un formulario y cualquiera puede
  * colgar una caja.
  *
@@ -50,7 +51,14 @@ public class ExtractorCupon {
      */
     public static final int MAX_LONGITUD_TEXTO = 4000;
 
-    /** Los que tienen columna propia en {@code venta_tarjeta}. El resto cae en datos_extra. */
+    /**
+     * Los que tienen columna propia en {@code venta_tarjeta}.
+     *
+     * <p><b>Es un hecho de ALMACENAMIENTO, no de presentacion.</b> Ya no decide quien se le
+     * muestra al cajero --eso lo decide el {@code mapeo}-- sino solo que campo tiene columna y
+     * cual viaja en {@code datos_extra}. Se sigue usando para los grupos que el patron captura y
+     * el mapeo NO menciona: ahi no hay declaracion a la que hacerle caso.
+     */
     private static final String[] CANONICOS = {
             "codigoAutorizacion", "numeroBoleta", "monto", "terminal", "identificadorTransaccion", "moneda"
     };
@@ -59,12 +67,12 @@ public class ExtractorCupon {
 
     /** Lo que se pudo leer del cupon. */
     public static final class Resultado {
-        /** Campos canonicos, con el nombre que usa {@code venta_tarjeta}. */
+        /** Lo que el {@code mapeo} declara, con el nombre que el mapeo le puso. */
         public final Map<String, Object> campos;
-        /** Todo lo demas que el patron capturo. Va a {@code datos_extra}. */
+        /** Lo que el patron capturo y el mapeo no menciona. Va a {@code datos_extra}. */
         public final Map<String, Object> extras;
         /**
-         * En que tramo {@code [inicio, fin)} del texto leido cayo cada campo canonico.
+         * En que tramo {@code [inicio, fin)} del texto leido cayo cada campo declarado.
          *
          * <p>Existe para el semaforo por campo: el valor final ya paso por el mapeo --escala,
          * mapa, mayusculas-- asi que buscarlo de vuelta dentro del texto del OCR fallaria justo
@@ -131,8 +139,8 @@ public class ExtractorCupon {
 
         Map<String, Object> campos = new LinkedHashMap<String, Object>();
         Map<String, Object> extras = new LinkedHashMap<String, Object>();
-        // Solo de los canonicos: son los que el desktop confirma campo por campo. Lo que cae en
-        // datos_extra no tiene formulario donde mostrar un semaforo.
+        // Solo de los declarados por el mapeo: son los que el desktop confirma campo por campo.
+        // Lo que cae en datos_extra no tiene formulario donde mostrar un semaforo.
         Map<String, int[]> rangos = new LinkedHashMap<String, int[]>();
 
         // Los grupos que alguna regla del mapeo ya consumio. Sin esto, un grupo `auth` mapeado a
@@ -146,17 +154,25 @@ public class ExtractorCupon {
                 String destino = it.next();
                 JsonNode regla = mapeo.get(destino);
                 if (regla != null && regla.hasNonNull("de")) consumidos.add(regla.get("de").asText());
+                // `deHora` tambien consume un grupo. Sin esta linea la hora se guardaba ADEMAS en
+                // datos_extra --el mismo dato dos veces, una adentro de `fecha` y otra suelta--,
+                // que es justo lo que el comentario de `consumidos` advierte.
+                if (regla != null && regla.hasNonNull("deHora")) consumidos.add(regla.get("deHora").asText());
                 Object valor = aplicarRegla(m, regla);
                 if (valor == null) continue;
-                if (esCanonico(destino)) {
-                    campos.put(destino, valor);
-                    // El rango sale del grupo CRUDO, no del valor ya transformado.
-                    if (regla.hasNonNull("de")) {
-                        int[] r = rango(m, regla.get("de").asText());
-                        if (r != null) rangos.put(destino, r);
-                    }
-                } else {
-                    extras.put(destino, valor);
+                // TODO lo que el mapeo declara entra en `campos`, sea canonico o no. Lo que decide
+                // aca es la DECLARACION del formato, no una lista fija: un campo que el
+                // administrador se tomo el trabajo de mapear --y al que le puede poner `tipo` y
+                // `obligatorio`-- tiene que llegar al cajero con semaforo y con chequeo de tipo.
+                // Mandarlo a datos_extra lo dejaba sin confianza, sin validacion y sin formulario,
+                // y volvia decorativo el `"obligatorio": true` del mapeo. Medido el 2026-09-16 con
+                // `lote` de INFONET. Si ademas tiene columna propia lo resuelve quien guarda; ver
+                // CANONICOS.
+                campos.put(destino, valor);
+                // El rango sale del grupo CRUDO, no del valor ya transformado.
+                if (regla.hasNonNull("de")) {
+                    int[] r = rango(m, regla.get("de").asText());
+                    if (r != null) rangos.put(destino, r);
                 }
             }
         }
@@ -224,6 +240,16 @@ public class ExtractorCupon {
             crudo = crudo.toUpperCase();
         }
 
+        // `formato`: fecha del cupon. Se devuelve normalizada a ISO local (yyyy-MM-ddTHH:mm:ss)
+        // para que el desktop no tenga que saber como la imprime cada proveedor.
+        if (regla.hasNonNull("formato")) {
+            String iso = fechaIso(crudo, regla.get("formato").asText(),
+                    regla.hasNonNull("deHora") ? grupo(m, regla.get("deHora").asText()) : null);
+            // Si no parsea se devuelve crudo, igual que con `escala`: perder el dato seria peor
+            // que mostrarlo sin normalizar, y el control de antiguedad simplemente no corre.
+            return iso != null ? iso : crudo;
+        }
+
         // `escala`: divisor fijo, para importes que vienen en la menor unidad.
         if (regla.has("escala")) {
             double escala = regla.get("escala").asDouble(0);
@@ -259,6 +285,58 @@ public class ExtractorCupon {
         try {
             return m.group(nombre);
         } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /**
+     * La fecha del cupon, normalizada a ISO local.
+     *
+     * <p><b>Por que existe.</b> El desktop corta a las 24 horas con {@code cuponVencido}, pero por
+     * el camino del OCR ese control <b>nunca podia dispararse</b>: {@code fecha} no llegaba, asi
+     * que comparaba contra {@code undefined} y devolvia false siempre. Funcionaba solo para
+     * cupones con QR, donde el parser de TypeScript si arma la fecha. Justo al reves de donde hace
+     * falta: el papel traspapelado es el caso de la maquinita, no el del QR.
+     *
+     * <p><b>La hora va aparte ({@code deHora}) y no en el mismo grupo</b> porque los proveedores
+     * meten texto entre una y otra --INFONET imprime {@code F:02/09/2026H:22:51:34}-- y un solo
+     * grupo obligaria a capturar esa basura adentro del valor. Sin hora se asume medianoche, que
+     * adelanta el vencimiento hasta un dia: es conservador a proposito, avisa de mas y no de menos.
+     *
+     * <p>Devuelve {@code null} si no se puede construir una fecha real. El 31 de febrero se
+     * rechaza en vez de desbordarse al mes siguiente, igual que en {@code qr-pos-parser.ts}.
+     */
+    static String fechaIso(String valor, String formato, String hora) {
+        if (valor == null || formato == null) return null;
+        String v = valor.trim();
+        int anio, mes, dia, hh = 0, mm = 0, ss = 0;
+
+        try {
+            if ("dd/MM/yyyy".equals(formato) && v.matches("\\d{1,2}[/-]\\d{1,2}[/-]\\d{4}")) {
+                String[] p = v.split("[/-]");
+                dia = Integer.parseInt(p[0]); mes = Integer.parseInt(p[1]); anio = Integer.parseInt(p[2]);
+            } else if ("yyyy-MM-dd".equals(formato) && v.matches("\\d{4}[/-]\\d{1,2}[/-]\\d{1,2}")) {
+                String[] p = v.split("[/-]");
+                anio = Integer.parseInt(p[0]); mes = Integer.parseInt(p[1]); dia = Integer.parseInt(p[2]);
+            } else if ("yyyyMMddHHmm".equals(formato) && v.matches("\\d{12}")) {
+                // El mismo formato que acepta el lector de QR: un cupon WEB y uno fotografiado no
+                // pueden necesitar vocabularios distintos.
+                anio = Integer.parseInt(v.substring(0, 4)); mes = Integer.parseInt(v.substring(4, 6));
+                dia = Integer.parseInt(v.substring(6, 8)); hh = Integer.parseInt(v.substring(8, 10));
+                mm = Integer.parseInt(v.substring(10, 12));
+            } else {
+                return null;
+            }
+
+            if (hora != null && hora.trim().matches("\\d{1,2}:\\d{2}(:\\d{2})?")) {
+                String[] p = hora.trim().split(":");
+                hh = Integer.parseInt(p[0]); mm = Integer.parseInt(p[1]);
+                ss = p.length > 2 ? Integer.parseInt(p[2]) : 0;
+            }
+
+            // Rebota el 31 de febrero: LocalDate lo rechaza en vez de desbordarlo.
+            return java.time.LocalDateTime.of(anio, mes, dia, hh, mm, ss).toString();
+        } catch (RuntimeException e) {
             return null;
         }
     }

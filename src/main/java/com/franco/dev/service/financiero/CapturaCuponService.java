@@ -371,7 +371,11 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         if (v.isEmpty()) return true;   // vacio es problema de otro control, no de tipo
         if ("NUMERO".equals(tipo)) return v.matches("\\d[\\d.,]*");
         if ("FECHA".equals(tipo)) {
-            return v.matches("\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}")
+            // La forma normalizada que devuelve ExtractorCupon (ISO local, con o sin segundos) va
+            // PRIMERO: es la que llega cuando el mapeo declara `formato`, y sin esta linea todo
+            // cupon con fecha bien leida se marcaba dudoso por no parecerse a dd/MM/yyyy.
+            return v.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?")
+                    || v.matches("\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}")
                     || v.matches("\\d{4}[/-]\\d{1,2}[/-]\\d{1,2}");
         }
         return true;

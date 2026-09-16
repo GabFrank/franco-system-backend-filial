@@ -46,8 +46,11 @@ public class ExtractorCuponTest {
     }
 
     @Test
-    public void lo_que_no_es_canonico_va_a_extras_sin_migracion() {
-        // El caso que justifica datos_extra: un proveedor imprime un campo propio.
+    public void un_campo_propio_DECLARADO_en_el_mapeo_es_un_campo_como_cualquier_otro() {
+        // El caso que justifica datos_extra: un proveedor imprime un campo propio. Que no tenga
+        // columna en venta_tarjeta no lo hace un dato de segunda: si el administrador se tomo el
+        // trabajo de mapearlo, el cajero tiene que verlo, con semaforo y con chequeo de tipo.
+        // Hasta el 2026-09-16 caia en extras y eso volvia decorativo su `obligatorio`.
         FormatoTerminalPos f = formato(
                 ".*AUT: (?<auth>[0-9]+).*STONEID: (?<stoneId>[A-Z0-9]+).*",
                 "{\"codigoAutorizacion\":{\"de\":\"auth\"},\"stoneId\":{\"de\":\"stoneId\"}}");
@@ -56,8 +59,10 @@ public class ExtractorCuponTest {
 
         assertTrue(r.ok());
         assertEquals("12345", r.campos.get("codigoAutorizacion"));
-        assertEquals("XR44B", r.extras.get("stoneId"));
-        assertFalse(r.campos.containsKey("stoneId"), "stoneId no tiene columna propia");
+        assertEquals("XR44B", r.campos.get("stoneId"));
+        assertTrue(r.extras.isEmpty(), "lo declarado en el mapeo no es un extra");
+        // Y lleva rango, que es lo que le da semaforo.
+        assertTrue(r.rangos.containsKey("stoneId"));
     }
 
     @Test
@@ -262,16 +267,76 @@ public class ExtractorCuponTest {
 
     @Test
     public void los_extras_no_llevan_rango() {
-        // datos_extra no tiene formulario donde mostrar un semaforo; calcularlo seria trabajo
-        // que nadie consume.
+        // Un grupo que el patron captura y el mapeo NO menciona sigue yendo a extras, y sin rango:
+        // no hay declaracion a la que hacerle caso, asi que tampoco hay campo que mostrar ni
+        // semaforo que calcular. Es la distincion que sobrevive al cambio del 2026-09-16.
         FormatoTerminalPos f = formato(
                 ".*STONEID: (?<stoneId>[A-Z0-9]+).*AUT: (?<auth>[0-9]+).*",
-                "{\"codigoAutorizacion\":{\"de\":\"auth\"},\"stoneId\":{\"de\":\"stoneId\"}}");
+                "{\"codigoAutorizacion\":{\"de\":\"auth\"}}");
 
         ExtractorCupon.Resultado r = extractor.extraer("STONEID: XR44B\nAUT: 12345", f);
 
+        assertEquals("XR44B", r.extras.get("stoneId"));
         assertFalse(r.rangos.containsKey("stoneId"));
         assertTrue(r.rangos.containsKey("codigoAutorizacion"));
+    }
+
+    @Test
+    public void la_fecha_se_normaliza_a_iso_con_la_hora_de_otro_grupo() {
+        // INFONET imprime F:02/09/2026H:22:51:34 -- fecha y hora con texto en el medio, por eso la
+        // hora se nombra aparte. Sin esto el desktop recibia `fecha` vacia y `cuponVencido`
+        // comparaba contra undefined: el control de 24 horas no podia dispararse nunca por el
+        // camino del OCR.
+        FormatoTerminalPos f = formato(
+                ".*F:(?<fecha>[0-9/]+)H:(?<hora>[0-9:]+).*AUT: (?<auth>[0-9]+).*",
+                "{\"codigoAutorizacion\":{\"de\":\"auth\"},"
+                        + "\"fecha\":{\"de\":\"fecha\",\"deHora\":\"hora\",\"formato\":\"dd/MM/yyyy\"}}");
+
+        ExtractorCupon.Resultado r = extractor.extraer("F:02/09/2026H:22:51:34\nAUT: 12345", f);
+
+        assertTrue(r.ok(), r.error);
+        assertEquals("2026-09-02T22:51:34", r.campos.get("fecha"));
+    }
+
+    @Test
+    public void el_grupo_de_la_hora_no_se_guarda_ademas_como_extra() {
+        // La hora ya vive adentro de `fecha`. Dejarla suelta en datos_extra seria el mismo dato
+        // dos veces con dos nombres, que es lo que `consumidos` existe para evitar.
+        FormatoTerminalPos f = formato(
+                ".*F:(?<fecha>[0-9/]+)H:(?<hora>[0-9:]+).*AUT: (?<auth>[0-9]+).*",
+                "{\"codigoAutorizacion\":{\"de\":\"auth\"},"
+                        + "\"fecha\":{\"de\":\"fecha\",\"deHora\":\"hora\",\"formato\":\"dd/MM/yyyy\"}}");
+
+        ExtractorCupon.Resultado r = extractor.extraer("F:02/09/2026H:22:51:34\nAUT: 12345", f);
+
+        assertEquals("2026-09-02T22:51:34", r.campos.get("fecha"));
+        assertTrue(r.extras.isEmpty(), "la hora no va suelta a datos_extra: " + r.extras);
+    }
+
+    @Test
+    public void sin_hora_la_fecha_queda_a_medianoche() {
+        // Conservador a proposito: adelanta el vencimiento hasta un dia, o sea avisa de mas.
+        assertEquals("2026-09-02T00:00", ExtractorCupon.fechaIso("02/09/2026", "dd/MM/yyyy", null));
+    }
+
+    @Test
+    public void una_fecha_que_no_existe_no_se_desborda_al_mes_siguiente() {
+        assertNull(ExtractorCupon.fechaIso("31/02/2026", "dd/MM/yyyy", null));
+    }
+
+    @Test
+    public void una_fecha_ilegible_devuelve_el_valor_crudo_en_vez_de_perderlo() {
+        // Mismo criterio que `escala`: mostrarlo sin normalizar es mejor que tirarlo. El control
+        // de antiguedad simplemente no corre, que es como venia funcionando.
+        FormatoTerminalPos f = formato(
+                ".*F:(?<fecha>[^\\n]+).*AUT: (?<auth>[0-9]+).*",
+                "{\"codigoAutorizacion\":{\"de\":\"auth\"},"
+                        + "\"fecha\":{\"de\":\"fecha\",\"formato\":\"dd/MM/yyyy\"}}");
+
+        ExtractorCupon.Resultado r = extractor.extraer("F:O2/O9/2O26\nAUT: 12345", f);
+
+        assertTrue(r.ok(), r.error);
+        assertEquals("O2/O9/2O26", r.campos.get("fecha"));
     }
 
     @Test

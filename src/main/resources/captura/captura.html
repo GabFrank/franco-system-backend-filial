@@ -5,14 +5,23 @@
 <title>Foto del cupón</title>
 <style>
   :root{--bg:#f6f5f3;--fg:#1c1b19;--mut:#6d6a64;--line:#dfdcd6;--card:#fff;
-        --ok:#1e7a45;--bad:#a52222;--acc:#c05621}
+        --ok:#1e7a45;--bad:#a52222;--acc:#c05621;--frc:#e65100}
   @media(prefers-color-scheme:dark){:root{--bg:#171619;--fg:#eceae6;--mut:#9b968f;--line:#333130;
-        --card:#211f23;--ok:#4ec27f;--bad:#e46a6a;--acc:#e8894a}}
+        --card:#211f23;--ok:#4ec27f;--bad:#e46a6a;--acc:#e8894a;--frc:#ff9800}}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{background:var(--bg);color:var(--fg);margin:0;
        font:16px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;
        padding:28px 18px calc(28px + env(safe-area-inset-bottom));
        max-width:520px;margin-inline:auto}
+  /* La marca, para que la pagina se lea como parte del sistema en los DOS modos.
+     La identidad va aca y no repintando el boton: `--acc` son naranjas elegidos por contraste
+     (texto blanco encima), y el #ff9800 de la app daria 2,2:1 sobre blanco. Se gana identidad sin
+     perder legibilidad, y sin forzarle el tema oscuro a un telefono que puede estar bajo el sol.
+     Que ademas se vea como FRC es una senal verificable: esta pagina la abre un QR. */
+  .marca{display:flex;align-items:center;gap:10px;margin:0 0 20px}
+  .marca b{font:700 15px/1 inherit;letter-spacing:.14em;color:var(--frc)}
+  .marca span{flex:1;height:2px;background:linear-gradient(90deg,var(--frc),transparent);
+       border-radius:2px;opacity:.55}
   h1{font-size:20px;margin:0 0 6px}
   p.sub{color:var(--mut);font-size:14px;margin:0 0 24px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
@@ -29,7 +38,14 @@
   .listo .tick{font-size:44px;line-height:1}
   .listo h2{font-size:19px;margin:10px 0 4px}
   .listo p{color:var(--mut);font-size:14px;margin:0}
+  /* Secundario: la accion principal --sacar la foto-- ya termino. Que compita con ella en peso
+     visual haria dudar de si falta algo por hacer. */
+  .listo .btn-cerrar{background:transparent;color:var(--mut);border:1px solid var(--line);
+       font-weight:500;font-size:16px;padding:14px;margin-top:20px}
+  .listo .hint{margin-top:10px;min-height:1em}
 </style>
+
+<div class="marca"><b>FRC</b><span></span></div>
 
 <h1>Foto del cupón</h1>
 <p class="sub">Sacale una foto al cupón del POS. Los datos van a aparecer en la caja.</p>
@@ -152,10 +168,33 @@ function reintentar(mensaje){
   $('#f').value = '';          // sin esto, elegir la MISMA foto no dispara change
 }
 
+/* Cerrar la pestana: se INTENTA, no se promete.
+   `window.close()` solo cierra ventanas que abrio un script, y esta la abrio el lector de QR del
+   sistema operativo, asi que Chrome y Safari la bloquean en silencio. Algunos Android si cierran.
+   Por eso el boton intenta y, si a los 200 ms la pagina sigue viva, se convierte en la
+   instruccion. Un boton que no hace nada seria peor que no tenerlo: el cajero lo apretaria dos
+   veces creyendo que no anduvo.
+   El motivo de todo esto es acumulativo: 30 cupones en un dia son 30 pestanas abiertas, y a los
+   10 minutos cada una muestra "este codigo ya no sirve". */
+function cerrarPestana(){
+  const boton = $('#cerrar');
+  if (boton) boton.disabled = true;
+  try { window.close(); } catch (e) { /* bloqueado: se resuelve abajo */ }
+  setTimeout(() => {
+    if (document.hidden) return;   // se cerro (o quedo en segundo plano): no hay nada que decir
+    const aviso = $('#cerrar-aviso');
+    if (aviso) aviso.textContent = 'Tu navegador no deja cerrarla desde acá. Cerrala con el gesto de siempre.';
+    if (boton) boton.disabled = false;
+  }, 200);
+}
+
 function listo(){
   $('#tarjeta').innerHTML =
     '<div class="listo"><div class="tick">✓</div>' +
-    '<h2>Listo</h2><p>Los datos ya están en la caja. Podés volver al mostrador.</p></div>';
+    '<h2>Listo</h2><p>Los datos ya están en la caja. Podés volver al mostrador.</p>' +
+    '<button class="btn btn-cerrar" id="cerrar" type="button">Cerrar esta pestaña</button>' +
+    '<p class="hint" id="cerrar-aviso"></p></div>';
+  $('#cerrar').addEventListener('click', cerrarPestana);
 }
 
 $('#f').addEventListener('change', async e => {
