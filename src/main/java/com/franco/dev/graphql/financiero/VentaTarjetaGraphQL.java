@@ -2,11 +2,14 @@ package com.franco.dev.graphql.financiero;
 
 import com.franco.dev.domain.financiero.VentaTarjeta;
 import com.franco.dev.graphql.financiero.input.CompletarVentaTarjetaInput;
+import com.franco.dev.graphql.financiero.input.SenaCuponInput;
 import com.franco.dev.graphql.financiero.input.VentaTarjetaInput;
 import com.franco.dev.service.financiero.MonedaService;
 import com.franco.dev.service.financiero.TerminalPosService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.VentaTarjetaService;
+import com.franco.dev.service.impresion.ImpresionService;
+import com.franco.dev.service.impresion.dto.SenaCuponDto;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -49,6 +52,9 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private UsuarioService usuarioService;
+
+    @Autowired
+    private ImpresionService impresionService;
 
     public VentaTarjeta ventaTarjetaPorId(Long id, Long sucId) {
         return service.findByIdAndSucursalId(id, sucId);
@@ -166,5 +172,31 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     public Integer marcarVentasTarjetaNoCompletadas(Long cajaId, Long sucId) {
         return service.marcarNoCompletadas(cajaId, sucId);
+    }
+
+    /**
+     * Imprime la sena de un cobro con tarjeta que quedo sin cupon.
+     *
+     * Se imprime aca --en el filial-- porque es donde vive la impresora y donde el PDV ya imprime el
+     * ticket de la venta: `saveVenta` recibe el mismo `printerName` (de `configuracion-local.json`)
+     * y el mismo `local`. No hay un segundo mecanismo de impresion ni hacia falta inventarlo.
+     *
+     * Devuelve false en vez de lanzar: para cuando esto corre, la venta ya se guardo y el cobro ya
+     * se cobro. Lo unico que cambia si el papel no sale es que el cajero tiene que conciliar ese
+     * cobro a mano, y eso se le avisa; una excepcion lo haria ver como si la venta hubiera fallado.
+     */
+    public Boolean imprimirSenaCupon(SenaCuponInput input, String printerName, String local) {
+        if (input == null || input.getQr() == null) return false;
+        SenaCuponDto dto = new SenaCuponDto();
+        dto.setVentaId(input.getVentaId());
+        dto.setVentaTarjetaId(input.getVentaTarjetaId());
+        dto.setCajaId(input.getCajaId());
+        dto.setCajero(input.getCajero());
+        dto.setTerminal(input.getTerminal());
+        dto.setMonto(input.getMonto());
+        dto.setMonedaSimbolo(input.getMonedaSimbolo());
+        dto.setDecimales(input.getDecimales());
+        dto.setQr(input.getQr());
+        return impresionService.printSenaCupon(dto, printerName, local);
     }
 }

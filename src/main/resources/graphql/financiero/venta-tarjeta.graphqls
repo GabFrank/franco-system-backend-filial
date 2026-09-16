@@ -134,9 +134,41 @@ input CompletarVentaTarjetaInput {
     datosExtra: String
 }
 
+input SenaCuponInput {
+    ventaId: Int
+    """El id de la `venta_tarjeta`. Es lo unico que separa dos cobros con tarjeta de la misma venta."""
+    ventaTarjetaId: Int
+    cajaId: Int
+    cajero: String
+    terminal: String
+    monto: Float
+    monedaSimbolo: String
+    """Decimales de la moneda: Gs. no lleva ninguno y R$ lleva dos."""
+    decimales: Int
+    """
+    El QR ya codificado, tal cual lo va a leer el lector.
+
+    Lo arma el desktop con `codificarQr()` y viaja hecho a proposito: el contrato de esa cadena
+    (prefijo `frc-`, campos unidos con `-`, `data` posicional con `|` adentro) vive en el frontend
+    y lo consume tambien el mobile. Reimplementarlo en Java seria un segundo lugar donde se puede
+    desincronizar sin que nada lo avise.
+    """
+    qr: String!
+}
+
 extend type Mutation {
     saveVentaTarjeta(ventaTarjeta: VentaTarjetaInput!): VentaTarjeta!
     completarVentaTarjeta(input: CompletarVentaTarjetaInput!): VentaTarjeta!
     cancelarVentaTarjetaPorVentaId(ventaId: ID!, sucId: ID!): Boolean
     marcarVentasTarjetaNoCompletadas(cajaId: ID!, sucId: ID!): Int
+    """
+    Imprime la sena de un cobro con tarjeta que quedo sin cupon.
+
+    Se imprime en el FILIAL, por la misma impresora y el mismo camino que el ticket de la venta
+    (`saveVenta` recibe `printerName` y `local`): no hay un segundo mecanismo de impresion.
+
+    Devuelve false --no lanza-- si el papel no salio. La venta ya se guardo y el cobro ya se cobro;
+    reventar aca no lo arregla y ademas le mentiria al PDV sobre que fallo.
+    """
+    imprimirSenaCupon(input: SenaCuponInput!, printerName: String, local: String): Boolean
 }
