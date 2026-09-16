@@ -568,50 +568,53 @@ public class ImpresionService {
             selectedPrintService = printingService.getPrintService(printerName);
             if (selectedPrintService == null) return false;
             printerOutputStream = new PrinterOutputStream(selectedPrintService);
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+            // Sin el anho: el papel se concilia el mismo dia o el siguiente, y cada caracter que
+            // sobra acerca el renglon a los 32 que entran.
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM HH:mm");
             // Ojo: Style es mutable y se comparte. printRetiro deja `center` en bold sin querer
             // despues del primer setBold(true); aca el bold se prende y se apaga explicito.
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
             QRCode qrCode = new QRCode();
             EscPos escpos = new EscPos(printerOutputStream);
 
-            escpos.feed(2);
-            // Lo primero que se lee tiene que ser que esto NO es el ticket del cliente: sale de la
-            // misma impresora, en el mismo papel y en el mismo momento que la venta.
-            escpos.writeLF(center.setBold(true), "COMPROBANTE INTERNO");
-            escpos.writeLF(center, "NO ENTREGAR AL CLIENTE");
-            escpos.writeLF(center.setBold(false), "Cupon pendiente de conciliar");
-            escpos.writeLF("--------------------------------");
+            // ⚠️ Este feed NO es decoracion: sin el, la impresora se come los primeros bytes del
+            // trabajo --viene de un corte-- y lo que se pierde es el encabezado y el `GS` que abre
+            // el comando del QR, con lo cual el resto del comando sale impreso como texto
+            // ("(k1E1..."). Medido con papel el 2026-09-16: una linea de sacrificio y sale todo.
+            escpos.feed(1);
 
-            if (sucursalService.sucursalActual() != null) {
-                escpos.writeLF("Suc: " + sucursalService.sucursalActual().getNombre());
-            }
-            if (local != null) escpos.writeLF("Local: " + local);
-            if (dto.getVentaId() != null) escpos.writeLF(new Style().setBold(true), "Venta: " + dto.getVentaId());
-            // El id de la venta_tarjeta. Es lo que desempata dos cobros con tarjeta de la MISMA
-            // venta, que es justamente el caso que el numero de venta no puede resolver.
-            if (dto.getVentaTarjetaId() != null) escpos.writeLF(new Style().setBold(true), "Cobro: " + dto.getVentaTarjetaId());
-            if (dto.getCajaId() != null) escpos.writeLF("Caja: " + dto.getCajaId());
-            if (dto.getCajero() != null) escpos.writeLF("Cajero: " + recortar(dto.getCajero(), 24));
-            if (dto.getTerminal() != null) escpos.writeLF("Terminal: " + recortar(dto.getTerminal(), 22));
-            if (dto.getMonto() != null) {
-                escpos.writeLF(new Style().setBold(true),
-                        "Monto: " + formatearMonto(dto.getMonto(), dto.getDecimales())
-                                + " " + (dto.getMonedaSimbolo() != null ? dto.getMonedaSimbolo() : ""));
-            }
-            escpos.writeLF("Fecha: " + LocalDateTime.now().format(formatter));
-            escpos.writeLF("--------------------------------");
+            // Un solo renglon de encabezado. Lo unico que el cajero necesita leer de un vistazo es
+            // que este papel no es el ticket del cliente; el resto de las advertencias hacian el
+            // comprobante el triple de largo que el ticket de la venta que acompanha.
+            escpos.writeLF(center.setBold(true), "NO ENTREGAR AL CLIENTE");
 
+            // El QR va arriba porque es el camino normal: el cajero lo escanea y ya. El texto de
+            // abajo existe solo para cuando no se puede leer --papel mojado, impresion debil.
             if (dto.getQr() != null) {
                 escpos.write(qrCode.setSize(6).setJustification(EscPosConst.Justification.Center), dto.getQr());
-                escpos.feed(1);
-                escpos.writeLF(center, "Escanealo al conciliar");
             }
 
-            escpos.writeLF("--------------------------------");
-            escpos.writeLF(center, "Grapa este comprobante");
-            escpos.writeLF(center, "al cupon de la terminal");
-            escpos.feed(4);
+            // Dos renglones y nada mas. `Cobro` es el id de la venta_tarjeta, y es el unico dato que
+            // desempata dos cobros de la MISMA venta: sin el, el numero de venta no alcanza. Monto y
+            // hora alcanzan para reconocer el papel entre varios sueltos sobre el mostrador.
+            StringBuilder ids = new StringBuilder();
+            if (dto.getVentaId() != null) ids.append("Venta ").append(dto.getVentaId());
+            if (dto.getVentaTarjetaId() != null) {
+                if (ids.length() > 0) ids.append(" / ");
+                ids.append("Cobro ").append(dto.getVentaTarjetaId());
+            }
+            if (ids.length() > 0) escpos.writeLF(center.setBold(true), ids.toString());
+
+            StringBuilder pie = new StringBuilder();
+            if (dto.getMonto() != null) {
+                pie.append(formatearMonto(dto.getMonto(), dto.getDecimales()));
+                if (dto.getMonedaSimbolo() != null) pie.append(" ").append(dto.getMonedaSimbolo());
+                pie.append("  ");
+            }
+            pie.append(LocalDateTime.now().format(formatter));
+            escpos.writeLF(center.setBold(false), pie.toString());
+
+            escpos.feed(2);
             escpos.cut(EscPos.CutMode.FULL);
             escpos.close();
             printerOutputStream.close();
@@ -629,12 +632,6 @@ public class ImpresionService {
         int d = decimales != null ? decimales : 0;
         if (d <= 0) return NumberFormat.getNumberInstance(Locale.GERMAN).format(monto.longValue());
         return String.format("%." + d + "f", monto);
-    }
-
-    /** El papel tiene 32 caracteres; lo que no entra se corta en vez de envolverse y descuadrar. */
-    private String recortar(String texto, int largo) {
-        if (texto == null) return "";
-        return texto.length() > largo ? texto.substring(0, largo) : texto;
     }
 
 //    public void printVueltoGasto(GastoDto gastoDto){
