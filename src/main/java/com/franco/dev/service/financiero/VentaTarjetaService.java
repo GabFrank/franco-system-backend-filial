@@ -271,9 +271,9 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     public Page<VentaTarjeta> filtrarPorCaja(Long cajaId, Long sucursalId, String estado,
                                              Long terminalPosId, Long monedaId,
                                              BigDecimal montoDesde, BigDecimal montoHasta,
-                                             int page, int size) {
+                                             Long usuarioId, int page, int size) {
         return repository.filtrarPorCaja(cajaId, sucursalId, estado, terminalPosId, monedaId,
-                montoDesde, montoHasta, PageRequest.of(page, size));
+                montoDesde, montoHasta, usuarioId, PageRequest.of(page, size));
     }
 
     /**

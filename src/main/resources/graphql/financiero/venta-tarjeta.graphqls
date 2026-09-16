@@ -81,6 +81,13 @@ extend type Query {
         monedaId: ID
         montoDesde: Float
         montoHasta: Float
+        """
+        Cajero que registro el cobro. Opcional y NO se aplica por defecto: una caja cruza turnos
+        --se cierra cuando se cierra, no cuando cambia la persona-- asi que el supervisor que la
+        concilia tiene que poder ver todas. Es una opcion del cajero para encontrar las suyas, no
+        un encierro.
+        """
+        usuarioId: ID
         page: Int
         size: Int
     ): VentaTarjetaPage

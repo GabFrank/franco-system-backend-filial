@@ -79,6 +79,7 @@ public interface VentaTarjetaRepository extends HelperRepository<VentaTarjeta, L
             "AND (:monedaId IS NULL OR vt.moneda.id = :monedaId) " +
             "AND (:montoDesde IS NULL OR vt.monto >= :montoDesde) " +
             "AND (:montoHasta IS NULL OR vt.monto <= :montoHasta) " +
+            "AND (:usuarioId IS NULL OR vt.usuario.id = :usuarioId) " +
             "ORDER BY vt.creadoEn DESC")
     Page<VentaTarjeta> filtrarPorCaja(
             @Param("cajaId") Long cajaId,
@@ -88,6 +89,7 @@ public interface VentaTarjetaRepository extends HelperRepository<VentaTarjeta, L
             @Param("monedaId") Long monedaId,
             @Param("montoDesde") BigDecimal montoDesde,
             @Param("montoHasta") BigDecimal montoHasta,
+            @Param("usuarioId") Long usuarioId,
             Pageable pageable);
 
     /**

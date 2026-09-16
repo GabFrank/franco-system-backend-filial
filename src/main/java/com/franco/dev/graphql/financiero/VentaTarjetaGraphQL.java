@@ -73,11 +73,13 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     public Page<VentaTarjeta> filtrarVentasTarjetaPorCaja(Long cajaId, Long sucId, String estado,
                                                          Long terminalPosId, Long monedaId,
                                                          Double montoDesde, Double montoHasta,
+                                                         Long usuarioId,
                                                          Integer page, Integer size) {
         return service.filtrarPorCaja(
                 cajaId, sucId, estado, terminalPosId, monedaId,
                 montoDesde != null ? BigDecimal.valueOf(montoDesde) : null,
                 montoHasta != null ? BigDecimal.valueOf(montoHasta) : null,
+                usuarioId,
                 page != null ? page : 0,
                 size != null ? size : 15);
     }
