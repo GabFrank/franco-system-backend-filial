@@ -112,3 +112,41 @@ migraciones no se revierten (Flyway no hace down): no hace falta, son aditivas.
   guarda (leer el método completo antes de tocarlo).
 - Cómo obtiene hoy el filial su `sucursalId` en servicios (property vs `configuracion.local`):
   reutilizar el mismo mecanismo, no crear otro.
+
+## 7 · Registro de implementación (2026-09-17, Franco)
+
+Lo que cambió respecto de lo escrito arriba. El texto original queda como estaba (el plan es registro).
+
+- **Numeración: `V91.5`/`V91.7` → `V95.1`/`V96.1`.** `V91.5` ya existía en `develop`
+  (`V91.5__espejo_formato_qr_pos.sql`) y la mayor era `V94.1`: el plan citaba `V90.7` como última.
+  Sufijo `.1` por convención de Franco (el `.5` es de Gabriel), un entero por migración. Decidido
+  por Franco en sesión.
+- **Partición (`V96.1`) reusa `configuraciones.alinear_secuencia_par`**, creada por `V94.1`, en vez
+  de repetir el `DO $$` con `GREATEST`. Nombres reales de las secuencias verificados en la base
+  local (`general@5551`): `financiero.{documento_electronico,lote_de,evento_cancelacion_de,evento_nominacion_de}_id_seq`
+  — cierra el primer punto de §6.
+- **Guarda: filtro en Java, no método de repositorio nuevo.** El plan proponía
+  `findByEstadoAndSucursalIdAndFacturaLegalIsNotNullOrderByIdAsc`. Se usa un único predicado
+  `esPropioDeEstaFilial(DE)` aplicado a `findByEstado(PENDIENTE)` y a los DE de cada lote en los tres
+  métodos: un solo criterio para las tres puertas y testeable sin base.
+- **`sucursalPropia`** = property `sucursalId` (el mismo mecanismo que `SucursalService`,
+  `ConfigController`, `SucursalGraphQL`), inyectada con default `null`. Sin la property el predicado
+  exige solo la factura: no se agrega un modo de falla al arranque. Cierra el tercer punto de §6.
+- **`procesarLotesAtrasados`** (segundo punto de §6): tiene además un salto de lotes con menos de 1 min
+  y marca `ERROR_PERMANENTE` los lotes sin documentos. La guarda va **antes** de ambos y deja intacto el
+  caso de lote vacío. ⚠️ Condición para el central: un lote de nota tiene que nacer y vincular su DE
+  **en la misma transacción** (T2 del plan maestro, D8); si llegara vacío por réplica, este filial lo
+  marcaría `ERROR_PERMANENTE`.
+- **`reprocesarDocumentosConFechaAdelantada`** no tiene la guarda: no tiene ningún llamador en el
+  repo (verificado con grep). Queda anotado, no se tocó.
+- **Test que falla sin la guarda**: `SifenSchedulerServiceGuardaTest`, 5 casos. Con solo el parámetro
+  nuevo en el constructor y sin la guarda fallan 4; el quinto fija el comportamiento previo del lote
+  vacío. Detectado en el camino: `maxDocumentosPorLote` (`@Value`) queda en `null` en un test sin
+  Spring y `crearYEnviarLotes` cortaba antes de llegar a la guarda (falso verde); el test lo fija.
+- **Validación SQL**: `V95.1` + `V96.1` aplicadas sobre una copia de esquema de `general@5551`
+  (con los valores reales de las cuatro secuencias), dos veces: limpias, idempotentes, ids nuevos pares.
+  **No reemplaza** el dry-run de §4.2 contra un dump real de una filial de cada red: sigue pendiente
+  antes del PR.
+- **Pendiente antes del PR** (no verificado): en una filial real de cada red, que sus DE activos
+  tengan `sucursal_id` = su property `sucursalId`. Si alguna tuviera DE propios con otro
+  `sucursal_id`, la guarda dejaría de enviarlos.
