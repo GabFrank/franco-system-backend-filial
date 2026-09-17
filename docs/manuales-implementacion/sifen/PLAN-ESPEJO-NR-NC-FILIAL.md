@@ -147,6 +147,18 @@ Lo que cambió respecto de lo escrito arriba. El texto original queda como estab
   (con los valores reales de las cuatro secuencias), dos veces: limpias, idempotentes, ids nuevos pares.
   **No reemplaza** el dry-run de §4.2 contra un dump real de una filial de cada red: sigue pendiente
   antes del PR.
-- **Pendiente antes del PR** (no verificado): en una filial real de cada red, que sus DE activos
-  tengan `sucursal_id` = su property `sucursalId`. Si alguna tuviera DE propios con otro
-  `sucursal_id`, la guarda dejaría de enviarlos.
+- **Dry-run real hecho (2026-09-17)**: copia completa de `general@5551` (la base de la **filial 24**,
+  autorizada por Franco) restaurada con `pg_dump --no-subscriptions` en `filial_dryrun_v95`, y el
+  filial arrancado contra esa copia. Flyway: `Current version 94.1` → aplicó `95.1` y `96.1`,
+  «Successfully applied 2 migrations (00:00.111s)», y la app levantó. Estado final verificado:
+  las tres columnas nullable, las cuatro secuencias en `INCREMENT BY 2`, las dos filas en
+  `flyway_schema_history` con `success = t`. Base de prueba borrada después.
+- **`sucursal_id` de los DE (cierra el pendiente de la guarda, para esta filial)**: las 14.901 filas
+  de `documento_electronico` de la copia son de `sucursal_id = 24`, que es la property `sucursalId`
+  de esa filial, y ninguna tiene `factura_legal_id` nulo. La guarda no deja afuera nada propio.
+  **Sin verificar en las otras 23 filiales**: es la misma consulta
+  (`SELECT sucursal_id, count(*) FROM financiero.documento_electronico GROUP BY 1`), a correr en
+  una de farmacia y otra de bodega antes de promover más allá de alpha.
+- **Trampa del entorno**: el plugin de Spring Boot 2.1 del filial separa
+  `-Dspring-boot.run.arguments` por **coma**, no por espacio. Con espacios, todo el bloque se toma
+  como parte del primer argumento y Flyway falla con `no existe la base de datos «... --sifen.enabled=false»`.
