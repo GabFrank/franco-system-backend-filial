@@ -21,6 +21,13 @@ type VentaTarjeta {
     """QR | OCR | MANUAL | API. Origen dominante de los datos; null = anterior a la columna."""
     origen: String
     usuario: Usuario
+    """Por que quedo sin conciliar: CUPON_NO_IMPRESO | POS_FALLADO | CUPON_PERDIDO | OTRO."""
+    noCompletadoMotivo: String
+    """Lo que el cajero escribio. Obligatorio cuando el motivo es OTRO."""
+    noCompletadoObservacion: String
+    """Quien decidio cerrar sin conciliar este cobro."""
+    noCompletadoPor: Usuario
+    noCompletadoEn: Date
     creadoEn: Date
 }
 
@@ -160,7 +167,22 @@ extend type Mutation {
     saveVentaTarjeta(ventaTarjeta: VentaTarjetaInput!): VentaTarjeta!
     completarVentaTarjeta(input: CompletarVentaTarjetaInput!): VentaTarjeta!
     cancelarVentaTarjetaPorVentaId(ventaId: ID!, sucId: ID!): Boolean
-    marcarVentasTarjetaNoCompletadas(cajaId: ID!, sucId: ID!): Int
+    """
+    Deja sin conciliar TODOS los pendientes de una caja. Devuelve cuantos se marcaron.
+
+    `motivo`, `observacion` y `usuarioId` son opcionales en el schema y obligatorios en el
+    servidor: el mobile es un cliente mas viejo que no los manda, y un input nuevo obligatorio lo
+    dejaria sin poder cerrar caja. Motivos: CUPON_NO_IMPRESO | POS_FALLADO | CUPON_PERDIDO | OTRO,
+    y OTRO exige `observacion`.
+    """
+    marcarVentasTarjetaNoCompletadas(cajaId: ID!, sucId: ID!, motivo: String, observacion: String, usuarioId: ID): Int
+    """
+    Deja UN cobro sin conciliar, con su motivo, y devuelve la fila ya marcada.
+
+    Solo sobre un PENDIENTE: el COMPLETADO ya tiene su cupon y re-marcar un NO_COMPLETADO pisaria
+    quien y por que lo decidio.
+    """
+    marcarVentaTarjetaNoCompletada(id: ID!, sucId: ID!, motivo: String!, observacion: String, usuarioId: ID): VentaTarjeta!
     """
     Imprime la sena de un cobro con tarjeta que quedo sin cupon.
 

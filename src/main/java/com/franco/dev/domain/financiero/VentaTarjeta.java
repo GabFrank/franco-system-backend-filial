@@ -52,6 +52,27 @@ public class VentaTarjeta implements Serializable {
     public static final java.util.List<String> ORIGENES = java.util.Collections.unmodifiableList(
             java.util.Arrays.asList(ORIGEN_QR, ORIGEN_OCR, ORIGEN_MANUAL, ORIGEN_API));
 
+    /** El cupon nunca salio de la terminal: no hay papel que escanear. */
+    public static final String NO_COMPLETADO_CUPON_NO_IMPRESO = "CUPON_NO_IMPRESO";
+    /** La terminal fallo despues de cobrar: el cobro existe y el comprobante no. */
+    public static final String NO_COMPLETADO_POS_FALLADO = "POS_FALLADO";
+    /** El cupon existio y no esta: se mojo, se traspapelo, se lo llevo el cliente. */
+    public static final String NO_COMPLETADO_CUPON_PERDIDO = "CUPON_PERDIDO";
+    /** Cualquier otra cosa. Obliga a escribir el detalle: sin texto no dice nada. */
+    public static final String NO_COMPLETADO_OTRO = "OTRO";
+
+    /**
+     * Los motivos validos para dejar un cobro sin conciliar, en el mismo orden que el CHECK
+     * de la columna (V102.5).
+     * <p>
+     * Es una lista cerrada a proposito. Un texto libre solo no se puede agrupar ni contar, y lo
+     * que se quiere poder responder despues es "cuantas veces fallo el POS este mes", no leer
+     * doscientas frases distintas.
+     */
+    public static final java.util.List<String> MOTIVOS_NO_COMPLETADO = java.util.Collections.unmodifiableList(
+            java.util.Arrays.asList(NO_COMPLETADO_CUPON_NO_IMPRESO, NO_COMPLETADO_POS_FALLADO,
+                    NO_COMPLETADO_CUPON_PERDIDO, NO_COMPLETADO_OTRO));
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -144,6 +165,33 @@ public class VentaTarjeta implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
+
+    /**
+     * Por que este cobro quedo sin conciliar. Uno de {@link #MOTIVOS_NO_COMPLETADO}.
+     * <p>
+     * {@code NO_COMPLETADO} es un estado terminal: ese cobro ya no se registra nunca y su plata
+     * queda sin cupon contra el cual conciliar la liquidacion del proveedor. Sin estas cuatro
+     * columnas la fila decia que eso habia pasado y nada mas --ni quien lo decidio, ni cuando, ni
+     * por que-- y no habia a quien preguntarle despues.
+     * <p>
+     * Son la condicion de lo otro que cambio: que el CAJERO pueda cerrar su caja dejando un cobro
+     * sin conciliar. Antes solo podia un ADMIN, justamente porque el escape no dejaba rastro.
+     */
+    @Column(name = "no_completado_motivo", length = 40)
+    private String noCompletadoMotivo;
+
+    /** Lo que el cajero escribio. Obligatorio cuando el motivo es {@link #NO_COMPLETADO_OTRO}. */
+    @Column(name = "no_completado_observacion", length = 255)
+    private String noCompletadoObservacion;
+
+    /** Quien decidio cerrar sin conciliar este cobro. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "no_completado_por_id", nullable = true)
+    private Usuario noCompletadoPor;
+
+    /** Cuando se marco. Con {@link #noCompletadoPor} es lo que permite revisar la decision. */
+    @Column(name = "no_completado_en")
+    private LocalDateTime noCompletadoEn;
 
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)

@@ -482,16 +482,84 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     }
 
     /**
-     * Cierre de caja con pendientes confirmado por el cajero: los registros
-     * PENDIENTE de la caja pasan a NO_COMPLETADO (estado terminal, auditable).
-     * El cambio replica al central via BRANCH_TO_MAIN.
+     * Cierre de caja con pendientes: los PENDIENTE de la caja pasan a NO_COMPLETADO, con motivo.
+     *
+     * <p><b>NO_COMPLETADO es terminal.</b> Ese cobro ya no se registra nunca y su plata queda sin
+     * cupon contra el cual conciliar la liquidacion del proveedor. Por eso el motivo no es
+     * decorativo: es lo unico que va a existir cuando alguien revise esa caja la semana que viene.
+     *
+     * <p>El cambio replica al central via BRANCH_TO_MAIN.
      */
-    public int marcarNoCompletadas(Long cajaId, Long sucursalId) {
+    public int marcarNoCompletadas(Long cajaId, Long sucursalId, String motivo, String observacion,
+                                   com.franco.dev.domain.personas.Usuario usuario) {
+        validarMotivo(motivo, observacion);
         List<VentaTarjeta> pendientes = repository.findByCajaIdAndSucursalIdAndEstado(cajaId, sucursalId, "PENDIENTE");
+        LocalDateTime ahora = LocalDateTime.now();
         pendientes.forEach(vt -> {
-            vt.setEstado("NO_COMPLETADO");
+            aplicarNoCompletado(vt, motivo, observacion, usuario, ahora);
             repository.save(vt);
         });
         return pendientes.size();
+    }
+
+    /**
+     * Un solo cobro que el cajero decide dejar sin conciliar, con su motivo.
+     *
+     * <p>Existe separado del cierre de caja porque el caso real es por cobro, no por caja: de tres
+     * pendientes, dos tienen su cupon y el tercero se perdio. Marcar los tres con el mismo motivo
+     * seria escribir dos mentiras para poder registrar una verdad.
+     */
+    @Transactional
+    public VentaTarjeta marcarNoCompletada(Long id, Long sucursalId, String motivo, String observacion,
+                                           com.franco.dev.domain.personas.Usuario usuario) {
+        validarMotivo(motivo, observacion);
+        VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
+        if (vt == null) {
+            throw new GraphQLException("No existe el cobro con tarjeta " + id + " en esta sucursal.");
+        }
+        if (!"PENDIENTE".equals(vt.getEstado())) {
+            // El COMPLETADO ya tiene su cupon: "no conciliarlo" borraria un dato bueno. Y el que ya
+            // esta NO_COMPLETADO no se re-marca, porque pisaria quien y por que lo decidio.
+            throw new GraphQLException("El cobro " + id + " esta " + vt.getEstado()
+                    + ": solo se puede dejar sin conciliar uno que este PENDIENTE.");
+        }
+        aplicarNoCompletado(vt, motivo, observacion, usuario, LocalDateTime.now());
+        return repository.save(vt);
+    }
+
+    private void aplicarNoCompletado(VentaTarjeta vt, String motivo, String observacion,
+                                     com.franco.dev.domain.personas.Usuario usuario, LocalDateTime cuando) {
+        vt.setEstado("NO_COMPLETADO");
+        vt.setNoCompletadoMotivo(motivo);
+        vt.setNoCompletadoObservacion(recortar(observacion, 255));
+        vt.setNoCompletadoPor(usuario);
+        vt.setNoCompletadoEn(cuando);
+    }
+
+    /**
+     * El motivo es obligatorio y cerrado; el texto libre solo lo es cuando el motivo es OTRO.
+     *
+     * <p>Se valida ACA y no solo en el CHECK de la columna: si el valor llega hasta el UPDATE, la
+     * violacion sube como DataIntegrityViolationException y el cajero ve un error opaco en medio
+     * del cierre de su caja.
+     */
+    private void validarMotivo(String motivo, String observacion) {
+        if (motivo == null || motivo.trim().isEmpty()) {
+            throw new GraphQLException("Falta el motivo: un cobro no se deja sin conciliar sin decir por que.");
+        }
+        if (!VentaTarjeta.MOTIVOS_NO_COMPLETADO.contains(motivo)) {
+            throw new GraphQLException("Motivo desconocido: " + motivo + ".");
+        }
+        if (VentaTarjeta.NO_COMPLETADO_OTRO.equals(motivo)
+                && (observacion == null || observacion.trim().isEmpty())) {
+            throw new GraphQLException("El motivo \"Otro\" necesita que escribas que paso.");
+        }
+    }
+
+    private String recortar(String texto, int largo) {
+        if (texto == null) return null;
+        String limpio = texto.trim();
+        if (limpio.isEmpty()) return null;
+        return limpio.length() > largo ? limpio.substring(0, largo) : limpio;
     }
 }

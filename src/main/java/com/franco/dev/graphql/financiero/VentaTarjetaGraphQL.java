@@ -170,8 +170,34 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return true;
     }
 
-    public Integer marcarVentasTarjetaNoCompletadas(Long cajaId, Long sucId) {
-        return service.marcarNoCompletadas(cajaId, sucId);
+    /**
+     * Deja sin conciliar TODOS los pendientes de una caja, con un motivo.
+     *
+     * <p>`motivo` y `usuarioId` son opcionales en el schema y obligatorios en la practica: el
+     * mobile es un cliente mas viejo que no los manda, y un input nuevo obligatorio lo dejaria sin
+     * poder cerrar caja. Los manda el desktop, que es de donde sale el cierre.
+     */
+    public Integer marcarVentasTarjetaNoCompletadas(Long cajaId, Long sucId, String motivo,
+                                                    String observacion, Long usuarioId) {
+        return service.marcarNoCompletadas(cajaId, sucursalService.exigirSucursalPropia(sucId),
+                motivo, observacion, buscarUsuario(usuarioId));
+    }
+
+    /**
+     * Deja UN cobro sin conciliar, con su motivo.
+     *
+     * <p>Es el caso real: de tres pendientes, dos tienen su cupon y el tercero se perdio. Marcar
+     * los tres con el mismo motivo seria escribir dos mentiras para registrar una verdad.
+     */
+    public VentaTarjeta marcarVentaTarjetaNoCompletada(Long id, Long sucId, String motivo,
+                                                       String observacion, Long usuarioId) {
+        return service.marcarNoCompletada(id, sucursalService.exigirSucursalPropia(sucId),
+                motivo, observacion, buscarUsuario(usuarioId));
+    }
+
+    /** Sin usuario la fila queda igual de marcada, pero sin a quien preguntarle. No se inventa uno. */
+    private com.franco.dev.domain.personas.Usuario buscarUsuario(Long usuarioId) {
+        return usuarioId == null ? null : usuarioService.findById(usuarioId).orElse(null);
     }
 
     /**
