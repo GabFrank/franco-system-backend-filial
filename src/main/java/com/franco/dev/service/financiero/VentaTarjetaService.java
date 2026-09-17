@@ -490,13 +490,45 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
      *
      * <p>El cambio replica al central via BRANCH_TO_MAIN.
      */
+    @Transactional
     public int marcarNoCompletadas(Long cajaId, Long sucursalId, String motivo, String observacion,
                                    com.franco.dev.domain.personas.Usuario usuario) {
+        // ⚠️ SIN motivo NO se rechaza: se marca como se marcaba antes, sin auditoria.
+        //
+        // No es una concesion de diseno, es compatibilidad obligatoria. El desktop que corre HOY en
+        // produccion --la llamada de dos argumentos esta en origin/master, o sea en el canal
+        // stable de las 18 filiales de bodega-- invoca esta mutation sin motivo al cerrar caja. Y
+        // los tiempos van al reves: el filial se despliega solo cada 15 minutos sin aprobacion,
+        // mientras que el desktop se actualiza cuando el usuario acepta el dialogo de
+        // electron-updater. Exigir el motivo aca dejaria sin poder cerrar caja a toda estacion que
+        // todavia no acepto la actualizacion, con un error opaco y a la hora del cierre.
+        //
+        // El motivo SI es obligatorio donde el cliente es nuevo por definicion:
+        // marcarNoCompletada (singular) lo declara `String!` en el schema.
+        if (motivo == null || motivo.trim().isEmpty()) {
+            return marcarNoCompletadasSinAuditoria(cajaId, sucursalId);
+        }
         validarMotivo(motivo, observacion);
         List<VentaTarjeta> pendientes = repository.findByCajaIdAndSucursalIdAndEstado(cajaId, sucursalId, "PENDIENTE");
         LocalDateTime ahora = LocalDateTime.now();
         pendientes.forEach(vt -> {
             aplicarNoCompletado(vt, motivo, observacion, usuario, ahora);
+            repository.save(vt);
+        });
+        return pendientes.size();
+    }
+
+    /**
+     * El camino viejo: marcar sin decir por que.
+     *
+     * <p>Existe solo para los clientes anteriores a la auditoria. Las columnas quedan en NULL, que
+     * es la verdad --nadie declaro un motivo-- y se distingue de las filas nuevas justamente por
+     * eso.
+     */
+    private int marcarNoCompletadasSinAuditoria(Long cajaId, Long sucursalId) {
+        List<VentaTarjeta> pendientes = repository.findByCajaIdAndSucursalIdAndEstado(cajaId, sucursalId, "PENDIENTE");
+        pendientes.forEach(vt -> {
+            vt.setEstado("NO_COMPLETADO");
             repository.save(vt);
         });
         return pendientes.size();

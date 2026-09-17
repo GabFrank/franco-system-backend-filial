@@ -6,6 +6,7 @@ import com.franco.dev.domain.financiero.FormaPago;
 import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.domain.financiero.TerminalPos;
 import com.franco.dev.domain.operaciones.CobroDetalle;
+import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.repository.financiero.CapturaCuponRepository;
 import com.franco.dev.repository.financiero.VentaTarjetaRepository;
 import com.franco.dev.repository.operaciones.CobroDetalleRepository;
@@ -20,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -62,7 +64,11 @@ class VentaTarjetaServiceTest {
         when(repository.findByCajaIdAndSucursalIdAndEstado(10L, 1L, "PENDIENTE"))
                 .thenReturn(Arrays.asList(vt1, vt2));
 
-        int cantidad = service.marcarNoCompletadas(10L, 1L);
+        Usuario cajero = new Usuario();
+        cajero.setId(7L);
+
+        int cantidad = service.marcarNoCompletadas(10L, 1L,
+                VentaTarjeta.NO_COMPLETADO_POS_FALLADO, null, cajero);
 
         assertEquals(2, cantidad);
         assertEquals("NO_COMPLETADO", vt1.getEstado());
@@ -70,12 +76,94 @@ class VentaTarjetaServiceTest {
         verify(repository, times(2)).save(any(VentaTarjeta.class));
     }
 
+    /**
+     * El motivo, el usuario y la hora quedan en la fila.
+     * <p>
+     * Es lo que hace auditable el escape: NO_COMPLETADO es terminal --ese cobro ya no se registra
+     * nunca-- y sin estos tres datos la fila dice que se perdio la conciliacion sin decir a quien
+     * preguntarle.
+     */
+    @Test
+    void marcarNoCompletadas_guardaMotivoUsuarioYHora() {
+        VentaTarjeta vt = new VentaTarjeta();
+        vt.setEstado("PENDIENTE");
+        when(repository.findByCajaIdAndSucursalIdAndEstado(10L, 1L, "PENDIENTE"))
+                .thenReturn(Collections.singletonList(vt));
+        Usuario cajero = new Usuario();
+        cajero.setId(7L);
+
+        service.marcarNoCompletadas(10L, 1L, VentaTarjeta.NO_COMPLETADO_CUPON_PERDIDO, "  se mojo  ", cajero);
+
+        assertEquals(VentaTarjeta.NO_COMPLETADO_CUPON_PERDIDO, vt.getNoCompletadoMotivo());
+        // Recortado: el texto entra tal cual lo tipeo el cajero, con los espacios que haya dejado.
+        assertEquals("se mojo", vt.getNoCompletadoObservacion());
+        assertEquals(cajero, vt.getNoCompletadoPor());
+        assertNotNull(vt.getNoCompletadoEn());
+    }
+
+    /**
+     * Sin motivo NO se rechaza: se marca como se marcaba antes, sin auditoria.
+     *
+     * <p>Es compatibilidad obligatoria, no una concesion. El desktop que corre hoy en el canal
+     * stable llama esta mutation con dos argumentos, y el filial se despliega solo cada 15 minutos
+     * mientras que el desktop se actualiza cuando el usuario acepta. Exigir el motivo aca dejaria
+     * sin poder cerrar caja a toda estacion que todavia no acepto la actualizacion.
+     */
+    @Test
+    void marcarNoCompletadas_sinMotivoMarcaIgualPeroSinAuditoria() {
+        VentaTarjeta vt = new VentaTarjeta();
+        vt.setEstado("PENDIENTE");
+        when(repository.findByCajaIdAndSucursalIdAndEstado(10L, 1L, "PENDIENTE"))
+                .thenReturn(Collections.singletonList(vt));
+
+        assertEquals(1, service.marcarNoCompletadas(10L, 1L, null, null, null));
+
+        assertEquals("NO_COMPLETADO", vt.getEstado());
+        // Las columnas quedan en NULL, que es la verdad: nadie declaro un motivo.
+        assertNull(vt.getNoCompletadoMotivo());
+        assertNull(vt.getNoCompletadoPor());
+        assertNull(vt.getNoCompletadoEn());
+    }
+
+    @Test
+    void marcarNoCompletadas_motivoDesconocidoNoMarcaNada() {
+        assertThrows(GraphQLException.class,
+                () -> service.marcarNoCompletadas(10L, 1L, "PORQUE_SI", null, null));
+        verify(repository, never()).save(any());
+    }
+
+    /** "Otro" sin texto no dice nada: es exactamente el caso que la lista cerrada no cubre. */
+    @Test
+    void marcarNoCompletadas_otroSinObservacionNoMarcaNada() {
+        assertThrows(GraphQLException.class,
+                () -> service.marcarNoCompletadas(10L, 1L, VentaTarjeta.NO_COMPLETADO_OTRO, "   ", null));
+        verify(repository, never()).save(any());
+    }
+
+    /**
+     * Un cobro puntual, que es el caso real: de tres pendientes, dos tienen su cupon y el tercero
+     * se perdio.
+     */
+    @Test
+    void marcarNoCompletada_soloSobrePendiente() {
+        VentaTarjeta completado = new VentaTarjeta();
+        completado.setId(5L);
+        completado.setSucursalId(24L);
+        completado.setEstado("COMPLETADO");
+        when(repository.findByIdAndSucursalId(5L, 24L)).thenReturn(completado);
+
+        assertThrows(GraphQLException.class, () -> service.marcarNoCompletada(
+                5L, 24L, VentaTarjeta.NO_COMPLETADO_CUPON_PERDIDO, null, null));
+        verify(repository, never()).save(any());
+    }
+
     @Test
     void marcarNoCompletadas_sinPendientesDevuelveCeroYNoGuarda() {
         when(repository.findByCajaIdAndSucursalIdAndEstado(10L, 1L, "PENDIENTE"))
                 .thenReturn(Collections.emptyList());
 
-        assertEquals(0, service.marcarNoCompletadas(10L, 1L));
+        assertEquals(0, service.marcarNoCompletadas(10L, 1L,
+                VentaTarjeta.NO_COMPLETADO_CUPON_NO_IMPRESO, null, null));
         verify(repository, never()).save(any());
     }
 
