@@ -1,0 +1,264 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="robots" content="noindex,nofollow">
+<title>Foto del cupón</title>
+<style>
+  :root{--bg:#f6f5f3;--fg:#1c1b19;--mut:#6d6a64;--line:#dfdcd6;--card:#fff;
+        --ok:#1e7a45;--bad:#a52222;--acc:#c05621;--frc:#e65100}
+  @media(prefers-color-scheme:dark){:root{--bg:#171619;--fg:#eceae6;--mut:#9b968f;--line:#333130;
+        --card:#211f23;--ok:#4ec27f;--bad:#e46a6a;--acc:#e8894a;--frc:#ff9800}}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);color:var(--fg);margin:0;
+       font:16px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+       padding:28px 18px calc(28px + env(safe-area-inset-bottom));
+       max-width:520px;margin-inline:auto}
+  /* La marca, para que la pagina se lea como parte del sistema en los DOS modos.
+     La identidad va aca y no repintando el boton: `--acc` son naranjas elegidos por contraste
+     (texto blanco encima), y el #ff9800 de la app daria 2,2:1 sobre blanco. Se gana identidad sin
+     perder legibilidad, y sin forzarle el tema oscuro a un telefono que puede estar bajo el sol.
+     Que ademas se vea como FRC es una senal verificable: esta pagina la abre un QR. */
+  .marca{display:flex;align-items:center;gap:10px;margin:0 0 20px}
+  .marca b{font:700 15px/1 inherit;letter-spacing:.14em;color:var(--frc)}
+  .marca span{flex:1;height:2px;background:linear-gradient(90deg,var(--frc),transparent);
+       border-radius:2px;opacity:.55}
+  h1{font-size:20px;margin:0 0 6px}
+  p.sub{color:var(--mut);font-size:14px;margin:0 0 24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .btn{display:block;width:100%;text-align:center;background:var(--acc);color:#fff;
+       font:600 18px/1 inherit;padding:20px;border:0;border-radius:12px;cursor:pointer}
+  .btn[disabled]{opacity:.5}
+  input[type=file]{display:none}
+  #vista{width:100%;border-radius:10px;margin-top:16px;display:none}
+  #estado{margin-top:16px;font-size:15px;min-height:1.4em;text-align:center}
+  .ok{color:var(--ok);font-weight:600}
+  .bad{color:var(--bad);font-weight:600}
+  .hint{color:var(--mut);font-size:13.5px;text-align:center;margin-top:14px;line-height:1.45}
+  .listo{text-align:center;padding:8px 0}
+  .listo .tick{font-size:44px;line-height:1}
+  .listo h2{font-size:19px;margin:10px 0 4px}
+  .listo p{color:var(--mut);font-size:14px;margin:0}
+  /* Secundario: la accion principal --sacar la foto-- ya termino. Que compita con ella en peso
+     visual haria dudar de si falta algo por hacer. */
+  .listo .btn-cerrar{background:transparent;color:var(--mut);border:1px solid var(--line);
+       font-weight:500;font-size:16px;padding:14px;margin-top:20px}
+  .listo .hint{margin-top:10px;min-height:1em}
+</style>
+
+<div class="marca"><b>FRC</b><span></span></div>
+
+<h1>Foto del cupón</h1>
+<p class="sub">Sacale una foto al cupón del POS. Los datos van a aparecer en la caja.</p>
+
+<div class="card" id="tarjeta">
+  <label class="btn" for="f" id="boton">📷 Sacar foto</label>
+  <input id="f" type="file" accept="image/*" capture="environment">
+  <img id="vista" alt="">
+  <div id="estado"></div>
+  <p class="hint">Apoyá el cupón en el mostrador y sacá la foto desde unos 20 cm.
+     No hace falta que llene la pantalla.</p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const TOKEN = location.pathname.split('/').filter(Boolean).pop();
+const LADO_MAX = 1000;      // punto de trabajo medido: mismos campos que 1600, 28% mas rapido
+const CALIDAD  = 0.9;
+const TIMEOUT  = 30000;     // el OCR tarda hasta 5,5 s en la maquina mas lenta; 30 s es holgado
+
+/* Umbral de nitidez, calibrado sobre 27 cupones que el OCR leyo bien:
+   el PEOR de ellos dio 80,5 y el desenfoque de 5 px no pasa de 47,5.
+   50 queda entre los dos, del lado seguro: rechazar una foto que habria
+   servido es peor que dejar pasar una apenas movida. La medicion viaja al
+   servidor en cada subida para poder ajustarlo con datos reales. */
+const NITIDEZ_MIN = 50;
+
+/* --- EXIF ---------------------------------------------------------------
+   La camara de iOS casi siempre guarda el sensor acostado y marca la rotacion
+   en EXIF; Android suele entregar los pixeles ya rotados. Los navegadores NO
+   coinciden en si createImageBitmap aplica esa etiqueta, y equivocarse rota el
+   cupon 90 grados: PP-OCR corrige inclinaciones chicas, no una imagen acostada.
+   Por eso no se asume nada — se compara contra las dimensiones crudas del JPEG. */
+function orientacionExif(buf){
+  const v = new DataView(buf);
+  if (v.byteLength < 4 || v.getUint16(0) !== 0xFFD8) return 1;
+  let off = 2;
+  while (off + 4 <= v.byteLength) {
+    const m = v.getUint16(off);
+    if ((m & 0xFF00) !== 0xFF00) return 1;
+    if (m === 0xFFE1) {
+      if (v.getUint32(off + 4) !== 0x45786966) return 1;
+      const t = off + 10, le = v.getUint16(t) === 0x4949;
+      const d = t + v.getUint32(t + 4, le), n = v.getUint16(d, le);
+      for (let i = 0; i < n; i++) {
+        const e = d + 2 + i * 12;
+        if (v.getUint16(e, le) === 0x0112) return v.getUint16(e + 8, le);
+      }
+      return 1;
+    }
+    off += 2 + v.getUint16(off + 2);
+  }
+  return 1;
+}
+
+/** Dimensiones tal como estan guardadas en el JPEG, del marcador SOF. */
+function dimsCrudas(buf){
+  const v = new DataView(buf);
+  if (v.byteLength < 4 || v.getUint16(0) !== 0xFFD8) return null;
+  let off = 2;
+  while (off + 4 <= v.byteLength) {
+    const m = v.getUint16(off);
+    if ((m & 0xFF00) !== 0xFF00) return null;
+    if (m >= 0xFFC0 && m <= 0xFFCF && m !== 0xFFC4 && m !== 0xFFC8 && m !== 0xFFCC)
+      return { alto: v.getUint16(off + 5), ancho: v.getUint16(off + 7) };
+    off += 2 + v.getUint16(off + 2);
+  }
+  return null;
+}
+
+function enderezarYEscalar(bmp, o){
+  const gira = o >= 5;
+  const anchoFinal = gira ? bmp.height : bmp.width;
+  const altoFinal  = gira ? bmp.width  : bmp.height;
+  const esc = Math.min(1, LADO_MAX / Math.max(anchoFinal, altoFinal));
+  const dw = Math.round(bmp.width * esc), dh = Math.round(bmp.height * esc);
+  const cw = gira ? dh : dw,             ch = gira ? dw : dh;
+
+  const c = document.createElement('canvas');
+  c.width = cw; c.height = ch;
+  const x = c.getContext('2d');
+  switch (o) {
+    case 2: x.transform(-1,0,0, 1, cw, 0); break;
+    case 3: x.transform(-1,0,0,-1, cw, ch); break;
+    case 4: x.transform( 1,0,0,-1,  0, ch); break;
+    case 5: x.transform( 0,1,1, 0,  0,  0); break;
+    case 6: x.transform( 0,1,-1,0, cw,  0); break;
+    case 7: x.transform( 0,-1,-1,0,cw, ch); break;
+    case 8: x.transform( 0,-1,1, 0, 0, ch); break;
+  }
+  x.drawImage(bmp, 0, 0, dw, dh);
+  return c;
+}
+
+/* Varianza del laplaciano de 4 vecinos: el mismo kernel con el que se calibro el umbral
+   (es el default de cv2.Laplacian). Sobre una foto movida los bordes se aplanan y la
+   varianza se desploma. */
+function nitidez(c){
+  const x = c.getContext('2d'), w = c.width, h = c.height;
+  const d = x.getImageData(0, 0, w, h).data;
+  const g = new Float32Array(w * h);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++)
+    g[j] = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+  let suma = 0, suma2 = 0, n = 0;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x2 = 1; x2 < w - 1; x2++) {
+      const i = y * w + x2;
+      const l = 4 * g[i] - g[i-1] - g[i+1] - g[i-w] - g[i+w];
+      suma += l; suma2 += l * l; n++;
+    }
+  }
+  const m = suma / n;
+  return suma2 / n - m * m;
+}
+
+function reintentar(mensaje){
+  $('#estado').innerHTML = '<span class="bad">' + mensaje + '</span>';
+  $('#boton').removeAttribute('disabled');
+  $('#boton').textContent = '📷 Sacar otra foto';
+  $('#f').value = '';          // sin esto, elegir la MISMA foto no dispara change
+}
+
+/* Cerrar la pestana: se INTENTA, no se promete.
+   `window.close()` solo cierra ventanas que abrio un script, y esta la abrio el lector de QR del
+   sistema operativo, asi que Chrome y Safari la bloquean en silencio. Algunos Android si cierran.
+   Por eso el boton intenta y, si a los 200 ms la pagina sigue viva, se convierte en la
+   instruccion. Un boton que no hace nada seria peor que no tenerlo: el cajero lo apretaria dos
+   veces creyendo que no anduvo.
+   El motivo de todo esto es acumulativo: 30 cupones en un dia son 30 pestanas abiertas, y a los
+   10 minutos cada una muestra "este codigo ya no sirve". */
+function cerrarPestana(){
+  const boton = $('#cerrar');
+  if (boton) boton.disabled = true;
+  try { window.close(); } catch (e) { /* bloqueado: se resuelve abajo */ }
+  setTimeout(() => {
+    if (document.hidden) return;   // se cerro (o quedo en segundo plano): no hay nada que decir
+    const aviso = $('#cerrar-aviso');
+    if (aviso) aviso.textContent = 'Tu navegador no deja cerrarla desde acá. Cerrala con el gesto de siempre.';
+    if (boton) boton.disabled = false;
+  }, 200);
+}
+
+function listo(){
+  $('#tarjeta').innerHTML =
+    '<div class="listo"><div class="tick">✓</div>' +
+    '<h2>Listo</h2><p>Los datos ya están en la caja. Podés volver al mostrador.</p>' +
+    '<button class="btn btn-cerrar" id="cerrar" type="button">Cerrar esta pestaña</button>' +
+    '<p class="hint" id="cerrar-aviso"></p></div>';
+  $('#cerrar').addEventListener('click', cerrarPestana);
+}
+
+$('#f').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  $('#boton').setAttribute('disabled', '');
+  $('#estado').textContent = 'Preparando la foto…';
+
+  try {
+    const buf   = await file.arrayBuffer();
+    const o     = orientacionExif(buf);
+    const crudo = dimsCrudas(buf);
+    const bmp   = await createImageBitmap(new Blob([buf], { type: file.type }));
+
+    // Si el navegador devolvio los ejes intercambiados, ya aplico la orientacion: no girar de nuevo.
+    let yaAplicado = null;
+    if (crudo && o >= 5) {
+      if (bmp.width === crudo.alto && bmp.height === crudo.ancho) yaAplicado = true;
+      else if (bmp.width === crudo.ancho && bmp.height === crudo.alto) yaAplicado = false;
+    }
+    const oEfectivo = (o >= 5 && yaAplicado !== false) ? 1 : o;
+
+    const lienzo = enderezarYEscalar(bmp, oEfectivo);
+
+    $('#vista').src = lienzo.toDataURL('image/jpeg', 0.5);
+    $('#vista').style.display = 'block';
+
+    // Se mide ANTES de subir: una foto movida vuelve a la camara sin gastar el token
+    // ni hacerle perder tiempo al cajero esperando un OCR que no va a servir.
+    const n = nitidez(lienzo);
+    if (n < NITIDEZ_MIN) {
+      reintentar('Salió movida. Apoyá el cupón y sacá otra.');
+      return;
+    }
+
+    const blob = await new Promise(r => lienzo.toBlob(r, 'image/jpeg', CALIDAD));
+    $('#estado').textContent = 'Leyendo el cupón…';
+
+    // Sin timeout el fetch cuelga para siempre si la WiFi se corta a mitad de camino.
+    const corte = new AbortController();
+    const reloj = setTimeout(() => corte.abort(), TIMEOUT);
+    let r;
+    try {
+      r = await fetch(location.pathname, {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/jpeg', 'X-Nitidez': n.toFixed(2) },
+        body: blob,
+        signal: corte.signal
+      });
+    } finally {
+      clearTimeout(reloj);
+    }
+
+    if (r.status === 422) {           // desenlace previsto: el token sigue vivo
+      reintentar(await r.text());
+      return;
+    }
+    if (!r.ok) throw new Error((await r.text()) || ('error ' + r.status));
+    listo();
+  } catch (err) {
+    const abortado = err && err.name === 'AbortError';
+    reintentar(abortado
+      ? 'Tardó demasiado. Fijate que el teléfono siga en la WiFi del local.'
+      : 'No se pudo enviar. ' + (err && err.message ? err.message : ''));
+  }
+});
+</script>

@@ -2,10 +2,14 @@ package com.franco.dev.graphql.financiero;
 
 import com.franco.dev.domain.financiero.VentaTarjeta;
 import com.franco.dev.graphql.financiero.input.CompletarVentaTarjetaInput;
+import com.franco.dev.graphql.financiero.input.SenaCuponInput;
 import com.franco.dev.graphql.financiero.input.VentaTarjetaInput;
 import com.franco.dev.service.financiero.MonedaService;
 import com.franco.dev.service.financiero.TerminalPosService;
+import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.VentaTarjetaService;
+import com.franco.dev.service.impresion.ImpresionService;
+import com.franco.dev.service.impresion.dto.SenaCuponDto;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -28,6 +32,18 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private VentaTarjetaService service;
 
+    /**
+     * Para no confiar en el {@code sucId} que manda el cliente.
+     * <p>
+     * Un filial atiende una sola sucursal y lo sabe sin preguntarle a nadie. Aceptar el valor del
+     * cliente tal cual es lo que hacia este resolver, al reves de lo que hacen
+     * {@code VentaGraphQL} y {@code GastoGraphQL} en este mismo repo. Importa porque
+     * {@code venta_tarjeta} es BRANCH_TO_MAIN con PK compuesta {@code (id, sucursal_id)}: una
+     * fila escrita con la sucursal de otro filial sube a central con atribucion falsa.
+     */
+    @Autowired
+    private SucursalService sucursalService;
+
     @Autowired
     private TerminalPosService terminalPosService;
 
@@ -36,6 +52,9 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private UsuarioService usuarioService;
+
+    @Autowired
+    private ImpresionService impresionService;
 
     public VentaTarjeta ventaTarjetaPorId(Long id, Long sucId) {
         return service.findByIdAndSucursalId(id, sucId);
@@ -60,17 +79,29 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     public Page<VentaTarjeta> filtrarVentasTarjetaPorCaja(Long cajaId, Long sucId, String estado,
                                                          Long terminalPosId, Long monedaId,
                                                          Double montoDesde, Double montoHasta,
+                                                         Long usuarioId,
                                                          Integer page, Integer size) {
         return service.filtrarPorCaja(
                 cajaId, sucId, estado, terminalPosId, monedaId,
                 montoDesde != null ? BigDecimal.valueOf(montoDesde) : null,
                 montoHasta != null ? BigDecimal.valueOf(montoHasta) : null,
+                usuarioId,
                 page != null ? page : 0,
                 size != null ? size : 15);
     }
 
-    public String motivoCuponNoUsable(String qrCrudo, String identificadorTransaccion, Long sucId) {
-        return service.motivoCuponNoUsable(null, null, sucId, identificadorTransaccion, qrCrudo)
+    /**
+     * El pre-chequeo del cupon, antes de que el cajero de el dato por bueno.
+     * <p>
+     * `montoEscaneado` no se pide aca a proposito: en el pre-chequeo el cajero muchas veces
+     * todavia no lo tiene --acaba de escanear o de tipear el codigo-- y sin monto el chequeo por
+     * codigo de autorizacion avisa de mas, que es el lado correcto para equivocarse en una
+     * advertencia. Al guardar, `completar` lo pasa y el filtro se afina.
+     */
+    public String motivoCuponNoUsable(String qrCrudo, String identificadorTransaccion,
+                                      String codigoAutorizacion, Long terminalPosId, Long sucId) {
+        return service.motivoCuponNoUsable(null, null, sucursalService.exigirSucursalPropia(sucId),
+                        identificadorTransaccion, qrCrudo, codigoAutorizacion, null, terminalPosId)
                 .orElse(null);
     }
 
@@ -116,14 +147,17 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     public VentaTarjeta completarVentaTarjeta(CompletarVentaTarjetaInput input) {
         return service.completar(
                 input.getId(),
-                input.getSucursalId(),
+                sucursalService.exigirSucursalPropia(input.getSucursalId()),
                 input.getCodigoAutorizacion(),
                 input.getNumeroBoleta(),
                 input.getMontoEscaneado(),
                 input.getIdentificadorTransaccion(),
                 input.getQrCrudo(),
                 input.getCobroDetalleId(),
-                input.getMonedaId());
+                input.getMonedaId(),
+                input.getOrigen(),
+                input.getCapturaToken(),
+                input.getDatosExtra());
     }
 
     public Boolean cancelarVentaTarjetaPorVentaId(Long ventaId, Long sucId) {
@@ -138,5 +172,31 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     public Integer marcarVentasTarjetaNoCompletadas(Long cajaId, Long sucId) {
         return service.marcarNoCompletadas(cajaId, sucId);
+    }
+
+    /**
+     * Imprime la sena de un cobro con tarjeta que quedo sin cupon.
+     *
+     * Se imprime aca --en el filial-- porque es donde vive la impresora y donde el PDV ya imprime el
+     * ticket de la venta: `saveVenta` recibe el mismo `printerName` (de `configuracion-local.json`)
+     * y el mismo `local`. No hay un segundo mecanismo de impresion ni hacia falta inventarlo.
+     *
+     * Devuelve false en vez de lanzar: para cuando esto corre, la venta ya se guardo y el cobro ya
+     * se cobro. Lo unico que cambia si el papel no sale es que el cajero tiene que conciliar ese
+     * cobro a mano, y eso se le avisa; una excepcion lo haria ver como si la venta hubiera fallado.
+     */
+    public Boolean imprimirSenaCupon(SenaCuponInput input, String printerName, String local) {
+        if (input == null || input.getQr() == null) return false;
+        SenaCuponDto dto = new SenaCuponDto();
+        dto.setVentaId(input.getVentaId());
+        dto.setVentaTarjetaId(input.getVentaTarjetaId());
+        dto.setCajaId(input.getCajaId());
+        dto.setCajero(input.getCajero());
+        dto.setTerminal(input.getTerminal());
+        dto.setMonto(input.getMonto());
+        dto.setMonedaSimbolo(input.getMonedaSimbolo());
+        dto.setDecimales(input.getDecimales());
+        dto.setQr(input.getQr());
+        return impresionService.printSenaCupon(dto, printerName, local);
     }
 }

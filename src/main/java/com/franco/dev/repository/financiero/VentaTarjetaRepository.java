@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import java.util.List;
 
@@ -37,6 +38,31 @@ public interface VentaTarjetaRepository extends HelperRepository<VentaTarjeta, L
     List<VentaTarjeta> findByQrCrudo(String qrCrudo);
 
     /**
+     * Registros COMPLETADOS con el mismo codigo de autorizacion en el mismo aparato, dentro de una
+     * ventana de tiempo.
+     * <p>
+     * Es la unica red que tiene la carga a mano: {@code qrCrudo} solo existe si el cupon entro por
+     * el lector, y {@code identificadorTransaccion} solo lo llenan los formatos que traen un campo
+     * aparte (el EndToEndId de Pix si; Dinelco, Infonet, Stone, BXX y PlugPay no). Sin esto, un
+     * cajero puede tipear el cupon de la venta anterior entero y nada lo frena.
+     * <p>
+     * Se acota por terminal porque el codigo de autorizacion lo emite el aparato y solo es unico
+     * ahi, y por ventana de tiempo porque varios proveedores usan codigos cortos que se reciclan.
+     * El filtro fino por monto lo hace el servicio: la consulta trae candidatos.
+     */
+    @Query("SELECT vt FROM VentaTarjeta vt " +
+            "WHERE vt.sucursalId = :sucursalId " +
+            "AND vt.estado = 'COMPLETADO' " +
+            "AND upper(trim(vt.codigoAutorizacion)) = upper(trim(:codigoAutorizacion)) " +
+            "AND vt.creadoEn >= :desde " +
+            "AND (:terminalPosId IS NULL OR vt.terminalPos.id = :terminalPosId)")
+    List<VentaTarjeta> buscarPorCodigoAutorizacion(
+            @Param("sucursalId") Long sucursalId,
+            @Param("codigoAutorizacion") String codigoAutorizacion,
+            @Param("terminalPosId") Long terminalPosId,
+            @Param("desde") LocalDateTime desde);
+
+    /**
      * Ventas con tarjeta de UNA caja, paginadas y filtradas.
      *
      * `cajaId` y `sucursalId` son obligatorios y no son filtros opcionales: acotan el universo.
@@ -53,6 +79,7 @@ public interface VentaTarjetaRepository extends HelperRepository<VentaTarjeta, L
             "AND (:monedaId IS NULL OR vt.moneda.id = :monedaId) " +
             "AND (:montoDesde IS NULL OR vt.monto >= :montoDesde) " +
             "AND (:montoHasta IS NULL OR vt.monto <= :montoHasta) " +
+            "AND (:usuarioId IS NULL OR vt.usuario.id = :usuarioId) " +
             "ORDER BY vt.creadoEn DESC")
     Page<VentaTarjeta> filtrarPorCaja(
             @Param("cajaId") Long cajaId,
@@ -62,5 +89,12 @@ public interface VentaTarjetaRepository extends HelperRepository<VentaTarjeta, L
             @Param("monedaId") Long monedaId,
             @Param("montoDesde") BigDecimal montoDesde,
             @Param("montoHasta") BigDecimal montoHasta,
+            @Param("usuarioId") Long usuarioId,
             Pageable pageable);
+
+    /**
+     * Si alguna venta referencia esta imagen. Es lo que protege a la foto de la purga: una
+     * imagen atada a un cobro es evidencia, por vieja que sea.
+     */
+    boolean existsByImagenUrl(String imagenUrl);
 }

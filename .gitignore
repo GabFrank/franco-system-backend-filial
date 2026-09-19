@@ -47,5 +47,14 @@ certificados/
 # Archivos de configuración personal de desarrolladores
 **/application-user-*.properties
 bin/
+# Fotos de cupones que sube el telefono.
+#
+# En produccion `frc.captura.ruta-imagenes` es relativa al directorio del servicio
+# (/opt/frc-filial), pero en desarrollo el directorio de trabajo es la raiz del repo, asi que
+# las fotos caen aca. Son cupones de tarjeta de clientes reales --PAN enmascarado, codigo de
+# autorizacion, monto-- y ESTE REPO ES PUBLICO. Sin esta linea, un `git add -A` distraido las
+# publica.
+cupones/
+
 # Logs generados en runtime
 *.log

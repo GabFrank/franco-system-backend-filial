@@ -48,6 +48,43 @@ public class SucursalService extends CrudService<Sucursal, SucursalRepository> {
     }
 
     public Sucursal sucursalActual() {
-        return findById(Long.valueOf(environment.getProperty("sucursalId"))).orElse(null);
+        return findById(idSucursalActual()).orElse(null);
+    }
+
+    /**
+     * El id de la sucursal de ESTE filial, sacado de su propia configuracion.
+     * <p>
+     * Es la unica fuente valida: un filial atiende una sola sucursal y lo sabe sin preguntarle a
+     * nadie.
+     */
+    public Long idSucursalActual() {
+        String v = environment.getProperty("sucursalId");
+        if (v == null || v.trim().isEmpty()) {
+            throw new IllegalStateException("este filial no tiene sucursalId configurado");
+        }
+        return Long.valueOf(v.trim());
+    }
+
+    /**
+     * Valida que la sucursal que mando el cliente sea la de este filial, y devuelve la buena.
+     *
+     * <p><b>Por que existe.</b> Media docena de resolvers de este repo reciben {@code sucId} como
+     * parametro y lo usan tal cual. {@code VentaGraphQL} y {@code GastoGraphQL} hacen lo
+     * contrario --derivan la sucursal del servidor-- y esa es la convencion correcta: el cliente
+     * no tiene autoridad para decir en que sucursal esta.
+     *
+     * <p>Importa especialmente en {@code venta_tarjeta}, que es {@code BRANCH_TO_MAIN} con PK
+     * compuesta {@code (id, sucursal_id)}: una fila escrita con la sucursal de otro filial sube a
+     * central con atribucion falsa.
+     *
+     * <p>Se acepta {@code null} --el cliente no la manda y se usa la propia-- pero no se acepta
+     * una distinta: eso es un error del cliente o un intento, y en los dos casos conviene que
+     * falle fuerte y temprano.
+     */
+    public Long exigirSucursalPropia(Long delCliente) {
+        Long propia = idSucursalActual();
+        if (delCliente == null || propia.equals(delCliente)) return propia;
+        throw new IllegalArgumentException(
+                "esta operacion es de la sucursal " + propia + ", no de la " + delCliente);
     }
 }
