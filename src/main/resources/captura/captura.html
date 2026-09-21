@@ -28,6 +28,10 @@
   .btn{display:block;width:100%;text-align:center;background:var(--acc);color:#fff;
        font:600 18px/1 inherit;padding:20px;border:0;border-radius:12px;cursor:pointer}
   .btn[disabled]{opacity:.5}
+  /* La segunda salida es una alternativa, no la accion principal: mismo tamano de toque --se usa
+     con el dedo-- pero sin el peso del color de acento. */
+  .btn-secundario{background:transparent;color:var(--fg);border:1px solid var(--line);
+       font-weight:500;margin-top:10px}
   input[type=file]{display:none}
   #vista{width:100%;border-radius:10px;margin-top:16px;display:none}
   #estado{margin-top:16px;font-size:15px;min-height:1.4em;text-align:center}
@@ -51,8 +55,21 @@
 <p class="sub">Sacale una foto al cupón del POS. Los datos van a aparecer en la caja.</p>
 
 <div class="card" id="tarjeta">
+  <!-- ⚠️ DOS inputs, y es a proposito: el atributo `capture` no se puede prender y apagar por
+       boton, porque el navegador lo lee del input al que apunta el label.
+
+       `capture="environment"` le dice al telefono "abri la camara" y, al hacerlo, le saca la
+       opcion de elegir de la galeria. Con un solo input asi, un cupon YA fotografiado --o una
+       imagen que esta en la PC-- no habia forma de mandarlo: habia que volver a sacarle la foto
+       al papel. Lo encontro Gabriel el 2026-09-17 tratando de reusar la foto que habia fallado.
+
+       El de abajo, sin `capture`, abre el selector normal: galeria en el telefono, explorador en
+       la PC. Los dos escriben en el mismo handler. -->
   <label class="btn" for="f" id="boton">📷 Sacar foto</label>
   <input id="f" type="file" accept="image/*" capture="environment">
+
+  <label class="btn btn-secundario" for="fa" id="boton-archivo">🖼️ Elegir una imagen</label>
+  <input id="fa" type="file" accept="image/*">
   <img id="vista" alt="">
   <div id="estado"></div>
   <p class="hint">Apoyá el cupón en el mostrador y sacá la foto desde unos 20 cm.
@@ -164,6 +181,7 @@ function nitidez(c){
 function reintentar(mensaje){
   $('#estado').innerHTML = '<span class="bad">' + mensaje + '</span>';
   $('#boton').removeAttribute('disabled');
+  $('#boton-archivo').removeAttribute('disabled');
   $('#boton').textContent = '📷 Sacar otra foto';
   $('#f').value = '';          // sin esto, elegir la MISMA foto no dispara change
 }
@@ -197,10 +215,13 @@ function listo(){
   $('#cerrar').addEventListener('click', cerrarPestana);
 }
 
-$('#f').addEventListener('change', async e => {
+async function alElegirImagen(e) {
   const file = e.target.files[0];
   if (!file) return;
+  // Los dos botones se bloquean: si no, tocar el otro mientras sube arranca una segunda subida
+  // sobre el mismo token.
   $('#boton').setAttribute('disabled', '');
+  $('#boton-archivo').setAttribute('disabled', '');
   $('#estado').textContent = 'Preparando la foto…';
 
   try {
@@ -260,5 +281,10 @@ $('#f').addEventListener('change', async e => {
       ? 'Tardó demasiado. Fijate que el teléfono siga en la WiFi del local.'
       : 'No se pudo enviar. ' + (err && err.message ? err.message : ''));
   }
-});
+}
+
+// El MISMO handler para los dos: lo unico que cambia entre ellos es el atributo `capture`, o sea
+// que pantalla abre el navegador. Lo que llega despues es un File igual en los dos casos.
+$('#f').addEventListener('change', alElegirImagen);
+$('#fa').addEventListener('change', alElegirImagen);
 </script>

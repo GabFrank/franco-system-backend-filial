@@ -314,6 +314,10 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
             }
             Map<String, Object> salida = new LinkedHashMap<String, Object>(r.campos);
             if (!r.extras.isEmpty()) salida.put("datosExtra", r.extras);
+            // El patron entero no matcheo y esto se rescato tramo por tramo: falta al menos un
+            // campo. El desktop lo necesita para decirle al cajero que COMPLETE en vez de que
+            // revise, y para no presentarle un formulario a medio llenar sin explicacion.
+            if (r.parcial) salida.put("parcial", Boolean.TRUE);
 
             Map<String, Object> confianzas = confianzaPorCampo(r, lectura);
             descontarPorTipo(c, r, confianzas);

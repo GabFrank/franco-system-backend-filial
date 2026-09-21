@@ -347,4 +347,112 @@ public class ExtractorCuponTest {
         assertNotNull(r.rangos);
         assertTrue(r.rangos.isEmpty());
     }
+
+    // ---------------------------------------------------------------------------------------
+    // Rescate parcial: el patron entero no matchea, pero lo que se leyo bien no se tira.
+    // ---------------------------------------------------------------------------------------
+
+    /** El patron real de INFONET POS, tal cual esta cargado en el ABM. */
+    private static final String PATRON_INFONET =
+            "^[\\s\\S]*C\\.N\\.:\\s*(?<cn>[A-Z0-9]+)\\s*"
+            + "(?:F:\\s*(?<fecha>\\d{2}/\\d{2}/\\d{4})\\s*H:\\s*(?<hora>\\d{2}:\\d{2}:\\d{2}))?"
+            + "[\\s\\S]*BOLETA:\\s*(?<boleta>[0-9]+)"
+            + "[\\s\\S]*C\\.AUT:\\s*(?<auth>[A-Z0-9]+)"
+            + "[\\s\\S]*G\\.\\s*(?<monto>[0-9][0-9.]*)"
+            + "(?:[\\s\\S]*Lote:\\s*(?<lote>[0-9]+))?[\\s\\S]*$";
+
+    private static final String MAPEO_INFONET =
+            "{\"terminal\":{\"de\":\"cn\"},"
+            + "\"numeroBoleta\":{\"de\":\"boleta\",\"obligatorio\":true},"
+            + "\"codigoAutorizacion\":{\"de\":\"auth\",\"obligatorio\":true},"
+            + "\"monto\":{\"de\":\"monto\",\"obligatorio\":true},"
+            + "\"lote\":{\"de\":\"lote\"}}";
+
+    /**
+     * El texto que devolvio el OCR de la captura 29 del 2026-09-17, copiado tal cual de la base.
+     * Le falta el renglon del monto: es exactamente lo que hizo fallar el patron entero.
+     */
+    private static final String OCR_SIN_MONTO =
+            "INFNET\n"
+            + "AUTOSERV.FRANCO-30 DE JULIO\n"
+            + "30 DE JULIO C.AV.PARAGUAY\n"
+            + "C.N.:82829 F:02/09/2026H:20:47:29\n"
+            + "BOLETA:5671193576\n"
+            + "QR DEB MC CLA BANCO FAMILIAR\n"
+            + "92206-05112 V2.2160\n"
+            + "C.AUT:193576";
+
+    @Test
+    public void un_campo_ilegible_ya_no_se_lleva_puestos_a_los_demas() {
+        // El caso medido el 2026-09-17: al OCR se le escapo el renglon del monto y, como el patron
+        // es una sola expresion, `campos` quedaba vacio. El cajero tenia que tipear los cuatro
+        // campos aunque tres estuvieran perfectamente leidos. Tres de las ultimas seis capturas
+        // de esa jornada terminaron asi.
+        ExtractorCupon.Resultado r = extractor.extraer(OCR_SIN_MONTO,
+                formato(PATRON_INFONET, MAPEO_INFONET));
+
+        assertTrue(r.ok(), r.error);
+        assertTrue(r.parcial, "tiene que quedar marcado como parcial");
+        assertEquals("5671193576", r.campos.get("numeroBoleta"));
+        assertEquals("193576", r.campos.get("codigoAutorizacion"));
+        assertEquals("82829", r.campos.get("terminal"));
+        assertNull(r.campos.get("monto"), "el monto no estaba en el cupon leido");
+    }
+
+    @Test
+    public void el_tramo_del_monto_sobrevive_aunque_arrastre_un_grupo_opcional() {
+        // El corte respeta parentesis. El tramo del monto termina en `(?:[\s\S]*Lote:...)?`, asi
+        // que cortar por cada `[\s\S]*` sin mirar profundidad partia ese grupo al medio y dejaba
+        // dos pedazos invalidos -- perdiendo justo el campo mas importante.
+        String sinBoleta =
+                "INFNET\nC.N.:82829 F:02/09/2026H:20:47:29\nC.AUT:193576\nG. 3.500\nLote: 1199";
+
+        ExtractorCupon.Resultado r = extractor.extraer(sinBoleta,
+                formato(PATRON_INFONET, MAPEO_INFONET));
+
+        assertTrue(r.ok(), r.error);
+        assertTrue(r.parcial);
+        assertEquals("3.500", r.campos.get("monto"));
+        assertEquals("1199", r.campos.get("lote"));
+        assertNull(r.campos.get("numeroBoleta"));
+    }
+
+    @Test
+    public void un_cupon_completo_NO_se_marca_parcial() {
+        String completo =
+                "INFNET\nC.N.:82829 F:02/09/2026H:20:47:29\nBOLETA:5671193576\nC.AUT:193576\n"
+                + "G. 3.500\nLote: 1199";
+
+        ExtractorCupon.Resultado r = extractor.extraer(completo,
+                formato(PATRON_INFONET, MAPEO_INFONET));
+
+        assertTrue(r.ok(), r.error);
+        assertFalse(r.parcial, "matcheo entero: no es parcial");
+        assertEquals("3.500", r.campos.get("monto"));
+        assertEquals("5671193576", r.campos.get("numeroBoleta"));
+    }
+
+    @Test
+    public void un_texto_que_no_tiene_nada_del_formato_sigue_fallando() {
+        // El rescate parcial no puede convertir un fallo legitimo en un exito a medias: si no se
+        // reconocio NINGUN tramo, la respuesta sigue siendo que el formato no reconocio el cupon.
+        ExtractorCupon.Resultado r = extractor.extraer("TICKET DE ESTACIONAMIENTO\n0800-1234",
+                formato(PATRON_INFONET, MAPEO_INFONET));
+
+        assertFalse(r.ok());
+        assertTrue(r.error.contains("no reconocio el cupon"), r.error);
+    }
+
+    @Test
+    public void los_rangos_del_rescate_parcial_son_offsets_del_texto_completo() {
+        // El semaforo por campo se calcula con estos offsets. Si cada tramo devolviera posiciones
+        // relativas a si mismo, la confianza se leeria del pedazo equivocado del OCR.
+        ExtractorCupon.Resultado r = extractor.extraer(OCR_SIN_MONTO,
+                formato(PATRON_INFONET, MAPEO_INFONET));
+
+        int[] rangoBoleta = r.rangos.get("numeroBoleta");
+        assertNotNull(rangoBoleta, "la boleta tiene que traer rango");
+        assertEquals("5671193576",
+                OCR_SIN_MONTO.substring(rangoBoleta[0], rangoBoleta[1]));
+    }
 }
