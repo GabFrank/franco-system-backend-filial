@@ -28,6 +28,10 @@ type VentaTarjeta {
     """Quien decidio cerrar sin conciliar este cobro."""
     noCompletadoPor: Usuario
     noCompletadoEn: Date
+    "Quien devolvio este cobro de NO_COMPLETADO a PENDIENTE. Null = nunca se reabrio."
+    reabiertoPor: Usuario
+    "Cuando se reabrio. Las no_completado_* se conservan: se sabe por que se habia marcado."
+    reabiertoEn: Date
     creadoEn: Date
 }
 
@@ -183,6 +187,17 @@ extend type Mutation {
     quien y por que lo decidio.
     """
     marcarVentaTarjetaNoCompletada(id: ID!, sucId: ID!, motivo: String!, observacion: String, usuarioId: ID): VentaTarjeta!
+    """
+    Devuelve un cobro de NO_COMPLETADO a PENDIENTE, para poder conciliarlo de nuevo.
+
+    Los dos casos que lo justifican son reales: se marco la fila equivocada de varias del mismo
+    monto, o aparecio el cupon --CUPON_PERDIDO es "todavia no lo encontre"--. Sin esto, esa plata
+    quedaba sin conciliar para siempre por una decision tomada con informacion incompleta.
+
+    Las columnas no_completado_* NO se limpian: conservan por que se habia marcado. Se suma quien
+    reabrio y cuando.
+    """
+    reabrirVentaTarjeta(id: ID!, sucId: ID!, usuarioId: ID): VentaTarjeta!
     """
     Imprime la sena de un cobro con tarjeta que quedo sin cupon.
 

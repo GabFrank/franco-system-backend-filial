@@ -195,6 +195,19 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 motivo, observacion, buscarUsuario(usuarioId));
     }
 
+    /**
+     * Devuelve un cobro de NO_COMPLETADO a PENDIENTE.
+     *
+     * <p>Sin esto, marcar la fila equivocada --de varias del mismo monto-- o dar por perdido un
+     * cupon que despues aparece dejaba esa plata sin conciliar para siempre. Las columnas
+     * `no_completado_*` NO se limpian: se conserva por que se habia marcado, y se suma quien
+     * reabrio y cuando.
+     */
+    public VentaTarjeta reabrirVentaTarjeta(Long id, Long sucId, Long usuarioId) {
+        return service.reabrir(id, sucursalService.exigirSucursalPropia(sucId),
+                buscarUsuario(usuarioId));
+    }
+
     /** Sin usuario la fila queda igual de marcada, pero sin a quien preguntarle. No se inventa uno. */
     private com.franco.dev.domain.personas.Usuario buscarUsuario(Long usuarioId) {
         return usuarioId == null ? null : usuarioService.findById(usuarioId).orElse(null);

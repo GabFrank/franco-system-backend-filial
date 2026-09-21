@@ -559,6 +559,40 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         return repository.save(vt);
     }
 
+    /**
+     * Devuelve un cobro de {@code NO_COMPLETADO} a {@code PENDIENTE}, para que se pueda volver a
+     * conciliar.
+     * <p>
+     * <b>Por que existe.</b> {@code NO_COMPLETADO} era terminal, y los dos casos en que eso esta
+     * mal son reales: se marco la fila equivocada de varias del mismo monto, o aparecio el cupon
+     * --{@code CUPON_PERDIDO} es "todavia no lo encontre", y que el papel aparezca al dia siguiente
+     * es lo normal--. En los dos, esa plata quedaba sin conciliar para siempre por una decision
+     * tomada con informacion incompleta.
+     * <p>
+     * ⚠️ <b>Conserva las {@code no_completado_*} a proposito.</b> Limpiarlas borraria justamente el
+     * rastro que §8 existe para guardar: por que alguien dio ese cobro por perdido. Lo que se
+     * agrega es quien reabrio y cuando, de modo que la fila cuenta las dos decisiones.
+     * <p>
+     * <b>Solo desde NO_COMPLETADO.</b> Un PENDIENTE ya esta abierto --reabrirlo no significa nada--
+     * y un COMPLETADO tiene su cupon: devolverlo a PENDIENTE tiraria un dato bueno y dejaria la
+     * conciliacion peor de como estaba.
+     */
+    public VentaTarjeta reabrir(Long id, Long sucursalId,
+                                com.franco.dev.domain.personas.Usuario usuario) {
+        VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
+        if (vt == null) {
+            throw new GraphQLException("No existe el cobro con tarjeta " + id + " en esta sucursal.");
+        }
+        if (!"NO_COMPLETADO".equals(vt.getEstado())) {
+            throw new GraphQLException("El cobro " + id + " esta " + vt.getEstado()
+                    + ": solo se puede reabrir uno que este NO_COMPLETADO.");
+        }
+        vt.setEstado("PENDIENTE");
+        vt.setReabiertoPor(usuario);
+        vt.setReabiertoEn(LocalDateTime.now());
+        return repository.save(vt);
+    }
+
     private void aplicarNoCompletado(VentaTarjeta vt, String motivo, String observacion,
                                      com.franco.dev.domain.personas.Usuario usuario, LocalDateTime cuando) {
         vt.setEstado("NO_COMPLETADO");

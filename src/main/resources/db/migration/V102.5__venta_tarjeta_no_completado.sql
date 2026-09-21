@@ -40,7 +40,20 @@ ALTER TABLE financiero.venta_tarjeta
     ADD COLUMN IF NOT EXISTS no_completado_motivo VARCHAR(40) NULL,
     ADD COLUMN IF NOT EXISTS no_completado_observacion VARCHAR(255) NULL,
     ADD COLUMN IF NOT EXISTS no_completado_por_id BIGINT NULL,
-    ADD COLUMN IF NOT EXISTS no_completado_en TIMESTAMP NULL;
+    ADD COLUMN IF NOT EXISTS no_completado_en TIMESTAMP NULL,
+    -- Reapertura: quien devolvio un NO_COMPLETADO a PENDIENTE y cuando.
+    --
+    -- Van en ESTA migracion y no en una posterior porque el costo no es simetrico en el tiempo.
+    -- Esta tabla es BRANCH_TO_MAIN: cada par de columnas nuevas obliga a repetir entera la
+    -- secuencia central-primero-filial-despues que este mismo archivo describe arriba. Mientras
+    -- nada esta mergeado, sumarlas aca es gratis; despues cuesta otro despliegue coordinado.
+    --
+    -- Las no_completado_* NO se limpian al reabrir: si se borraran, se perderia justamente lo que
+    -- estas columnas existen para guardar --por que alguien dio ese cobro por perdido--. Queda un
+    -- nivel de historia, que es lo minimo honesto sin abrir una tabla de historial nueva sobre una
+    -- tabla replicada.
+    ADD COLUMN IF NOT EXISTS reabierto_por_id BIGINT NULL,
+    ADD COLUMN IF NOT EXISTS reabierto_en TIMESTAMP NULL;
 
 -- NOT VALID y despues VALIDATE, en dos pasos: el ADD queda como metadata y no escanea la tabla
 -- bajo AccessExclusiveLock, que en horario de atencion se encola detras de cualquier transaccion
@@ -89,3 +102,25 @@ COMMENT ON COLUMN financiero.venta_tarjeta.no_completado_por_id IS
     'Usuario que decidio cerrar sin conciliar este cobro.';
 COMMENT ON COLUMN financiero.venta_tarjeta.no_completado_en IS
     'Cuando se marco. Con no_completado_por_id es lo que permite revisar la decision despues.';
+
+-- FK en este lado por el mismo motivo que no_completado_por_id: es el repo que escribe.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'fk_vt_reabierto_por'
+          AND conrelid = 'financiero.venta_tarjeta'::regclass
+    ) THEN
+        ALTER TABLE financiero.venta_tarjeta
+            ADD CONSTRAINT fk_vt_reabierto_por
+            FOREIGN KEY (reabierto_por_id) REFERENCES personas.usuario(id) NOT VALID;
+
+        ALTER TABLE financiero.venta_tarjeta
+            VALIDATE CONSTRAINT fk_vt_reabierto_por;
+    END IF;
+END $$;
+
+COMMENT ON COLUMN financiero.venta_tarjeta.reabierto_por_id IS
+    'Usuario que devolvio este cobro de NO_COMPLETADO a PENDIENTE.';
+COMMENT ON COLUMN financiero.venta_tarjeta.reabierto_en IS
+    'Cuando se reabrio. Las no_completado_* se conservan: se sabe por que se habia marcado.';

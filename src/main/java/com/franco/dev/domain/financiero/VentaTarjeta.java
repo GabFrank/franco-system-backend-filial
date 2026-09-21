@@ -193,6 +193,28 @@ public class VentaTarjeta implements Serializable {
     @Column(name = "no_completado_en")
     private LocalDateTime noCompletadoEn;
 
+    /**
+     * Quien devolvio este cobro de {@code NO_COMPLETADO} a {@code PENDIENTE}.
+     * <p>
+     * <b>Por que se puede reabrir.</b> {@code NO_COMPLETADO} era terminal, y los dos casos en que
+     * eso esta mal son reales y frecuentes: se marco la fila equivocada de tres del mismo monto, o
+     * aparecio el cupon --{@code CUPON_PERDIDO} es literalmente "todavia no lo encontre", y que el
+     * papel aparezca al dia siguiente es el caso normal, no el raro--. En los dos, la plata
+     * quedaba sin conciliar para siempre por una decision tomada con informacion incompleta, que
+     * es exactamente lo que el rastro de {@link #noCompletadoPor} venia a evitar.
+     * <p>
+     * ⚠️ <b>Las {@code no_completado_*} NO se limpian al reabrir.</b> Borrarlas destruiria
+     * justamente lo que existen para guardar. Queda un nivel de historia --se marco por X, y
+     * despues Y lo reabrio-- sin abrir una tabla de historial nueva sobre una tabla replicada.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reabierto_por_id", nullable = true)
+    private Usuario reabiertoPor;
+
+    /** Cuando se reabrio. {@code null} = nunca se reabrio. */
+    @Column(name = "reabierto_en")
+    private LocalDateTime reabiertoEn;
+
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)
     private LocalDateTime creadoEn;
