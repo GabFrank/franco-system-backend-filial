@@ -172,7 +172,7 @@ public class ExtractorCupon {
         try {
             // DOTALL para que el patron pueda cruzar renglones con `.`; un ticket es multilinea
             // aunque la cadena de un QR no lo sea.
-            m = Pattern.compile(formato.getPatron(), Pattern.DOTALL).matcher(texto);
+            m = Pattern.compile(formato.getPatron(), Pattern.DOTALL).matcher(conPlazo(texto));
         } catch (PatternSyntaxException e) {
             return Resultado.fallo("el patron del formato \"" + formato.getNombre() + "\" no es valido");
         }
@@ -186,7 +186,14 @@ public class ExtractorCupon {
         // De las ultimas seis capturas de esa jornada, TRES terminaron asi.
         boolean parcial = false;
         Grupos g;
-        if (m.find()) {
+        boolean matcheo;
+        try {
+            matcheo = m.find();
+        } catch (TiempoAgotado e) {
+            return Resultado.fallo("el patron del formato \"" + formato.getNombre()
+                    + "\" tardo mas de " + PLAZO_MS + " ms sobre este texto; revisalo, tiene backtracking");
+        }
+        if (matcheo) {
             g = new DeMatch(m);
         } else {
             DeTramos sueltos = porTramos(formato.getPatron(), texto);
@@ -360,7 +367,7 @@ public class ExtractorCupon {
         for (String tramo : tramos(patron)) {
             if (!tramo.contains("(?<")) continue;
             try {
-                Matcher mt = Pattern.compile(tramo, Pattern.DOTALL).matcher(texto);
+                Matcher mt = Pattern.compile(tramo, Pattern.DOTALL).matcher(conPlazo(texto));
                 if (!mt.find()) continue;
                 for (String n : nombresDe(tramo)) {
                     if (out.tiene(n)) continue;
@@ -370,12 +377,51 @@ public class ExtractorCupon {
                     out.poner(n, v, mt.start(n), mt.end(n));
                 }
             } catch (RuntimeException e) {
-                // Tramo que solo no es una expresion valida. Se descarta: rescatar de menos es
-                // aceptable, tirar una excepcion desde el respaldo no.
+                // Tramo que solo no es una expresion valida, o que se paso del plazo. Se
+                // descarta: rescatar de menos es aceptable, tirar una excepcion desde el
+                // respaldo no.
                 log.debug("tramo descartado: {}", tramo);
             }
         }
         return out;
+    }
+
+    /**
+     * Tope de tiempo para que un patron corra sobre un texto. Los patrones reales matchean en
+     * microsegundos; esto solo tiene que parar al patologico.
+     */
+    public static final long PLAZO_MS = 500;
+
+    /** Se lanza desde {@code charAt} cuando el matcher ya lleva mas de {@link #PLAZO_MS}. */
+    public static final class TiempoAgotado extends RuntimeException {
+        TiempoAgotado() { super("el patron supero los " + PLAZO_MS + " ms"); }
+    }
+
+    /**
+     * El texto envuelto en un plazo.
+     *
+     * <p><b>Por que asi y no un Future con timeout.</b> {@code java.util.regex} no mira la
+     * interrupcion del hilo: un {@code Future.cancel(true)} deja el matcher corriendo igual, en
+     * un hilo huerfano, con la transaccion de la captura abierta. Lo unico que el motor consulta
+     * en cada paso del backtracking es {@code charAt}, asi que el plazo se controla ahi.
+     *
+     * <p>El patron lo escribe un administrador y corre sobre texto OCR de hasta
+     * {@link #MAX_LONGITUD_TEXTO} caracteres. Que matchee su propio ejemplo (corto) en el guardado
+     * no dice nada de como se porta sobre un texto largo que NO matchea: ahi es donde el
+     * backtracking catastrofico aparece, y corria dentro de {@code procesar()} con la fila de
+     * {@code captura_cupon} bajo lock. Hallazgo de la auditoria de seguridad del 2026-09-21.
+     */
+    public static CharSequence conPlazo(final String texto) {
+        final long limite = System.nanoTime() + PLAZO_MS * 1_000_000L;
+        return new CharSequence() {
+            public int length() { return texto.length(); }
+            public char charAt(int i) {
+                if (System.nanoTime() > limite) throw new TiempoAgotado();
+                return texto.charAt(i);
+            }
+            public CharSequence subSequence(int a, int b) { return texto.subSequence(a, b); }
+            @Override public String toString() { return texto; }
+        };
     }
 
     /** El separador con el que se escriben estos patrones, tal cual aparece en el texto. */

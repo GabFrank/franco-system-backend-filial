@@ -68,7 +68,12 @@ public class CapturaCuponController {
                             "Pedí uno nuevo desde la caja y volvé a escanear."));
         }
         try (InputStream in = new ClassPathResource(PAGINA).getInputStream()) {
-            return ResponseEntity.ok(new String(StreamUtils.copyToByteArray(in), StandardCharsets.UTF_8));
+            // `no-store`: la URL lleva el token en el path, y sin esto el telefono que escaneo el
+            // QR se queda con la pagina en cache y en el historial. El token vence y es de 24
+            // bytes aleatorios, asi que el riesgo es bajo; el costo de decirlo es una linea.
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "no-store")
+                    .body(new String(StreamUtils.copyToByteArray(in), StandardCharsets.UTF_8));
         } catch (Exception e) {
             log.error("no se pudo servir la pagina de captura", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -455,4 +455,38 @@ public class ExtractorCuponTest {
         assertEquals("5671193576",
                 OCR_SIN_MONTO.substring(rangoBoleta[0], rangoBoleta[1]));
     }
+
+    @Test
+    public void un_patron_patologico_falla_por_plazo_en_vez_de_colgar() {
+        // `(a+)+b` sobre muchas `a` sin ninguna `b` es el backtracking catastrofico de manual:
+        // exponencial en el largo. Sin el plazo, 4.000 caracteres alcanzan para colgar el hilo
+        // por horas --con la fila de captura_cupon bajo lock--. Un administrador puede escribir
+        // ese patron sin querer, y el guardado no lo detecta: matchea su ejemplo corto al instante.
+        StringBuilder texto = new StringBuilder();
+        for (int i = 0; i < 4000; i++) texto.append('a');
+        FormatoTerminalPos f = formato("(?<x>(a+)+b)", "{\"numeroBoleta\":{\"de\":\"x\"}}");
+
+        long t0 = System.nanoTime();
+        ExtractorCupon.Resultado r = extractor.extraer(texto.toString(), f);
+        long ms = (System.nanoTime() - t0) / 1_000_000L;
+
+        assertFalse(r.ok(), "tenia que fallar, no matchear");
+        assertTrue(r.error.contains("tardo mas de"), "el error tiene que decir que fue por plazo: " + r.error);
+        assertTrue(ms < 2000, "tardo " + ms + " ms: el plazo de " + ExtractorCupon.PLAZO_MS + " ms no corto");
+    }
+
+    @Test
+    public void el_plazo_no_afecta_a_un_patron_normal() {
+        // Guardia contra un plazo mal puesto: el mismo texto de siempre tiene que seguir saliendo
+        // completo, con rangos, por el camino normal.
+        ExtractorCupon.Resultado r = extractor.extraer(
+                "COMERCIO X\nAUT: 883921\nBOLETA: 00045\nMONTO: 150.000",
+                formato(".*AUT: (?<auth>[0-9]+).*BOLETA: (?<boleta>[0-9]+).*MONTO: (?<monto>[0-9.]+).*",
+                        "{\"codigoAutorizacion\":{\"de\":\"auth\"},"
+                                + "\"numeroBoleta\":{\"de\":\"boleta\"},"
+                                + "\"monto\":{\"de\":\"monto\"}}"));
+        assertTrue(r.ok(), r.error);
+        assertFalse(r.parcial);
+        assertEquals("00045", r.campos.get("numeroBoleta"));
+    }
 }

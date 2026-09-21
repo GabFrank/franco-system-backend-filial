@@ -3,7 +3,10 @@ package com.franco.dev.service.financiero.ocr;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.Iterator;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 
 /**
  * Imagen en BGR intercalado — el mismo orden de canales que entrega OpenCV,
@@ -22,16 +25,54 @@ public final class Imagen {
         this.ancho = ancho; this.alto = alto; this.px = px;
     }
 
+    /**
+     * Lado maximo que se acepta decodificar, en pixeles. 6000 cubre cualquier foto de telefono
+     * (una de 12 MP es 4000x3000; la pagina de captura ademas la achica a 1000 de lado antes de
+     * subirla) y deja el peor caso en ~100 MB de buffer BGR + el int[] del BufferedImage.
+     */
+    public static final int LADO_MAXIMO = 6000;
+
     public static Imagen leer(java.io.InputStream in) throws IOException {
-        BufferedImage bi = ImageIO.read(in);
-        if (bi == null) throw new IOException("no se pudo decodificar la imagen");
-        return desde(bi);
+        try (ImageInputStream iis = ImageIO.createImageInputStream(in)) {
+            return desde(decodificarAcotado(iis, "la imagen"));
+        }
     }
 
     public static Imagen leer(File f) throws IOException {
-        BufferedImage bi = ImageIO.read(f);
-        if (bi == null) throw new IOException("no se pudo leer la imagen: " + f);
-        return desde(bi);
+        try (ImageInputStream iis = ImageIO.createImageInputStream(f)) {
+            return desde(decodificarAcotado(iis, "la imagen " + f));
+        }
+    }
+
+    /**
+     * Lee ancho y alto del ENCABEZADO y rechaza antes de decodificar un solo pixel.
+     *
+     * <p>Sin esto, {@code ImageIO.read} reservaba el buffer entero con las dimensiones que
+     * declara el archivo. Un JPEG o PNG de pocos KB puede declarar 30000x30000 (una "bomba de
+     * descompresion") y pedir gigabytes de una sola asignacion. El tope de 8 MB del cuerpo HTTP
+     * en los controllers de captura no protege de eso: limita los bytes del archivo, no los
+     * pixeles que declara. Y {@code Content-Type: image/jpeg} tampoco: ImageIO autodetecta el
+     * formato por los bytes, asi que un PNG con header de JPEG se decodifica igual. Hallazgo de
+     * la auditoria de seguridad del 2026-09-21.
+     */
+    private static BufferedImage decodificarAcotado(ImageInputStream iis, String que) throws IOException {
+        if (iis == null) throw new IOException("no se pudo abrir " + que);
+        Iterator<ImageReader> lectores = ImageIO.getImageReaders(iis);
+        if (!lectores.hasNext()) throw new IOException("no se pudo decodificar " + que);
+        ImageReader lector = lectores.next();
+        try {
+            lector.setInput(iis, true, true);
+            int ancho = lector.getWidth(0), alto = lector.getHeight(0);
+            if (ancho <= 0 || alto <= 0 || ancho > LADO_MAXIMO || alto > LADO_MAXIMO) {
+                throw new IOException(que + " declara " + ancho + "x" + alto
+                        + " pixeles; el maximo aceptado es " + LADO_MAXIMO + " de lado");
+            }
+            BufferedImage bi = lector.read(0);
+            if (bi == null) throw new IOException("no se pudo decodificar " + que);
+            return bi;
+        } finally {
+            lector.dispose();
+        }
     }
 
     private static Imagen desde(BufferedImage bi) {

@@ -29,6 +29,8 @@ import java.util.List;
 @Component
 public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(VentaTarjetaGraphQL.class);
+
     @Autowired
     private VentaTarjetaService service;
 
@@ -208,9 +210,50 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 buscarUsuario(usuarioId));
     }
 
-    /** Sin usuario la fila queda igual de marcada, pero sin a quien preguntarle. No se inventa uno. */
+    /**
+     * Quien esta actuando: marcando sin conciliar, o reabriendo.
+     *
+     * <p><b>Primero el JWT, y recien despues lo que dice el cliente.</b> Estas tres mutations
+     * escriben {@code no_completado_por_id} / {@code reabierto_por_id}, que existen para una sola
+     * cosa: que la decision tenga a quien preguntarle. Con el {@code usuarioId} tomado del
+     * argumento, cualquier cliente autenticado podia marcar o reabrir un cobro <i>a nombre de
+     * otro</i> --la pista de auditoria nacia falseable--. Hallazgo de la auditoria de seguridad
+     * del 2026-09-21, y es una regresion propia de esta rama: antes no habia nada que suplantar.
+     *
+     * <p>El filial no guarda el usuario en el contexto, solo el nickname del token
+     * ({@code JwtAuthenticationProvider} arma un {@code JwtUserDetails} con el), asi que se
+     * resuelve por nickname. El argumento queda como respaldo para un contexto sin identidad
+     * (tests, o una llamada interna), nunca para pisar al JWT.
+     *
+     * <p>Sin usuario la fila queda igual de marcada, pero sin a quien preguntarle. No se inventa uno.
+     */
     private com.franco.dev.domain.personas.Usuario buscarUsuario(Long usuarioId) {
+        String nickname = nicknameAutenticado();
+        if (nickname != null) {
+            java.util.Optional<com.franco.dev.domain.personas.Usuario> porToken =
+                    usuarioService.findByNickname(nickname);
+            if (porToken.isPresent()) {
+                if (usuarioId != null && !usuarioId.equals(porToken.get().getId())) {
+                    log.warn("usuarioId {} del cliente no coincide con el del token ({}); manda el token",
+                            usuarioId, porToken.get().getId());
+                }
+                return porToken.get();
+            }
+        }
         return usuarioId == null ? null : usuarioService.findById(usuarioId).orElse(null);
+    }
+
+    /** El nickname del JWT de esta request, o null si el contexto no trae identidad. */
+    private static String nicknameAutenticado() {
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return null;
+        Object principal = auth.getPrincipal();
+        if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
+            String u = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
+            return u == null || u.trim().isEmpty() ? null : u;
+        }
+        return null;
     }
 
     /**
