@@ -232,6 +232,8 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (nickname != null) {
             java.util.Optional<com.franco.dev.domain.personas.Usuario> porToken =
                     usuarioService.findByNickname(nickname);
+            log.debug("identidad: nickname del token='{}' → usuario {}", nickname,
+                    porToken.isPresent() ? porToken.get().getId() : "NO ENCONTRADO");
             if (porToken.isPresent()) {
                 if (usuarioId != null && !usuarioId.equals(porToken.get().getId())) {
                     log.warn("usuarioId {} del cliente no coincide con el del token ({}); manda el token",
@@ -247,6 +249,11 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     private static String nicknameAutenticado() {
         org.springframework.security.core.Authentication auth =
                 org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        log.debug("identidad en el contexto: auth={} autenticado={} principal={} hilo={}",
+                auth == null ? null : auth.getClass().getSimpleName(),
+                auth != null && auth.isAuthenticated(),
+                auth == null || auth.getPrincipal() == null ? null : auth.getPrincipal().getClass().getSimpleName(),
+                Thread.currentThread().getName());
         if (auth == null || !auth.isAuthenticated()) return null;
         Object principal = auth.getPrincipal();
         if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
