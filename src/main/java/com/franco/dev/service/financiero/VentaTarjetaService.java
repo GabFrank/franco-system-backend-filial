@@ -2,6 +2,7 @@ package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.VentaTarjeta;
 import com.franco.dev.domain.operaciones.CobroDetalle;
+import com.franco.dev.repository.financiero.CapturaCuponRepository;
 import com.franco.dev.repository.financiero.VentaTarjetaRepository;
 import com.franco.dev.repository.operaciones.CobroDetalleRepository;
 import com.franco.dev.service.CrudService;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +34,12 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     private final CobroDetalleRepository cobroDetalleRepository;
 
     private final MonedaService monedaService;
+
+    /** De aca sale la ventana del chequeo de duplicado por codigo de autorizacion. */
+    private final ConfiguracionVentaTarjetaService configuracionService;
+
+    /** Para copiar la ruta de la foto a la venta, y que deje de ser un archivo huerfano. */
+    private final CapturaCuponRepository capturas;
 
     @Override
     public VentaTarjetaRepository getRepository() {
@@ -74,6 +82,17 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
      * @param identificadorTransaccion referencia unica del proveedor (el EndToEndId en Pix).
      *                                 Se copia ademas al CobroDetalle de la venta, que es
      *                                 donde vive la conciliacion.
+     * @param origen                   QR | OCR | MANUAL | API. <b>Lo manda el cliente</b>, porque
+     *                                 es el unico que sabe por que camino obtuvo los datos: el
+     *                                 backend ve exactamente el mismo `completar` en los cuatro
+     *                                 casos. Si no viene, se deduce QR cuando hay qrCrudo --que
+     *                                 solo existe si entro por el lector-- y en cualquier otro
+     *                                 caso queda NULL, que dice "no se sabe" en vez de mentir.
+     *                                 <p>
+     *                                 Este es el UNICO metodo que pasa una venta_tarjeta a
+     *                                 COMPLETADO, en los dos backends: por eso el origen se
+     *                                 escribe aca y no en central, que solo tiene un update
+     *                                 generico usado para otras cosas.
      */
     @Transactional
     public VentaTarjeta completar(Long id,
@@ -84,7 +103,10 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                                   String identificadorTransaccion,
                                   String qrCrudo,
                                   Long cobroDetalleId,
-                                  Long monedaId) {
+                                  Long monedaId,
+                                  String origen,
+                                  String capturaToken,
+                                  String datosExtra) {
         VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
         if (vt == null) {
             throw new GraphQLException("No existe la venta con tarjeta " + id + " en la sucursal " + sucursalId);
@@ -94,7 +116,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                     + ". Solo se puede completar una PENDIENTE.");
         }
 
-        validarCuponNoUsado(vt, identificadorTransaccion, qrCrudo);
+        validarCuponNoUsado(vt, identificadorTransaccion, qrCrudo, codigoAutorizacion, montoEscaneado);
         validarMoneda(vt, monedaId, cobroDetalleId);
 
         // Si el PENDIENTE se creo sin moneda (cliente viejo), el cupon la aporta ahora. Ya paso
@@ -107,7 +129,24 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         vt.setNumeroBoleta(numeroBoleta);
         vt.setMontoEscaneado(montoEscaneado);
         vt.setQrCrudo(qrCrudo);
+        vt.setOrigen(origenEfectivo(origen, qrCrudo));
+        // Lo que el cupon trae y no tiene columna propia. Se pisa solo si viene: completar se
+        // puede llamar de nuevo sobre el mismo registro, y un segundo intento sin datos extra no
+        // tiene por que borrar los del primero.
+        if (datosExtra != null && !datosExtra.trim().isEmpty()) {
+            vt.setDatosExtra(datosExtra);
+        }
         vt.setEstado("COMPLETADO");
+        // La foto pasa a ser evidencia del cobro, no un subproducto del OCR. venta_tarjeta.
+        // imagen_url ya existia y estaba muerta: nadie la llenaba en este flujo. Sin esto la
+        // imagen queda colgando en captura_cupon sin ninguna relacion con la venta --no hay FK ni
+        // columna-- y el job de purga no puede distinguir una foto huerfana de la evidencia de un
+        // cobro que manana se discute.
+        if (capturaToken != null && !capturaToken.trim().isEmpty()) {
+            capturas.findByToken(capturaToken.trim())
+                    .filter(c -> c.getImagenUrl() != null)
+                    .ifPresent(c -> vt.setImagenUrl(c.getImagenUrl()));
+        }
         VentaTarjeta guardado = repository.save(vt);
 
         vincularIdentificadorAlCobro(vt, identificadorTransaccion, cobroDetalleId);
@@ -157,14 +196,53 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
      * negarse empeora las cosas), un cupon repetido es un error objetivo. Si de verdad son dos
      * cobros distintos, van a tener referencias distintas.
      * <p>
-     * Vive en el backend a proposito: el desktop y el celular completan por el mismo camino, y la
-     * validacion tiene que valer para los dos.
+     * Vive en el backend a proposito, para que no dependa de que el cliente se acuerde de
+     * chequear.
+     * <p>
+     * <b>Cubre los dos caminos vivos: el lector del PDV y la foto del cupon.</b> La captura por
+     * camara NO pasa por la app `mobile` --el telefono abre, en su navegador, una pagina que sirve
+     * este mismo filial-- asi que los dos terminan aca.
+     * <p>
+     * Una version anterior de este comentario decia que "el desktop y el celular completan por el
+     * mismo camino" refiriendose a la app, y eso era falso: la pantalla de venta con tarjeta de
+     * `mobile` llama `updateVentaTarjeta` del CENTRAL, un setter generico sin validacion alguna.
+     * Pero esa pantalla quedo fuera del circuito de la fase 2 y la app esta en mantenimiento
+     * (la reemplaza `mobile-pwa`), asi que es un camino heredado, no un agujero de este flujo. Si
+     * algun dia se reactiva, hay que hacerla pasar por aca.
      */
-    private void validarCuponNoUsado(VentaTarjeta vt, String identificadorTransaccion, String qrCrudo) {
-        motivoCuponNoUsable(vt.getId(), vt.getVentaId(), vt.getSucursalId(), identificadorTransaccion, qrCrudo)
+    private void validarCuponNoUsado(VentaTarjeta vt, String identificadorTransaccion, String qrCrudo,
+                                     String codigoAutorizacion, BigDecimal montoEscaneado) {
+        motivoCuponNoUsable(vt.getId(), vt.getVentaId(), vt.getSucursalId(), identificadorTransaccion,
+                qrCrudo, codigoAutorizacion, montoEscaneado,
+                vt.getTerminalPos() != null ? vt.getTerminalPos().getId() : null)
                 .ifPresent(motivo -> {
                     throw new GraphQLException(motivo);
                 });
+    }
+
+    /**
+     * De donde salieron los datos, cuando el cliente no lo dice.
+     * <p>
+     * Solo se deduce el caso que el backend PUEDE saber: si hay qrCrudo, entro por el lector. OCR
+     * y MANUAL son indistinguibles desde aca --los dos llegan como campos sueltos-- asi que se
+     * dejan en NULL antes que adivinar. Un 'OCR' inventado sobre una carga a mano haria que la
+     * conciliacion confie en un dato que un humano tipeo.
+     */
+    private static String origenEfectivo(String origen, String qrCrudo) {
+        if (origen != null && !origen.trim().isEmpty()) {
+            String limpio = origen.trim().toUpperCase();
+            if (!VentaTarjeta.ORIGENES.contains(limpio)) {
+                // Se valida ACA y no se deja llegar a la base a proposito. La columna tiene un
+                // CHECK, pero una violacion de CHECK sube como DataIntegrityViolationException, y
+                // el unico @ExceptionHandler del filial atrapa solo GraphQLException: el cajero
+                // veria un error opaco de graphql-java sin ninguna pista de que fallo.
+                throw new GraphQLException("Origen '" + origen.trim() + "' desconocido. Los validos"
+                        + " son: " + String.join(", ", VentaTarjeta.ORIGENES) + ".");
+            }
+            return limpio;
+        }
+        if (qrCrudo != null && !qrCrudo.trim().isEmpty()) return VentaTarjeta.ORIGEN_QR;
+        return null;
     }
 
     /**
@@ -193,13 +271,33 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     public Page<VentaTarjeta> filtrarPorCaja(Long cajaId, Long sucursalId, String estado,
                                              Long terminalPosId, Long monedaId,
                                              BigDecimal montoDesde, BigDecimal montoHasta,
-                                             int page, int size) {
+                                             Long usuarioId, int page, int size) {
         return repository.filtrarPorCaja(cajaId, sucursalId, estado, terminalPosId, monedaId,
-                montoDesde, montoHasta, PageRequest.of(page, size));
+                montoDesde, montoHasta, usuarioId, PageRequest.of(page, size));
     }
 
+    /**
+     * El motivo por el que este cupon no se puede usar, o vacio si esta libre.
+     * <p>
+     * Tres chequeos, de mas fuerte a mas debil:
+     * <ol>
+     *   <li>{@code qrCrudo} — la cadena entera que imprimio el POS. Solo existe si entro por el
+     *       lector.</li>
+     *   <li>{@code identificadorTransaccion} — referencia propia del proveedor. Solo la llenan los
+     *       formatos que traen un campo aparte: el EndToEndId de Pix si; Dinelco, Infonet, Stone,
+     *       BXX y PlugPay no.</li>
+     *   <li>{@code codigoAutorizacion} + terminal + ventana — el unico que la <b>carga a mano</b>
+     *       garantiza para todos los proveedores.</li>
+     * </ol>
+     * El tercero se agrego junto con la carga a mano, y no es opcional: sin el, un cajero puede
+     * tipear el cupon de la venta anterior entero --que quedo sobre el mostrador-- y producir un
+     * registro valido y falso que nadie descubre hasta la conciliacion. Es el caso 5 del analisis
+     * de modos de falla.
+     */
     public Optional<String> motivoCuponNoUsable(Long ventaTarjetaId, Long ventaId, Long sucursalId,
-                                                String identificadorTransaccion, String qrCrudo) {
+                                                String identificadorTransaccion, String qrCrudo,
+                                                String codigoAutorizacion, BigDecimal montoEscaneado,
+                                                Long terminalPosId) {
         if (qrCrudo != null && !qrCrudo.trim().isEmpty()) {
             List<VentaTarjeta> previos = repository.findByQrCrudo(qrCrudo.trim());
             if (previos != null) {
@@ -233,7 +331,64 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
             }
         }
 
+        Optional<String> porCodigo = motivoPorCodigoAutorizacion(
+                ventaTarjetaId, sucursalId, codigoAutorizacion, montoEscaneado, terminalPosId);
+        if (porCodigo.isPresent()) return porCodigo;
+
         return Optional.empty();
+    }
+
+    /**
+     * El mismo codigo de autorizacion, en el mismo aparato, por el mismo monto, dentro de la
+     * ventana configurada.
+     * <p>
+     * <b>Los tres acotamientos existen para no bloquear ventas buenas</b>, que seria peor que el
+     * problema que evitan --el cajero tiene al cliente adelante y el cobro ya paso:
+     * <ul>
+     *   <li><b>Terminal</b>: el codigo lo emite el aparato y solo es unico ahi. Dos maquinitas
+     *       distintas pueden emitir el mismo numero el mismo dia sin que eso signifique nada.</li>
+     *   <li><b>Ventana</b>: varios proveedores usan codigos cortos --4 a 6 caracteres-- que se
+     *       reciclan. Sin ventana, un local con movimiento chocaria consigo mismo en semanas.</li>
+     *   <li><b>Monto</b>: es lo que separa un cupon REPETIDO de una colision de codigo corto. Un
+     *       cupon retipeado repite todo, monto incluido; una colision casi nunca coincide en el
+     *       monto. Si a alguno de los dos le falta el monto, no se usa para descartar: se prefiere
+     *       avisar de mas antes que dejar pasar un duplicado real.</li>
+     * </ul>
+     * Solo mira COMPLETADOS: un PENDIENTE todavia no imputo nada.
+     */
+    private Optional<String> motivoPorCodigoAutorizacion(Long ventaTarjetaId, Long sucursalId,
+                                                         String codigoAutorizacion,
+                                                         BigDecimal montoEscaneado,
+                                                         Long terminalPosId) {
+        if (codigoAutorizacion == null || codigoAutorizacion.trim().isEmpty()) return Optional.empty();
+        if (sucursalId == null) return Optional.empty();
+
+        int horas = configuracionService.findOrDefault().horasVentanaDuplicadoEfectivo();
+        LocalDateTime desde = LocalDateTime.now().minusHours(horas);
+
+        List<VentaTarjeta> previos = repository.buscarPorCodigoAutorizacion(
+                sucursalId, codigoAutorizacion.trim(), terminalPosId, desde);
+        if (previos == null) return Optional.empty();
+
+        for (VentaTarjeta otro : previos) {
+            if (otro.getId() == null || otro.getId().equals(ventaTarjetaId)) continue;
+            if (montosDistintos(montoEscaneado, otro.getMontoEscaneado())) continue;
+
+            return Optional.of("El codigo de autorizacion " + codigoAutorizacion.trim()
+                    + " ya esta registrado en la venta con tarjeta " + otro.getId()
+                    + " (venta " + otro.getVentaId() + "), hace menos de " + horas
+                    + " h y en la misma terminal. Un cupon no se puede usar en dos cobros.");
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Dos montos que se sabe que son distintos. Si a alguno le falta el dato, la respuesta es
+     * `false`: no alcanza para descartar un duplicado, y el chequeo sigue.
+     */
+    private static boolean montosDistintos(BigDecimal a, BigDecimal b) {
+        if (a == null || b == null) return false;
+        return a.compareTo(b) != 0;
     }
 
     /**
@@ -327,16 +482,150 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     }
 
     /**
-     * Cierre de caja con pendientes confirmado por el cajero: los registros
-     * PENDIENTE de la caja pasan a NO_COMPLETADO (estado terminal, auditable).
-     * El cambio replica al central via BRANCH_TO_MAIN.
+     * Cierre de caja con pendientes: los PENDIENTE de la caja pasan a NO_COMPLETADO, con motivo.
+     *
+     * <p><b>NO_COMPLETADO es terminal.</b> Ese cobro ya no se registra nunca y su plata queda sin
+     * cupon contra el cual conciliar la liquidacion del proveedor. Por eso el motivo no es
+     * decorativo: es lo unico que va a existir cuando alguien revise esa caja la semana que viene.
+     *
+     * <p>El cambio replica al central via BRANCH_TO_MAIN.
      */
-    public int marcarNoCompletadas(Long cajaId, Long sucursalId) {
+    @Transactional
+    public int marcarNoCompletadas(Long cajaId, Long sucursalId, String motivo, String observacion,
+                                   com.franco.dev.domain.personas.Usuario usuario) {
+        // ⚠️ SIN motivo NO se rechaza: se marca como se marcaba antes, sin auditoria.
+        //
+        // No es una concesion de diseno, es compatibilidad obligatoria. El desktop que corre HOY en
+        // produccion --la llamada de dos argumentos esta en origin/master, o sea en el canal
+        // stable de las 18 filiales de bodega-- invoca esta mutation sin motivo al cerrar caja. Y
+        // los tiempos van al reves: el filial se despliega solo cada 15 minutos sin aprobacion,
+        // mientras que el desktop se actualiza cuando el usuario acepta el dialogo de
+        // electron-updater. Exigir el motivo aca dejaria sin poder cerrar caja a toda estacion que
+        // todavia no acepto la actualizacion, con un error opaco y a la hora del cierre.
+        //
+        // El motivo SI es obligatorio donde el cliente es nuevo por definicion:
+        // marcarNoCompletada (singular) lo declara `String!` en el schema.
+        if (motivo == null || motivo.trim().isEmpty()) {
+            return marcarNoCompletadasSinAuditoria(cajaId, sucursalId);
+        }
+        validarMotivo(motivo, observacion);
+        List<VentaTarjeta> pendientes = repository.findByCajaIdAndSucursalIdAndEstado(cajaId, sucursalId, "PENDIENTE");
+        LocalDateTime ahora = LocalDateTime.now();
+        pendientes.forEach(vt -> {
+            aplicarNoCompletado(vt, motivo, observacion, usuario, ahora);
+            repository.save(vt);
+        });
+        return pendientes.size();
+    }
+
+    /**
+     * El camino viejo: marcar sin decir por que.
+     *
+     * <p>Existe solo para los clientes anteriores a la auditoria. Las columnas quedan en NULL, que
+     * es la verdad --nadie declaro un motivo-- y se distingue de las filas nuevas justamente por
+     * eso.
+     */
+    private int marcarNoCompletadasSinAuditoria(Long cajaId, Long sucursalId) {
         List<VentaTarjeta> pendientes = repository.findByCajaIdAndSucursalIdAndEstado(cajaId, sucursalId, "PENDIENTE");
         pendientes.forEach(vt -> {
             vt.setEstado("NO_COMPLETADO");
             repository.save(vt);
         });
         return pendientes.size();
+    }
+
+    /**
+     * Un solo cobro que el cajero decide dejar sin conciliar, con su motivo.
+     *
+     * <p>Existe separado del cierre de caja porque el caso real es por cobro, no por caja: de tres
+     * pendientes, dos tienen su cupon y el tercero se perdio. Marcar los tres con el mismo motivo
+     * seria escribir dos mentiras para poder registrar una verdad.
+     */
+    @Transactional
+    public VentaTarjeta marcarNoCompletada(Long id, Long sucursalId, String motivo, String observacion,
+                                           com.franco.dev.domain.personas.Usuario usuario) {
+        validarMotivo(motivo, observacion);
+        VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
+        if (vt == null) {
+            throw new GraphQLException("No existe el cobro con tarjeta " + id + " en esta sucursal.");
+        }
+        if (!"PENDIENTE".equals(vt.getEstado())) {
+            // El COMPLETADO ya tiene su cupon: "no conciliarlo" borraria un dato bueno. Y el que ya
+            // esta NO_COMPLETADO no se re-marca, porque pisaria quien y por que lo decidio.
+            throw new GraphQLException("El cobro " + id + " esta " + vt.getEstado()
+                    + ": solo se puede dejar sin conciliar uno que este PENDIENTE.");
+        }
+        aplicarNoCompletado(vt, motivo, observacion, usuario, LocalDateTime.now());
+        return repository.save(vt);
+    }
+
+    /**
+     * Devuelve un cobro de {@code NO_COMPLETADO} a {@code PENDIENTE}, para que se pueda volver a
+     * conciliar.
+     * <p>
+     * <b>Por que existe.</b> {@code NO_COMPLETADO} era terminal, y los dos casos en que eso esta
+     * mal son reales: se marco la fila equivocada de varias del mismo monto, o aparecio el cupon
+     * --{@code CUPON_PERDIDO} es "todavia no lo encontre", y que el papel aparezca al dia siguiente
+     * es lo normal--. En los dos, esa plata quedaba sin conciliar para siempre por una decision
+     * tomada con informacion incompleta.
+     * <p>
+     * ⚠️ <b>Conserva las {@code no_completado_*} a proposito.</b> Limpiarlas borraria justamente el
+     * rastro que §8 existe para guardar: por que alguien dio ese cobro por perdido. Lo que se
+     * agrega es quien reabrio y cuando, de modo que la fila cuenta las dos decisiones.
+     * <p>
+     * <b>Solo desde NO_COMPLETADO.</b> Un PENDIENTE ya esta abierto --reabrirlo no significa nada--
+     * y un COMPLETADO tiene su cupon: devolverlo a PENDIENTE tiraria un dato bueno y dejaria la
+     * conciliacion peor de como estaba.
+     */
+    public VentaTarjeta reabrir(Long id, Long sucursalId,
+                                com.franco.dev.domain.personas.Usuario usuario) {
+        VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
+        if (vt == null) {
+            throw new GraphQLException("No existe el cobro con tarjeta " + id + " en esta sucursal.");
+        }
+        if (!"NO_COMPLETADO".equals(vt.getEstado())) {
+            throw new GraphQLException("El cobro " + id + " esta " + vt.getEstado()
+                    + ": solo se puede reabrir uno que este NO_COMPLETADO.");
+        }
+        vt.setEstado("PENDIENTE");
+        vt.setReabiertoPor(usuario);
+        vt.setReabiertoEn(LocalDateTime.now());
+        return repository.save(vt);
+    }
+
+    private void aplicarNoCompletado(VentaTarjeta vt, String motivo, String observacion,
+                                     com.franco.dev.domain.personas.Usuario usuario, LocalDateTime cuando) {
+        vt.setEstado("NO_COMPLETADO");
+        vt.setNoCompletadoMotivo(motivo);
+        vt.setNoCompletadoObservacion(recortar(observacion, 255));
+        vt.setNoCompletadoPor(usuario);
+        vt.setNoCompletadoEn(cuando);
+    }
+
+    /**
+     * El motivo es obligatorio y cerrado; el texto libre solo lo es cuando el motivo es OTRO.
+     *
+     * <p>Se valida ACA y no solo en el CHECK de la columna: si el valor llega hasta el UPDATE, la
+     * violacion sube como DataIntegrityViolationException y el cajero ve un error opaco en medio
+     * del cierre de su caja.
+     */
+    private void validarMotivo(String motivo, String observacion) {
+        if (motivo == null || motivo.trim().isEmpty()) {
+            throw new GraphQLException("Falta el motivo: un cobro no se deja sin conciliar sin decir por que.");
+        }
+        if (!VentaTarjeta.MOTIVOS_NO_COMPLETADO.contains(motivo)) {
+            throw new GraphQLException("Motivo desconocido: " + motivo + ".");
+        }
+        if (VentaTarjeta.NO_COMPLETADO_OTRO.equals(motivo)
+                && (observacion == null || observacion.trim().isEmpty())) {
+            throw new GraphQLException("El motivo \"Otro\" necesita que escribas que paso.");
+        }
+    }
+
+    private String recortar(String texto, int largo) {
+        if (texto == null) return null;
+        String limpio = texto.trim();
+        if (limpio.isEmpty()) return null;
+        return limpio.length() > largo ? limpio.substring(0, largo) : limpio;
     }
 }
