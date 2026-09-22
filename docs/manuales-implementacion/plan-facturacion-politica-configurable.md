@@ -125,7 +125,7 @@ tiene la llamada comentada; la PWA define `SaveVentaGQL` sin usarlo. Nadie cambi
   mismas columnas y tipos, **PK `id` sí; ningún otro UNIQUE, sin FK, sin CHECK, todo nullable, sin
   seed** (el subscriber no puede ser más estricto que el publisher; precedentes `V78.1`, `V96.5`,
   `V98.5`). Filial tiene `spring.flyway.out-of-order=true` (commit `3c68319`).
-- **central `V230.1__configuracion_facturacion.sql`**: `CREATE TABLE` con `NOT NULL DEFAULT`,
+- **central `V231.1__configuracion_facturacion.sql`**: `CREATE TABLE` con `NOT NULL DEFAULT`,
   `CHECK (modo IN (...))`, `CHECK (ventas_sin_factura >= 0)`, FK a `empresarial.sucursal` y
   `personas.usuario`, índice único parcial por `COALESCE(sucursal_id, 0)`; `INSERT` en
   `configuraciones.replication_table` como `MAIN_TO_ALL` (precedente `V150.1`). **Sin seed**
@@ -192,7 +192,7 @@ despliegue y se documenta en el `CLAUDE.md` del filial.
 ### Central
 > Desvío registrado: F1 y F2 salieron en **un solo commit** (`154cffcb`) porque el enum de Java y
 > su `.graphqls` tienen que ir juntos (regla del paso 7).
-- **F1** — `V230.1` + entidad + enum Java + repositorio.
+- **F1** — `V231.1` + entidad + enum Java + repositorio.
 - **F2** — service (upsert por sucursal, validaciones) + input + resolver + `.graphqls`
   (`configuracionesFacturacion`, `saveConfiguracionFacturacion`, `deleteConfiguracionFacturacion`),
   con `TesoreriaSecurityService`: `requireVer()` en la query, `requireGestionar()` en save/delete,
@@ -231,7 +231,7 @@ llegada por réplica. Casos: sin fila (igual a hoy), `INTERVALO 2` con `respeta=
 ## Qué queda sin verificar
 
 - Replicación real de la tabla nueva: solo en alpha, post-merge (pasos 2-4 del despliegue).
-- Dry-run de `V230.1` / `V103.1` contra copia de base real (paso 10): pendiente de dump.
+- Dry-run de `V231.1` / `V103.1` contra copia de base real (paso 10): pendiente de dump.
 - SIFEN: si `crearDocumentoElectronico` transmite el DE antes del commit, un rollback posterior deja
   un DE sin venta (preexistente, no lo cambia este trabajo). `TODAS` consume el timbrado más rápido;
   no hay alerta de rango ni de fallas consecutivas (fuera de alcance, candidato a issue).
@@ -257,6 +257,13 @@ llegada por réplica. Casos: sin fila (igual a hoy), `INTERVALO 2` con `respeta=
 | A-6 | A | PK del espejo ambigua | «PK `id` sí» |
 | A-7 | A | Grep de clientes sin registrar | registrado en «Puertas» |
 | — | B | La skill local `flyway-migraciones-frc` dice que el filial no tiene `out-of-order`; el código dice `true` (`3c68319`) | gana el código; avisado al usuario |
+
+## Renumeración de la migración del central (paso 9)
+
+Al preparar la prueba local apareció `V230.1__timbrado_deposito_aquario_sdg` aplicada (dos veces)
+en la base local `bodega`: es la migración que `PLAN-NOTAS-AJUSTES-OPERATIVOS.md` («Fase 1») dice
+que se borró de su rama. El número 230.1 está quemado en toda base donde corrió esa rama, así que la
+del central pasó a **`V231.1`** (commit `75ae4f39`).
 
 ## Auditoría del diff (paso 8)
 
