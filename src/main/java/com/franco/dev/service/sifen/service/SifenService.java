@@ -1422,8 +1422,9 @@ public class SifenService {
      * dividirlo por la cantidad, porque EA004 ({@code dDescGloItem}) se descuenta del
      * precio unitario.
      *
-     * <p>El ultimo item absorbe el residuo de redondeo. Redondear cada linea por separado
-     * hacia que la suma no cerrara contra el descuento de la factura, y SIFEN lo rechaza
+     * <p>El ultimo item absorbe el residuo de redondeo, y cada linea previa se topea contra
+     * lo que queda por repartir, asi la suma cierra exacta siempre. Redondear cada linea por
+     * separado hacia que la suma no cerrara contra el descuento de la factura, y SIFEN lo rechaza
      * con 1862 ("El descuento global sobre el precio unitario por item no coincidente con
      * lo informado"). Eso explicaba los 31 rechazos de bodega con cantidad=1, donde el
      * error unitario/linea no aplicaba.
@@ -1445,15 +1446,23 @@ public class SifenService {
 
         for (int i = 0; i < ultimo; i++) {
             double totalItem = items.get(i).getTotal() != null ? items.get(i).getTotal() : 0.0;
-            porLinea[i] = BigDecimal.valueOf(descuentoGlobal * (totalItem / totalBruto))
+            BigDecimal linea = BigDecimal.valueOf(descuentoGlobal * (totalItem / totalBruto))
                     .setScale(0, RoundingMode.HALF_UP);
-            asignado = asignado.add(porLinea[i]);
+            // Cada linea redondeada puede sobrar hasta 0,5; con muchos items ese exceso
+            // acumulado puede pasarse del descuento global. Topeando aca, lo que queda para
+            // el ultimo nunca es negativo y la suma cierra exacta sin necesidad de clamp.
+            BigDecimal disponible = global.subtract(asignado);
+            if (linea.compareTo(disponible) > 0) {
+                linea = disponible;
+            }
+            if (linea.signum() < 0) {
+                linea = BigDecimal.ZERO;
+            }
+            porLinea[i] = linea;
+            asignado = asignado.add(linea);
         }
         // El ultimo cierra la suma exacta contra el descuento de la factura.
         porLinea[ultimo] = global.subtract(asignado);
-        if (porLinea[ultimo].signum() < 0) {
-            porLinea[ultimo] = BigDecimal.ZERO;
-        }
         return porLinea;
     }
 
@@ -2039,6 +2048,16 @@ public class SifenService {
             if (descuentoLinea.signum() > 0) {
                 BigDecimal descuentoUnitario = descuentoLinea.divide(cantidad, 4, RoundingMode.HALF_UP);
 
+                // La conversion va ANTES de comparar: precioUnitario ya viene convertido a
+                // la moneda extranjera y el descuento todavia esta en guaranies. Comparar
+                // sin convertir enfrenta miles de Gs contra unidades de USD y la guarda
+                // salta siempre, dejando sin DE a toda factura en moneda extranjera con
+                // descuento global.
+                if (esMonedaExtranjera(factura) && factura.getTipoCambio() != null && factura.getTipoCambio() > 0) {
+                    BigDecimal tipoCambio = BigDecimal.valueOf(factura.getTipoCambio());
+                    descuentoUnitario = descuentoUnitario.divide(tipoCambio, 4, RoundingMode.HALF_UP);
+                }
+
                 // Si el descuento unitario supera el precio, dTotOpeItem sale negativo y
                 // SIFEN rechaza con 0160. Preferible fallar al crear el DE que emitir un
                 // XML invalido: la factura queda visible en vez de rebotar en la SET.
@@ -2048,13 +2067,6 @@ public class SifenService {
                         "Descuento de la factura: %s, total del item: %s",
                         item.getDescripcion(), descuentoUnitario, precioUnitario,
                         descuentoGlobal, item.getTotal()));
-                }
-
-                // El precio unitario ya viene convertido si la factura es en moneda
-                // extranjera, asi que el descuento tiene que ir en la misma denominacion.
-                if (esMonedaExtranjera(factura) && factura.getTipoCambio() != null && factura.getTipoCambio() > 0) {
-                    BigDecimal tipoCambio = BigDecimal.valueOf(factura.getTipoCambio());
-                    descuentoUnitario = descuentoUnitario.divide(tipoCambio, 4, RoundingMode.HALF_UP);
                 }
 
                 gValorRestaItem.setdDescGloItem(descuentoUnitario);

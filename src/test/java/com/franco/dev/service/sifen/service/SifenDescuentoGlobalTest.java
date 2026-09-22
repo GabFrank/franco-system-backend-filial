@@ -116,11 +116,52 @@ class SifenDescuentoGlobalTest {
                 .compareTo(BigDecimal.valueOf(10000)));
     }
 
-    /** Ningun item puede quedar con descuento negativo por el ajuste del residuo. */
+    /**
+     * Moneda extranjera: el precio unitario se convierte a la divisa antes del bloque de
+     * descuento, asi que el descuento tiene que convertirse ANTES de compararse contra el.
+     * Comparar sin convertir enfrentaba miles de guaranies contra unidades de dolar y la
+     * guarda saltaba siempre, dejando sin DE a toda factura en divisa con descuento global.
+     */
     @Test
-    void elResiduoNuncaDejaNegativoElUltimo() {
-        List<FacturaLegalItem> items = Arrays.asList(item(99999.0), item(1.0));
-        BigDecimal[] r = SifenService.prorratearDescuentoGlobal(items, 1000.0, 100000.0);
-        assertTrue(r[1].signum() >= 0, "el ultimo item no puede quedar con descuento negativo");
+    void enMonedaExtranjeraElDescuentoSeConvierteAntesDeCompararlo() {
+        BigDecimal tipoCambio = BigDecimal.valueOf(7300);
+        // precio 73.000 Gs -> 10 USD; descuento 5.000 Gs -> 0,6849 USD
+        BigDecimal precioUnitarioUsd = BigDecimal.valueOf(73000)
+                .divide(tipoCambio, 4, RoundingMode.HALF_UP);
+
+        BigDecimal[] porLinea = SifenService.prorratearDescuentoGlobal(
+                Collections.singletonList(item(73000.0)), 5000.0, 73000.0);
+        BigDecimal descuentoUnitarioGs = porLinea[0].divide(BigDecimal.ONE, 4, RoundingMode.HALF_UP);
+        BigDecimal descuentoUnitarioUsd = descuentoUnitarioGs.divide(tipoCambio, 4, RoundingMode.HALF_UP);
+
+        assertTrue(descuentoUnitarioGs.compareTo(precioUnitarioUsd) > 0,
+                "sin convertir, el descuento en Gs supera al precio en USD: es el falso positivo");
+        assertTrue(descuentoUnitarioUsd.compareTo(precioUnitarioUsd) <= 0,
+                "convertido, el descuento no supera el precio y la guarda no debe saltar");
+
+        BigDecimal total = totOpeItem(precioUnitarioUsd, descuentoUnitarioUsd, BigDecimal.ONE);
+        assertTrue(total.signum() > 0, "dTotOpeItem en divisa no puede ser negativo");
+    }
+
+    /**
+     * Con muchas lineas, el exceso de redondeo acumulado de las primeras puede pasarse del
+     * descuento global y dejar al ultimo en negativo. Antes se clampeaba a cero, lo que
+     * arreglaba el signo pero rompia la suma exacta: quedaba por encima del global.
+     */
+    @Test
+    void conMuchasLineasNiQuedaNegativoNiSePasaLaSuma() {
+        List<FacturaLegalItem> items = new ArrayList<>();
+        for (int i = 0; i < 40; i++) {
+            items.add(item(1000.0));
+        }
+        items.add(item(1.0));   // ultimo con peso casi nulo: absorbe poco y puede quedar corto
+        BigDecimal[] r = SifenService.prorratearDescuentoGlobal(items, 21.0, 40001.0);
+
+        for (int i = 0; i < r.length; i++) {
+            assertTrue(r[i].signum() >= 0, "ninguna linea puede quedar negativa (indice " + i + ")");
+        }
+        assertEquals(0, Arrays.stream(r).reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .compareTo(BigDecimal.valueOf(21)),
+                "la suma tiene que cerrar exacta contra el descuento global");
     }
 }
