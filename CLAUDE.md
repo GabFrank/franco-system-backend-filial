@@ -208,6 +208,31 @@ Si modificás un resolver/schema que el desktop o mobile consumen:
 2. Recién cuando todos los clientes estén actualizados, eliminar el viejo en versión posterior.
 3. Si es inevitable: `feat!: ...` (breaking change → MAJOR). Implica que filiales + desktop + mobile se actualicen coordinadamente.
 
+## Facturación automática: la política vive en `financiero.configuracion_facturacion`
+
+Qué venta genera factura legal **no** lo decide el botón del desktop ni un campo del resolver: lo
+decide `PoliticaFacturacionService.decidirRuta(...)`, con la política que resuelve
+`ConfiguracionFacturacionLector` (issue #127).
+
+- **Fuente**: `financiero.configuracion_facturacion`, administrada en el central y replicada
+  `MAIN_TO_ALL`. Fila de la sucursal propia → fila global (`sucursal_id NULL`) → **property
+  `facturaCountDown`** (el overlay de cada filial). **Tabla vacía = comportamiento histórico.**
+- **Modos**: `TODAS`, `INTERVALO` (una de cada `ventas_sin_factura + 1`, la cadencia del viejo
+  `facturaCountDown`) y `A_PEDIDO`. `venta_ticket_respeta_politica=false` hace que «Venta + Ticket»
+  y delivery (`PARA_ENTREGA`) facturen siempre, como antes; `true` los somete a la política. Las
+  ventas a crédito quedan fuera de esa bandera hasta resolver #133.
+- **Se lee en cada venta, sin caché y fuera de la transacción de `saveVenta`**
+  (`NOT_SUPPORTED`): una falla al leer no puede dejar la venta rollback-only. Cae al default.
+- **El contador** vive en memoria en `PoliticaFacturacionService` (sincronizado; se reinicia con el
+  servicio, como siempre). Un fallo de facturación devuelve el turno **solo** si la causa raíz es
+  una `GraphQLException` de validación (antes de escribir).
+- **Kill switch**: `DELETE FROM financiero.configuracion_facturacion` **en el central** (se
+  replica). Todas las filiales vuelven a su property en la venta siguiente, sin reinicio. Nunca
+  escribir esta tabla desde una filial.
+- **Tests**: `PoliticaFacturacionServiceTest` compara contra la lógica vieja en las 72
+  combinaciones de `ticket`/`facturar`/`pdvId`/crédito/contador. Si tocás la decisión, esa tabla
+  tiene que seguir pasando o el cambio de comportamiento tiene que declararse.
+
 ## Pull Requests
 
 - **Tamaño**: idealmente menos de 400 líneas de cambio neto. Una responsabilidad por PR.
