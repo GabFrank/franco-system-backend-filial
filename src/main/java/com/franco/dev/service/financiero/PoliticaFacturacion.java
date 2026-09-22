@@ -32,6 +32,16 @@ public final class PoliticaFacturacion {
         return new PoliticaFacturacion(ConfiguracionFacturacion.MODO_INTERVALO, facturaCountDown, false, Origen.PROPERTY);
     }
 
+    /**
+     * Una property {@code facturaCountDown} negativa, ausente o no numerica. Negativa era la forma
+     * historica de apagar la facturacion silenciosa (el contador bajaba sin llegar nunca a 0), asi
+     * que se respeta: nada automatico en F10, y "Venta + Ticket" y delivery facturando como siempre.
+     * Ausente o rota, la logica vieja tiraba cada venta; ante la duda, tampoco se factura sola.
+     */
+    public static PoliticaFacturacion sinFacturacionAutomatica() {
+        return new PoliticaFacturacion(ConfiguracionFacturacion.MODO_A_PEDIDO, 0, false, Origen.PROPERTY);
+    }
+
     public String getModo() {
         return modo;
     }

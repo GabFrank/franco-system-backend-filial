@@ -303,34 +303,43 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         break;
                     case FACTURA_SILENCIOSA: {
                         FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
-                        if (venta.getCliente() == null) {
-                            facturaLegalInput.setNombre("SIN NOMBRE");
-                            facturaLegalInput.setRuc("X");
-                        } else {
-                            facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
-                            facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
-                        }
-                        facturaLegalInput.setVentaId(venta.getId());
-                        facturaLegalInput.setCredito(ventaCreditoInput != null ? true : false);
-                        facturaLegalInput.setUsuarioId(ventaInput.getUsuarioId());
-                        
-                        // Calcular totales desde CobroDetalle
-                        Double totalFinal = venta.getTotalGs();
-                        facturaLegalInput.setTotalFinal(totalFinal);
-                        
                         List<FacturaLegalItemInput> facturaLegalItemInputList = new ArrayList<>();
-                        for (VentaItem vi : ventaItemList1) {
-                            FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
-                            fiInput.setVentaItemId(vi.getId());
-                            fiInput.setPresentacionId(vi.getPresentacion().getId());
-                            fiInput.setIva(vi.getPresentacion().getProducto().getIva());
-                            fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
-                            fiInput.setCantidad(vi.getCantidad());
-                            fiInput.setPrecioUnitario(vi.getPrecioVenta().getPrecio() - vi.getValorDescuento());
-                            fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
-                            facturaLegalItemInputList.add(fiInput);
-                        }
+                        // Armar el input no escribe nada: si falla, el turno vuelve siempre y la
+                        // proxima venta reintenta (como con el contador viejo, que quedaba en 0).
+                        try {
+                            if (venta.getCliente() == null) {
+                                facturaLegalInput.setNombre("SIN NOMBRE");
+                                facturaLegalInput.setRuc("X");
+                            } else {
+                                facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
+                                facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
+                            }
+                            facturaLegalInput.setVentaId(venta.getId());
+                            facturaLegalInput.setCredito(ventaCreditoInput != null ? true : false);
+                            facturaLegalInput.setUsuarioId(ventaInput.getUsuarioId());
                         
+                            // Calcular totales desde CobroDetalle
+                            Double totalFinal = venta.getTotalGs();
+                            facturaLegalInput.setTotalFinal(totalFinal);
+
+                            for (VentaItem vi : ventaItemList1) {
+                                FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
+                                fiInput.setVentaItemId(vi.getId());
+                                fiInput.setPresentacionId(vi.getPresentacion().getId());
+                                fiInput.setIva(vi.getPresentacion().getProducto().getIva());
+                                fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
+                                fiInput.setCantidad(vi.getCantidad());
+                                fiInput.setPrecioUnitario(vi.getPrecioVenta().getPrecio() - vi.getValorDescuento());
+                                fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
+                                facturaLegalItemInputList.add(fiInput);
+                            }
+                        } catch (RuntimeException armado) {
+                            if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politicaFacturacion)) {
+                                politicaFacturacionService.devolverTurno();
+                            }
+                            throw armado;
+                        }
+
                         // Generar factura legal con DE SIN IMPRIMIR (print = false)
                         try {
                             facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, 

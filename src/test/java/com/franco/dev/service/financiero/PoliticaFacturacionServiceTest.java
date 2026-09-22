@@ -113,6 +113,24 @@ public class PoliticaFacturacionServiceTest {
     }
 
     @Test
+    public void conPropertyNegativaDecideIgualQueLaLogicaVieja() {
+        // facturaCountDown=-1: el contador viejo bajaba sin llegar nunca a 0.
+        int property = -1;
+        contadorViejo = property;
+        PoliticaFacturacion p = PoliticaFacturacion.sinFacturacionAutomatica();
+        Boolean[][] ventas = {{false, true}, {null, null}, {true, true}, {false, true}, {true, false}, {null, true}};
+        for (int vuelta = 0; vuelta < 5; vuelta++) {
+            for (Boolean[] v : ventas) {
+                for (Long pdvId : new Long[]{null, PDV}) {
+                    RutaVenta vieja = logicaVieja(v[0], v[1], pdvId, false, property);
+                    RutaVenta nueva = service.decidirRuta(v[0], v[1], pdvId, false, p);
+                    assertEquals(vieja, nueva, "ticket=" + v[0] + " facturar=" + v[1] + " pdv=" + pdvId);
+                }
+            }
+        }
+    }
+
+    @Test
     public void ticketConFacturarNuloYaNoRevientaYSaleTicketSimple() {
         RutaVenta ruta = service.decidirRuta(true, null, PDV, false, PoliticaFacturacion.desdeProperty(0));
         assertEquals(RutaVenta.TICKET_SIMPLE, ruta);

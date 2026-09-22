@@ -51,7 +51,10 @@ public class ConfiguracionFacturacionLector {
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED, readOnly = true)
     public PoliticaFacturacion resolver() {
-        int defaultIntervalo = facturaCountDownProperty();
+        Integer intervaloProperty = facturaCountDownProperty();
+        PoliticaFacturacion porDefecto = intervaloProperty != null
+                ? PoliticaFacturacion.desdeProperty(intervaloProperty)
+                : PoliticaFacturacion.sinFacturacionAutomatica();
         try {
             List<ConfiguracionFacturacion> filas = new ArrayList<>(repository.findAllByOrderByModificadoEnDescIdDesc());
             filas.sort(MAS_RECIENTE_PRIMERO);
@@ -59,25 +62,26 @@ public class ConfiguracionFacturacionLector {
 
             PoliticaFacturacion politica = null;
             if (sucursalId != null) {
-                politica = primeraValida(filas, sucursalId, defaultIntervalo, PoliticaFacturacion.Origen.SUCURSAL);
+                politica = primeraValida(filas, sucursalId, intervaloProperty, PoliticaFacturacion.Origen.SUCURSAL);
             }
             if (politica == null) {
-                politica = primeraValida(filas, null, defaultIntervalo, PoliticaFacturacion.Origen.GLOBAL);
+                politica = primeraValida(filas, null, intervaloProperty, PoliticaFacturacion.Origen.GLOBAL);
             }
-            return politica != null ? politica : PoliticaFacturacion.desdeProperty(defaultIntervalo);
+            return politica != null ? politica : porDefecto;
         } catch (Exception e) {
-            log.error("No se pudo leer la politica de facturacion; se usa facturaCountDown={}: {}",
-                    defaultIntervalo, e.getMessage(), e);
-            return PoliticaFacturacion.desdeProperty(defaultIntervalo);
+            log.error("No se pudo leer la politica de facturacion; se usa la property facturaCountDown ({}): {}",
+                    porDefecto, e.getMessage(), e);
+            return porDefecto;
         }
     }
 
     /**
      * La primera fila de esa clave con un {@code modo} reconocible. Una fila con modo NULL o
      * desconocido no se toma como "no facturar": se la ignora y se sigue con la siguiente del orden.
+     * Lo mismo una INTERVALO sin intervalo usable cuando la property tampoco da uno.
      */
     private PoliticaFacturacion primeraValida(List<ConfiguracionFacturacion> filas, Long sucursalId,
-                                              int defaultIntervalo, PoliticaFacturacion.Origen origen) {
+                                              Integer intervaloProperty, PoliticaFacturacion.Origen origen) {
         for (ConfiguracionFacturacion fila : filas) {
             if (!Objects.equals(fila.getSucursalId(), sucursalId)) continue;
             String modo = modoReconocido(fila.getModo());
@@ -86,7 +90,14 @@ public class ConfiguracionFacturacionLector {
                 continue;
             }
             Integer n = fila.getVentasSinFactura();
-            int intervalo = n != null && n >= 0 ? n : defaultIntervalo;
+            Integer intervalo = n != null && n >= 0 ? n : intervaloProperty;
+            if (intervalo == null) {
+                if (ConfiguracionFacturacion.MODO_INTERVALO.equals(modo)) {
+                    log.warn("configuracion_facturacion id={} sin intervalo usable y sin property: se ignora", fila.getId());
+                    continue;
+                }
+                intervalo = 0;
+            }
             boolean respeta = Boolean.TRUE.equals(fila.getVentaTicketRespetaPolitica());
             return new PoliticaFacturacion(modo, intervalo, respeta, origen);
         }
@@ -114,15 +125,19 @@ public class ConfiguracionFacturacionLector {
         }
     }
 
-    /** Leida en cada venta: es el default de siempre, y un valor roto no puede frenar la caja. */
-    private int facturaCountDownProperty() {
+    /**
+     * Leida en cada venta. NULL si es negativa, falta o no es numerica: esos casos NO se llevan a 0
+     * (0 = facturar cada venta), porque un negativo era la forma historica de apagar la facturacion
+     * silenciosa. Ver {@link PoliticaFacturacion#sinFacturacionAutomatica()}.
+     */
+    private Integer facturaCountDownProperty() {
         String valor = env.getProperty("facturaCountDown");
-        if (valor == null) return 0;
+        if (valor == null) return null;
         try {
             int n = Integer.parseInt(valor.trim());
-            return Math.max(n, 0);
+            return n >= 0 ? n : null;
         } catch (NumberFormatException e) {
-            return 0;
+            return null;
         }
     }
 }

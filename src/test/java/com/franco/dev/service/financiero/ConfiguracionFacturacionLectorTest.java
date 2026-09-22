@@ -118,9 +118,30 @@ public class ConfiguracionFacturacionLectorTest {
     }
 
     @Test
-    public void unaPropertyRotaNoFrenaLaCaja() {
-        when(env.getProperty("facturaCountDown")).thenReturn("abc");
+    public void unaPropertyNegativaSigueApagandoLaFacturacionSilenciosa() {
+        // Negativo era la forma historica de apagarla: llevarlo a 0 facturaria CADA venta.
+        when(env.getProperty("facturaCountDown")).thenReturn("-1");
         when(repository.findAllByOrderByModificadoEnDescIdDesc()).thenReturn(Collections.emptyList());
-        assertEquals(0, lector.resolver().getVentasSinFactura());
+        PoliticaFacturacion p = lector.resolver();
+        assertEquals(ConfiguracionFacturacion.MODO_A_PEDIDO, p.getModo());
+        assertFalse(p.isVentaTicketRespetaPolitica());
+    }
+
+    @Test
+    public void unaPropertyRotaOAusenteNoFacturaSolaNiFrenaLaCaja() {
+        when(repository.findAllByOrderByModificadoEnDescIdDesc()).thenReturn(Collections.emptyList());
+        when(env.getProperty("facturaCountDown")).thenReturn("abc");
+        assertEquals(ConfiguracionFacturacion.MODO_A_PEDIDO, lector.resolver().getModo());
+        when(env.getProperty("facturaCountDown")).thenReturn(null);
+        assertEquals(ConfiguracionFacturacion.MODO_A_PEDIDO, lector.resolver().getModo());
+    }
+
+    @Test
+    public void unaFilaIntervaloSinIntervaloUsableYSinPropertySeIgnora() {
+        when(env.getProperty("facturaCountDown")).thenReturn("-1");
+        conFilas(fila(1L, 7L, "INTERVALO", null, true, HOY), fila(2L, null, "TODAS", null, false, AYER));
+        PoliticaFacturacion p = lector.resolver();
+        assertEquals(PoliticaFacturacion.Origen.GLOBAL, p.getOrigen());
+        assertEquals(ConfiguracionFacturacion.MODO_TODAS, p.getModo());
     }
 }
