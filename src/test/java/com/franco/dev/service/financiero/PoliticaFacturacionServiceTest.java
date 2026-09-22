@@ -224,6 +224,34 @@ public class PoliticaFacturacionServiceTest {
     }
 
     @Test
+    public void soloLaValidacionPreviaCuentaComoFallaAntesDeEscribir() {
+        // Asi envuelve saveFacturaLegal cualquier falla: GraphQLException("Error al guardar...", e).
+        Exception validacion = new graphql.GraphQLException("Error al guardar factura legal: sin timbrado",
+                new graphql.GraphQLException("No hay timbrado vigente para el punto de venta"));
+        Exception posterior = new graphql.GraphQLException("Error al guardar factura legal: boom",
+                new IllegalStateException("fallo despues del insert"));
+        assertTrue(PoliticaFacturacionService.fallaAntesDeEscribir(validacion));
+        assertTrue(PoliticaFacturacionService.fallaAntesDeEscribir(new graphql.GraphQLException("pdvId es requerido")));
+        assertFalse(PoliticaFacturacionService.fallaAntesDeEscribir(posterior));
+        assertFalse(PoliticaFacturacionService.fallaAntesDeEscribir(new RuntimeException("SIFEN caido")));
+    }
+
+    @Test
+    public void soloSeDevuelveElTurnoQueSeTomo() {
+        PoliticaFacturacion intervaloRespeta = politica(ConfiguracionFacturacion.MODO_INTERVALO, 2, true);
+        PoliticaFacturacion intervaloNoRespeta = politica(ConfiguracionFacturacion.MODO_INTERVALO, 2, false);
+        PoliticaFacturacion todas = politica(ConfiguracionFacturacion.MODO_TODAS, 0, true);
+
+        assertTrue(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_SILENCIOSA, false, intervaloNoRespeta));
+        assertTrue(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_E_IMPRESION, false, intervaloRespeta));
+        // "Venta + Ticket" que factura siempre, o una venta a credito: no tomaron turno.
+        assertFalse(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_E_IMPRESION, false, intervaloNoRespeta));
+        assertFalse(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_E_IMPRESION, true, intervaloRespeta));
+        // Sin contador no hay turno.
+        assertFalse(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_SILENCIOSA, false, todas));
+    }
+
+    @Test
     public void bajoConcurrenciaNoSePierdenNiDuplicanTurnos() throws Exception {
         PoliticaFacturacion p = politica(ConfiguracionFacturacion.MODO_INTERVALO, 4, false);
         service.fijarContador(0);

@@ -75,6 +75,35 @@ public class PoliticaFacturacionService {
         contador = 0;
     }
 
+    /**
+     * Si la factura de esta ruta la dio un turno del contador. "Venta + Ticket" que no respeta la
+     * politica, o una venta a credito, facturan sin tocar el contador: devolverles un turno que no
+     * tomaron adelantaria la factura de otra venta.
+     */
+    public static boolean salioDeUnTurno(RutaVenta ruta, boolean credito, PoliticaFacturacion politica) {
+        if (!ConfiguracionFacturacion.MODO_INTERVALO.equals(politica.getModo())) {
+            return false;
+        }
+        if (ruta == RutaVenta.FACTURA_SILENCIOSA) {
+            return true;
+        }
+        return ruta == RutaVenta.FACTURA_E_IMPRESION && !credito && politica.isVentaTicketRespetaPolitica();
+    }
+
+    /**
+     * Si la facturacion fallo en una validacion previa a cualquier escritura. {@code saveFacturaLegal}
+     * envuelve TODA falla en una {@code GraphQLException}, asi que lo que decide es la causa raiz:
+     * una {@code GraphQLException} ahi es de las validaciones de {@code FacturaLegalBuilder}, que
+     * corren antes del primer insert. Cualquier otra causa es una falla posterior.
+     */
+    public static boolean fallaAntesDeEscribir(Throwable error) {
+        Throwable raiz = error;
+        while (raiz.getCause() != null && raiz.getCause() != raiz) {
+            raiz = raiz.getCause();
+        }
+        return raiz instanceof graphql.GraphQLException;
+    }
+
     /** "Venta + Ticket" y delivery: facturan siempre, salvo que la politica diga que la respeten. */
     private boolean facturaInmediata(PoliticaFacturacion politica, Long pdvId) {
         return !politica.isVentaTicketRespetaPolitica() || tocaPorPolitica(politica, pdvId);
