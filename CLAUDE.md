@@ -217,6 +217,8 @@ decide `PoliticaFacturacionService.decidirRuta(...)`, con la política que resue
 - **Fuente**: `financiero.configuracion_facturacion`, administrada en el central y replicada
   `MAIN_TO_ALL`. Fila de la sucursal propia → fila global (`sucursal_id NULL`) → **property
   `facturaCountDown`** (el overlay de cada filial). **Tabla vacía = comportamiento histórico.**
+  Una property **negativa** sigue significando «nunca facturar en silencio»; ausente o rota, igual
+  (antes reventaba cada venta). Nunca llevarla a 0: 0 es facturar cada venta.
 - **Modos**: `TODAS`, `INTERVALO` (una de cada `ventas_sin_factura + 1`, la cadencia del viejo
   `facturaCountDown`) y `A_PEDIDO`. `venta_ticket_respeta_politica=false` hace que «Venta + Ticket»
   y delivery (`PARA_ENTREGA`) facturen siempre, como antes; `true` los somete a la política. Las
@@ -227,8 +229,10 @@ decide `PoliticaFacturacionService.decidirRuta(...)`, con la política que resue
   servicio, como siempre). Un fallo de facturación devuelve el turno **solo** si la causa raíz es
   una `GraphQLException` de validación (antes de escribir).
 - **Kill switch**: `DELETE FROM financiero.configuracion_facturacion` **en el central** (se
-  replica). Todas las filiales vuelven a su property en la venta siguiente, sin reinicio. Nunca
-  escribir esta tabla desde una filial.
+  replica; nunca `TRUNCATE`). Todas las filiales vuelven a su property en la venta siguiente, sin
+  reinicio. Con la réplica caída, el mismo `DELETE` sobre el espejo local es la única escritura
+  admitida en la filial (la tabla no está en `filial<N>_pub`). Filiales tardías y desmontaje: manual
+  `POLITICA_FACTURACION.md` del central.
 - **Tests**: `PoliticaFacturacionServiceTest` compara contra la lógica vieja en las 72
   combinaciones de `ticket`/`facturar`/`pdvId`/crédito/contador. Si tocás la decisión, esa tabla
   tiene que seguir pasando o el cambio de comportamiento tiene que declararse.

@@ -90,7 +90,10 @@ Dos piezas nuevas, con inyección por constructor para testear sin contexto Spri
 - `ticket=true, facturar=null, pdvId` presente: hoy NPE tragado (no imprime nada) → ahora ticket simple.
 - Falla de facturación silenciosa con `GraphQLException`: hoy se pierde el turno → ahora la próxima
   venta reintenta.
-- Nada más: la tabla de verdad del test (abajo) lo garantiza.
+- Property `facturaCountDown` **ausente o no numérica**: hoy cada `saveVenta` reventaba en
+  `Integer.valueOf` → ahora se vende y no se factura sola (equivale a `A_PEDIDO` con
+  `respeta=false`). Un valor **negativo** conserva su efecto histórico (nunca factura en silencio).
+- Nada más: la tabla de verdad del test (abajo) lo garantiza, más la secuencia con property negativa.
 
 ## Puertas de facturación automática (regla «la bandera se respeta en TODAS las puertas»)
 
@@ -150,10 +153,11 @@ dirección; el punto 2 genérico de §3.2 no aplica aquí).
    las de otras features: antes del deploy, listar `replication_table` menos
    `pg_publication_tables` y avisar si aparece algo ajeno.
 4. Verificar `pg_subscription_rel.srsubstate = 'r'` para la tabla en cada suscripción alpha.
-5. **Recién ahí**, configuración: primero los **overrides por sucursal** con el `facturaCountDown`
-   vigente de cada filial (inventario desde el overlay), y la global **al final o nunca** (auditoría
-   A-3: una global sola pisaría 24 valores ajustados a mano).
-6. **PR desktop** → `develop`.
+5. **PR desktop** → `develop` (la pantalla solo habla con el central; si el central del canal no
+   tiene la función, el diálogo lo avisa y deshabilita Guardar).
+6. **Recién ahí**, configuración desde esa pantalla: primero los **overrides por sucursal** con el
+   `facturaCountDown` vigente de cada filial (inventario desde el overlay), y la global **al final o
+   nunca** (auditoría A-3: una global sola pisaría 24 valores ajustados a mano).
 
 ### Beta / farmacia y stable / bodega (promoción)
 
@@ -161,10 +165,13 @@ Por canal, en este orden: `release/beta` (o `master`) del **filial** → esperar
 / 18 bodega) con la verificación del paso 2 → **central** del canal (deploy con 1 reviewer) →
 **paso manual** (los schedulers de replicación están OFF en farmacia por el naming legacy
 `filial5_pub`, y el REFRESH del sync solo alcanza a sucursales con IP cargada, gotchas.md:660-672):
-`ALTER PUBLICATION central_pub ADD TABLE financiero.configuracion_facturacion` en autocommit y, en
-cada filial, `ALTER SUBSCRIPTION … REFRESH PUBLICATION WITH (copy_data = true)`; verificar
+`ALTER TABLE … REPLICA IDENTITY FULL` + `ALTER PUBLICATION central_pub ADD TABLE
+financiero.configuracion_facturacion` en autocommit y, en cada filial,
+`ALTER SUBSCRIPTION … REFRESH PUBLICATION WITH (copy_data = false)` (la tabla está vacía en el
+central; `true` re-copiaría cualquier otra tabla pendiente de esa suscripción); verificar
 `srsubstate='r'` suscripción por suscripción contra la lista de `hosts.md` → overrides → desktop.
-Suc. Fiesta (nómade) se verifica al reconectar.
+Suc. Fiesta (nómade) se verifica al reconectar. Filiales tardías, kill switch local y desmontaje
+completo: `docs/manuales-implementacion/financiero/POLITICA_FACTURACION.md` del central.
 
 ### Kill switch
 
@@ -183,6 +190,8 @@ despliegue y se documenta en el `CLAUDE.md` del filial.
 - **F4** — `CLAUDE.md` del filial (facturación: la property pasa a ser default; kill switch).
 
 ### Central
+> Desvío registrado: F1 y F2 salieron en **un solo commit** (`154cffcb`) porque el enum de Java y
+> su `.graphqls` tienen que ir juntos (regla del paso 7).
 - **F1** — `V230.1` + entidad + enum Java + repositorio.
 - **F2** — service (upsert por sucursal, validaciones) + input + resolver + `.graphqls`
   (`configuracionesFacturacion`, `saveConfiguracionFacturacion`, `deleteConfiguracionFacturacion`),
@@ -248,6 +257,32 @@ llegada por réplica. Casos: sin fila (igual a hoy), `INTERVALO 2` con `respeta=
 | A-6 | A | PK del espejo ambigua | «PK `id` sí» |
 | A-7 | A | Grep de clientes sin registrar | registrado en «Puertas» |
 | — | B | La skill local `flyway-migraciones-frc` dice que el filial no tiene `out-of-order`; el código dice `true` (`3c68319`) | gana el código; avisado al usuario |
+
+## Auditoría del diff (paso 8)
+
+Cuatro lentes: Fijo 1 (autorización), Fijo 2 (esquema/espejo), Fijo 3 (contrato), Condicional B
+(replicación). Condicional A no aplica (sin maquinaria de release). Todo hallazgo aplicado se
+verificó antes contra el código.
+
+| Lente | Hallazgo | Qué se hizo |
+|---|---|---|
+| F1 | save/delete con `TESORERIA GESTIONAR` ≠ botón ADMIN; apagar la facturación de la flota no es de tesorería | mutations exigen `ADMIN` (central `91b35386`) |
+| F1 | `usuarioId` lo mandaba el cliente | autor desde `seg.currentUsuario()` |
+| F1 | `usuario: Usuario` expone `password` | el tipo expone solo `usuarioNickname` |
+| F1 | query sin filtro por sucursal | aceptado: es configuración maestra, no transaccional |
+| F2 | `COALESCE(sucursal_id, 0)` confunde la global con la sucursal 0 (existe) | dos índices únicos parciales |
+| F2 | `creado_en` sin lector | columna de auditoría, como en el precedente; la trae la query |
+| F2 | NULLs primero en el `ORDER BY DESC` del filial | ya cubierto: el lector reordena en Java con `nullsLast` |
+| F3 | property negativa pasaba a facturar CADA venta | negativo/rota = sin facturación automática (filial `e6dc99d`) |
+| F3 | NPE al armar el input gastaba el turno | el armado devuelve el turno siempre |
+| F3 | desktop nuevo contra central viejo = tabla vacía engañosa | aviso + Guardar deshabilitado (desktop `3f585282`) |
+| F3 | orden del plan: configurar antes que el desktop | corregido (pasos 5 y 6) |
+| F3 | segunda conexión del pool por venta (`NOT_SUPPORTED`) | aceptado: una lectura corta; anotado |
+| B | `copy_data=true` manual arrastra otras tablas pendientes | `copy_data=false` |
+| B | kill switch no llega a una filial con la réplica caída | DELETE local documentado |
+| B | filial tardía no recibe filas | backfill documentado |
+| B | sin orden de desmontaje | documentado |
+| B | alta manual sin `REPLICA IDENTITY FULL` | agregado |
 
 ## Decisiones del paso 6 (usuario, 2026-09-22)
 
