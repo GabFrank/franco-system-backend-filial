@@ -225,6 +225,10 @@ decide `PoliticaFacturacionService.decidirRuta(...)`, con la política que resue
   ventas a crédito quedan fuera de esa bandera hasta resolver #133.
 - **Se lee en cada venta, sin caché y fuera de la transacción de `saveVenta`**
   (`NOT_SUPPORTED`): una falla al leer no puede dejar la venta rollback-only. Cae al default.
+- **Activo por fila**: si la fila más reciente de una clave tiene `activo = false`, se saltea la
+  clave entera y la sucursal sigue a la configuración de todas (o a su property). `NULL` = activa.
+  Desactivar **no** es kill switch: un rollback a un JAR sin `activo` vuelve a aplicar las inactivas.
+  El historial de cambios vive solo en el central (`configuracion_facturacion_historial`).
 - **El contador** vive en memoria en `PoliticaFacturacionService` (sincronizado; se reinicia con el
   servicio, como siempre). Un fallo de facturación devuelve el turno **solo** si la causa raíz es
   una `GraphQLException` de validación (antes de escribir).
