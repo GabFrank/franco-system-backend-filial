@@ -291,6 +291,117 @@ verificó antes contra el código.
 | B | sin orden de desmontaje | documentado |
 | B | alta manual sin `REPLICA IDENTITY FULL` | agregado |
 
+## Ampliación (usuario, 2026-09-23): activo/inactivo + historial
+
+Motivo, en palabras del usuario: hoy lleva en un Excel fechado la cantidad de cada sucursal (18
+filas) y, para volver a un patrón anterior, se guía por la versión vieja. Con la política
+configurable, «que todas sigan a la global por un tiempo» obligaba a **borrar** las filas de las
+sucursales y recargarlas después.
+
+Decisiones:
+1. **`activo` por fila.** Una fila inactiva se ignora, como si no existiera, pero conserva sus
+   valores. Vale también para la global (global inactiva = cada filial vuelve a su property).
+2. **Botón masivo** para desactivar o activar todas las filas de sucursal; nunca la global.
+3. **Historial de cambios en este trabajo**, reemplazo del Excel fechado.
+
+### Modelo
+
+- **`activo`** va **dentro de las migraciones existentes**, no en migraciones nuevas (auditoría
+  A-1/B-A1):
+  - central `V231.1`: `BOOLEAN NOT NULL DEFAULT TRUE`;
+  - filial `V103.1`: `BOOLEAN NULL`.
+  - Por qué: una columna nueva sobre una tabla `MAIN_TO_ALL` suma otra puerta de despliegue. Una
+    filial con 103.1 y sin la migración nueva corta la réplica entera en la primera escritura.
+  - Por qué se puede: nada de esto está en `develop` ni en un entorno compartido. Solo se aplicó en
+    las bases locales de desarrollo, que se rehacen: borrar la fila de `flyway_schema_history` y la
+    tabla, y volver a arrancar.
+- **`financiero.configuracion_facturacion_historial`**, solo en el central, en la misma `V231.1`:
+  - no se replica: el filial no la lee, no se registra en `replication_table` y lleva un `COMMENT`
+    «solo central, no replicar»;
+  - columnas: `id`, `configuracion_id` (sin FK: la fila del historial sobrevive al borrado),
+    `sucursal_id` (null = global), `accion`, `modo`, `ventas_sin_factura`,
+    `venta_ticket_respeta_politica`, `activo`, `usuario_id`, `creado_en`;
+  - `accion` ∈ `CREAR`, `MODIFICAR`, `ACTIVAR`, `DESACTIVAR`, `ELIMINAR` (CHECK);
+  - guarda los valores **después** del cambio; en `ELIMINAR`, los que tenía la fila al borrarse.
+
+### Semántica
+
+- **Filial** (`ConfiguracionFacturacionLector`):
+  - si la fila **más reciente** de una clave tiene `activo = FALSE`, se saltea **toda la clave**
+    y no se cae a un duplicado viejo activo (auditoría B-A5);
+  - se sigue con la siguiente clave del orden: sucursal → global → property;
+  - `NULL` cuenta como activa.
+- **Central:**
+  - `saveConfiguracionFacturacion` acepta `activo`: `true` por defecto al crear; en una edición,
+    `null` **conserva** el valor, para que un desktop viejo no reactive nada (auditoría A-2/B-A3);
+  - `guardar`, `eliminar` y el masivo son **`@Transactional`**: configuración e historial en una
+    sola transacción, y el masivo sale como una transacción replicada (auditoría B-A2);
+  - `setActivoConfiguracionesFacturacion(activo: Boolean!): Int!` cambia solo las filas de
+    sucursal que no estén ya en ese estado, devuelve cuántas cambió y escribe una fila de historial
+    por cada una;
+  - `historialConfiguracionFacturacion(sucursalId: ID, limite: Int)`: más reciente primero, 200 por
+    defecto;
+  - el tipo del historial expone solo `usuarioNickname`, no `Usuario`, por el campo password
+    (auditoría A-3);
+  - enum `AccionConfiguracionFacturacion` en Java, `.graphqls` y CHECK, en el mismo commit;
+  - las mutations piden `ADMIN`; las queries, `requireVer()`.
+- **Desktop:**
+  - columna Activo con switch por fila, y la fila inactiva se ve atenuada;
+  - botón **«Desactivar sucursales» / «Activar sucursales»**, cuya confirmación dice qué rige
+    después: la global con su modo, o «el contador local de cada filial» si no hay global activa;
+  - banner fijo cuando la global falta o está inactiva (auditoría B-A6);
+  - vista «Historial» con filtro por sucursal y su propio aviso de error (auditoría A-5).
+
+### Tabla de datos nuevos (ampliación)
+
+| Dato | Escribe | Lee |
+|---|---|---|
+| `activo` | central `guardar` / `setActivoConfiguracionesFacturacion` ← desktop (switch de fila y botón masivo) | filial `ConfiguracionFacturacionLector`; desktop tabla y banner |
+| `configuracion_facturacion_historial.*` | central `ConfiguracionFacturacionService` (en `guardar`, `eliminar` y el masivo, misma transacción) | central `historialConfiguracionFacturacion` ← desktop vista Historial |
+
+### Fases (ampliación)
+
+- **Filial F5:** `activo` en `V103.1`, campo en la entidad, el lector saltea la clave inactiva, y
+  tests:
+  - inactiva de sucursal → usa la global;
+  - global inactiva → usa la property;
+  - `NULL` = activa;
+  - la más reciente inactiva con un duplicado viejo activo → se saltea la clave.
+- **Central F4:** `activo` e historial en `V231.1`, entidad historial, enum (Java, `.graphqls` y
+  CHECK), service `@Transactional` y resolver, y tests:
+  - historial por acción;
+  - masivo: solo sucursales y solo las que cambian;
+  - `ELIMINAR` guarda los valores previos;
+  - `activo` nulo en edición conserva el valor.
+- **Desktop F3:** modelo, queries, switch, masivo, banner y vista Historial.
+- **Bases locales:** rehacer `V231.1` en `bodega` y `V103.1` en `general`. Se pierde la fila de
+  prueba de SUC. KM2.
+
+### Fuera de alcance y aceptado
+
+- «Restaurar el estado de una fecha» desde el historial: se lee, no se reaplica. Con `activo`,
+  volver al patrón anterior ya es reactivar.
+- **Desactivar no es un kill switch** (auditoría B-A4): un rollback del JAR filial a una versión
+  sin `activo` vuelve a aplicar las filas inactivas. El kill switch sigue siendo el `DELETE`.
+- Edición concurrente de la misma fila (no hay `@Version`): se acepta, hay un solo administrador.
+- La FK del historial a `empresarial.sucursal` impide borrar una sucursal con historial; la
+  configuración ya lo impedía. Queda declarado.
+
+### Auditoría de la ampliación (paso 5)
+
+| # | Hallazgo | Qué se hizo |
+|---|---|---|
+| A-1 / B-A1 | columna nueva en tabla replicada = otra puerta de despliegue | todo dentro de `V231.1`/`V103.1`; se rehacen solo las bases locales |
+| B-A2 | `guardar`/`eliminar` no eran transaccionales | `@Transactional` en las tres operaciones |
+| A-2 / B-A3 | `activo` nulo reactivaba | nulo en edición conserva; test |
+| A-3 | historial con `Usuario` | `usuarioNickname` |
+| A-4 | el historial podría replicarse | no va a `replication_table`; comentario |
+| A-5 | error del historial = «sin historial» | aviso propio |
+| B-A4 | rollback del filial resucita las inactivas | declarado: el kill switch es `DELETE` |
+| B-A5 | inactiva más reciente caía a un duplicado viejo | se saltea la clave entera; test |
+| B-A6 | «desactivar todas» sin global = property silenciosa | rótulo, confirmación con lo que rige y banner |
+| B-A7 | historial del masivo, concurrencia, FK | solo filas que cambian; lo demás aceptado arriba |
+
 ## Decisiones del paso 6 (usuario, 2026-09-22)
 
 - **D1 — Delivery:** misma bandera `respeta` que «Venta + Ticket». Con `respeta=false` (default)
