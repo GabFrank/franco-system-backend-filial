@@ -31,6 +31,7 @@ import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.sifen.service.SifenService;
 import com.franco.dev.utilitarios.NumeroALetrasService;
 import com.franco.dev.utilitarios.print.QRCodeImageGenerator;
+import com.franco.dev.utilitarios.print.TicketFormato;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
 import com.franco.dev.utilitarios.print.escpos.Style;
@@ -792,7 +793,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         escpos.writeLF(valorGs);
         // log.info(valorGs);
         escpos.write("Total Rs: ");
-        String valorRs = String.format("%.2f", venta.getTotalRs());
+        String valorRs = TicketFormato.formatearTotalMoneda(venta.getTotalRs(), null);
         for (int i = 22; i > valorGs.length(); i--) {
             escpos.write(" ");
         }
@@ -800,7 +801,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         escpos.write("Total Ds: ");
         // String valorDs = NumberFormat.getNumberInstance(new Locale("sk",
         // "SK")).format(venta.getTotalDs());
-        String valorDs = String.format("%.2f", venta.getTotalDs());
+        String valorDs = TicketFormato.formatearTotalMoneda(venta.getTotalDs(), null);
         for (int i = 22; i > valorGs.length(); i--) {
             escpos.write(" ");
         }
