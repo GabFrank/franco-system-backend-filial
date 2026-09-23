@@ -15,7 +15,10 @@ import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.operaciones.VueltoService;
 import com.franco.dev.service.personas.FuncionarioService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.financiero.ConfiguracionFacturacionLector;
 import com.franco.dev.service.financiero.FacturaService;
+import com.franco.dev.service.financiero.PoliticaFacturacion;
+import com.franco.dev.service.financiero.PoliticaFacturacionService;
 import com.franco.dev.service.financiero.FacturaLegalService;
 import graphql.GraphQLException;
 import graphql.GraphqlErrorException;
@@ -77,6 +80,12 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
     @Autowired
     private FacturaLegalGraphQL facturaLegalGraphQL;
+
+    @Autowired
+    private ConfiguracionFacturacionLector configuracionFacturacionLector;
+
+    @Autowired
+    private PoliticaFacturacionService politicaFacturacionService;
 
     @Autowired
     private FacturaService facturaService;
@@ -211,7 +220,10 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
             switch (deliveryEstado) {
                 case PARA_ENTREGA:
                     List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
-                    if (pdvId != null) {
+                    // Misma regla que "Venta + Ticket": factura siempre, salvo que la politica de la
+                    // sucursal diga que se respete (issue #127). Si no factura, sale el ticket simple.
+                    PoliticaFacturacion politica = configuracionFacturacionLector.resolver();
+                    if (politicaFacturacionService.facturarDelivery(pdvId, politica)) {
                         try {
                             // Crear factura legal con documento electrónico integrado
                             // Para delivery no hay CobroDetalle, por lo que se pasa null (sin descuentos)
@@ -227,6 +239,11 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
                         } catch (Exception e) {
                             e.printStackTrace();
+                            if (PoliticaFacturacionService.salioDeUnTurno(
+                                    PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION, false, politica)
+                                    && PoliticaFacturacionService.fallaAntesDeEscribir(e)) {
+                                politicaFacturacionService.devolverTurno();
+                            }
                             throw new GraphQLException("Problema al generar factura electrónica: " + e.getMessage());
                         }
                     } else {
