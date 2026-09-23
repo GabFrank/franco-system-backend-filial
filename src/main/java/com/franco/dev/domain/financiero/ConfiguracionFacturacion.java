@@ -51,6 +51,10 @@ public class ConfiguracionFacturacion implements Identifiable<Long> {
     @Column(name = "venta_ticket_respeta_politica")
     private Boolean ventaTicketRespetaPolitica;
 
+    /** false = se ignora y la sucursal sigue a la global; NULL = activa. Ver el lector. */
+    @Column(name = "activo")
+    private Boolean activo;
+
     @Column(name = "usuario_id")
     private Long usuarioId;
 

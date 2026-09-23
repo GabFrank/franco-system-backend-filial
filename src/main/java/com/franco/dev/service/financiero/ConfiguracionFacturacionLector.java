@@ -79,11 +79,20 @@ public class ConfiguracionFacturacionLector {
      * La primera fila de esa clave con un {@code modo} reconocible. Una fila con modo NULL o
      * desconocido no se toma como "no facturar": se la ignora y se sigue con la siguiente del orden.
      * Lo mismo una INTERVALO sin intervalo usable cuando la property tampoco da uno.
+     * <p>
+     * Si la fila <b>mas reciente</b> de la clave esta inactiva, se saltea la clave entera: desactivar
+     * es "esta sucursal sigue a la global", y caer a un duplicado viejo activo lo desmentiria.
+     * {@code activo} NULL cuenta como activa.
      */
     private PoliticaFacturacion primeraValida(List<ConfiguracionFacturacion> filas, Long sucursalId,
                                               Integer intervaloProperty, PoliticaFacturacion.Origen origen) {
+        boolean primeraDeLaClave = true;
         for (ConfiguracionFacturacion fila : filas) {
             if (!Objects.equals(fila.getSucursalId(), sucursalId)) continue;
+            if (primeraDeLaClave && Boolean.FALSE.equals(fila.getActivo())) {
+                return null;
+            }
+            primeraDeLaClave = false;
             String modo = modoReconocido(fila.getModo());
             if (modo == null) {
                 log.warn("configuracion_facturacion id={} con modo '{}' desconocido: se ignora", fila.getId(), fila.getModo());

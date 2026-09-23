@@ -109,6 +109,45 @@ public class ConfiguracionFacturacionLectorTest {
         assertEquals(3, lector.resolver().getVentasSinFactura());
     }
 
+    private static ConfiguracionFacturacion inactiva(ConfiguracionFacturacion c) {
+        c.setActivo(false);
+        return c;
+    }
+
+    @Test
+    public void unaSucursalInactivaSigueALaGlobal() {
+        conFilas(inactiva(fila(1L, 7L, "A_PEDIDO", 0, true, HOY)), fila(2L, null, "TODAS", 0, false, AYER));
+        PoliticaFacturacion p = lector.resolver();
+        assertEquals(PoliticaFacturacion.Origen.GLOBAL, p.getOrigen());
+        assertEquals(ConfiguracionFacturacion.MODO_TODAS, p.getModo());
+    }
+
+    @Test
+    public void conLaGlobalInactivaYSinFilaPropiaVuelveALaProperty() {
+        conFilas(inactiva(fila(2L, null, "TODAS", 0, false, HOY)), fila(3L, 9L, "A_PEDIDO", 0, true, HOY));
+        PoliticaFacturacion p = lector.resolver();
+        assertEquals(PoliticaFacturacion.Origen.PROPERTY, p.getOrigen());
+        assertEquals(3, p.getVentasSinFactura());
+    }
+
+    @Test
+    public void activoNuloCuentaComoActiva() {
+        ConfiguracionFacturacion f = fila(1L, 7L, "A_PEDIDO", 0, true, HOY);
+        f.setActivo(null);
+        conFilas(f);
+        assertEquals(PoliticaFacturacion.Origen.SUCURSAL, lector.resolver().getOrigen());
+    }
+
+    @Test
+    public void siLaMasRecienteDeLaClaveEstaInactivaNoCaeAUnDuplicadoViejoActivo() {
+        conFilas(inactiva(fila(5L, 7L, "TODAS", 0, true, HOY)),
+                fila(4L, 7L, "A_PEDIDO", 0, true, AYER),
+                fila(1L, null, "INTERVALO", 2, false, AYER));
+        PoliticaFacturacion p = lector.resolver();
+        assertEquals(PoliticaFacturacion.Origen.GLOBAL, p.getOrigen());
+        assertEquals(ConfiguracionFacturacion.MODO_INTERVALO, p.getModo());
+    }
+
     @Test
     public void siLaLecturaFallaUsaLaPropertyYNoPropagaLaExcepcion() {
         when(repository.findAllByOrderByModificadoEnDescIdDesc()).thenThrow(new RuntimeException("relation does not exist"));

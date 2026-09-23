@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS financiero.configuracion_facturacion (
     modo                          VARCHAR(20),
     ventas_sin_factura            INTEGER,
     venta_ticket_respeta_politica BOOLEAN,
+    activo                        BOOLEAN,
     usuario_id                    BIGINT,
     creado_en                     TIMESTAMP,
     modificado_en                 TIMESTAMP
@@ -45,6 +46,9 @@ COMMENT ON COLUMN financiero.configuracion_facturacion.modo IS
 
 COMMENT ON COLUMN financiero.configuracion_facturacion.ventas_sin_factura IS
     'Solo INTERVALO: ventas sin factura entre dos facturadas (misma semantica que facturaCountDown).';
+
+COMMENT ON COLUMN financiero.configuracion_facturacion.activo IS
+    'false = la fila se ignora (la sucursal sigue a la global, o a su property) pero conserva sus valores. NULL = activa.';
 
 COMMENT ON COLUMN financiero.configuracion_facturacion.venta_ticket_respeta_politica IS
     'false = Venta + Ticket y delivery facturan siempre (comportamiento historico); true = decide la politica.';
