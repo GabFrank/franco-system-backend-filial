@@ -91,7 +91,12 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     public VentaItemGraphQL ventaItemGraphQL;
     @Autowired
     public CobroGraphQL cobroGraphQL;
-    Integer facturaCountDown = null;
+    /** Politica de facturacion de la sucursal; reemplaza a la property facturaCountDown (issue #127). */
+    @Autowired
+    private ConfiguracionFacturacionLector configuracionFacturacionLector;
+    /** Decide el comprobante de cada venta y lleva el contador que antes era un campo de este resolver. */
+    @Autowired
+    private PoliticaFacturacionService politicaFacturacionService;
     @Autowired
     private VentaService service;
     @Autowired
@@ -189,8 +194,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             List<CobroDetalleInput> cobroDetalleList, Boolean ticket, Boolean facturar, String printerName,
             String local, Long pdvId, VentaCreditoInput ventaCreditoInput,
             List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) throws Exception, GraphQLException {
-        if (facturaCountDown == null)
-            facturaCountDown = Integer.valueOf(env.getProperty("facturaCountDown"));
         if (ventaItemList == null && cobroDetalleList == null && cobroDetalleList == null) {
             return this.saveVenta2(ventaInput);
         }
@@ -212,7 +215,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
             log.debug("✅ Validación venta duplicada pasada para usuario {}", ventaInput.getUsuarioId());
         }
-        
+
+        // Antes del primer write: la lectura corre fuera de esta transaccion y nunca lanza (issue #127).
+        PoliticaFacturacion politicaFacturacion = configuracionFacturacionLector.resolver();
+
         Venta venta = null;
         Cobro cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
         List<VentaItem> ventaItemList1 = new ArrayList<>();
@@ -258,20 +264,26 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         if (venta.getId() == null) {
             deshacerVenta(venta, cobro, null);
         } else {
+            boolean credito = ventaCreditoInput != null && ventaCreditoCuotaInputList != null;
+            // Que comprobante lleva la venta lo decide la politica de facturacion, no el boton (issue #127).
+            // Con la tabla vacia la decision es la de siempre: ver PoliticaFacturacionServiceTest.
+            PoliticaFacturacionService.RutaVenta ruta = politicaFacturacionService.decidirRuta(ticket, facturar,
+                    pdvId, credito, politicaFacturacion);
             try {
-                if (ticket != null && ticket == true) {
-                    if (pdvId != null && facturar) {
-                        // INICIO: Nueva lógica de facturación
-                        
-                        // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
-                        FacturaLegal facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList1, pdvId, cobroDetalleList);
+                switch (ruta) {
+                    case FACTURA_E_IMPRESION:
+                        try {
+                            // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
+                            FacturaLegal facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList1, pdvId, cobroDetalleList);
 
-                        // Imprimir el ticket/factura con los datos del DE
-                        facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName);
-
-                        // FIN: Nueva lógica de facturación
-
-                    } else if (ventaCreditoInput != null && ventaCreditoCuotaInputList != null) {
+                            // Imprimir el ticket/factura con los datos del DE
+                            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName);
+                        } catch (Exception fe) {
+                            devolverTurnoSiCorresponde(ruta, credito, politicaFacturacion, fe);
+                            throw fe;
+                        }
+                        break;
+                    case PAGARE_CREDITO:
                         ventaCreditoInput.setVentaId(venta.getId());
                         ventaCreditoInput.setSucursalId(venta.getSucursalId());
                         VentaCredito ventaCredito = ventaCreditoGraphQL.saveVentaCredito(ventaCreditoInput,
@@ -280,46 +292,54 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                             printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local,
                                     true, ventaCreditoCuotaInputList, null);
                         }
-                    } else {
+                        break;
+                    case TICKET_SIMPLE:
                         printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local,
                                 false, null, null);
-                    }
-                    return venta;
-                } else if (facturar != null && !facturar) {
-                    // El frontend ya generó una factura manual para esta venta: se omite la
-                    // facturación silenciosa automática para no duplicar el comprobante fiscal.
-                    // No se toca facturaCountDown para no desincronizar el contador de las demás ventas.
-                } else if (facturaCountDown == 0) {
-                    if (pdvId != null) {
+                        break;
+                    case SIN_FACTURA:
+                        // Sin comprobante automatico: la politica no la factura, o el frontend ya
+                        // emitio una factura manual (facturar=false) y no se duplica el fiscal.
+                        break;
+                    case FACTURA_SILENCIOSA: {
                         FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
-                        if (venta.getCliente() == null) {
-                            facturaLegalInput.setNombre("SIN NOMBRE");
-                            facturaLegalInput.setRuc("X");
-                        } else {
-                            facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
-                            facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
-                        }
-                        facturaLegalInput.setVentaId(venta.getId());
-                        facturaLegalInput.setCredito(ventaCreditoInput != null ? true : false);
-                        facturaLegalInput.setUsuarioId(ventaInput.getUsuarioId());
-                        
-                        // Calcular totales desde CobroDetalle
-                        Double totalFinal = venta.getTotalGs();
-                        facturaLegalInput.setTotalFinal(totalFinal);
-                        
                         List<FacturaLegalItemInput> facturaLegalItemInputList = new ArrayList<>();
-                        for (VentaItem vi : ventaItemList1) {
-                            FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
-                            fiInput.setVentaItemId(vi.getId());
-                            fiInput.setPresentacionId(vi.getPresentacion().getId());
-                            fiInput.setIva(vi.getPresentacion().getProducto().getIva());
-                            fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
-                            fiInput.setCantidad(vi.getCantidad());
-                            fiInput.setPrecioUnitario(vi.getPrecioVenta().getPrecio() - vi.getValorDescuento());
-                            fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
-                            facturaLegalItemInputList.add(fiInput);
-                        }
+                        // Armar el input no escribe nada: si falla, el turno vuelve siempre y la
+                        // proxima venta reintenta (como con el contador viejo, que quedaba en 0).
+                        try {
+                            if (venta.getCliente() == null) {
+                                facturaLegalInput.setNombre("SIN NOMBRE");
+                                facturaLegalInput.setRuc("X");
+                            } else {
+                                facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
+                                facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
+                            }
+                            facturaLegalInput.setVentaId(venta.getId());
+                            facturaLegalInput.setCredito(ventaCreditoInput != null ? true : false);
+                            facturaLegalInput.setUsuarioId(ventaInput.getUsuarioId());
                         
+                            // Calcular totales desde CobroDetalle
+                            Double totalFinal = venta.getTotalGs();
+                            facturaLegalInput.setTotalFinal(totalFinal);
+
+                            for (VentaItem vi : ventaItemList1) {
+                                FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
+                                fiInput.setVentaItemId(vi.getId());
+                                fiInput.setPresentacionId(vi.getPresentacion().getId());
+                                fiInput.setIva(vi.getPresentacion().getProducto().getIva());
+                                fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
+                                fiInput.setCantidad(vi.getCantidad());
+                                fiInput.setPrecioUnitario(vi.getPrecioVenta().getPrecio() - vi.getValorDescuento());
+                                fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
+                                facturaLegalItemInputList.add(fiInput);
+                            }
+                        } catch (RuntimeException armado) {
+                            if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politicaFacturacion)) {
+                                politicaFacturacionService.devolverTurno();
+                            }
+                            throw armado;
+                        }
+
                         // Generar factura legal con DE SIN IMPRIMIR (print = false)
                         try {
                             facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, 
@@ -327,12 +347,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         } catch (Exception fe) {
                             log.error("❌ Error en facturación silenciosa: {}", fe.getMessage(), fe);
                             // No lanzamos excepción para no romper el flujo de venta
+                            devolverTurnoSiCorresponde(ruta, credito, politicaFacturacion, fe);
                         }
-                        
-                        facturaCountDown = Integer.valueOf(env.getProperty("facturaCountDown"));
+                        break;
                     }
-                } else {
-                    facturaCountDown = facturaCountDown - 1;
                 }
 
             } catch (Exception e) {
@@ -341,6 +359,20 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
         }
         return venta;
+    }
+
+    /**
+     * Si la factura de esta venta salio de un turno del contador y fallo en una validacion previa a
+     * escribir, el turno vuelve y la proxima venta lo intenta. Una falla posterior (o sistematica:
+     * SIFEN caido, error despues del insert) no lo devuelve: reintentarla en cada venta, dentro de
+     * su transaccion, multiplicaria las ventas perdidas.
+     */
+    private void devolverTurnoSiCorresponde(PoliticaFacturacionService.RutaVenta ruta, boolean credito,
+                                            PoliticaFacturacion politica, Exception error) {
+        if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politica)
+                && PoliticaFacturacionService.fallaAntesDeEscribir(error)) {
+            politicaFacturacionService.devolverTurno();
+        }
     }
 
     public Boolean imprimirPagare(Long ventaId, List<VentaCreditoCuotaInput> itens, String printerName, String local,
@@ -906,7 +938,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     sb.append(" pagare solidariamente al Sr. FRANCO AREVALOS S.A. la suma de G$ ");
                     sb.append(valorPagare);
                     sb.append(
-                            "por el valor recibido a mi/nuestro entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara contituida la MORA automatica, sin necesidad de interpelacion alguna.");
+                            " por el valor recibido a mi/nuestra entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara constituida la MORA automatica, sin necesidad de interpelacion alguna.");
                     escpos.write(sb.toString());
                     escpos.feed(4);
                     escpos.writeLF("   --------------------------   ");

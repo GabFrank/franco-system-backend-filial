@@ -1,0 +1,14 @@
+type FormatoQrPos {
+    id: ID!
+    nombre: String
+    proveedorServicioId: Int
+    patron: String
+    mapeo: String
+    ejemplo: String
+    activo: Boolean
+    creadoEn: Date
+}
+
+extend type Query {
+    formatosQrPosActivos: [FormatoQrPos]
+}

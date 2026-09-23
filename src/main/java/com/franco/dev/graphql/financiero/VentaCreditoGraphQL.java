@@ -26,6 +26,7 @@ import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.utils.ImageService;
+import com.franco.dev.utilitarios.print.TicketFormato;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
 import com.franco.dev.utilitarios.print.escpos.Style;
@@ -299,14 +300,14 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
             escpos.writeLF(valorGs);
             escpos.write("Total Rs: ");
-            String valorRs = String.format("%.2f", venta.getTotalRs() + precioDeliveryRs);
+            String valorRs = TicketFormato.formatearTotalMoneda(venta.getTotalRs(), precioDeliveryRs);
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
             escpos.writeLF(valorRs);
             escpos.write("Total Ds: ");
 //      String valorDs = NumberFormat.getNumberInstance(new Locale("sk", "SK")).format(venta.getTotalDs());
-            String valorDs = String.format("%.2f", venta.getTotalDs() + precioDeliveryDs);
+            String valorDs = TicketFormato.formatearTotalMoneda(venta.getTotalDs(), precioDeliveryDs);
             for (int i = 22; i > valorGs.length(); i--) {
                 escpos.write(" ");
             }
@@ -335,7 +336,7 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 sb.append(itens.get(x).getVencimiento().format(formatter));
                 sb.append(" pagare solidariamente al Sr. FRANCO AREVALOS S.A. la suma de G$ ");
                 sb.append(valorPagare);
-                sb.append("por el valor recibido a mi/nuestro entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara contituida la MORA automatica, sin necesidad de interpelacion alguna.");
+                sb.append(" por el valor recibido a mi/nuestra entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara constituida la MORA automatica, sin necesidad de interpelacion alguna.");
                 escpos.write(sb.toString());
                 escpos.feed(4);
                 escpos.writeLF("   --------------------------   ");

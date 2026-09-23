@@ -1,9 +1,31 @@
 type TerminalPos {
     id:ID!
     descripcion: String
+    "Etiqueta interna que el cajero escanea. NO es el identificador de la maquina: ese es `serie`."
     codigo: String
+    """
+    El identificador propio de la maquina, el que viene de fabrica y el que el cupon imprime.
+    Con esto cargado, un cupon dice solo de que aparato salio.
+    """
+    serie: String
+    """
+    En que sucursal esta el aparato. Id pelado y no el objeto: este filial ya sabe en que sucursal
+    esta, y traer la entidad seria un join por un dato que casi no se usa aca.
+    """
+    sucursalId: Int
+    """
+    Si en esta terminal se puede tipear el cupon a mano. null = hereda la configuracion general.
+
+    Se expone aca porque lo consume el PDV: es lo que decide si se le ofrece la carga a mano al
+    cajero. Se administra en central y baja por replicacion.
+    """
+    cargaManualPermitida: Boolean
+    "JSON con los campos que no se pueden dejar vacios en esta terminal. null = se deducen del formato."
+    camposObligatorios: String
     moneda: Moneda
     proveedorServicio: ProveedorServicio
+    "Formato del modelo de aparato. NULL = sin configurar: el desktop bloquea la venta con tarjeta."
+    formatoTerminalPos: FormatoTerminalPos
     activo: Boolean
     creadoEn: Date
     usuario: Usuario
@@ -25,5 +47,12 @@ extend type Query {
     terminalesPos(page:Int = 0, size:Int = 10):[TerminalPos]!
     countTerminalPos: Int
     searchTerminalPos(texto: String):[TerminalPos]
-    filterTerminalPos(descripcion: String, codigo: String, activo: Boolean, page: Int = 0, size: Int = 10):TerminalPosPage
+    """
+    Mismos argumentos que el central, aunque el ABM viva alla: el desktop usa UNA sola query para
+    los dos backends y GraphQL valida el documento entero contra el schema. Si faltaran `serie` y
+    `sucursalId`, la consulta se rechazaria completa y el cajero no podria elegir la terminal.
+    """
+    filterTerminalPos(descripcion: String, codigo: String, serie: String, sucursalId: Int, activo: Boolean, page: Int = 0, size: Int = 10):TerminalPosPage
+    "Las terminales activas con EXACTAMENTE esta serie. Resuelve de qué aparato salió un cupón."
+    terminalesPosPorSerie(serie: String!):[TerminalPos]!
 }

@@ -39,7 +39,7 @@ Package root: `com.franco.dev`. Layout estándar: `config/ controller/ domain/ d
 ./mvnw test                               # Tests
 ```
 
-El JAR final se llama `frc-filial-server.jar` (configurado vía `<jar.finalName>`) — **no cambiar** este nombre, los scripts de auto-update de las filiales en producción lo esperan literal (ver `cicd-implementation/scripts/check-update.{sh,ps1}`, `start-filial.{bat,ps1}`).
+El JAR final se llama `frc-filial-server.jar` (configurado vía `<jar.finalName>`) — **no cambiar** este nombre, los scripts de auto-update de las filiales en producción lo esperan literal (ver `frc-cicd/scripts/check-update.{sh,ps1}`, `start-filial.{bat,ps1}`).
 
 ## ⚠️ Overrides locales: NO tocar `application-dev.properties`
 
@@ -77,7 +77,7 @@ Antes los devs editaban `application-dev.properties` directamente con sus paths 
 
 ## CI/CD
 
-Mismo modelo que el central. Ver guía consolidada [../../cicd-implementation/guia-desarrollo-cicd.md](../../cicd-implementation/guia-desarrollo-cicd.md) para el detalle completo.
+Mismo modelo que el central. Ver guía consolidada [../../frc-cicd/guia-desarrollo-cicd.md](../../frc-cicd/guia-desarrollo-cicd.md) para el detalle completo.
 
 ### Branches
 
@@ -97,15 +97,22 @@ Mismo modelo que el central. Ver guía consolidada [../../cicd-implementation/gu
 A diferencia del central (deploy manual), **el filial se actualiza solo**. Cada filial corre un script (`check-update.sh` en Linux / `check-update.ps1` en Windows con Task Scheduler) **cada 15 minutos** que:
 
 1. Consulta GitHub Releases del canal configurado (alpha / beta / stable).
-2. Si hay versión nueva, descarga el asset `frc-filial-server.jar` del release.
-3. Lo copia localmente como `frc-server.jar` (nombre que conoce el servicio systemd / WinSW).
-4. Reinicia el servicio.
+2. Si hay versión nueva, descarga el asset `frc-filial-server.jar` del release a
+   `releases/<version>/` **conservando ese nombre** — no lo renombra.
+3. Reapunta el symlink `current` (junction en Windows) a esa carpeta.
+4. Reinicia el servicio: `frc.service` en Linux, la Scheduled Task `FRC-Filial-Server` en Windows.
+5. Espera el health check (240 s) y **verifica que `/api/version` devuelva la versión nueva**
+   antes de escribir `.current-version`. Si no, **rollback** a la versión anterior.
 
 **Implicancias:**
 
 - **Cualquier merge a `develop` se va a propagar automáticamente** a todas las filiales en canal alpha en los próximos 15 minutos. No hace falta deploy manual para que llegue. **Nunca pushear sin confirmación explícita del usuario.**
 - El nombre del JAR del release **debe** ser exactamente `frc-filial-server.jar` — el script lo busca por nombre literal. Por eso `<jar.finalName>` no se cambia.
-- Los scripts de auto-update viven en [../../cicd-implementation/scripts/](../../cicd-implementation/scripts/) (`check-update.sh`, `check-update.ps1`, `start-filial.bat`, `start-filial.ps1`).
+- **El auto-update corre en los TRES canales, no solo en alpha.** Cada filial lee su `.channel`:
+  un merge a `develop` llega a las filiales alpha, uno a `release/beta` a las **6 de farmacia** y
+  uno a `master` a las **18 de bodega**. Ninguno pasa por aprobación humana — no hay workflow de
+  deploy en el medio. Un `hotfix/*` sale por `master`: es el de mayor alcance, no el menor.
+- Los scripts de auto-update viven en [../../frc-cicd/scripts/](../../frc-cicd/scripts/) (`check-update.sh`, `check-update.ps1`, `start-filial.bat`, `start-filial.ps1`).
 
 ### Hotfix flow (urgencia en producción)
 
@@ -158,11 +165,20 @@ ALTER TABLE clientes RENAME COLUMN telefono_nuevo TO telefono;
 
 ### Reglas de naming
 
-- Formato: `V{numero}__{descripcion_con_underscores}.sql`
+- Formato: `V{numero}.5__{descripcion_con_underscores}.sql`. **Usar el sufijo `.5` en migraciones
+  nuevas**, nunca `.0` ni entero pelado: Flyway normaliza el `.0` (`V91` == `V91.0`), así que un
+  `V91.0` de una rama colisiona con un `V91` de otra al mergear. El `.5` no se normaliza y slotea
+  entre los enteros (`out-of-order` lo soporta). Si el `.5` ya está tomado por otra rama, seguir
+  con `.3` o `.7` — el repo ya tiene los tres (`V90.5`, `V90.7`, `V88.3`). Misma convención que
+  `central`.
 - Numeración secuencial y única. **Nunca reusar** un número.
 - **Nunca modificar una migración ya aplicada.** Flyway compara checksums y falla.
 - Probar localmente:
   ```bash
+  # ⚠️ Esto NO valida la migración: no hay ningún test que levante contexto Spring en este repo
+  # (grep @SpringBootTest en src/test = 0), así que Flyway nunca corre en CI ni en este comando.
+  # El servicio postgres:16 del workflow queda sin usar. Para probarla de verdad hay que arrancar
+  # la app contra una DB.
   SPRING_PROFILES_ACTIVE=ci ./mvnw clean verify
   ```
 
@@ -192,6 +208,39 @@ Si modificás un resolver/schema que el desktop o mobile consumen:
 2. Recién cuando todos los clientes estén actualizados, eliminar el viejo en versión posterior.
 3. Si es inevitable: `feat!: ...` (breaking change → MAJOR). Implica que filiales + desktop + mobile se actualicen coordinadamente.
 
+## Facturación automática: la política vive en `financiero.configuracion_facturacion`
+
+Qué venta genera factura legal **no** lo decide el botón del desktop ni un campo del resolver: lo
+decide `PoliticaFacturacionService.decidirRuta(...)`, con la política que resuelve
+`ConfiguracionFacturacionLector` (issue #127).
+
+- **Fuente**: `financiero.configuracion_facturacion`, administrada en el central y replicada
+  `MAIN_TO_ALL`. Fila de la sucursal propia → fila global (`sucursal_id NULL`) → **property
+  `facturaCountDown`** (el overlay de cada filial). **Tabla vacía = comportamiento histórico.**
+  Una property **negativa** sigue significando «nunca facturar en silencio»; ausente o rota, igual
+  (antes reventaba cada venta). Nunca llevarla a 0: 0 es facturar cada venta.
+- **Modos**: `TODAS`, `INTERVALO` (una de cada `ventas_sin_factura + 1`, la cadencia del viejo
+  `facturaCountDown`) y `A_PEDIDO`. `venta_ticket_respeta_politica=false` hace que «Venta + Ticket»
+  y delivery (`PARA_ENTREGA`) facturen siempre, como antes; `true` los somete a la política. Las
+  ventas a crédito quedan fuera de esa bandera hasta resolver #133.
+- **Se lee en cada venta, sin caché y fuera de la transacción de `saveVenta`**
+  (`NOT_SUPPORTED`): una falla al leer no puede dejar la venta rollback-only. Cae al default.
+- **Activo por fila**: si la fila más reciente de una clave tiene `activo = false`, se saltea la
+  clave entera y la sucursal sigue a la configuración de todas (o a su property). `NULL` = activa.
+  Desactivar **no** es kill switch: un rollback a un JAR sin `activo` vuelve a aplicar las inactivas.
+  El historial de cambios vive solo en el central (`configuracion_facturacion_historial`).
+- **El contador** vive en memoria en `PoliticaFacturacionService` (sincronizado; se reinicia con el
+  servicio, como siempre). Un fallo de facturación devuelve el turno **solo** si la causa raíz es
+  una `GraphQLException` de validación (antes de escribir).
+- **Kill switch**: `DELETE FROM financiero.configuracion_facturacion` **en el central** (se
+  replica; nunca `TRUNCATE`). Todas las filiales vuelven a su property en la venta siguiente, sin
+  reinicio. Con la réplica caída, el mismo `DELETE` sobre el espejo local es la única escritura
+  admitida en la filial (la tabla no está en `filial<N>_pub`). Filiales tardías y desmontaje: manual
+  `POLITICA_FACTURACION.md` del central.
+- **Tests**: `PoliticaFacturacionServiceTest` compara contra la lógica vieja en las 72
+  combinaciones de `ticket`/`facturar`/`pdvId`/crédito/contador. Si tocás la decisión, esa tabla
+  tiene que seguir pasando o el cambio de comportamiento tiene que declararse.
+
 ## Pull Requests
 
 - **Tamaño**: idealmente menos de 400 líneas de cambio neto. Una responsabilidad por PR.
@@ -218,13 +267,14 @@ Si modificás un resolver/schema que el desktop o mobile consumen:
 - **Package root:** `com.franco.dev` (compartido con `central`). No mezclar con `com.frcefact` (ese es otro proyecto, `frc-efact`).
 - **GraphQL, no REST.** Endpoints nuevos van en `graphql/` (resolvers + schema), no `controller/`.
 - **JAR finalName:** `frc-filial-server.jar` — no renombrar.
-- **Scripts de auto-update** en producción esperan que el asset del GitHub Release se llame `frc-filial-server.jar` y lo copian localmente como `frc-server.jar` (nombre que conoce WinSW/systemd).
+- **Scripts de auto-update** en producción esperan que el asset del GitHub Release se llame `frc-filial-server.jar` y lo dejan con ese mismo nombre en `releases/<version>/`, apuntando el symlink `current` ahí. **No hay ningún renombre a `frc-server.jar`** — el servicio arranca el JAR a través de `current`.
 
 ## Referencias relacionadas
 
 - [../../REPORTE_VULNERABILIDADES.md](../../REPORTE_VULNERABILIDADES.md) — Auditoría 2026-04-02. Tiene hallazgos críticos abiertos en código de auth de **este** repo (plaintext passwords en `TokenController.java`, password en JWT claims en `JwtGenerator.java`). Leer antes de tocar `security/`.
 - [../../CLAUDE.md](../../CLAUDE.md) — Mapa cross-project del workspace (los 4 componentes + frc-efact + sifen).
 - [../central/CLAUDE.md](../central/CLAUDE.md) — Server central, usa el mismo mecanismo de `application-user-dev.properties`.
+- [../central/docs/manuales-implementacion/financiero/VENTA-TARJETA-QR-CUPON.md](../central/docs/manuales-implementacion/financiero/VENTA-TARJETA-QR-CUPON.md) — Registro de cobros con tarjeta leyendo el QR del cupón. **La mutation que completa una `venta_tarjeta` corre contra este repo** (`VentaTarjetaService.completar()`), y `financiero.formato_qr_pos` acá es un espejo de la tabla del central (`V91.5`): el ABM vive allá.
 
 ## Automated Issue Resolution (Claude Code Action)
 

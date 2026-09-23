@@ -3,6 +3,7 @@ package com.franco.dev.repository.operaciones;
 import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -12,6 +13,9 @@ public interface CobroDetalleRepository extends HelperRepository<CobroDetalle, L
     }
 
     public List<CobroDetalle> findByCobroId(Long id);
+
+    /** Cobros que ya tienen colgada esta referencia del proveedor. Deberia haber a lo sumo uno. */
+    public List<CobroDetalle> findByIdentificadorTransaccion(String identificadorTransaccion);
 
 //    @Query("select p from Venta p left outer join p.proveedor as pro left outer join pro.persona as per where LOWER(per.nombre) like %?1%")
 //    public List<Venta> findByProveedor(String texto);
@@ -25,4 +29,13 @@ public interface CobroDetalleRepository extends HelperRepository<CobroDetalle, L
             "left join financiero.pdv_caja pc on pc.id = v.caja_id " +
             "where v.estado = 'CONCLUIDA' and pc.id = ?1 and cd.sucursal_id", nativeQuery = true)
     public List<CobroDetalle> findByCajaId(Long id);
+
+    /**
+     * CobroDetalle de una venta, atravesando Venta -> Cobro. Se usa para colgarle al cobro
+     * la referencia de la transaccion que viene en el QR del POS.
+     */
+    @Query("select cd from CobroDetalle cd, Venta v " +
+            "where v.id = :ventaId and v.sucursalId = :sucursalId and cd.cobro.id = v.cobro.id")
+    public List<CobroDetalle> findByVentaIdAndSucursalId(@Param("ventaId") Long ventaId,
+                                                         @Param("sucursalId") Long sucursalId);
 }

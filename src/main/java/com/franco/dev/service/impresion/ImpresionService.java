@@ -8,6 +8,7 @@ import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.TimbradoDetalleService;
 import com.franco.dev.service.impresion.dto.GastoDto;
 import com.franco.dev.service.impresion.dto.RetiroDto;
+import com.franco.dev.service.impresion.dto.SenaCuponDto;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
@@ -549,6 +550,88 @@ public class ImpresionService {
         } catch (IOException e) {
 
         }
+    }
+
+    /**
+     * La seña de un cobro con tarjeta que quedó sin cupón.
+     *
+     * Un ticket chico que el cajero grapa al cupón de la terminal. Lleva el QR que la pantalla de
+     * conciliación escanea para saltar a la fila exacta, y abajo en texto lo mismo, para cuando el
+     * QR no se pueda leer --papel mojado, impresión débil-- o no haya lector a mano.
+     *
+     * Devuelve si se imprimió. A diferencia de {@code printRetiro}, acá el resultado importa: el
+     * desktop tiene que poder decirle al cajero que el papel no salió, porque sin papel el cobro
+     * queda pendiente y sin forma cómoda de encontrarlo después.
+     */
+    public Boolean printSenaCupon(SenaCuponDto dto, String printerName, String local) {
+        try {
+            selectedPrintService = printingService.getPrintService(printerName);
+            if (selectedPrintService == null) return false;
+            printerOutputStream = new PrinterOutputStream(selectedPrintService);
+            // Sin el anho: el papel se concilia el mismo dia o el siguiente, y cada caracter que
+            // sobra acerca el renglon a los 32 que entran.
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM HH:mm");
+            // Ojo: Style es mutable y se comparte. printRetiro deja `center` en bold sin querer
+            // despues del primer setBold(true); aca el bold se prende y se apaga explicito.
+            Style center = new Style().setJustification(EscPosConst.Justification.Center);
+            QRCode qrCode = new QRCode();
+            EscPos escpos = new EscPos(printerOutputStream);
+
+            // ⚠️ Este feed NO es decoracion: sin el, la impresora se come los primeros bytes del
+            // trabajo --viene de un corte-- y lo que se pierde es el encabezado y el `GS` que abre
+            // el comando del QR, con lo cual el resto del comando sale impreso como texto
+            // ("(k1E1..."). Medido con papel el 2026-09-16: una linea de sacrificio y sale todo.
+            escpos.feed(1);
+
+            // Un solo renglon de encabezado. Lo unico que el cajero necesita leer de un vistazo es
+            // que este papel no es el ticket del cliente; el resto de las advertencias hacian el
+            // comprobante el triple de largo que el ticket de la venta que acompanha.
+            escpos.writeLF(center.setBold(true), "NO ENTREGAR AL CLIENTE");
+
+            // El QR va arriba porque es el camino normal: el cajero lo escanea y ya. El texto de
+            // abajo existe solo para cuando no se puede leer --papel mojado, impresion debil.
+            if (dto.getQr() != null) {
+                escpos.write(qrCode.setSize(6).setJustification(EscPosConst.Justification.Center), dto.getQr());
+            }
+
+            // Dos renglones y nada mas. `Cobro` es el id de la venta_tarjeta, y es el unico dato que
+            // desempata dos cobros de la MISMA venta: sin el, el numero de venta no alcanza. Monto y
+            // hora alcanzan para reconocer el papel entre varios sueltos sobre el mostrador.
+            StringBuilder ids = new StringBuilder();
+            if (dto.getVentaId() != null) ids.append("Venta ").append(dto.getVentaId());
+            if (dto.getVentaTarjetaId() != null) {
+                if (ids.length() > 0) ids.append(" / ");
+                ids.append("Cobro ").append(dto.getVentaTarjetaId());
+            }
+            if (ids.length() > 0) escpos.writeLF(center.setBold(true), ids.toString());
+
+            StringBuilder pie = new StringBuilder();
+            if (dto.getMonto() != null) {
+                pie.append(formatearMonto(dto.getMonto(), dto.getDecimales()));
+                if (dto.getMonedaSimbolo() != null) pie.append(" ").append(dto.getMonedaSimbolo());
+                pie.append("  ");
+            }
+            pie.append(LocalDateTime.now().format(formatter));
+            escpos.writeLF(center.setBold(false), pie.toString());
+
+            escpos.feed(2);
+            escpos.cut(EscPos.CutMode.FULL);
+            escpos.close();
+            printerOutputStream.close();
+            return true;
+        } catch (Exception e) {
+            // Se traga la excepcion a proposito: la venta YA se guardo y el cobro YA se cobro. Que
+            // no salga el papel es un problema, pero reventar aca no lo arregla y ademas dejaria al
+            // desktop pensando que fallo algo mas grave. El false es lo que el cajero necesita ver.
+            return false;
+        }
+    }
+
+    /** Gs. no lleva decimales y R$ si. Mismo criterio que usa printRetiro por moneda, pero por dato. */
+    private String formatearMonto(Double monto, Integer decimales) {
+        int d = decimales != null ? decimales : 0;
+        if (d <= 0) return NumberFormat.getNumberInstance(Locale.GERMAN).format(monto.longValue());
+        return String.format("%." + d + "f", monto);
     }
 
 //    public void printVueltoGasto(GastoDto gastoDto){
