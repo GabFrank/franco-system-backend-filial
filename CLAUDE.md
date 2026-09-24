@@ -259,6 +259,15 @@ líneas de `operaciones.cobro_detalle` con `descuento` o `aumento` en true, siem
   `saveVenta`, que queda rollback-only, y se perdería la venta ya cobrada. El armado tira
   `GraphQLException` antes de escribir y el turno vuelve.
 
+## Caja abierta = `activo`, no `estado`
+
+`pdv_caja.estado` (enum `PdvCajaEstado`) no lo escribe ningun componente: esta NULL en todas las
+cajas reales (farmacia filial 1 y alpha, 2026-09-24). Una caja abierta es `activo = true`, que es
+lo que usa `PdvCajaService` para el maletin y para "Ya existe una caja abierta". La captura del
+cupon exigia `EN_PROCESO` y nunca funciono hasta que paso a `CapturaCuponService.cajaAbierta`.
+No agregar logica nueva que lea `estado`; `findAllWithFilters` todavia filtra por el (sin efecto
+hoy, ningun cliente manda ese filtro).
+
 ## Pull Requests
 
 - **Tamaño**: idealmente menos de 400 líneas de cambio neto. Una responsabilidad por PR.
