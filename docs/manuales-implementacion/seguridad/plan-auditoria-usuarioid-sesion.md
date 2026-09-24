@@ -224,9 +224,13 @@ techo natural del mapa.
 
 ## 11 · Qué queda sin verificar
 
-- **El volumen del log.** No hay `logback` de producción en el repo; el rotado lo maneja
-  `journald` por filial y no se pudo verificar el `SystemMaxUse` de las 24.
- Si marcación resulta ser un terminal compartido, va a registrar un WARN
+- **El volumen del log — medido en local el 2026-09-24.** Una venta limpia escribe **0** líneas de
+  auditoría. Una venta con `usuarioId` ajeno escribe **3**: una por cada eslabón instrumentado de
+  la cadena (`saveVenta` → `saveCobro` → `saveCobroDetalle`). O sea que el costo no es por venta
+  sino **por venta infractora, multiplicado por 3**. Si un terminal quedara mal configurado, cada
+  una de sus ventas escribiría 3 WARN.
+  No hay `logback` de producción en el repo; el rotado lo maneja `journald` por filial y no se pudo
+  verificar el `SystemMaxUse` de las 24. Si marcación resulta ser un terminal compartido, va a registrar un WARN
   por marcación. Se verá en alpha; si molesta, se agrega un throttle por
   `(operación, par de ids)`. No se agrega ahora para no complicar la fase.
 - **Si el nickname del token siempre resuelve.** Un usuario renombrado entre el login y la request
