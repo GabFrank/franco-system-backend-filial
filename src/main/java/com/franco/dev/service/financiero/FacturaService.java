@@ -13,7 +13,6 @@ import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.operaciones.CobroDetalleService;
-import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
@@ -344,46 +343,10 @@ public class FacturaService {
         facturaLegal.setNombre(venta.getCliente() != null ? venta.getCliente().getPersona().getNombre() : "SIN NOMBRE");
         facturaLegal.setRuc(venta.getCliente() != null ? venta.getCliente().getPersona().getDocumento() : "X");
 
-        // Calcular descuentos y aumentos de CobroDetalle
-        // IMPORTANTE: Obtener los cobroDetalle desde la base de datos (fuente de verdad)
-        // El cobroDetalleList del parámetro puede no incluir todos los items si el frontend
-        // no los envió todos en la misma llamada, causando bugs intermitentes
-        Double descuentoTotal = 0.0;
-        Double aumentoTotal = 0.0;
-        
-        // Obtener desde la base de datos si el cobro ya existe (ya debería estar guardado en este punto)
-        if (venta.getCobro() != null && venta.getCobro().getId() != null) {
-            List<CobroDetalle> cobroDetalleFromDb = cobroDetalleService.findByCobroId(venta.getCobro().getId());
-            for (CobroDetalle cd : cobroDetalleFromDb) {
-                Double valorCalculado = cd.getValor() * cd.getCambio();
-                if (cd.getDescuento() != null && cd.getDescuento()) {
-                    descuentoTotal += valorCalculado;
-                }
-                if (cd.getAumento() != null && cd.getAumento()) {
-                    aumentoTotal += valorCalculado;
-                }
-            }
-            log.debug("✅ Descuento calculado desde BD para factura legal - Descuento: {}, Aumento: {}, Items: {}", 
-                    descuentoTotal, aumentoTotal, cobroDetalleFromDb.size());
-        } else {
-            // Solo usar el parámetro como fallback si no hay cobro guardado aún (caso raro)
-            log.warn("⚠️ No hay cobro guardado, usando parámetro cobroDetalleList como fallback");
-            if (cobroDetalleList != null) {
-                for (CobroDetalleInput cdi : cobroDetalleList) {
-                    Double valorCalculado = cdi.getValor() * cdi.getCambio();
-                    if (cdi.getDescuento() != null && cdi.getDescuento()) {
-                        descuentoTotal += valorCalculado;
-                    }
-                    if (cdi.getAumento() != null && cdi.getAumento()) {
-                        aumentoTotal += valorCalculado;
-                    }
-                }
-            }
-        }
-        
-        // Calcular el ajuste neto (descuentos - aumentos)
+        // Descuento y aumento desde el cobro guardado (fuente de verdad): el cobroDetalleList del
+        // parametro puede no traer todas las lineas. Es solo el respaldo si el cobro no tiene id.
         // Si es positivo = descuento neto, si es negativo = aumento neto
-        Double ajusteNeto = descuentoTotal - aumentoTotal;
+        Double ajusteNeto = cobroDetalleService.ajusteDe(venta.getCobro(), cobroDetalleList).getNeto();
 
         // Setear campos comunes en la factura antes del build
         facturaLegal.setDescuento(ajusteNeto != null ? ajusteNeto : 0.0);
