@@ -37,6 +37,7 @@ import com.franco.dev.utilitarios.print.escpos.EscPosConst;
 import com.franco.dev.utilitarios.print.escpos.Style;
 import com.franco.dev.utilitarios.print.escpos.image.*;
 import com.franco.dev.utilitarios.print.output.PrinterOutputStream;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -79,6 +80,9 @@ import static com.franco.dev.utilitarios.DateUtils.stringToDate;
 
 @Component
 public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     private static final Logger log = LoggerFactory.getLogger(FacturaLegalGraphQL.class);
 
@@ -201,6 +205,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     public TimbradoDetalle saveFacturaLegal(FacturaLegalInput entity, List<FacturaLegalItemInput> detalleList,
             String printerName, Integer pdvId, Boolean print) {
+        auditorUsuarioId.verificar("FacturaLegalGraphQL.saveFacturaLegal", entity.getUsuarioId());
         try {
             if(print == null){
                 print = true;
