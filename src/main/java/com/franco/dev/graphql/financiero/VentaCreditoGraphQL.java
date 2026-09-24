@@ -32,6 +32,7 @@ import com.franco.dev.utilitarios.print.escpos.EscPosConst;
 import com.franco.dev.utilitarios.print.escpos.Style;
 import com.franco.dev.utilitarios.print.escpos.image.*;
 import com.franco.dev.utilitarios.print.output.PrinterOutputStream;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -60,6 +61,9 @@ import static com.franco.dev.utilitarios.DateUtils.toDate;
 
 @Component
 public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     @Autowired
     private VentaCreditoService service;
@@ -129,6 +133,7 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     }
 
     public VentaCredito saveVentaCredito(VentaCreditoInput input){
+        auditorUsuarioId.verificar("VentaCreditoGraphQL.saveVentaCredito", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         VentaCredito e = m.map(input, VentaCredito.class);
         if (input.getUsuarioId() != null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -141,6 +146,7 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Transactional
     public VentaCredito saveVentaCredito(VentaCreditoInput input, List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) {
+        auditorUsuarioId.verificar("VentaCreditoGraphQL.saveVentaCredito", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         VentaCredito e = m.map(input, VentaCredito.class);
         if (input.getUsuarioId() != null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));

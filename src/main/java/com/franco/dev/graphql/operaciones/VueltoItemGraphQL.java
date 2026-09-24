@@ -6,6 +6,7 @@ import com.franco.dev.service.financiero.MonedaService;
 import com.franco.dev.service.operaciones.VueltoItemService;
 import com.franco.dev.service.operaciones.VueltoService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -20,6 +21,9 @@ import java.util.Optional;
 
 @Component
 public class VueltoItemGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     @Autowired
     private VueltoItemService service;
@@ -47,6 +51,7 @@ public class VueltoItemGraphQL implements GraphQLQueryResolver, GraphQLMutationR
 //    }
 
     public VueltoItem saveVueltoItem(VueltoItemInput input) {
+        auditorUsuarioId.verificar("VueltoItemGraphQL.saveVueltoItem", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         VueltoItem e = m.map(input, VueltoItem.class);
         if (input.getUsuarioId() != null) {

@@ -20,6 +20,7 @@ import com.franco.dev.service.financiero.FacturaService;
 import com.franco.dev.service.financiero.PoliticaFacturacion;
 import com.franco.dev.service.financiero.PoliticaFacturacionService;
 import com.franco.dev.service.financiero.FacturaLegalService;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.GraphQLException;
 import graphql.GraphqlErrorException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
@@ -38,6 +39,9 @@ import java.util.Optional;
 
 @Component
 public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     @Autowired
     private DeliveryService service;
@@ -119,6 +123,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     }
 
     public Delivery saveDelivery(DeliveryInput input) {
+        auditorUsuarioId.verificar("DeliveryGraphQL.saveDelivery", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         Delivery e = m.map(input, Delivery.class);
         if (input.getUsuarioId() != null) {
@@ -147,6 +152,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     public Delivery saveDeliveryAndVenta(DeliveryInput deliveryInput, VentaInput ventaInput,
             List<VentaItemInput> ventaItemInputList, VueltoInput vueltoInput, List<VueltoItemInput> vueltoItemInputList,
             CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleInputList) throws GraphqlErrorException {
+        auditorUsuarioId.verificar("DeliveryGraphQL.saveDeliveryAndVenta", deliveryInput.getUsuarioId());
         Delivery delivery = null;
         try {
             if (cobroInput == null && cobroDetalleInputList != null) {
