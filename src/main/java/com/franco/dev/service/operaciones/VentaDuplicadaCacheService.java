@@ -1,6 +1,5 @@
 package com.franco.dev.service.operaciones;
 
-import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,261 +7,204 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
+import java.util.function.Supplier;
 
 /**
- * Servicio de cache en memoria para prevenir ventas duplicadas.
- * Almacena las últimas ventas recientes por usuario para validación rápida
- * sin necesidad de consultar la base de datos.
+ * Cache en memoria que impide que la misma venta se registre dos veces.
+ *
+ * <p>La huella de una venta es su usuario mas la lista normalizada de items. Antes de tocar la
+ * base, quien va a vender <b>reserva</b> esa huella; recien cuando la venta existe la
+ * <b>confirma</b>, y si algo falla la <b>libera</b>. Reservar primero es lo que cierra la carrera:
+ * la version anterior consultaba el cache y lo poblaba despues de persistir venta e items, asi que
+ * dos requests concurrentes pasaban los dos (ventas gemelas 25457/25458 de la caja 662).
+ *
+ * <p>La atomicidad la dan las operaciones condicionales de {@link ConcurrentHashMap}
+ * (putIfAbsent / replace / remove); no hace falta lock ni synchronized.
  */
 @Service
 public class VentaDuplicadaCacheService {
 
     private static final Logger log = LoggerFactory.getLogger(VentaDuplicadaCacheService.class);
-    
-    // Cache: Map<usuarioId, List<VentaCacheEntry>>
-    // Cada entrada contiene la venta y su timestamp
-    private final Map<Long, List<VentaCacheEntry>> ventasCache = new ConcurrentHashMap<>();
-    
-    // Tiempo mínimo entre ventas (5 segundos)
+
+    /** Ventana en la que una venta ya confirmada bloquea a otra identica. */
     private static final int TIEMPO_MINIMO_SEGUNDOS = 5;
-    
-    // Tamaño máximo de cache por usuario (últimas 10 ventas)
-    private static final int MAX_CACHE_SIZE = 10;
-    
-    /**
-     * Clase interna para almacenar información de venta en cache
-     */
-    private static class VentaCacheEntry {
-        private final Long ventaId;
-        private final LocalDateTime creadoEn;
-        private final List<ItemInfo> items;
-        
-        public VentaCacheEntry(Long ventaId, LocalDateTime creadoEn, List<ItemInfo> items) {
-            this.ventaId = ventaId;
-            this.creadoEn = creadoEn;
-            this.items = items;
-        }
-        
-        public Long getVentaId() {
-            return ventaId;
-        }
-        
-        public LocalDateTime getCreadoEn() {
-            return creadoEn;
-        }
-        
-        public List<ItemInfo> getItems() {
-            return items;
-        }
+
+    /** Red de seguridad para una reserva colgada: el hilo murio entre reservar y confirmar/liberar. */
+    private static final int MINUTOS_RESERVA_COLGADA = 1;
+
+    private final Map<String, Entrada> entradas = new ConcurrentHashMap<>();
+
+    private final Supplier<LocalDateTime> reloj;
+
+    public VentaDuplicadaCacheService() {
+        this(LocalDateTime::now);
     }
-    
-    /**
-     * Clase para almacenar información simplificada de items
-     */
-    private static class ItemInfo {
-        private final Long productoId;
-        private final Long presentacionId;
-        private final Double cantidad;
-        
-        public ItemInfo(Long productoId, Long presentacionId, Double cantidad) {
-            this.productoId = productoId;
-            this.presentacionId = presentacionId;
-            this.cantidad = cantidad;
-        }
-        
-        public Long getProductoId() {
-            return productoId;
-        }
-        
-        public Long getPresentacionId() {
-            return presentacionId;
-        }
-        
-        public Double getCantidad() {
-            return cantidad;
-        }
-        
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            ItemInfo itemInfo = (ItemInfo) o;
-            return Objects.equals(productoId, itemInfo.productoId) &&
-                   Objects.equals(presentacionId, itemInfo.presentacionId) &&
-                   Objects.equals(cantidad, itemInfo.cantidad);
-        }
-        
-        @Override
-        public int hashCode() {
-            return Objects.hash(productoId, presentacionId, cantidad);
-        }
+
+    /** Constructor para los tests: permite adelantar el reloj sin dormir el hilo. */
+    VentaDuplicadaCacheService(Supplier<LocalDateTime> reloj) {
+        this.reloj = reloj;
     }
-    
+
     /**
-     * Verifica si existe una venta duplicada reciente para el usuario.
-     * 
-     * @param usuarioId ID del usuario
-     * @param ventaItemList Lista de items de la venta a validar
-     * @return ID de la venta duplicada si existe, null si no hay duplicado
+     * Toma la huella de la venta antes de que exista en la base.
+     *
+     * @return el token a pasarle despues a {@link #confirmar} o {@link #liberar}. Si el token dice
+     *         {@link Reserva#esDuplicado()}, no hay que vender.
      */
-    public Long verificarVentaDuplicada(Long usuarioId, List<VentaItemInput> ventaItemList) {
+    public Reserva reservar(Long usuarioId, List<VentaItemInput> ventaItemList) {
         if (usuarioId == null || ventaItemList == null || ventaItemList.isEmpty()) {
-            return null;
+            return Reserva.NO_APLICA;
         }
-        
-        List<VentaCacheEntry> ventasUsuario = ventasCache.get(usuarioId);
-        if (ventasUsuario == null || ventasUsuario.isEmpty()) {
-            log.debug("🔍 Validación venta duplicada: Usuario {} no tiene ventas recientes en cache", usuarioId);
-            return null;
-        }
-        
-        log.debug("🔍 Validación venta duplicada: Usuario {} tiene {} ventas recientes en cache", usuarioId, ventasUsuario.size());
-        
-        // Convertir items de input a ItemInfo para comparación
-        List<ItemInfo> itemsNuevaVenta = ventaItemList.stream()
-            .map(item -> new ItemInfo(
-                item.getProductoId(),
-                item.getPresentacionId(),
-                item.getCantidad()
-            ))
-            .sorted(Comparator.comparing(ItemInfo::getProductoId)
-                .thenComparing(ItemInfo::getPresentacionId)
-                .thenComparing(ItemInfo::getCantidad))
-            .collect(Collectors.toList());
-        
-        LocalDateTime ahora = LocalDateTime.now();
-        LocalDateTime tiempoLimite = ahora.minusSeconds(TIEMPO_MINIMO_SEGUNDOS);
-        
-        // Buscar ventas recientes (últimos 5 segundos)
-        int ventasRecientesRevisadas = 0;
-        for (VentaCacheEntry entrada : ventasUsuario) {
-            if (entrada.getCreadoEn().isAfter(tiempoLimite)) {
-                ventasRecientesRevisadas++;
-                // Comparar items
-                if (sonItemsIguales(entrada.getItems(), itemsNuevaVenta)) {
-                    long segundosDesdeCreacion = java.time.Duration.between(entrada.getCreadoEn(), ahora).getSeconds();
-                    log.warn("⚠️ VENTA DUPLICADA DETECTADA: Usuario {} intentó crear una venta idéntica a la venta {} creada hace {} segundos",
-                        usuarioId, entrada.getVentaId(), segundosDesdeCreacion);
-                    return entrada.getVentaId();
-                }
+        String huella = huella(usuarioId, ventaItemList);
+        LocalDateTime ahora = reloj.get();
+
+        while (true) {
+            Entrada nuestra = new Entrada(ahora);
+            Entrada previa = entradas.putIfAbsent(huella, nuestra);
+            if (previa == null) {
+                log.debug("Reserva tomada para usuario {} con {} items", usuarioId, ventaItemList.size());
+                return new Reserva(huella, nuestra);
+            }
+
+            Long ventaIdPrevia = previa.ventaId;
+            if (ventaIdPrevia == null) {
+                // En vuelo: NO expira por tiempo. Si expirara, una venta lenta (contencion de la
+                // base, pool saturado) dejaria pasar a la gemela y volveriamos al incidente
+                // original, ahora disparado por lentitud en vez de por falta de lock.
+                log.warn("VENTA DUPLICADA BLOQUEADA: el usuario {} ya tiene una venta identica en curso", usuarioId);
+                return Reserva.duplicada(null);
+            }
+            if (previa.creadoEn.isAfter(ahora.minusSeconds(TIEMPO_MINIMO_SEGUNDOS))) {
+                log.warn("VENTA DUPLICADA BLOQUEADA: el usuario {} ya registro la venta {} hace menos de {} s",
+                        usuarioId, ventaIdPrevia, TIEMPO_MINIMO_SEGUNDOS);
+                return Reserva.duplicada(ventaIdPrevia);
+            }
+
+            // Confirmada y vencida: la huella vuelve a estar libre. El replace condicional decide
+            // quien se la queda si dos hilos llegan juntos; el que pierde reintenta y en la vuelta
+            // siguiente ve la entrada nueva, en vuelo, y sale como duplicado.
+            if (entradas.replace(huella, previa, nuestra)) {
+                return new Reserva(huella, nuestra);
             }
         }
-        
-        if (ventasRecientesRevisadas > 0) {
-            log.debug("✅ Validación venta duplicada: Usuario {} - Se revisaron {} ventas recientes, ninguna duplicada", usuarioId, ventasRecientesRevisadas);
-        }
-        
-        return null;
     }
-    
-    /**
-     * Compara dos listas de items para verificar si son iguales
-     */
-    private boolean sonItemsIguales(List<ItemInfo> items1, List<ItemInfo> items2) {
-        if (items1.size() != items2.size()) {
-            return false;
-        }
-        
-        // Ordenar ambas listas para comparación
-        List<ItemInfo> sorted1 = new ArrayList<>(items1);
-        List<ItemInfo> sorted2 = new ArrayList<>(items2);
-        
-        sorted1.sort(Comparator.comparing(ItemInfo::getProductoId)
-            .thenComparing(ItemInfo::getPresentacionId)
-            .thenComparing(ItemInfo::getCantidad));
-        
-        sorted2.sort(Comparator.comparing(ItemInfo::getProductoId)
-            .thenComparing(ItemInfo::getPresentacionId)
-            .thenComparing(ItemInfo::getCantidad));
-        
-        return sorted1.equals(sorted2);
-    }
-    
-    /**
-     * Agrega una venta al cache después de ser creada exitosamente
-     */
-    public void agregarVentaAlCache(Long usuarioId, Long ventaId, LocalDateTime creadoEn, List<VentaItem> ventaItems) {
-        if (usuarioId == null || ventaId == null || creadoEn == null || ventaItems == null) {
+
+    /** La venta existe: la reserva pasa a ser el antecedente que bloquea a la proxima gemela. */
+    public void confirmar(Reserva reserva, Long ventaId, LocalDateTime creadoEn) {
+        if (reserva == null || !reserva.tomada()) {
             return;
         }
-        
-        // Convertir VentaItem a ItemInfo
-        List<ItemInfo> items = ventaItems.stream()
-            .map(item -> new ItemInfo(
-                item.getProducto() != null ? item.getProducto().getId() : null,
-                item.getPresentacion() != null ? item.getPresentacion().getId() : null,
-                item.getCantidad()
-            ))
-            .collect(Collectors.toList());
-        
-        VentaCacheEntry nuevaEntrada = new VentaCacheEntry(ventaId, creadoEn, items);
-        
-        ventasCache.compute(usuarioId, (key, ventas) -> {
-            if (ventas == null) {
-                ventas = new ArrayList<>();
-            }
-            
-            // Agregar al inicio
-            ventas.add(0, nuevaEntrada);
-            
-            // Mantener solo las últimas MAX_CACHE_SIZE ventas
-            if (ventas.size() > MAX_CACHE_SIZE) {
-                ventas = ventas.subList(0, MAX_CACHE_SIZE);
-            }
-            
-            return ventas;
-        });
-        
-        log.debug("✅ Venta {} agregada al cache para usuario {}", ventaId, usuarioId);
+        reserva.entrada.creadoEn = creadoEn != null ? creadoEn : reloj.get();
+        reserva.entrada.ventaId = ventaId;
+        log.debug("Reserva confirmada con la venta {}", ventaId);
     }
-    
+
     /**
-     * Limpia el cache periódicamente, removiendo entradas antiguas (más de 1 minuto)
+     * La venta no llego a existir: se suelta la huella en el acto.
+     *
+     * <p>Sin esto, un fallo ajeno al guard —una caja cerrada, un error de red— dejaria al cajero
+     * bloqueado durante toda la ventana con un mensaje que no tiene nada que ver con la causa. El
+     * rollback de la transaccion no alcanza a este mapa: la base deshace la venta, la memoria no.
      */
-    @Scheduled(fixedRate = 60000) // Cada minuto
+    public void liberar(Reserva reserva) {
+        if (reserva == null || !reserva.tomada()) {
+            return;
+        }
+        if (entradas.remove(reserva.huella, reserva.entrada)) {
+            log.debug("Reserva liberada sin venta");
+        }
+    }
+
+    /** Limpia lo vencido y, sobre todo, la reserva que quedo colgada sin confirmar ni liberar. */
+    @Scheduled(fixedRate = 60000)
     public void limpiarCache() {
-        LocalDateTime ahora = LocalDateTime.now();
-        LocalDateTime tiempoLimite = ahora.minusMinutes(1);
-        
-        int totalEliminadas = 0;
-        
-        for (Map.Entry<Long, List<VentaCacheEntry>> entry : ventasCache.entrySet()) {
-            List<VentaCacheEntry> ventas = entry.getValue();
-            if (ventas == null) {
-                continue;
-            }
-            
-            // Filtrar solo las entradas recientes (último minuto)
-            List<VentaCacheEntry> ventasRecientes = ventas.stream()
-                .filter(v -> v.getCreadoEn().isAfter(tiempoLimite))
-                .collect(Collectors.toList());
-            
-            int eliminadas = ventas.size() - ventasRecientes.size();
-            totalEliminadas += eliminadas;
-            
-            if (ventasRecientes.isEmpty()) {
-                // Si no hay ventas recientes, remover el usuario del cache
-                ventasCache.remove(entry.getKey());
-            } else {
-                entry.setValue(ventasRecientes);
+        LocalDateTime limite = reloj.get().minusMinutes(MINUTOS_RESERVA_COLGADA);
+        int eliminadas = 0;
+        for (Iterator<Map.Entry<String, Entrada>> it = entradas.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<String, Entrada> e = it.next();
+            if (e.getValue().creadoEn.isBefore(limite)) {
+                it.remove();
+                eliminadas++;
             }
         }
-        
-        if (totalEliminadas > 0) {
-            log.debug("🧹 Cache limpiado: {} entradas antiguas removidas", totalEliminadas);
+        if (eliminadas > 0) {
+            log.debug("Cache de ventas duplicadas: {} entradas vencidas removidas", eliminadas);
         }
     }
-    
-    /**
-     * Obtiene el tamaño actual del cache (para monitoreo)
-     */
+
+    /** Tamanio actual del cache, para monitoreo. */
     public int getTamanioCache() {
-        return ventasCache.values().stream()
-            .mapToInt(List::size)
-            .sum();
+        return entradas.size();
+    }
+
+    /**
+     * Huella estable de la venta. El formateo es null-safe a proposito: un item sin producto o sin
+     * presentacion tiene que dar una huella valida, no tumbar la venta entera con un NPE.
+     */
+    private String huella(Long usuarioId, List<VentaItemInput> ventaItemList) {
+        List<String> partes = new ArrayList<>(ventaItemList.size());
+        for (VentaItemInput item : ventaItemList) {
+            partes.add(item.getProductoId() + "|" + item.getPresentacionId() + "|" + item.getCantidad());
+        }
+        Collections.sort(partes);
+        return usuarioId + "#" + String.join(",", partes);
+    }
+
+    private static class Entrada {
+        private volatile Long ventaId;
+        private volatile LocalDateTime creadoEn;
+
+        private Entrada(LocalDateTime creadoEn) {
+            this.creadoEn = creadoEn;
+        }
+    }
+
+    /** Token de una reserva. Lo devuelve {@link #reservar} y lo consumen confirmar/liberar. */
+    public static class Reserva {
+
+        private static final Reserva NO_APLICA = new Reserva(null, null);
+
+        private final String huella;
+        private final Entrada entrada;
+        private final boolean duplicado;
+        private final Long ventaIdPrevia;
+
+        private Reserva(String huella, Entrada entrada) {
+            this.huella = huella;
+            this.entrada = entrada;
+            this.duplicado = false;
+            this.ventaIdPrevia = null;
+        }
+
+        private Reserva(Long ventaIdPrevia) {
+            this.huella = null;
+            this.entrada = null;
+            this.duplicado = true;
+            this.ventaIdPrevia = ventaIdPrevia;
+        }
+
+        private static Reserva duplicada(Long ventaIdPrevia) {
+            return new Reserva(ventaIdPrevia);
+        }
+
+        /** True si hay que abortar: ya existe una venta identica, terminada o en curso. */
+        public boolean esDuplicado() {
+            return duplicado;
+        }
+
+        /** Id de la venta que bloquea, o null si la anterior todavia esta en vuelo. */
+        public Long getVentaIdPrevia() {
+            return ventaIdPrevia;
+        }
+
+        private boolean tomada() {
+            return !duplicado && entrada != null;
+        }
     }
 }
-
