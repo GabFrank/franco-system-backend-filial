@@ -106,7 +106,10 @@ No nace ninguna columna ni clave. Se agrega un **escritor** a un campo que ya ex
 
 | Dato | Escritor nuevo | Lectores (ya existen) |
 |---|---|---|
-| `financiero.factura_legal.descuento` en la ruta silenciosa | `VentaGraphQL.inputFacturaSilenciosa` → `FacturaLegalGraphQL.saveFacturaLegal` | `FacturaLegalBuilder` (parciales y `total_final`), `SifenService` (DE), `printTicket58mmFactura` y `reimprimirFacturaLegal` |
+| `financiero.factura_legal.descuento` en la ruta silenciosa | `VentaGraphQL.inputFacturaSilenciosa` → `FacturaLegalGraphQL.saveFacturaLegal` | Filial: `FacturaLegalBuilder` (parciales y `total_final`), `SifenService` (DE), `printTicket58mmFactura` y `reimprimirFacturaLegal`. Central (por réplica): Excel de facturas (`FacturaLegalService.convertToDto`), ticket de factura, KUDE (Jasper) y `NotaCreditoService` (copia 1:1) |
+
+Sin backfill: las silenciosas ya emitidas siguen con `descuento` NULL y parciales brutos. El Excel
+corregido las exporta con su total (factor 1).
 
 ## Verificación
 
@@ -182,3 +185,20 @@ quedó con parciales brutos (el bug 2 histórico del filial), el factor los llev
 arreglan los dos casos sin depender de cómo se grabó cada factura. Tests: parciales netos → sin
 cambio; parciales brutos → escalados; sin parciales → 0. Canal: el Excel lo arma el central, y el
 arreglo del filial y el del central son independientes entre sí (no hay orden de despliegue forzado).
+
+## Auditoría del diff (paso 8)
+
+Fijos 1, 2 y 3. No se disparó ningún condicional: el diff no toca migraciones, workflows ni replicación.
+
+| # | Eje | Sev. | Hallazgo | Qué se hizo |
+|---|---|---|---|---|
+| D1-1..3 | 1 | baja | `reimprimirVenta` sin `sucId`; `findByCobroId` sin sucursal; el Excel del central solo exige sesión | Todos previos al diff. En la filial la PK de `cobro`/`cobro_detalle` es simple y hay una sola sucursal. Deuda aparte |
+| D2-1 | 2 | media | Reimprimir una silenciosa con aumento: `descuento` 0 cae al fallback de `FacturaLegalGraphQL` (l.910/1552), que inventa un descuento negativo | Verificado: **no es regresión**, antes grababa NULL y caía igual. Para la silenciosa con descuento, el fix mejora ese ticket. La condición `null \|\| 0` del fallback no se toca (protege facturas viejas y manuales) |
+| D2-2 | 2 | baja | Ese fallback hace `valor * cambio` sin null-safety: NPE con los 343 descuentos de `cambio` NULL | Fase 4: los dos bloques usan `cobroDetalleService.ajusteDe` |
+| D2-3 | 2 | baja | La tabla de datos nuevos no listaba los lectores del central | Agregados. Se deja escrito que no hay backfill |
+| D3-1 | 3 | media | La lista de facturas del desktop muestra `totalFinal − descuento` (`list-factura-legal.component.html:372`), pero `totalFinal` ya es neto: descuenta dos veces, y ahora también en las silenciosas | Verificado. Es un defecto previo del desktop y se le consulta al usuario si va como PR del desktop |
+| D3-2 | 3 | baja | Contabilidad ve bajar gravadas e IVA en el Excel de facturas con descuento | Se avisa al usuario (es la corrección del doble descuento) |
+| D3-3 | 3 | baja | El aumento del delivery podría guardarse negativo | Descartado: 0 de 878 aumentos guardados son negativos |
+
+Sin ruptura de contrato: ni `.graphqls` ni firmas cambian, y las versiones cruzadas de desktop/filial
+siguen funcionando. mobile-pwa y mobile no usan estas operaciones.
