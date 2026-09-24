@@ -908,19 +908,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         
         // Si el descuento es NULL o 0, intentar calcularlo desde el cobro_detalle
         if ((descuento == null || descuento == 0.0) && venta != null && venta.getCobro() != null) {
-            List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(venta.getCobro().getId());
-            Double descuentoTotal = 0.0;
-            Double aumentoTotal = 0.0;
-            for (CobroDetalle cd : cobroDetalleList) {
-                Double valorCalculado = cd.getValor() * cd.getCambio();
-                if (cd.getDescuento() != null && cd.getDescuento()) {
-                    descuentoTotal += valorCalculado;
-                }
-                if (cd.getAumento() != null && cd.getAumento()) {
-                    aumentoTotal += valorCalculado;
-                }
-            }
-            descuento = descuentoTotal - aumentoTotal;
+            // Misma cuenta que la factura y el ticket simple (AjusteCobro): tolera cambio NULL.
+            descuento = cobroDetalleService.ajusteDe(venta.getCobro(), null).getNeto();
             log.warn("⚠️ Descuento calculado desde cobro_detalle para factura legal ID: {} = {}", facturaLegal.getId(), descuento);
         }
         
@@ -1550,19 +1539,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         
         // Si el descuento es NULL o 0, intentar calcularlo desde el cobro_detalle
         if ((descuento == null || descuento == 0.0) && venta != null && venta.getCobro() != null) {
-            List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(venta.getCobro().getId());
-            Double descuentoTotal = 0.0;
-            Double aumentoTotal = 0.0;
-            for (CobroDetalle cd : cobroDetalleList) {
-                Double valorCalculado = cd.getValor() * cd.getCambio();
-                if (cd.getDescuento() != null && cd.getDescuento()) {
-                    descuentoTotal += valorCalculado;
-                }
-                if (cd.getAumento() != null && cd.getAumento()) {
-                    aumentoTotal += valorCalculado;
-                }
-            }
-            descuento = descuentoTotal - aumentoTotal;
+            // Misma cuenta que la factura y el ticket simple (AjusteCobro): tolera cambio NULL.
+            descuento = cobroDetalleService.ajusteDe(venta.getCobro(), null).getNeto();
             log.warn("⚠️ Descuento calculado desde cobro_detalle para factura legal ID: {} (moneda extranjera) = {}", facturaLegal.getId(), descuento);
         }
         
