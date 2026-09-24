@@ -20,6 +20,7 @@ import com.franco.dev.service.operaciones.CompraService;
 import com.franco.dev.service.operaciones.PedidoService;
 import com.franco.dev.service.personas.ProveedorService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -35,6 +36,9 @@ import java.util.Optional;
 
 @Component
 public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     private static final Logger log = LoggerFactory.getLogger(CobroGraphQL.class);
 
@@ -61,6 +65,7 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     public Cobro saveCobro(CobroInput input, List<CobroDetalleInput> cobroDetalleList, Long cajaId){
+        auditorUsuarioId.verificar("CobroGraphQL.saveCobro", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         Cobro e = m.map(input, Cobro.class);
         if(e.getUsuario()!=null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
