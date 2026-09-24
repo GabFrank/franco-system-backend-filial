@@ -245,7 +245,45 @@ Dos auditores, sin verse. Los cinco hallazgos se verificaron contra el código a
 Correcciones menores: la cita del commit `64f4f51` decía 2026-12-26; es **2025**-12-26 (verificado
 con `git log`). El NPE preexistente de `:264` quedó declarado fuera de alcance.
 
-## 9 · Estado de los pasos del ciclo
+## 9 · Auditoría del diff (paso 8)
+
+Tres ejes fijos. Conditional A no se disparó: el diff son dos archivos Java y un test, ninguno
+matchea los globs de release. Todo hallazgo se verificó contra el código antes de aplicarlo.
+
+| Eje | Hallazgo | Verificación | Qué se hizo |
+|---|---|---|---|
+| Fijo 1 | `ventaInput.getUsuarioId()` sale del input y nunca se contrasta contra el principal autenticado | Cierto: grep de `SecurityContextHolder`/`getPrincipal`/`Authentication` en `VentaGraphQL` da cero. **Preexistente** (líneas 177, 229, 320) | Fuera de alcance: toca la superficie de auth (issue #177). Se levanta aparte |
+| Fijo 1 | El auditor lo agrava diciendo que ocupar la huella ajena sale «gratis y sin completar la venta» | **Falso**: el `finally` libera la reserva al terminar el request, y el `@Scheduled` la recupera en ≤1 min si el hilo muere | No se aplica |
+| Fijo 2 | Sin migración, sin `.graphqls`, sin enum, sin entidad: la declaración N/A del plan se sostiene | Verificado contra el diff y el árbol | Nada que hacer |
+| Fijo 2 | `limpiarCache()` comparte el pool de **un solo hilo** con los schedulers de SIFEN (`Thread.sleep(5000)` inline), el `pg_dump` del backup y el `UpdateService` | Cierto: no hay bean de `TaskScheduler` ni `spring.task.scheduling.pool.size` | Aceptado como limitación conocida. La corrección **no depende** del scheduler: `reservar()` decide con el reloj de la llamada y la reserva en vuelo no expira por tiempo. Solo difiere la higiene del mapa. Meter un pool propio cambiaría el comportamiento de los otros cuatro schedulers |
+| Fijo 2 | `VentaInput` trae `creadoEn` del cliente y el `ModelMapper` lo copiaría; un POS con el reloj adelantado dejaría una entrada que nunca pasa el `isBefore` de la limpieza | Descartado: `VentaService.saveAndSend:84` pisa `creadoEn` con `now()` cuando el id es null, que es siempre para una venta nueva | Nada que hacer. Queda anotado porque es el riesgo que habría habido |
+| Fijo 3 | Firma de `saveVenta` y `venta.graphqls` intactos; `saveVenta2` (delivery) hace early-return antes de la reserva; sin retry link de Apollo en desktop ni PWA | Verificado | Nada que hacer |
+| Fijo 3 | El mensaje nuevo de «venta en curso» queda pisado por el handler genérico del desktop | Ver sección 10 | Redefine la fase 2 |
+
+## 10 · La fase 2 cambia de motivo
+
+La fase 2 original —«el `subscribe` de `onSaveVenta` no tiene handler de `error`, así que una venta
+fallida queda muda»— **estaba mal**. El handler existe, en
+`desktop:venta-touch.component.ts:1504`, y se agregó a propósito con este comentario:
+
+> *Sin este handler el error quedaba sin manejar: la venta no se guardaba y el cajero no se
+> enteraba. Cuando ya se emitió la factura eso deja una factura legal sin venta asociada, con el
+> número de timbrado ya consumido y el stock sin descontar.*
+
+El cajero sí se entera. Lo que queda es otra cosa, más chica: **se entera mal**. En el camino de
+error salen dos snackbars casi en el mismo tick — `generic-crud.service.ts:236-243` muestra el
+mensaje real del backend, y el handler de `:1504` muestra enseguida uno genérico
+(*"No se pudo guardar la venta. Verifique antes de continuar."*, 10 s) que lo pisa.
+
+Consecuencia para este fix: el mensaje que escribimos a propósito para el caso en vuelo —*"Hay una
+venta identica en curso. Espere a que termine antes de reintentar."*— probablemente nunca se ve. El
+cajero no distingue «esperá un segundo» de «algo se rompió, avisá al encargado», que son dos
+acciones distintas.
+
+No es una regresión de este trabajo: el mensaje viejo de duplicado ya se pisaba igual. Queda como
+decisión abierta de Franco, no incluida todavía.
+
+## 11 · Estado de los pasos del ciclo
 
 | Paso | Estado |
 |---|---|
@@ -254,5 +292,8 @@ con `git log`). El NPE preexistente de `:264` quedó declarado fuera de alcance.
 | 3 Análisis | hecho — código > gotchas > skill; el código corrigió a mi propia auditoría previa (había leído el desktop en una rama atrasada) |
 | 4 Plan | este archivo |
 | 5 Auditoría del plan | hecho — 2 agentes, 5 hallazgos, todos verificados y aplicados (sección 8) |
-| 6 Presentar y commitear | en curso |
+| 6 Presentar y commitear | hecho — aprobado por Franco, plan commiteado |
+| 7 Implementacion fase 1 | hecho |
+| 8 Auditoria del diff | hecho — 3 ejes, seccion 9 |
+| 9 Bateria de tests | hecho — 290 tests verdes; el de concurrencia falla al degradar el fix |
 | 7–12 | pendientes |
