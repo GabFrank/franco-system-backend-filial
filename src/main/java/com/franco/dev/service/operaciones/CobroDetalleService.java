@@ -1,6 +1,8 @@
 package com.franco.dev.service.operaciones;
 
+import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.CobroDetalle;
+import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
 import com.franco.dev.repository.operaciones.CobroDetalleRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
@@ -33,6 +35,17 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
 //
     public List<CobroDetalle> findByCobroId(Long id) {
         return repository.findByCobroId(id);
+    }
+
+    /**
+     * Descuento y aumento de la venta. La fuente es el cobro guardado; el input del PDV es solo el
+     * respaldo para cuando el cobro todavia no tiene id. Acepta los dos en null (delivery).
+     */
+    public AjusteCobro ajusteDe(Cobro cobro, List<CobroDetalleInput> respaldo) {
+        if (cobro != null && cobro.getId() != null) {
+            return AjusteCobro.deDetalles(findByCobroId(cobro.getId()));
+        }
+        return AjusteCobro.deInputs(respaldo);
     }
 
     public List<CobroDetalle> findByCajaId(Long id) {

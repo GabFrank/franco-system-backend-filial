@@ -241,6 +241,24 @@ decide `PoliticaFacturacionService.decidirRuta(...)`, con la política que resue
   combinaciones de `ticket`/`facturar`/`pdvId`/crédito/contador. Si tocás la decisión, esa tabla
   tiene que seguir pasando o el cambio de comportamiento tiene que declararse.
 
+## El descuento de la venta vive en el cobro
+
+El PDV no guarda el descuento ni el aumento en la venta (`venta.total_gs` queda **bruto**): son
+líneas de `operaciones.cobro_detalle` con `descuento` o `aumento` en true, siempre en guaraníes.
+
+- **Una sola cuenta: `AjusteCobro`**, vía `CobroDetalleService.ajusteDe(cobro, respaldo)`. La fuente
+  es el cobro guardado; el input del PDV es solo respaldo si el cobro no tiene id. La usan el ticket
+  simple (`printTicket58mm`), la factura con DE (`crearFacturaLegalDesdeVenta`), la silenciosa y el
+  fallback del ticket de factura. No volver a sumar `valor * cambio` a mano: hay descuentos de
+  2023-24 con `cambio` NULL, y un cobro puede tener varias líneas de descuento (se suman todas).
+- **`factura_legal` graba parciales y `total_final` netos** del descuento (`ParcialesCalculator`),
+  con los ítems brutos al precio cobrado (`venta_item.precio`, no el de lista). Quien lea una
+  factura no le vuelve a restar `descuento` al total ni a los parciales.
+- **La factura silenciosa no lleva el aumento** (SIFEN no prorratea un descuento negativo), y **no
+  se emite si el descuento cubre el total**: `SifenService` tiraría dentro de la transacción de
+  `saveVenta`, que queda rollback-only, y se perdería la venta ya cobrada. El armado tira
+  `GraphQLException` antes de escribir y el turno vuelve.
+
 ## Pull Requests
 
 - **Tamaño**: idealmente menos de 400 líneas de cambio neto. Una responsabilidad por PR.
