@@ -308,32 +308,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         // Armar el input no escribe nada: si falla, el turno vuelve siempre y la
                         // proxima venta reintenta (como con el contador viejo, que quedaba en 0).
                         try {
-                            if (venta.getCliente() == null) {
-                                facturaLegalInput.setNombre("SIN NOMBRE");
-                                facturaLegalInput.setRuc("X");
-                            } else {
-                                facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
-                                facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
-                            }
-                            facturaLegalInput.setVentaId(venta.getId());
-                            facturaLegalInput.setCredito(ventaCreditoInput != null ? true : false);
-                            facturaLegalInput.setUsuarioId(ventaInput.getUsuarioId());
-                        
-                            // Calcular totales desde CobroDetalle
-                            Double totalFinal = venta.getTotalGs();
-                            facturaLegalInput.setTotalFinal(totalFinal);
-
-                            for (VentaItem vi : ventaItemList1) {
-                                FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
-                                fiInput.setVentaItemId(vi.getId());
-                                fiInput.setPresentacionId(vi.getPresentacion().getId());
-                                fiInput.setIva(vi.getPresentacion().getProducto().getIva());
-                                fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
-                                fiInput.setCantidad(vi.getCantidad());
-                                fiInput.setPrecioUnitario(vi.getPrecioVenta().getPrecio() - vi.getValorDescuento());
-                                fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
-                                facturaLegalItemInputList.add(fiInput);
-                            }
+                            facturaLegalItemInputList = itemsFacturaSilenciosa(ventaItemList1);
+                            facturaLegalInput = inputFacturaSilenciosa(venta, facturaLegalItemInputList,
+                                    ventaInput.getUsuarioId(), ventaCreditoInput != null,
+                                    cobroDetalleService.ajusteDe(cobro, cobroDetalleList));
                         } catch (RuntimeException armado) {
                             if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politicaFacturacion)) {
                                 politicaFacturacionService.devolverTurno();
@@ -360,6 +338,67 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
         }
         return venta;
+    }
+
+    /**
+     * Items de la factura silenciosa al precio que cobro el PDV ({@code venta_item.precio}), igual que
+     * {@code FacturaService.crearFacturaLegalDesdeVenta}. El precio de lista puede no ser el cobrado.
+     */
+    static List<FacturaLegalItemInput> itemsFacturaSilenciosa(List<VentaItem> ventaItems) {
+        List<FacturaLegalItemInput> items = new ArrayList<>();
+        for (VentaItem vi : ventaItems) {
+            FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
+            fiInput.setVentaItemId(vi.getId());
+            fiInput.setPresentacionId(vi.getPresentacion().getId());
+            fiInput.setIva(vi.getPresentacion().getProducto().getIva());
+            fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
+            fiInput.setCantidad(vi.getCantidad());
+            Double precio = vi.getPrecio() != null ? vi.getPrecio()
+                    : vi.getPrecioVenta().getPrecio() - (vi.getValorDescuento() != null ? vi.getValorDescuento() : 0.0);
+            fiInput.setPrecioUnitario(precio);
+            fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
+            items.add(fiInput);
+        }
+        return items;
+    }
+
+    /**
+     * Cabecera de la factura silenciosa con el descuento del cobro: el builder lo distribuye en los
+     * parciales y SIFEN lo prorratea por item. El aumento no entra, porque SIFEN no prorratea un
+     * descuento negativo y la factura y el DE quedarian con totales distintos.
+     *
+     * @throws GraphQLException si el descuento cubre el total. SIFEN lo rechazaria con una excepcion
+     *                          dentro de la transaccion de la venta, que la deja rollback-only y
+     *                          pierde la venta ya cobrada. Aca todavia no se escribio nada: el
+     *                          turno vuelve y la venta se guarda sin factura.
+     */
+    static FacturaLegalInput inputFacturaSilenciosa(Venta venta, List<FacturaLegalItemInput> items,
+                                                    Long usuarioId, boolean credito, AjusteCobro ajuste) {
+        FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
+        if (venta.getCliente() == null) {
+            facturaLegalInput.setNombre("SIN NOMBRE");
+            facturaLegalInput.setRuc("X");
+        } else {
+            facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
+            facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
+        }
+        facturaLegalInput.setVentaId(venta.getId());
+        facturaLegalInput.setCredito(credito);
+        facturaLegalInput.setUsuarioId(usuarioId);
+
+        double bruto = 0.0;
+        for (FacturaLegalItemInput fi : items) {
+            bruto += fi.getTotal() != null ? fi.getTotal() : 0.0;
+        }
+        double descuento = Math.max(ajuste.getNeto(), 0.0);
+        if (descuento > 0 && descuento >= bruto) {
+            throw new GraphQLException(String.format(
+                    "El descuento (%.0f) cubre el total de la venta %d (%.0f): no se emite la factura",
+                    descuento, venta.getId(), bruto));
+        }
+        facturaLegalInput.setDescuento(descuento);
+        facturaLegalInput.setTotalFinal(bruto - descuento);
+        return facturaLegalInput;
     }
 
     /**
