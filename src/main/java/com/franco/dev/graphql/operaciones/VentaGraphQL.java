@@ -30,6 +30,7 @@ import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.PagosTicketAgrupador;
 import com.franco.dev.service.operaciones.CobroDetalleService;
+import com.franco.dev.service.operaciones.AjusteCobro;
 import com.franco.dev.service.operaciones.LoteTicketService;
 import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.DeliveryService;
@@ -513,14 +514,15 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             precioDeliveryDs = precioDeliveryGs / cambioDs;
         }
 
+        // El descuento sale del cobro guardado: reimprimir, el pagare y el delivery no traen el input
+        // del PDV, y con el input solo esos tickets salian con "Desc. 0" y el total bruto.
+        AjusteCobro ajuste = cobroDetalleService.ajusteDe(cobro != null ? cobro : venta.getCobro(),
+                cobroDetalleList);
+        descuento = ajuste.getDescuento();
+        aumento = ajuste.getAumento();
+
         if (cobroDetalleList != null) {
             for (CobroDetalleInput cdi : cobroDetalleList) {
-                if (cdi.getAumento()) {
-                    aumento += cdi.getValor() * cdi.getCambio();
-                }
-                if (cdi.getDescuento()) {
-                    descuento += cdi.getValor() * cdi.getCambio();
-                }
                 if (cdi.getVuelto() != null) {
                     if (cdi.getMonedaId() == 1) {
                         vueltoGs = cdi.getValor();

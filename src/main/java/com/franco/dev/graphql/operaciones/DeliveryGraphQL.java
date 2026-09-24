@@ -226,7 +226,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                     if (politicaFacturacionService.facturarDelivery(pdvId, politica)) {
                         try {
                             // Crear factura legal con documento electrónico integrado
-                            // Para delivery no hay CobroDetalle, por lo que se pasa null (sin descuentos)
+                            // Sin input del PDV (null): el descuento lo lee del cobro guardado del delivery
                             com.franco.dev.domain.financiero.FacturaLegal facturaLegalConDE = facturaService
                                     .crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, null);
 
