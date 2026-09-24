@@ -204,67 +204,68 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             return this.saveVenta2(ventaInput);
         }
         
-        // Validar duplicados ANTES de crear la venta (usando cache en memoria)
-        if (ventaInput.getUsuarioId() != null && ventaItemList != null && !ventaItemList.isEmpty()) {
-            log.debug("🔍 Verificando venta duplicada para usuario {} con {} items", ventaInput.getUsuarioId(), ventaItemList.size());
-            Long ventaDuplicadaId = ventaDuplicadaCacheService.verificarVentaDuplicada(
-                ventaInput.getUsuarioId(), 
-                ventaItemList
-            );
-            if (ventaDuplicadaId != null) {
-                log.warn("❌ INTENTO DE VENTA DUPLICADA BLOQUEADO: Usuario {} intentó crear venta duplicada de la venta ID: {}", 
-                    ventaInput.getUsuarioId(), ventaDuplicadaId);
-                throw new GraphQLException(
-                    String.format("Ya existe una venta similar creada recientemente (ID: %d). " +
-                        "Debe esperar al menos 5 segundos entre ventas.", ventaDuplicadaId)
-                );
-            }
-            log.debug("✅ Validación venta duplicada pasada para usuario {}", ventaInput.getUsuarioId());
+        // Se reserva la huella de la venta ANTES del primer write. Consultar y recien poblar el
+        // cache despues de persistir dejaba pasar a dos requests concurrentes (caja 662).
+        VentaDuplicadaCacheService.Reserva reservaVenta =
+                ventaDuplicadaCacheService.reservar(ventaInput.getUsuarioId(), ventaItemList);
+        if (reservaVenta.esDuplicado()) {
+            Long ventaIdPrevia = reservaVenta.getVentaIdPrevia();
+            throw new GraphQLException(ventaIdPrevia != null
+                    ? String.format("Ya existe una venta similar creada recientemente (ID: %d). "
+                            + "Debe esperar al menos 5 segundos entre ventas.", ventaIdPrevia)
+                    : "Hay una venta identica en curso. Espere a que termine antes de reintentar.");
         }
 
         // Antes del primer write: la lectura corre fuera de esta transaccion y nunca lanza (issue #127).
         PoliticaFacturacion politicaFacturacion = configuracionFacturacionLector.resolver();
 
         Venta venta = null;
-        Cobro cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
+        Cobro cobro = null;
         List<VentaItem> ventaItemList1 = new ArrayList<>();
-        if (cobro != null) {
-            ModelMapper m = new ModelMapper();
-            Venta e = m.map(ventaInput, Venta.class);
-            if (e.getUsuario() != null)
-                e.setUsuario(usuarioService.findById(ventaInput.getUsuarioId()).orElse(null));
-            if (e.getCliente() != null) {
-                e.setCliente(clienteService.findById(ventaInput.getClienteId()).orElse(null));
-            } else {
-                e.setCliente(clienteService.findById((long) 0).orElse(null));
+        // El try/finally envuelve TODO el tramo reservado. No alcanza con cubrir el camino de
+        // deshacerVenta: hay salidas por excepcion que ni siquiera llegan ahi, como el throw de
+        // "Esta caja ya esta cerrada" mas abajo. Y el rollback de la transaccion no toca el cache.
+        boolean reservaConfirmada = false;
+        try {
+            cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
+            if (cobro != null) {
+                ModelMapper m = new ModelMapper();
+                Venta e = m.map(ventaInput, Venta.class);
+                if (e.getUsuario() != null)
+                    e.setUsuario(usuarioService.findById(ventaInput.getUsuarioId()).orElse(null));
+                if (e.getCliente() != null) {
+                    e.setCliente(clienteService.findById(ventaInput.getClienteId()).orElse(null));
+                } else {
+                    e.setCliente(clienteService.findById((long) 0).orElse(null));
+                }
+                if (e.getFormaPago() != null)
+                    e.setFormaPago(formaPagoService.findById(ventaInput.getFormaPagoId()).orElse(null));
+                if (e.getCaja() != null)
+                    e.setCaja(pdvCajaService.findById(ventaInput.getCajaId()).orElse(null));
+                if (e.getCaja().getConteoCierre() != null)
+                    throw new GraphQLException("Esta caja ya esta cerrada");
+                e.setCobro(cobro);
+                e.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+                venta = service.saveAndSend(e, false);
+                if (venta != null) {
+                    ventaItemList1 = ventaItemGraphQL.saveVentaItemList(ventaItemList, venta.getId());
+                
+                    // La venta existe: la reserva pasa a ser el antecedente que bloquea a la gemela.
+                    if (venta.getId() != null) {
+                        ventaDuplicadaCacheService.confirmar(reservaVenta, venta.getId(), venta.getCreadoEn());
+                        reservaConfirmada = true;
+                    }
+
+                    if (venta.getDelivery() != null && venta.getEstado() == VentaEstado.CONCLUIDA
+                            && venta.getDelivery().getEstado() != DeliveryEstado.CONCLUIDO) {
+                        venta.getDelivery().setEstado(DeliveryEstado.CONCLUIDO);
+                        deliveryService.save(venta.getDelivery());
+                    }
+                }
             }
-            if (e.getFormaPago() != null)
-                e.setFormaPago(formaPagoService.findById(ventaInput.getFormaPagoId()).orElse(null));
-            if (e.getCaja() != null)
-                e.setCaja(pdvCajaService.findById(ventaInput.getCajaId()).orElse(null));
-            if (e.getCaja().getConteoCierre() != null)
-                throw new GraphQLException("Esta caja ya esta cerrada");
-            e.setCobro(cobro);
-            e.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
-            venta = service.saveAndSend(e, false);
-            if (venta != null) {
-                ventaItemList1 = ventaItemGraphQL.saveVentaItemList(ventaItemList, venta.getId());
-                
-                // Agregar venta al cache después de crearla exitosamente (para prevenir duplicados)
-                if (venta.getId() != null && venta.getUsuario() != null && !ventaItemList1.isEmpty()) {
-                    ventaDuplicadaCacheService.agregarVentaAlCache(
-                        venta.getUsuario().getId(),
-                        venta.getId(),
-                        venta.getCreadoEn() != null ? venta.getCreadoEn() : LocalDateTime.now(),
-                        ventaItemList1
-                    );
-                }
-                
-                if (venta.getDelivery() != null && venta.getEstado() == VentaEstado.CONCLUIDA
-                        && venta.getDelivery().getEstado() != DeliveryEstado.CONCLUIDO) {
-                    venta.getDelivery().setEstado(DeliveryEstado.CONCLUIDO);
-                    deliveryService.save(venta.getDelivery());
-                }
+        } finally {
+            if (!reservaConfirmada) {
+                ventaDuplicadaCacheService.liberar(reservaVenta);
             }
         }
         if (venta.getId() == null) {
