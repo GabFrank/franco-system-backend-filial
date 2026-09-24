@@ -37,6 +37,7 @@ import com.franco.dev.utilitarios.print.escpos.EscPosConst;
 import com.franco.dev.utilitarios.print.escpos.Style;
 import com.franco.dev.utilitarios.print.escpos.image.*;
 import com.franco.dev.utilitarios.print.output.PrinterOutputStream;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -79,6 +80,9 @@ import static com.franco.dev.utilitarios.DateUtils.stringToDate;
 
 @Component
 public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     private static final Logger log = LoggerFactory.getLogger(FacturaLegalGraphQL.class);
 
@@ -201,6 +205,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     public TimbradoDetalle saveFacturaLegal(FacturaLegalInput entity, List<FacturaLegalItemInput> detalleList,
             String printerName, Integer pdvId, Boolean print) {
+        auditorUsuarioId.verificar("FacturaLegalGraphQL.saveFacturaLegal", entity.getUsuarioId());
         try {
             if(print == null){
                 print = true;
@@ -908,19 +913,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         
         // Si el descuento es NULL o 0, intentar calcularlo desde el cobro_detalle
         if ((descuento == null || descuento == 0.0) && venta != null && venta.getCobro() != null) {
-            List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(venta.getCobro().getId());
-            Double descuentoTotal = 0.0;
-            Double aumentoTotal = 0.0;
-            for (CobroDetalle cd : cobroDetalleList) {
-                Double valorCalculado = cd.getValor() * cd.getCambio();
-                if (cd.getDescuento() != null && cd.getDescuento()) {
-                    descuentoTotal += valorCalculado;
-                }
-                if (cd.getAumento() != null && cd.getAumento()) {
-                    aumentoTotal += valorCalculado;
-                }
-            }
-            descuento = descuentoTotal - aumentoTotal;
+            // Misma cuenta que la factura y el ticket simple (AjusteCobro): tolera cambio NULL.
+            descuento = cobroDetalleService.ajusteDe(venta.getCobro(), null).getNeto();
             log.warn("⚠️ Descuento calculado desde cobro_detalle para factura legal ID: {} = {}", facturaLegal.getId(), descuento);
         }
         
@@ -1550,19 +1544,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         
         // Si el descuento es NULL o 0, intentar calcularlo desde el cobro_detalle
         if ((descuento == null || descuento == 0.0) && venta != null && venta.getCobro() != null) {
-            List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(venta.getCobro().getId());
-            Double descuentoTotal = 0.0;
-            Double aumentoTotal = 0.0;
-            for (CobroDetalle cd : cobroDetalleList) {
-                Double valorCalculado = cd.getValor() * cd.getCambio();
-                if (cd.getDescuento() != null && cd.getDescuento()) {
-                    descuentoTotal += valorCalculado;
-                }
-                if (cd.getAumento() != null && cd.getAumento()) {
-                    aumentoTotal += valorCalculado;
-                }
-            }
-            descuento = descuentoTotal - aumentoTotal;
+            // Misma cuenta que la factura y el ticket simple (AjusteCobro): tolera cambio NULL.
+            descuento = cobroDetalleService.ajusteDe(venta.getCobro(), null).getNeto();
             log.warn("⚠️ Descuento calculado desde cobro_detalle para factura legal ID: {} (moneda extranjera) = {}", facturaLegal.getId(), descuento);
         }
         

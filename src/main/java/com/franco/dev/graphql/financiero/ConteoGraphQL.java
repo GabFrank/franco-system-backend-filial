@@ -15,6 +15,7 @@ import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -34,6 +35,9 @@ import java.util.Optional;
 
 @Component
 public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     private static final Logger log = LoggerFactory.getLogger(ConteoGraphQL.class);
     @Autowired
@@ -70,6 +74,7 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     @Unsecured()
     @Transactional
     public Conteo saveConteo(ConteoInput input, List<ConteoMonedaInput> conteoMonedaInputList, Long cajaId, Boolean apertura, Boolean imprimirBalance) {
+        auditorUsuarioId.verificar("ConteoGraphQL.saveConteo", input.getUsuarioId());
         log.info("[FILIAL saveConteo] INICIO -> cajaId={}, apertura={}, imprimirBalance={}, usuarioId={}, totalGs={}, totalRs={}, totalDs={}, cantConteoMoneda={}",
                 cajaId, apertura, imprimirBalance,
                 input != null ? input.getUsuarioId() : null,
