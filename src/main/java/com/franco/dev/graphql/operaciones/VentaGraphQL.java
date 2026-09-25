@@ -30,6 +30,7 @@ import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.PagosTicketAgrupador;
 import com.franco.dev.service.operaciones.CobroDetalleService;
+import com.franco.dev.service.operaciones.AjusteCobro;
 import com.franco.dev.service.operaciones.LoteTicketService;
 import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.DeliveryService;
@@ -49,6 +50,7 @@ import com.franco.dev.utilitarios.print.escpos.Style;
 import com.franco.dev.utilitarios.print.escpos.barcode.QRCode;
 import com.franco.dev.utilitarios.print.escpos.image.*;
 import com.franco.dev.utilitarios.print.output.PrinterOutputStream;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -85,13 +87,21 @@ import static com.franco.dev.utilitarios.StringUtils.removeAccents;
 @Component
 public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
+
     public static final DecimalFormat df = new DecimalFormat("#,###.##");
     private static final Logger log = LoggerFactory.getLogger(VentaGraphQL.class);
     @Autowired
     public VentaItemGraphQL ventaItemGraphQL;
     @Autowired
     public CobroGraphQL cobroGraphQL;
-    Integer facturaCountDown = null;
+    /** Politica de facturacion de la sucursal; reemplaza a la property facturaCountDown (issue #127). */
+    @Autowired
+    private ConfiguracionFacturacionLector configuracionFacturacionLector;
+    /** Decide el comprobante de cada venta y lleva el contador que antes era un campo de este resolver. */
+    @Autowired
+    private PoliticaFacturacionService politicaFacturacionService;
     @Autowired
     private VentaService service;
     @Autowired
@@ -167,6 +177,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     @Transactional
     public Venta saveVenta2(VentaInput ventaInput) {
+        auditorUsuarioId.verificar("VentaGraphQL.saveVenta2", ventaInput.getUsuarioId());
         ModelMapper m = new ModelMapper();
         Venta e = m.map(ventaInput, Venta.class);
         if (ventaInput.getUsuarioId() != null)
@@ -189,89 +200,98 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             List<CobroDetalleInput> cobroDetalleList, Boolean ticket, Boolean facturar, String printerName,
             String local, Long pdvId, VentaCreditoInput ventaCreditoInput,
             List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) throws Exception, GraphQLException {
-        if (facturaCountDown == null)
-            facturaCountDown = Integer.valueOf(env.getProperty("facturaCountDown"));
+        auditorUsuarioId.verificar("VentaGraphQL.saveVenta", ventaInput.getUsuarioId());
         if (ventaItemList == null && cobroDetalleList == null && cobroDetalleList == null) {
             return this.saveVenta2(ventaInput);
         }
         
-        // Validar duplicados ANTES de crear la venta (usando cache en memoria)
-        if (ventaInput.getUsuarioId() != null && ventaItemList != null && !ventaItemList.isEmpty()) {
-            log.debug("🔍 Verificando venta duplicada para usuario {} con {} items", ventaInput.getUsuarioId(), ventaItemList.size());
-            Long ventaDuplicadaId = ventaDuplicadaCacheService.verificarVentaDuplicada(
-                ventaInput.getUsuarioId(), 
-                ventaItemList
-            );
-            if (ventaDuplicadaId != null) {
-                log.warn("❌ INTENTO DE VENTA DUPLICADA BLOQUEADO: Usuario {} intentó crear venta duplicada de la venta ID: {}", 
-                    ventaInput.getUsuarioId(), ventaDuplicadaId);
-                throw new GraphQLException(
-                    String.format("Ya existe una venta similar creada recientemente (ID: %d). " +
-                        "Debe esperar al menos 5 segundos entre ventas.", ventaDuplicadaId)
-                );
-            }
-            log.debug("✅ Validación venta duplicada pasada para usuario {}", ventaInput.getUsuarioId());
+        // Se reserva la huella de la venta ANTES del primer write. Consultar y recien poblar el
+        // cache despues de persistir dejaba pasar a dos requests concurrentes (caja 662).
+        VentaDuplicadaCacheService.Reserva reservaVenta =
+                ventaDuplicadaCacheService.reservar(ventaInput.getUsuarioId(), ventaItemList);
+        if (reservaVenta.esDuplicado()) {
+            Long ventaIdPrevia = reservaVenta.getVentaIdPrevia();
+            throw new GraphQLException(ventaIdPrevia != null
+                    ? String.format("Ya existe una venta similar creada recientemente (ID: %d). "
+                            + "Debe esperar al menos 5 segundos entre ventas.", ventaIdPrevia)
+                    : "Hay una venta identica en curso. Espere a que termine antes de reintentar.");
         }
-        
+
+        // Antes del primer write: la lectura corre fuera de esta transaccion y nunca lanza (issue #127).
+        PoliticaFacturacion politicaFacturacion = configuracionFacturacionLector.resolver();
+
         Venta venta = null;
-        Cobro cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
+        Cobro cobro = null;
         List<VentaItem> ventaItemList1 = new ArrayList<>();
-        if (cobro != null) {
-            ModelMapper m = new ModelMapper();
-            Venta e = m.map(ventaInput, Venta.class);
-            if (e.getUsuario() != null)
-                e.setUsuario(usuarioService.findById(ventaInput.getUsuarioId()).orElse(null));
-            if (e.getCliente() != null) {
-                e.setCliente(clienteService.findById(ventaInput.getClienteId()).orElse(null));
-            } else {
-                e.setCliente(clienteService.findById((long) 0).orElse(null));
+        // El try/finally envuelve TODO el tramo reservado. No alcanza con cubrir el camino de
+        // deshacerVenta: hay salidas por excepcion que ni siquiera llegan ahi, como el throw de
+        // "Esta caja ya esta cerrada" mas abajo. Y el rollback de la transaccion no toca el cache.
+        boolean reservaConfirmada = false;
+        try {
+            cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
+            if (cobro != null) {
+                ModelMapper m = new ModelMapper();
+                Venta e = m.map(ventaInput, Venta.class);
+                if (e.getUsuario() != null)
+                    e.setUsuario(usuarioService.findById(ventaInput.getUsuarioId()).orElse(null));
+                if (e.getCliente() != null) {
+                    e.setCliente(clienteService.findById(ventaInput.getClienteId()).orElse(null));
+                } else {
+                    e.setCliente(clienteService.findById((long) 0).orElse(null));
+                }
+                if (e.getFormaPago() != null)
+                    e.setFormaPago(formaPagoService.findById(ventaInput.getFormaPagoId()).orElse(null));
+                if (e.getCaja() != null)
+                    e.setCaja(pdvCajaService.findById(ventaInput.getCajaId()).orElse(null));
+                if (e.getCaja().getConteoCierre() != null)
+                    throw new GraphQLException("Esta caja ya esta cerrada");
+                e.setCobro(cobro);
+                e.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+                venta = service.saveAndSend(e, false);
+                if (venta != null) {
+                    ventaItemList1 = ventaItemGraphQL.saveVentaItemList(ventaItemList, venta.getId());
+                
+                    // La venta existe: la reserva pasa a ser el antecedente que bloquea a la gemela.
+                    if (venta.getId() != null) {
+                        ventaDuplicadaCacheService.confirmar(reservaVenta, venta.getId(), venta.getCreadoEn());
+                        reservaConfirmada = true;
+                    }
+
+                    if (venta.getDelivery() != null && venta.getEstado() == VentaEstado.CONCLUIDA
+                            && venta.getDelivery().getEstado() != DeliveryEstado.CONCLUIDO) {
+                        venta.getDelivery().setEstado(DeliveryEstado.CONCLUIDO);
+                        deliveryService.save(venta.getDelivery());
+                    }
+                }
             }
-            if (e.getFormaPago() != null)
-                e.setFormaPago(formaPagoService.findById(ventaInput.getFormaPagoId()).orElse(null));
-            if (e.getCaja() != null)
-                e.setCaja(pdvCajaService.findById(ventaInput.getCajaId()).orElse(null));
-            if (e.getCaja().getConteoCierre() != null)
-                throw new GraphQLException("Esta caja ya esta cerrada");
-            e.setCobro(cobro);
-            e.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
-            venta = service.saveAndSend(e, false);
-            if (venta != null) {
-                ventaItemList1 = ventaItemGraphQL.saveVentaItemList(ventaItemList, venta.getId());
-                
-                // Agregar venta al cache después de crearla exitosamente (para prevenir duplicados)
-                if (venta.getId() != null && venta.getUsuario() != null && !ventaItemList1.isEmpty()) {
-                    ventaDuplicadaCacheService.agregarVentaAlCache(
-                        venta.getUsuario().getId(),
-                        venta.getId(),
-                        venta.getCreadoEn() != null ? venta.getCreadoEn() : LocalDateTime.now(),
-                        ventaItemList1
-                    );
-                }
-                
-                if (venta.getDelivery() != null && venta.getEstado() == VentaEstado.CONCLUIDA
-                        && venta.getDelivery().getEstado() != DeliveryEstado.CONCLUIDO) {
-                    venta.getDelivery().setEstado(DeliveryEstado.CONCLUIDO);
-                    deliveryService.save(venta.getDelivery());
-                }
+        } finally {
+            if (!reservaConfirmada) {
+                ventaDuplicadaCacheService.liberar(reservaVenta);
             }
         }
         if (venta.getId() == null) {
             deshacerVenta(venta, cobro, null);
         } else {
+            boolean credito = ventaCreditoInput != null && ventaCreditoCuotaInputList != null;
+            // Que comprobante lleva la venta lo decide la politica de facturacion, no el boton (issue #127).
+            // Con la tabla vacia la decision es la de siempre: ver PoliticaFacturacionServiceTest.
+            PoliticaFacturacionService.RutaVenta ruta = politicaFacturacionService.decidirRuta(ticket, facturar,
+                    pdvId, credito, politicaFacturacion);
             try {
-                if (ticket != null && ticket == true) {
-                    if (pdvId != null && facturar) {
-                        // INICIO: Nueva lógica de facturación
-                        
-                        // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
-                        FacturaLegal facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList1, pdvId, cobroDetalleList);
+                switch (ruta) {
+                    case FACTURA_E_IMPRESION:
+                        try {
+                            // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
+                            FacturaLegal facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList1, pdvId, cobroDetalleList);
 
-                        // Imprimir el ticket/factura con los datos del DE
-                        facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName);
-
-                        // FIN: Nueva lógica de facturación
-
-                    } else if (ventaCreditoInput != null && ventaCreditoCuotaInputList != null) {
+                            // Imprimir el ticket/factura con los datos del DE
+                            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName);
+                        } catch (Exception fe) {
+                            devolverTurnoSiCorresponde(ruta, credito, politicaFacturacion, fe);
+                            throw fe;
+                        }
+                        break;
+                    case PAGARE_CREDITO:
                         ventaCreditoInput.setVentaId(venta.getId());
                         ventaCreditoInput.setSucursalId(venta.getSucursalId());
                         VentaCredito ventaCredito = ventaCreditoGraphQL.saveVentaCredito(ventaCreditoInput,
@@ -280,46 +300,32 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                             printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local,
                                     true, ventaCreditoCuotaInputList, null);
                         }
-                    } else {
+                        break;
+                    case TICKET_SIMPLE:
                         printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local,
                                 false, null, null);
-                    }
-                    return venta;
-                } else if (facturar != null && !facturar) {
-                    // El frontend ya generó una factura manual para esta venta: se omite la
-                    // facturación silenciosa automática para no duplicar el comprobante fiscal.
-                    // No se toca facturaCountDown para no desincronizar el contador de las demás ventas.
-                } else if (facturaCountDown == 0) {
-                    if (pdvId != null) {
+                        break;
+                    case SIN_FACTURA:
+                        // Sin comprobante automatico: la politica no la factura, o el frontend ya
+                        // emitio una factura manual (facturar=false) y no se duplica el fiscal.
+                        break;
+                    case FACTURA_SILENCIOSA: {
                         FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
-                        if (venta.getCliente() == null) {
-                            facturaLegalInput.setNombre("SIN NOMBRE");
-                            facturaLegalInput.setRuc("X");
-                        } else {
-                            facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
-                            facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
-                        }
-                        facturaLegalInput.setVentaId(venta.getId());
-                        facturaLegalInput.setCredito(ventaCreditoInput != null ? true : false);
-                        facturaLegalInput.setUsuarioId(ventaInput.getUsuarioId());
-                        
-                        // Calcular totales desde CobroDetalle
-                        Double totalFinal = venta.getTotalGs();
-                        facturaLegalInput.setTotalFinal(totalFinal);
-                        
                         List<FacturaLegalItemInput> facturaLegalItemInputList = new ArrayList<>();
-                        for (VentaItem vi : ventaItemList1) {
-                            FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
-                            fiInput.setVentaItemId(vi.getId());
-                            fiInput.setPresentacionId(vi.getPresentacion().getId());
-                            fiInput.setIva(vi.getPresentacion().getProducto().getIva());
-                            fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
-                            fiInput.setCantidad(vi.getCantidad());
-                            fiInput.setPrecioUnitario(vi.getPrecioVenta().getPrecio() - vi.getValorDescuento());
-                            fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
-                            facturaLegalItemInputList.add(fiInput);
+                        // Armar el input no escribe nada: si falla, el turno vuelve siempre y la
+                        // proxima venta reintenta (como con el contador viejo, que quedaba en 0).
+                        try {
+                            facturaLegalItemInputList = itemsFacturaSilenciosa(ventaItemList1);
+                            facturaLegalInput = inputFacturaSilenciosa(venta, facturaLegalItemInputList,
+                                    ventaInput.getUsuarioId(), ventaCreditoInput != null,
+                                    cobroDetalleService.ajusteDe(cobro, cobroDetalleList));
+                        } catch (RuntimeException armado) {
+                            if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politicaFacturacion)) {
+                                politicaFacturacionService.devolverTurno();
+                            }
+                            throw armado;
                         }
-                        
+
                         // Generar factura legal con DE SIN IMPRIMIR (print = false)
                         try {
                             facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, 
@@ -327,12 +333,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         } catch (Exception fe) {
                             log.error("❌ Error en facturación silenciosa: {}", fe.getMessage(), fe);
                             // No lanzamos excepción para no romper el flujo de venta
+                            devolverTurnoSiCorresponde(ruta, credito, politicaFacturacion, fe);
                         }
-                        
-                        facturaCountDown = Integer.valueOf(env.getProperty("facturaCountDown"));
+                        break;
                     }
-                } else {
-                    facturaCountDown = facturaCountDown - 1;
                 }
 
             } catch (Exception e) {
@@ -341,6 +345,81 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
         }
         return venta;
+    }
+
+    /**
+     * Items de la factura silenciosa al precio que cobro el PDV ({@code venta_item.precio}), igual que
+     * {@code FacturaService.crearFacturaLegalDesdeVenta}. El precio de lista puede no ser el cobrado.
+     */
+    static List<FacturaLegalItemInput> itemsFacturaSilenciosa(List<VentaItem> ventaItems) {
+        List<FacturaLegalItemInput> items = new ArrayList<>();
+        for (VentaItem vi : ventaItems) {
+            FacturaLegalItemInput fiInput = new FacturaLegalItemInput();
+            fiInput.setVentaItemId(vi.getId());
+            fiInput.setPresentacionId(vi.getPresentacion().getId());
+            fiInput.setIva(vi.getPresentacion().getProducto().getIva());
+            fiInput.setDescripcion(vi.getPresentacion().getProducto().getDescripcionFactura());
+            fiInput.setCantidad(vi.getCantidad());
+            Double precio = vi.getPrecio() != null ? vi.getPrecio()
+                    : vi.getPrecioVenta().getPrecio() - (vi.getValorDescuento() != null ? vi.getValorDescuento() : 0.0);
+            fiInput.setPrecioUnitario(precio);
+            fiInput.setTotal(fiInput.getCantidad() * fiInput.getPrecioUnitario());
+            items.add(fiInput);
+        }
+        return items;
+    }
+
+    /**
+     * Cabecera de la factura silenciosa con el descuento del cobro: el builder lo distribuye en los
+     * parciales y SIFEN lo prorratea por item. El aumento no entra, porque SIFEN no prorratea un
+     * descuento negativo y la factura y el DE quedarian con totales distintos.
+     *
+     * @throws GraphQLException si el descuento cubre el total. SIFEN lo rechazaria con una excepcion
+     *                          dentro de la transaccion de la venta, que la deja rollback-only y
+     *                          pierde la venta ya cobrada. Aca todavia no se escribio nada: el
+     *                          turno vuelve y la venta se guarda sin factura.
+     */
+    static FacturaLegalInput inputFacturaSilenciosa(Venta venta, List<FacturaLegalItemInput> items,
+                                                    Long usuarioId, boolean credito, AjusteCobro ajuste) {
+        FacturaLegalInput facturaLegalInput = new FacturaLegalInput();
+        if (venta.getCliente() == null) {
+            facturaLegalInput.setNombre("SIN NOMBRE");
+            facturaLegalInput.setRuc("X");
+        } else {
+            facturaLegalInput.setNombre(venta.getCliente().getPersona().getNombre());
+            facturaLegalInput.setRuc(venta.getCliente().getPersona().getDocumento());
+        }
+        facturaLegalInput.setVentaId(venta.getId());
+        facturaLegalInput.setCredito(credito);
+        facturaLegalInput.setUsuarioId(usuarioId);
+
+        double bruto = 0.0;
+        for (FacturaLegalItemInput fi : items) {
+            bruto += fi.getTotal() != null ? fi.getTotal() : 0.0;
+        }
+        double descuento = Math.max(ajuste.getNeto(), 0.0);
+        if (descuento > 0 && descuento >= bruto) {
+            throw new GraphQLException(String.format(
+                    "El descuento (%.0f) cubre el total de la venta %d (%.0f): no se emite la factura",
+                    descuento, venta.getId(), bruto));
+        }
+        facturaLegalInput.setDescuento(descuento);
+        facturaLegalInput.setTotalFinal(bruto - descuento);
+        return facturaLegalInput;
+    }
+
+    /**
+     * Si la factura de esta venta salio de un turno del contador y fallo en una validacion previa a
+     * escribir, el turno vuelve y la proxima venta lo intenta. Una falla posterior (o sistematica:
+     * SIFEN caido, error despues del insert) no lo devuelve: reintentarla en cada venta, dentro de
+     * su transaccion, multiplicaria las ventas perdidas.
+     */
+    private void devolverTurnoSiCorresponde(PoliticaFacturacionService.RutaVenta ruta, boolean credito,
+                                            PoliticaFacturacion politica, Exception error) {
+        if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politica)
+                && PoliticaFacturacionService.fallaAntesDeEscribir(error)) {
+            politicaFacturacionService.devolverTurno();
+        }
     }
 
     public Boolean imprimirPagare(Long ventaId, List<VentaCreditoCuotaInput> itens, String printerName, String local,
@@ -481,14 +560,15 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             precioDeliveryDs = precioDeliveryGs / cambioDs;
         }
 
+        // El descuento sale del cobro guardado: reimprimir, el pagare y el delivery no traen el input
+        // del PDV, y con el input solo esos tickets salian con "Desc. 0" y el total bruto.
+        AjusteCobro ajuste = cobroDetalleService.ajusteDe(cobro != null ? cobro : venta.getCobro(),
+                cobroDetalleList);
+        descuento = ajuste.getDescuento();
+        aumento = ajuste.getAumento();
+
         if (cobroDetalleList != null) {
             for (CobroDetalleInput cdi : cobroDetalleList) {
-                if (cdi.getAumento()) {
-                    aumento += cdi.getValor() * cdi.getCambio();
-                }
-                if (cdi.getDescuento()) {
-                    descuento += cdi.getValor() * cdi.getCambio();
-                }
                 if (cdi.getVuelto() != null) {
                     if (cdi.getMonedaId() == 1) {
                         vueltoGs = cdi.getValor();
@@ -906,7 +986,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     sb.append(" pagare solidariamente al Sr. FRANCO AREVALOS S.A. la suma de G$ ");
                     sb.append(valorPagare);
                     sb.append(
-                            "por el valor recibido a mi/nuestro entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara contituida la MORA automatica, sin necesidad de interpelacion alguna.");
+                            " por el valor recibido a mi/nuestra entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara constituida la MORA automatica, sin necesidad de interpelacion alguna.");
                     escpos.write(sb.toString());
                     escpos.feed(4);
                     escpos.writeLF("   --------------------------   ");

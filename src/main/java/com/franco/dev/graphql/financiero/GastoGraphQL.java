@@ -10,6 +10,7 @@ import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.dto.GastoDto;
 import com.franco.dev.service.personas.FuncionarioService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -24,6 +25,9 @@ import java.util.Optional;
 
 @Component
 public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     @Autowired
     private GastoService service;
@@ -67,6 +71,14 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     public Gasto saveGasto(GastoInput input, String printerName, String local) throws GraphQLException {
+        auditorUsuarioId.verificar("GastoGraphQL.saveGasto", input.getUsuarioId());
+        if (input.getId() == null) {
+            String observacion = input.getObservacion() != null ? input.getObservacion().trim() : "";
+            if (observacion.isEmpty()) {
+                throw new GraphQLException("La observación es obligatoria para registrar un gasto.");
+            }
+            input.setObservacion(observacion);
+        }
         ModelMapper m = new ModelMapper();
         Gasto e = m.map(input, Gasto.class);
 

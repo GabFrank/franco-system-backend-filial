@@ -30,6 +30,9 @@ public class ConfiguracionVentaTarjetaService extends CrudService<ConfiguracionV
         if (!list.isEmpty()) {
             return list.get(0);
         }
+        // Los defaults del resto de los campos ya vienen de los inicializadores de la entidad, y
+        // son los valores que estaban clavados en el codigo antes de esta etapa: un filial sin la
+        // fila replicada se comporta exactamente como se comportaba.
         ConfiguracionVentaTarjeta def = new ConfiguracionVentaTarjeta();
         def.setId(0L);
         def.setHabilitado(false);

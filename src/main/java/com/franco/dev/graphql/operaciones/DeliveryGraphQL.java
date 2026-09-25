@@ -15,8 +15,12 @@ import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.operaciones.VueltoService;
 import com.franco.dev.service.personas.FuncionarioService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.financiero.ConfiguracionFacturacionLector;
 import com.franco.dev.service.financiero.FacturaService;
+import com.franco.dev.service.financiero.PoliticaFacturacion;
+import com.franco.dev.service.financiero.PoliticaFacturacionService;
 import com.franco.dev.service.financiero.FacturaLegalService;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.GraphQLException;
 import graphql.GraphqlErrorException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
@@ -35,6 +39,9 @@ import java.util.Optional;
 
 @Component
 public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     @Autowired
     private DeliveryService service;
@@ -79,6 +86,12 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     private FacturaLegalGraphQL facturaLegalGraphQL;
 
     @Autowired
+    private ConfiguracionFacturacionLector configuracionFacturacionLector;
+
+    @Autowired
+    private PoliticaFacturacionService politicaFacturacionService;
+
+    @Autowired
     private FacturaService facturaService;
 
     @Autowired
@@ -110,6 +123,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     }
 
     public Delivery saveDelivery(DeliveryInput input) {
+        auditorUsuarioId.verificar("DeliveryGraphQL.saveDelivery", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         Delivery e = m.map(input, Delivery.class);
         if (input.getUsuarioId() != null) {
@@ -138,6 +152,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     public Delivery saveDeliveryAndVenta(DeliveryInput deliveryInput, VentaInput ventaInput,
             List<VentaItemInput> ventaItemInputList, VueltoInput vueltoInput, List<VueltoItemInput> vueltoItemInputList,
             CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleInputList) throws GraphqlErrorException {
+        auditorUsuarioId.verificar("DeliveryGraphQL.saveDeliveryAndVenta", deliveryInput.getUsuarioId());
         Delivery delivery = null;
         try {
             if (cobroInput == null && cobroDetalleInputList != null) {
@@ -211,10 +226,13 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
             switch (deliveryEstado) {
                 case PARA_ENTREGA:
                     List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
-                    if (pdvId != null) {
+                    // Misma regla que "Venta + Ticket": factura siempre, salvo que la politica de la
+                    // sucursal diga que se respete (issue #127). Si no factura, sale el ticket simple.
+                    PoliticaFacturacion politica = configuracionFacturacionLector.resolver();
+                    if (politicaFacturacionService.facturarDelivery(pdvId, politica)) {
                         try {
                             // Crear factura legal con documento electrónico integrado
-                            // Para delivery no hay CobroDetalle, por lo que se pasa null (sin descuentos)
+                            // Sin input del PDV (null): el descuento lo lee del cobro guardado del delivery
                             com.franco.dev.domain.financiero.FacturaLegal facturaLegalConDE = facturaService
                                     .crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, null);
 
@@ -227,6 +245,11 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
                         } catch (Exception e) {
                             e.printStackTrace();
+                            if (PoliticaFacturacionService.salioDeUnTurno(
+                                    PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION, false, politica)
+                                    && PoliticaFacturacionService.fallaAntesDeEscribir(e)) {
+                                politicaFacturacionService.devolverTurno();
+                            }
                             throw new GraphQLException("Problema al generar factura electrónica: " + e.getMessage());
                         }
                     } else {

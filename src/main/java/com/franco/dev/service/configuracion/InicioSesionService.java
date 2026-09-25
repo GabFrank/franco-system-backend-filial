@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @AllArgsConstructor
@@ -42,6 +43,11 @@ public class InicioSesionService extends CrudService<InicioSesion, InicioSesionR
         } else {
             return repository.findByUsuarioIdAndHoraFinIsNullOrderByIdDesc(id, pageable);
         }
+    }
+
+    // Por (id, sucursal) y no por id: la PK real es compuesta y la entidad solo mapea id.
+    public Optional<InicioSesion> findByIdAndSucursalId(Long id, Long sucursalId) {
+        return repository.findByIdAndSucursalId(id, sucursalId);
     }
 
     @Override

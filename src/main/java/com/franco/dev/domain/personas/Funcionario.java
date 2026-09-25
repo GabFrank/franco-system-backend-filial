@@ -82,6 +82,14 @@ public class Funcionario implements Identifiable<Long> {
     @JoinColumn(name = "horario_id", nullable = true)
     private com.franco.dev.domain.administrativo.Horario horario;
 
+    // Copia de solo lectura de la FK. administrativo.horario no se replica a las filiales (el
+    // marcado de horarios es solo del central), asi que horario_id suele apuntar a una fila
+    // inexistente y inicializar el proxy de arriba tira EntityNotFoundException. Con este id
+    // se resuelve el horario por consulta (ver FuncionarioResolver.horario y MarcacionService)
+    // sin tocar el proxy y sin volver eager la relacion.
+    @Column(name = "horario_id", insertable = false, updatable = false)
+    private Long horarioId;
+
     // Campos IPS / datos personales que consulta el desktop feat/modulo-financiero.
     // codigo_interno/ips_activo/numero_ips/cuenta_bancaria: columnas de V88.3.
     // fecha_ingreso_ips/contacto_emergencia_*: columnas de V88.5 (espejo de central V169.0).
@@ -93,6 +101,10 @@ public class Funcionario implements Identifiable<Long> {
 
     @Column(name = "numero_ips")
     private String numeroIps;
+
+    /** true = cobra por transferencia bancaria; false/null = cobra en efectivo. Se gestiona en el central. */
+    @Column(name = "cobra_banco")
+    private Boolean cobraBanco;
 
     @Column(name = "cuenta_bancaria")
     private String cuentaBancaria;

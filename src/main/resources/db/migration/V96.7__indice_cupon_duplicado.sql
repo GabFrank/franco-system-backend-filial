@@ -1,0 +1,40 @@
+-- =====================================================================
+-- Indice para el chequeo de cupon duplicado por codigo de autorizacion
+-- =====================================================================
+-- QUE PROBLEMA RESUELVE
+--
+-- `VentaTarjetaService.motivoPorCodigoAutorizacion` busca por
+-- (sucursal_id, estado='COMPLETADO', upper(trim(codigo_autorizacion))) y opcionalmente terminal.
+-- Sin indice eso es un Seq Scan --medido con EXPLAIN el 2026-09-10-- sobre TODA la tabla: los dos
+-- indices que ya existen estan liderados por caja_id, que esta consulta no filtra.
+--
+-- Y no corre una vez por venta: corre en cada `completar()` Y en cada pre-chequeo que dispara el
+-- desktop mientras el cajero todavia esta con el ticket en la mano. El costo escala con el
+-- historico completo de venta_tarjeta de la sucursal, no con la ventana de 24 h que la consulta
+-- mira.
+--
+-- POR QUE ESTA FORMA EXACTA
+--
+-- Es un indice de EXPRESION porque la consulta compara `upper(trim(...))`, no la columna pelada.
+-- Verificado con EXPLAIN el 2026-09-10 que PostgreSQL lo usa escribiendo la condicion de las tres
+-- formas posibles --`trim(x)`, `trim(both from x)` y `btrim(x)`--, porque el planner compara el
+-- arbol parseado y las tres colapsan a `btrim`. O sea que no depende de como Hibernate decida
+-- renderizar `trim` en el SQL que genera, que es justo lo que haria fragil a un indice asi.
+--
+-- PARCIAL por estado='COMPLETADO': un PENDIENTE todavia no imputo nada y la consulta nunca los
+-- mira, asi que no tiene sentido cargarlos al indice.
+--
+-- SOBRE EL BLOQUEO
+--
+-- `CREATE INDEX` a secas toma ShareLock, que bloquea ESCRITURAS sobre venta_tarjeta mientras
+-- construye. No se puede usar CONCURRENTLY: Flyway 5.2.3 corre cada migracion dentro de una
+-- transaccion y CONCURRENTLY no lo admite. Se acepta porque venta_tarjeta es chica --una fila por
+-- cobro con tarjeta, no por item-- y la construccion son segundos. Si alguna filial resulta tener
+-- un volumen que lo vuelva sensible, se saca de aca y se corre a mano con CONCURRENTLY.
+--
+-- NO SE REPLICA: los indices son locales de cada instancia, no viajan por replicacion logica.
+-- Central necesita el suyo cuando implemente el mismo chequeo.
+-- =====================================================================
+CREATE INDEX IF NOT EXISTS idx_venta_tarjeta_codigo_autorizacion
+    ON financiero.venta_tarjeta (sucursal_id, upper(btrim(codigo_autorizacion)))
+    WHERE estado = 'COMPLETADO';
