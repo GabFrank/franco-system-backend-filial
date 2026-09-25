@@ -2,7 +2,6 @@ package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.CapturaCupon;
 import com.franco.dev.domain.financiero.PdvCaja;
-import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.repository.financiero.CapturaCuponRepository;
 import com.franco.dev.service.CrudService;
@@ -148,9 +147,8 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         // consumir el token y no al emitirlo: eso dejaba al cajero escanear el QR, ir hasta el
         // aparato, sacar la foto y recien ahi enterarse de que la caja estaba cerrada. Es el
         // mismo chequeo, adelantado al momento en que todavia se puede hacer algo.
-        Optional<PdvCaja> caja = cajas.findById(cajaId);
-        if (!caja.isPresent() || caja.get().getEstado() != PdvCajaEstado.EN_PROCESO) {
-            throw new IllegalStateException("la caja no esta abierta");
+        if (!cajaAbierta(cajas.findById(cajaId).orElse(null))) {
+            throw new IllegalStateException("la caja de esta venta no esta abierta: el cupon se puede cargar a mano");
         }
 
         byte[] bytes = new byte[BYTES_TOKEN];
@@ -214,8 +212,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         if (c.estaVencida()) throw new IllegalStateException("el codigo vencio; pedi uno nuevo desde la caja");
 
         // La caja pudo cerrarse en los minutos que el telefono tuvo la pagina abierta.
-        Optional<PdvCaja> caja = cajas.findById(c.getCajaId());
-        if (!caja.isPresent() || caja.get().getEstado() != PdvCajaEstado.EN_PROCESO) {
+        if (!cajaAbierta(cajas.findById(c.getCajaId()).orElse(null))) {
             throw new IllegalStateException("la caja ya no esta abierta");
         }
 
@@ -564,6 +561,21 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         // Ultimo recurso: el desktop va a mostrar un QR que no resuelve y el cajero va a avisar.
         // Es preferible a no mostrar nada: el sintoma dice donde mirar.
         return "127.0.0.1";
+    }
+
+    /**
+     * Si la caja cuenta como abierta para sacar la foto del cupon.
+     *
+     * <p><b>Por {@code activo}, no por {@code estado}.</b> {@code pdv_caja.estado} no lo escribe
+     * nadie: el 2026-09-24 estaba vacio en todas las cajas de la filial 1 de farmacia y de alpha, y
+     * exigir {@code EN_PROCESO} dejaba la captura imposible en cualquier caja. {@code activo} es lo
+     * que ya usa {@link PdvCajaService} para abrir el maletin y rechazar "Ya existe una caja
+     * abierta".
+     *
+     * <p>Package-private para poder testearla sin levantar el servicio.
+     */
+    static boolean cajaAbierta(PdvCaja caja) {
+        return caja != null && Boolean.TRUE.equals(caja.getActivo());
     }
 
     /**
