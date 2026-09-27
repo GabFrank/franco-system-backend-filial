@@ -3,6 +3,7 @@ package com.franco.dev.graphql.operaciones.resolver;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.productos.enums.UnidadMedida;
+import com.franco.dev.service.operaciones.PrecioCobrado;
 import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.operaciones.VentaService;
 import graphql.kickstart.tools.GraphQLResolver;
@@ -24,7 +25,7 @@ public class VentaItemResolver implements GraphQLResolver<VentaItem> {
             cantidad = v.getProducto().getUnidadPorCaja();
         }
         try {
-            return (v.getPrecioVenta().getPrecio() * v.getCantidad() * cantidad);
+            return (PrecioCobrado.de(v) * v.getCantidad() * cantidad);
         } catch (Exception e){
             return 0.0;
         }

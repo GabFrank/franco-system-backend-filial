@@ -38,6 +38,9 @@ public class PresentacionResolver implements GraphQLResolver<Presentacion> {
     @Autowired
     private PrecioPorSucursalService precioPorSucursalService;
 
+    @Autowired
+    private PrecioEspecialLector precioEspecialLector;
+
     public String imagenPrincipal(Presentacion p) throws IOException {
         return imageService.getImageWithMediaType(p.getId()+".jpg", imageService.getImagePresentacionesThumbPath());
     }
@@ -47,15 +50,23 @@ public class PresentacionResolver implements GraphQLResolver<Presentacion> {
     }
 
     public List<PrecioPorSucursal> precios(Presentacion p){
-        return precioPorSucursalService.findByPresentacionId(p.getId());
+        return precioEspecialLector.aplicar(precioPorSucursalService.findByPresentacionId(p.getId()));
     }
 
     public Codigo codigoPrincipal(Presentacion p){
         return codigoService.findPrincipalByPresentacionId(p.getId());
     }
 
+    /**
+     * El principal sale de la lista ya resuelta, para que refleje el precio especial. La query
+     * nativa findPrincipalByPresentacionId hacia select * sobre un join presentacion/precio con
+     * columnas homonimas (id, activo, principal): el id mapeado podia ser el de la presentacion.
+     */
     public PrecioPorSucursal precioPrincipal(Presentacion p){
-        return precioPorSucursalService.findPrincipalByPrecionacionId(p.getId());
+        for (PrecioPorSucursal precio : precios(p)) {
+            if (precio != null && Boolean.TRUE.equals(precio.getPrincipal())) return precio;
+        }
+        return null;
     }
 
 }

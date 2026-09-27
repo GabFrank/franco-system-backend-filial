@@ -73,6 +73,9 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
     @Autowired
     private PresentacionResolver presentacionResolver;
 
+    @Autowired
+    private PrecioEspecialLector precioEspecialLector;
+
     private ProductoExistenciaCostoGraphQL productoExistenciaCostoGraphQL;
 
     public Usuario usuario(Producto e){
@@ -175,7 +178,7 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
     }
 
     public List<Presentacion> presentaciones(Producto p){
-        return presentacionService.findByProductoId(p.getId());
+        return precioEspecialLector.habilitarPresentaciones(presentacionService.findByProductoId(p.getId()));
     }
 
     public String imagenPrincipal(Producto p) {
