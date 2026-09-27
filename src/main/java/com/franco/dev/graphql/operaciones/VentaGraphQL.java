@@ -31,6 +31,7 @@ import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.PagosTicketAgrupador;
 import com.franco.dev.service.operaciones.CobroDetalleService;
 import com.franco.dev.service.operaciones.AjusteCobro;
+import com.franco.dev.service.operaciones.PrecioCobrado;
 import com.franco.dev.service.operaciones.LoteTicketService;
 import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.DeliveryService;
@@ -656,9 +657,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 escpos.writeLF(vi.getProducto().getDescripcion());
                 escpos.write(new Style().setBold(true), cantidad);
                 String valorUnitario = df
-                        .format(vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue());
+                        .format(PrecioCobrado.de(vi).intValue() - vi.getValorDescuento().intValue());
                 String valorTotal = String.valueOf(
-                        df.format((vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue())
+                        df.format((PrecioCobrado.de(vi).intValue() - vi.getValorDescuento().intValue())
                                 * vi.getCantidad().doubleValue()));
                 for (int i = 14; i > cantidad.length(); i--) {
                     escpos.write(" ");
