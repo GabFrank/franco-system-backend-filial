@@ -1,5 +1,6 @@
 package com.franco.dev.service.financiero;
 
+import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.domain.financiero.VentaTarjeta;
 import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.repository.financiero.CapturaCuponRepository;
@@ -299,9 +300,14 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                                                 String codigoAutorizacion, BigDecimal montoEscaneado,
                                                 Long terminalPosId) {
         if (qrCrudo != null && !qrCrudo.trim().isEmpty()) {
-            List<VentaTarjeta> previos = repository.findByQrCrudo(qrCrudo.trim());
+            // Solo los que siguen vigentes: el cupon de una venta cancelada queda libre para otra.
+            List<VentaTarjeta> previos = repository.findByQrCrudoEnVentasVigentes(
+                    qrCrudo.trim(), VentaEstado.CANCELADA);
             if (previos != null) {
                 for (VentaTarjeta otro : previos) {
+                    // La query ya los excluye; se repite aca para que la regla no dependa solo de
+                    // que la query este bien escrita.
+                    if ("CANCELADO".equals(otro.getEstado())) continue;
                     if (otro.getId() != null && !otro.getId().equals(ventaTarjetaId)) {
                         return Optional.of("Ese cupon ya fue registrado en la venta con tarjeta "
                                 + otro.getId() + " (venta " + otro.getVentaId() + "). Un cupon no se puede"
@@ -312,8 +318,10 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         }
 
         if (identificadorTransaccion != null && !identificadorTransaccion.trim().isEmpty()) {
+            // Los cobros de ventas canceladas no cuentan: la referencia queda libre para otra venta.
             List<CobroDetalle> usados = cobroDetalleRepository
-                    .findByIdentificadorTransaccion(identificadorTransaccion.trim());
+                    .findByIdentificadorTransaccionEnVentasVigentes(identificadorTransaccion.trim(),
+                            VentaEstado.CANCELADA);
             if (usados != null) {
                 // Los cobros de ESTA venta no cuentan: el PDV escribe el identificador junto con el
                 // saveVenta, asi que al completar ya esta puesto en la linea correcta. En el
