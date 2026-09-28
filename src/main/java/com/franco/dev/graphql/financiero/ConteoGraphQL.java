@@ -85,10 +85,12 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         ModelMapper m = new ModelMapper();
         Conteo e = m.map(input, Conteo.class);
         Conteo conteo = null;
-        PdvCaja pdvCaja = pdvCajaService.findById(cajaId).orElse(null);
+        // Con lock: un segundo conteo sobre la misma caja espera a este y despues ve el conteo ya
+        // enlazado, asi que cae en la rama idempotente en vez de duplicar conteo y movimientos.
+        PdvCaja pdvCaja = pdvCajaService.findByIdForUpdate(cajaId).orElse(null);
         if (pdvCaja == null) {
-            log.error("[FILIAL saveConteo] No se encontro la PdvCaja con id={}. No se puede guardar el conteo de apertura. Abortando.", cajaId);
-            return null;
+            log.error("[FILIAL saveConteo] No se encontro la PdvCaja con id={}. No se puede guardar el conteo. Abortando.", cajaId);
+            throw new GraphQLException("No se encontro la caja id=" + cajaId + " en esta sucursal");
         }
         if (pdvCaja != null) {
             if (input.getUsuarioId() != null) {
@@ -96,6 +98,10 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             }
             e.setSucursalId(sucursalService.sucursalActual().getId());
             boolean esApertura = Boolean.TRUE.equals(apertura);
+            if (esApertura && pdvCaja.getConteoApertura() != null) {
+                log.warn("[FILIAL saveConteo] La caja id={} ya tiene conteo de apertura. Operacion idempotente.", cajaId);
+                return pdvCaja.getConteoApertura();
+            }
             if (!esApertura && pdvCaja.getConteoCierre() != null) {
                 log.warn("[FILIAL saveConteo] La caja id={} ya tiene conteo de cierre. Operacion idempotente.", cajaId);
                 return pdvCaja.getConteoCierre();

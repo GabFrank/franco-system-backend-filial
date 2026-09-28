@@ -22,6 +22,7 @@ import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.PagosTicketAgrupador;
 import com.franco.dev.service.operaciones.CobroDetalleService;
 import com.franco.dev.service.operaciones.LoteTicketService;
+import com.franco.dev.service.operaciones.PrecioCobrado;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.PersonaService;
@@ -776,9 +777,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF(vi.getProducto().getDescripcion());
             escpos.write(new Style().setBold(true), cantidad);
             String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN)
-                    .format(vi.getPrecioVenta().getPrecio().intValue());
+                    .format(PrecioCobrado.de(vi).intValue());
             String valorTotal = String
-                    .valueOf(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue());
+                    .valueOf(PrecioCobrado.de(vi).intValue() * vi.getCantidad().intValue());
             for (int i = 10; i > cantidad.length(); i--) {
                 escpos.write(" ");
             }
@@ -787,7 +788,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 escpos.write(" ");
             }
             escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN)
-                    .format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
+                    .format(PrecioCobrado.de(vi).intValue() * vi.getCantidad().intValue()));
             loteTicketService.escribir(escpos, lineasLote.get(vi.getId()));
         }
         escpos.writeLF("--------------------------------");
