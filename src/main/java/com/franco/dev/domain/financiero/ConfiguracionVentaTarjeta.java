@@ -99,6 +99,15 @@ public class ConfiguracionVentaTarjeta implements Identifiable<Long> {
     @Column(name = "mb_libres_minimos")
     private Integer mbLibresMinimos;
 
+    /**
+     * Si el PDV exige elegir la terminal antes de cerrar una venta con tarjeta (V104.5).
+     * <p>
+     * El filial no la usa: la expone para que el desktop la lea junto con {@link #habilitado}. NULL
+     * se lee como true del lado del desktop, que es el lado seguro.
+     */
+    @Column(name = "terminal_obligatoria")
+    private Boolean terminalObligatoria = true;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;

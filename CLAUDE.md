@@ -268,6 +268,14 @@ cupon exigia `EN_PROCESO` y nunca funciono hasta que paso a `CapturaCuponService
 No agregar logica nueva que lea `estado`; `findAllWithFilters` todavia filtra por el (sin efecto
 hoy, ningun cliente manda ese filtro).
 
+## Cancelar una venta: en el central, no aca
+
+`VentaService.cancelarVenta` del filial rechaza a proposito (hasta 2026-09-28 era un stub que
+devolvia true sin hacer nada). La cadena --caja, stock, delivery, credito, factura, venta_tarjeta--
+la recorre el central y la baja la replica bidireccional (`central_filialN_pub`). El control de cupon
+duplicado (`VentaTarjetaService.motivoCuponNoUsable`) ignora los cupones de ventas canceladas: un
+ticket de una venta cancelada se puede usar en otra.
+
 ## Pull Requests
 
 - **Tamaño**: idealmente menos de 400 líneas de cambio neto. Una responsabilidad por PR.

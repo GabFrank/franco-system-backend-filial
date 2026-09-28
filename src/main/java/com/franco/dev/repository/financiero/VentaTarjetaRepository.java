@@ -1,6 +1,7 @@
 package com.franco.dev.repository.financiero;
 
 import com.franco.dev.domain.financiero.VentaTarjeta;
+import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,6 +37,20 @@ public interface VentaTarjetaRepository extends HelperRepository<VentaTarjeta, L
 
     /** Un cupon solo puede estar registrado una vez: sirve para detectar el re-escaneo. */
     List<VentaTarjeta> findByQrCrudo(String qrCrudo);
+
+    /**
+     * Los registros que TODAVIA usan este cupon: sin los CANCELADO ni los de una venta CANCELADA.
+     * <p>
+     * Un cupon de una venta cancelada queda libre para cobrar otra (decidido con Gabriel el
+     * 2026-09-28). Mira las dos cosas porque la venta puede llegar cancelada por la replica antes
+     * que su venta_tarjeta.
+     */
+    @Query("SELECT vt FROM VentaTarjeta vt WHERE vt.qrCrudo = :qrCrudo " +
+            "AND (vt.estado IS NULL OR vt.estado <> 'CANCELADO') " +
+            "AND NOT EXISTS (SELECT v.id FROM Venta v WHERE v.id = vt.ventaId " +
+            "AND v.sucursalId = vt.sucursalId AND v.estado = :cancelada)")
+    List<VentaTarjeta> findByQrCrudoEnVentasVigentes(@Param("qrCrudo") String qrCrudo,
+                                                     @Param("cancelada") VentaEstado cancelada);
 
     /**
      * Registros COMPLETADOS con el mismo codigo de autorizacion en el mismo aparato, dentro de una

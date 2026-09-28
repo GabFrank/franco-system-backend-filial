@@ -1,6 +1,7 @@
 package com.franco.dev.repository.operaciones;
 
 import com.franco.dev.domain.operaciones.CobroDetalle;
+import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,6 +17,20 @@ public interface CobroDetalleRepository extends HelperRepository<CobroDetalle, L
 
     /** Cobros que ya tienen colgada esta referencia del proveedor. Deberia haber a lo sumo uno. */
     public List<CobroDetalle> findByIdentificadorTransaccion(String identificadorTransaccion);
+
+    /**
+     * Los cobros que TODAVIA usan esta referencia: sin los de una venta CANCELADA.
+     * <p>
+     * NOT EXISTS y no un join: un cobro que todavia no tiene venta sigue contando como usado, igual
+     * que en {@link #findByIdentificadorTransaccion}. Solo se libera la referencia de una venta que
+     * se cancelo.
+     */
+    @Query("select cd from CobroDetalle cd where cd.identificadorTransaccion = :identificador " +
+            "and not exists (select v.id from Venta v where v.cobro.id = cd.cobro.id " +
+            "and v.sucursalId = cd.sucursalId and v.estado = :cancelada)")
+    public List<CobroDetalle> findByIdentificadorTransaccionEnVentasVigentes(
+            @Param("identificador") String identificadorTransaccion,
+            @Param("cancelada") VentaEstado cancelada);
 
 //    @Query("select p from Venta p left outer join p.proveedor as pro left outer join pro.persona as per where LOWER(per.nombre) like %?1%")
 //    public List<Venta> findByProveedor(String texto);

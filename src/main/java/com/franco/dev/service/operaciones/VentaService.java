@@ -1,5 +1,6 @@
 package com.franco.dev.service.operaciones;
 
+import graphql.GraphQLException;
 import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.PdvCaja;
@@ -144,18 +145,19 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
         return ventaPorPeriodoList;
     }
 
+    /**
+     * La cancelacion de una venta se hace en el CENTRAL, no aca.
+     * <p>
+     * Es el central el que recorre toda la cadena --caja, stock, delivery, credito, factura
+     * electronica y venta con tarjeta-- y la replica bidireccional (central_filialN_pub) la baja a
+     * esta sucursal. Hasta el 2026-09-28 este metodo tenia todo comentado y devolvia {@code true}:
+     * el PDV mostraba "Cancelado con exito" y no cambiaba nada. Ahora rechaza con un mensaje, para
+     * que un desktop viejo que todavia llama aca vea un error y no un exito falso.
+     */
     @Transactional
     public Boolean cancelarVenta(Venta venta) {
-        // venta.setEstado(VentaEstado.CANCELADA);
-        // saveAndSend(venta, false);
-        // List<MovimientoCaja> movimientoCajaList =
-        // movimientoCajaService.findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.VENTA,
-        // venta.getCobro().getId());
-        // for (MovimientoCaja mov : movimientoCajaList) {
-        // mov.setActivo(false);
-        // movimientoCajaService.saveAndSend(mov, false);
-        // }
-        return true;
+        throw new GraphQLException("La cancelacion de ventas se hace contra el servidor central. "
+                + "Actualiza el sistema o cancela la venta desde la lista de ventas.");
     }
 
     public Page<Venta> findWithFiltersCriteria(Long id, Long sucId, Long formaPagoId, VentaEstado estado,
