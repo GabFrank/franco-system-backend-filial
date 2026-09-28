@@ -7,6 +7,8 @@ import com.franco.dev.repository.HelperRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Optional;
+
 public interface InicioSesionRepository extends HelperRepository<InicioSesion, Long> {
 
     default Class<InicioSesion> getEntityClass() {
@@ -15,4 +17,5 @@ public interface InicioSesionRepository extends HelperRepository<InicioSesion, L
 
     public Page<InicioSesion> findByUsuarioIdAndHoraFinIsNullOrderByIdDesc(Long id, Pageable page);
     public Page<InicioSesion> findByUsuarioIdAndSucursalIdAndHoraFinIsNullOrderByIdDesc(Long id, Long sucId, Pageable page);
+    public Optional<InicioSesion> findByIdAndSucursalId(Long id, Long sucursalId);
 }

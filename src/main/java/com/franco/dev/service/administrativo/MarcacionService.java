@@ -146,8 +146,10 @@ public class MarcacionService {
 
             if (funcionario != null) {
 
-                if (funcionario.getHorario() != null) {
-                    horario = funcionario.getHorario();
+                horario = funcionario.getHorarioId() != null
+                        ? horarioRepository.findById(funcionario.getHorarioId()).orElse(null)
+                        : null;
+                if (horario != null) {
 
                     if (horario.getDias() != null && !horario.getDias().isEmpty() && diaSemana != null) {
                         if (!horario.getDias().contains(diaSemana) && !horario.getDias().contains(Dia.TODOS)) {

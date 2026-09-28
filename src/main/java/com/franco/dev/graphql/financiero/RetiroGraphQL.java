@@ -12,6 +12,7 @@ import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.dto.RetiroDto;
 import com.franco.dev.service.personas.FuncionarioService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -27,6 +28,9 @@ import java.util.Optional;
 
 @Component
 public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     @Autowired
     private RetiroService service;
@@ -70,6 +74,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
 
     @Transactional
     public Retiro saveRetiro(RetiroInput input, List<RetiroDetalleInput> retiroDetalleInputList, String printerName, String local) throws GraphQLException {
+        auditorUsuarioId.verificar("RetiroGraphQL.saveRetiro", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         Retiro e = m.map(input, Retiro.class);
 

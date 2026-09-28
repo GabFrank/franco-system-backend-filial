@@ -1,6 +1,23 @@
 type ConfiguracionVentaTarjeta {
     id: ID!
     habilitado: Boolean!
+    """LIBRE | AVISA_AL_CERRAR | BLOQUEA_EL_CIERRE. Que pasa al cerrar la caja con ventas en PENDIENTE."""
+    registroObligatorio: String
+    """
+    Porcentaje por debajo del cual la diferencia entre cupon y cobro no pide confirmacion.
+    0 = confirmar siempre. Porcentaje y no monto porque monto/montoEscaneado no llevan unidad.
+    """
+    toleranciaDiferenciaMontoPct: Float
+    """Vida del token del QR de captura, en minutos."""
+    minutosValidezCaptura: Int
+    """Countdown del dialogo de registro, en segundos."""
+    segundosDialogoRegistro: Int
+    """Cuanto atras mira el chequeo de cupon duplicado por codigo de autorizacion, en horas."""
+    horasVentanaDuplicado: Int
+    """Dias de retencion de las fotos de cupon. null = no purgar. Sin lector hasta la etapa 6."""
+    diasRetencionImagenes: Int
+    """Umbral de espacio libre que alerta, en MB. null = sin alerta. Sin lector hasta la etapa 6."""
+    mbLibresMinimos: Int
     usuario: Usuario
     creadoEn: Date
     modificadoEn: Date

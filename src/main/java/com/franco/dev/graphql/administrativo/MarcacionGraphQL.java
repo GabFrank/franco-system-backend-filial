@@ -6,6 +6,7 @@ import com.franco.dev.service.administrativo.MarcacionService;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -20,6 +21,9 @@ import java.util.Optional;
 
 @Component
 public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     @Autowired
     private MarcacionService service;
@@ -67,6 +71,7 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
     }
 
     public Marcacion saveMarcacion(MarcacionInput input) {
+        auditorUsuarioId.verificar("MarcacionGraphQL.saveMarcacion", input.getUsuarioId());
         if (input.getUsuarioId() != null && input.getEmbedding() != null && !input.getEmbedding().isEmpty()) {
             com.franco.dev.domain.personas.Usuario usuario = usuarioService.findById(input.getUsuarioId()).orElse(null);
             if (usuario != null && usuario.getPersona() != null) {

@@ -1,0 +1,89 @@
+extend type Query {
+    capturaCupon(token: String!): CapturaCupon
+    """
+    Propone el mapa del formato a partir de una captura ya tomada. NO guarda nada: las regiones
+    viven en central, que es el publisher. El administrador revisa esto y central lo persiste.
+    Un campo con `sinRegion` se resuelve por patron, sin restriccion espacial.
+    """
+    derivarMapaDeCaptura(token: String!): [RegionDerivada]
+}
+
+type RegionDerivada {
+    campo: String
+    etiqueta: String
+    "DERECHA | ABAJO | DENTRO"
+    posicion: String
+    "Lo que se leyo en el cupon de muestra, para verificar de un vistazo"
+    valorLeido: String
+    x1: Float
+    y1: Float
+    x2: Float
+    y2: Float
+    "Null si se derivo bien; si no, por que no se pudo"
+    sinRegion: String
+    """
+    TEXTO | NUMERO | FECHA, tomado del `mapeo` del formato -- NO deducido del valor de la muestra:
+    el codigo de autorizacion de INFONET sale alfanumerico con credito y numerico con debito, por
+    la misma terminal el mismo dia, asi que deducirlo mandaria a revision toda venta con credito.
+    Viaja con la propuesta para que central lo guarde tal cual.
+    """
+    tipo: String
+}
+
+extend type Mutation {
+    # terminalPosId es opcional a proposito: sin el la captura guarda el texto leido y no
+    # extrae campos, que es como funcionaba antes de la etapa 4. Un desktop viejo degrada,
+    # no se rompe.
+    crearCapturaCupon(cajaId: ID!, sucursalId: ID!, usuarioId: ID, terminalPosId: ID): CapturaCuponQr
+}
+
+extend type Subscription {
+    capturaCuponSub: CapturaCuponUpdate
+}
+
+# Lo minimo para dibujar el QR. La URL la arma el filial: es el unico que sabe por que
+# interfaz lo alcanza un telefono en el wifi del local.
+type CapturaCuponQr {
+    token: String
+    url: String
+    expiraEn: String
+}
+
+# El aviso que sale cuando el OCR termina: un TIMBRE, no el contenido. Esta subscription es
+# anonima porque por WebSocket no hay sesion, asi que NO lleva el token: con el token cualquiera
+# con sesion abierta leeria el cupon de otra caja via capturaCupon(token). El desktop ya tiene el
+# suyo desde que pidio la captura; le alcanza con saber de que caja es la novedad.
+# Se emite tambien en ERROR: el cajero mira la caja, no el telefono.
+type CapturaCuponUpdate {
+    cajaId: ID
+    estado: String
+}
+
+# El estado de una captura, como lo consulta el desktop. Sin el usuario: es dato de auditoria
+# de la entidad, y exponer un @ManyToOne lazy en una query fuera de transaccion no vale la pena
+# para algo que el desktop ya sabe --el QR lo mostro el.
+type CapturaCupon {
+    id: ID
+    token: String
+    sucursalId: ID
+    cajaId: ID
+    estado: String
+    expiraEn: Date
+    usadoEn: Date
+    imagenUrl: String
+    textoOcr: String
+    """
+    JSON con los campos ya separados: las claves canonicas (codigoAutorizacion, numeroBoleta,
+    monto, terminal, identificadorTransaccion, moneda), mas `datosExtra` con lo que el patron
+    capturo y no es canonico, mas `confianzas` con un numero 0..1 por campo canonico.
+
+    El semaforo del desktop se arma con `confianzas`. Un campo que NO aparece ahi es un campo del
+    que no se sabe, y se trata como dudoso: la accion es la misma que con confianza baja.
+    """
+    campos: String
+    msOcr: Int
+    intentos: Int
+    nitidez: Float
+    error: String
+    creadoEn: Date
+}

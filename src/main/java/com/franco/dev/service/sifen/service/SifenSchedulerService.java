@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Servicio programado para el procesamiento automático de lotes de Documentos Electrónicos.
@@ -41,6 +42,11 @@ import java.util.List;
  * - sifen.scheduler.fixed-delay: Intervalo entre ejecuciones en ms (default: 300000 = 5 min)
  * - sifen.lote.max-size: Máximo de DEs por lote (default: 50, máximo SIFEN)
  * - sifen.lote.max-retries: Máximo de reintentos por lote (actualmente no se usa - sin límite)
+ *
+ * GUARDA: solo se envían y consultan los DE de esta sucursal que nacen de una factura
+ * ({@link #esPropioDeEstaFilial}). Las notas de crédito y de remisión las emite el central y
+ * llegan acá por replicación con factura_legal_id NULL; reenviarlas desde el filial sería un
+ * doble envío a SIFEN.
  */
 @Slf4j
 @Service
@@ -59,6 +65,7 @@ public class SifenSchedulerService {
     private final SifenService sifenService;
     private final DocumentoElectronicoService documentoElectronicoService;
     private final LoteDEService loteDEService;
+    private final Long sucursalPropia;
     
     // Flag para evitar ejecuciones concurrentes
     private volatile boolean procesandoLotes = false;
@@ -66,10 +73,12 @@ public class SifenSchedulerService {
     public SifenSchedulerService(
             SifenService sifenService,
             DocumentoElectronicoService documentoElectronicoService,
-            LoteDEService loteDEService) {
+            LoteDEService loteDEService,
+            @Value("${sucursalId:#{null}}") Long sucursalPropia) {
         this.sifenService = sifenService;
         this.documentoElectronicoService = documentoElectronicoService;
         this.loteDEService = loteDEService;
+        this.sucursalPropia = sucursalPropia;
     }
 
     /**
@@ -134,7 +143,9 @@ public class SifenSchedulerService {
         try {
             // 1. Buscar todos los DEs pendientes (sin lote asignado)
             List<com.franco.dev.domain.financiero.DocumentoElectronico> desPendientes = 
-                documentoElectronicoService.findByEstado(EstadoDE.PENDIENTE);
+                documentoElectronicoService.findByEstado(EstadoDE.PENDIENTE).stream()
+                    .filter(this::esPropioDeEstaFilial)
+                    .collect(Collectors.toList());
             
             if (desPendientes.isEmpty()) {
                 return;
@@ -232,7 +243,9 @@ public class SifenSchedulerService {
     public void consultarLotesPendientes() {
         try {
             // 1. Buscar lotes en estado EN_PROCESO
-            List<LoteDE> lotesEnProceso = loteDEService.findByEstado(EstadoLoteDE.EN_PROCESO);
+            List<LoteDE> lotesEnProceso = loteDEService.findByEstado(EstadoLoteDE.EN_PROCESO).stream()
+                .filter(lote -> todosPropiosDeEstaFilial(documentoElectronicoService.findByLoteDe(lote)))
+                .collect(Collectors.toList());
             
             if (lotesEnProceso.isEmpty()) {
                 return;
@@ -315,6 +328,21 @@ public class SifenSchedulerService {
     }
 
     /**
+     * Un DE es de este filial si es de su sucursal y nace de una factura. Sin sucursalId configurado
+     * solo se exige la factura (el resto del filial tampoco funciona sin esa property).
+     */
+    boolean esPropioDeEstaFilial(com.franco.dev.domain.financiero.DocumentoElectronico de) {
+        if (de.getFacturaLegal() == null) {
+            return false;
+        }
+        return sucursalPropia == null || sucursalPropia.equals(de.getSucursalId());
+    }
+
+    private boolean todosPropiosDeEstaFilial(List<com.franco.dev.domain.financiero.DocumentoElectronico> documentos) {
+        return !documentos.isEmpty() && documentos.stream().allMatch(this::esPropioDeEstaFilial);
+    }
+
+    /**
      * Divide una lista de DEs en lotes más pequeños.
      * 
      * @param des Lista de documentos electrónicos
@@ -374,13 +402,19 @@ public class SifenSchedulerService {
             
             // 2. Procesar cada lote atrasado
             for (LoteDE lote : lotesAtrasados) {
-                log.info("\n--- Procesando lote atrasado {} (Creado: {}, Estado: {}, Intentos: {}) ---", 
-                    lote.getId(), lote.getCreadoEn(), lote.getEstado(), lote.getIntentos());
-                
                 try {
                     // 2.1. Verificar que el lote tenga documentos
                     List<com.franco.dev.domain.financiero.DocumentoElectronico> documentos = 
                         documentoElectronicoService.findByLoteDe(lote);
+
+                    // 2.1.1. Guarda: un lote con algún DE ajeno (nota del central u otra sucursal) no es de este filial
+                    if (!documentos.isEmpty() && !todosPropiosDeEstaFilial(documentos)) {
+                        log.debug("   ⏭️  Lote {} tiene documentos que no emitió este filial - omitido", lote.getId());
+                        continue;
+                    }
+
+                    log.info("\n--- Procesando lote atrasado {} (Creado: {}, Estado: {}, Intentos: {}) ---", 
+                        lote.getId(), lote.getCreadoEn(), lote.getEstado(), lote.getIntentos());
                     
                     if (documentos.isEmpty()) {
                         log.warn("⚠️  Lote {} no tiene documentos asociados - marcando como ERROR_PERMANENTE", 

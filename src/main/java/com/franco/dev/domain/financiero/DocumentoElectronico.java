@@ -36,7 +36,7 @@ public class DocumentoElectronico implements Serializable {
     private Long sucursalId;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "factura_legal_id", nullable = false, unique = true)
+    @JoinColumn(name = "factura_legal_id", nullable = true, unique = true)
     private FacturaLegal facturaLegal;
 
     // Información del documento electrónico

@@ -89,4 +89,25 @@ public class TicketFormato {
         }
         return sb.toString();
     }
+
+    /** Lo que se imprime en lugar de un total en moneda extranjera cuando no hay cotizacion. */
+    public static final String SIN_COTIZACION = "-";
+
+    /**
+     * Total en moneda extranjera (reales, dolares) para una linea de ticket, con dos decimales.
+     *
+     * <p>{@code total} es nulo cuando la venta se registro sin cotizacion cargada: el PDV deja
+     * {@code venta.totalRs/totalDs} en null en vez de inventar un cambio 1:1. Se imprime
+     * {@link #SIN_COTIZACION}. Sin este guard, {@code venta.getTotalRs() + extra} es un
+     * NullPointerException al desboxear, y {@code String.format("%.2f", null)} imprime "nu"
+     * (el Formatter aplica la precision como limite de caracteres sobre el texto "null").
+     *
+     * @param extra monto a sumar en la misma moneda (p. ej. el delivery); nulo cuenta como 0
+     */
+    public static String formatearTotalMoneda(Double total, Double extra) {
+        if (total == null) {
+            return SIN_COTIZACION;
+        }
+        return String.format("%.2f", total + (extra != null ? extra : 0d));
+    }
 }

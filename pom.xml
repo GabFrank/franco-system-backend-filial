@@ -314,6 +314,27 @@
             <version>0.2.4-frc.13</version>
         </dependency>
 
+        <!-- OCR del cupon de tarjeta: PP-OCRv4 sobre ONNX Runtime.
+             Es el artefacto oficial de Microsoft con los nativos de las plataformas
+             que NO desplegamos removidos: 71,8 MB -> 13,1 MB. Sin recompilar ni
+             parchear una sola clase; ver PODA-FRC.txt dentro del jar.
+             Motivo: el frc-filial-server.jar se descarga ENTERO en cada auto-update,
+             cada 15 minutos, en 24 sucursales. -->
+        <dependency>
+            <groupId>io.github.gabfrank</groupId>
+            <artifactId>onnxruntime-slim</artifactId>
+            <version>1.23.2</version>
+        </dependency>
+
+        <!-- Modelos PP-OCRv4 (.onnx) + diccionario, como recursos del classpath.
+             Van en un artefacto y no en el repo para no cargar 15,5 MB de binarios
+             en cada clon. Terminan igual dentro del frc-filial-server.jar. -->
+        <dependency>
+            <groupId>io.github.gabfrank</groupId>
+            <artifactId>ppocr-models</artifactId>
+            <version>1.0</version>
+        </dependency>
+
         <!-- <dependency>
             <groupId>com.roshka.sifen</groupId>
             <artifactId>rshk-jsifenlib</artifactId>
@@ -342,6 +363,40 @@
             </snapshots>
         </repository>
     </repositories>
+
+    <profiles>
+
+        <!-- Desarrollo en macOS.
+
+             El jar podado trae los nativos de linux-x64 y win-x64, que son las dos plataformas
+             de la flota de filiales; macOS no esta, y no tiene por que estar: ninguna sucursal
+             corre macOS. Pero los desarrolladores si, y sin nativo el motor no carga: queda
+             "no disponible" y la captura por foto no se puede probar en local.
+
+             Este perfil se activa solo al compilar en una Mac y agrega el artefacto oficial de
+             Microsoft, que trae osx-aarch64 y osx-x64. No afecta a lo que se despliega: el CI y
+             los releases corren en Linux, donde el perfil no se activa y el jar sigue pesando
+             13,1 MB.
+
+             Los dos artefactos conviven en el classpath en Mac. No hay conflicto: las 58 clases
+             de ai.onnxruntime son byte a byte identicas entre los dos (verificado 2026-09-10),
+             porque el podado se hizo sacando nativos, sin recompilar nada. Y los nativos no se
+             pisan: el podado no trae ninguno de osx. -->
+        <profile>
+            <id>ocr-mac</id>
+            <activation>
+                <os><family>mac</family></os>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>com.microsoft.onnxruntime</groupId>
+                    <artifactId>onnxruntime</artifactId>
+                    <version>1.23.2</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+    </profiles>
 
     <build>
         <plugins>

@@ -10,6 +10,7 @@ import com.franco.dev.service.financiero.ConteoService;
 import com.franco.dev.service.financiero.MaletinService;
 import com.franco.dev.service.financiero.PdvCajaService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -26,6 +27,9 @@ import java.util.Optional;
 
 @Component
 public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     private static final Logger log = LoggerFactory.getLogger(PdvCajaGraphQL.class);
 
@@ -95,6 +99,7 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public PdvCaja savePdvCaja(PdvCajaInput input) {
+        auditorUsuarioId.verificar("PdvCajaGraphQL.savePdvCaja", input.getUsuarioId());
         log.info("[FILIAL savePdvCaja] INICIO -> id={}, sucursalId={}, maletinId={}, usuarioId={}, estado={}, activo={}, fechaApertura={}",
                 input != null ? input.getId() : null,
                 input != null ? input.getSucursalId() : null,

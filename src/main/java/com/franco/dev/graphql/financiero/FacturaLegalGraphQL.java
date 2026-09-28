@@ -31,11 +31,13 @@ import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.sifen.service.SifenService;
 import com.franco.dev.utilitarios.NumeroALetrasService;
 import com.franco.dev.utilitarios.print.QRCodeImageGenerator;
+import com.franco.dev.utilitarios.print.TicketFormato;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
 import com.franco.dev.utilitarios.print.escpos.Style;
 import com.franco.dev.utilitarios.print.escpos.image.*;
 import com.franco.dev.utilitarios.print.output.PrinterOutputStream;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -78,6 +80,9 @@ import static com.franco.dev.utilitarios.DateUtils.stringToDate;
 
 @Component
 public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     private static final Logger log = LoggerFactory.getLogger(FacturaLegalGraphQL.class);
 
@@ -200,6 +205,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     public TimbradoDetalle saveFacturaLegal(FacturaLegalInput entity, List<FacturaLegalItemInput> detalleList,
             String printerName, Integer pdvId, Boolean print) {
+        auditorUsuarioId.verificar("FacturaLegalGraphQL.saveFacturaLegal", entity.getUsuarioId());
         try {
             if(print == null){
                 print = true;
@@ -349,38 +355,52 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             FacturaLegal facturaLegalGuardada = facturaLegalBuilder.build(buildReq);
             TimbradoDetalle timbradoDetalle = facturaLegalGuardada.getTimbradoDetalle();
 
-            // Actualizar dirección y email de la persona del cliente si existe cliente y persona
-            if (facturaLegalGuardada.getCliente() != null && facturaLegalGuardada.getCliente().getPersona() != null) {
-                Persona persona = facturaLegalGuardada.getCliente().getPersona();
-                boolean necesitaActualizar = false;
-                
-                // Actualizar dirección si se proporciona y es diferente
-                if (entity.getDireccion() != null && !entity.getDireccion().trim().isEmpty()) {
-                    String nuevaDireccion = entity.getDireccion().trim();
-                    String direccionActual = persona.getDireccion() != null ? persona.getDireccion() : "";
-                    if (!nuevaDireccion.equals(direccionActual)) {
-                        persona.setDireccion(nuevaDireccion);
-                        necesitaActualizar = true;
+            // Actualizar dirección y email de la persona del cliente si existe cliente y persona.
+            //
+            // Va en su propio try/catch, igual que la impresión de más abajo: en este punto
+            // el builder (que sí es @Transactional) ya commiteó la factura y consumió el
+            // número de timbrado, pero este método no lo es. PersonaService.save() no guarda
+            // localmente: sincroniza contra el central y lanza IllegalStateException si esa
+            // sincronización falla. Sin este catch, esa excepción sale como GraphQLException,
+            // el cliente la lee como "no se guardó la factura", reintenta, y emite una segunda
+            // factura con otro número de timbrado — ninguna de las dos queda ligada a la venta.
+            try {
+                if (facturaLegalGuardada.getCliente() != null && facturaLegalGuardada.getCliente().getPersona() != null) {
+                    Persona persona = facturaLegalGuardada.getCliente().getPersona();
+                    boolean necesitaActualizar = false;
+
+                    // Actualizar dirección si se proporciona y es diferente
+                    if (entity.getDireccion() != null && !entity.getDireccion().trim().isEmpty()) {
+                        String nuevaDireccion = entity.getDireccion().trim();
+                        String direccionActual = persona.getDireccion() != null ? persona.getDireccion() : "";
+                        if (!nuevaDireccion.equals(direccionActual)) {
+                            persona.setDireccion(nuevaDireccion);
+                            necesitaActualizar = true;
+                        }
+                    }
+
+                    // Actualizar email si se proporciona y es diferente
+                    if (entity.getEmail() != null && !entity.getEmail().trim().isEmpty()) {
+                        String nuevoEmail = entity.getEmail().trim();
+                        String emailActual = persona.getEmail() != null ? persona.getEmail() : "";
+                        // Comparar sin considerar mayúsculas/minúsculas ya que PersonaService guarda en mayúsculas
+                        if (!nuevoEmail.equalsIgnoreCase(emailActual)) {
+                            persona.setEmail(nuevoEmail);
+                            necesitaActualizar = true;
+                        }
+                    }
+
+                    // Guardar persona actualizada si hubo cambios
+                    if (necesitaActualizar) {
+                        personaService.save(persona);
+                        log.info("✅ Persona del cliente actualizada - ID: {}, Dirección: {}, Email: {}",
+                            persona.getId(), persona.getDireccion(), persona.getEmail());
                     }
                 }
-                
-                // Actualizar email si se proporciona y es diferente
-                if (entity.getEmail() != null && !entity.getEmail().trim().isEmpty()) {
-                    String nuevoEmail = entity.getEmail().trim();
-                    String emailActual = persona.getEmail() != null ? persona.getEmail() : "";
-                    // Comparar sin considerar mayúsculas/minúsculas ya que PersonaService guarda en mayúsculas
-                    if (!nuevoEmail.equalsIgnoreCase(emailActual)) {
-                        persona.setEmail(nuevoEmail);
-                        necesitaActualizar = true;
-                    }
-                }
-                
-                // Guardar persona actualizada si hubo cambios
-                if (necesitaActualizar) {
-                    personaService.save(persona);
-                    log.info("✅ Persona del cliente actualizada - ID: {}, Dirección: {}, Email: {}", 
-                        persona.getId(), persona.getDireccion(), persona.getEmail());
-                }
+            } catch (Exception e) {
+                log.error("❌ No se pudo actualizar la persona del cliente de la factura legal ID: {}. "
+                        + "La factura ya fue guardada y se devuelve igual.", facturaLegalGuardada.getId(), e);
+                log.error("   Detalle del error: {}", e.getMessage());
             }
 
             // Imprimir si se solicita
@@ -778,7 +798,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         escpos.writeLF(valorGs);
         // log.info(valorGs);
         escpos.write("Total Rs: ");
-        String valorRs = String.format("%.2f", venta.getTotalRs());
+        String valorRs = TicketFormato.formatearTotalMoneda(venta.getTotalRs(), null);
         for (int i = 22; i > valorGs.length(); i--) {
             escpos.write(" ");
         }
@@ -786,7 +806,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         escpos.write("Total Ds: ");
         // String valorDs = NumberFormat.getNumberInstance(new Locale("sk",
         // "SK")).format(venta.getTotalDs());
-        String valorDs = String.format("%.2f", venta.getTotalDs());
+        String valorDs = TicketFormato.formatearTotalMoneda(venta.getTotalDs(), null);
         for (int i = 22; i > valorGs.length(); i--) {
             escpos.write(" ");
         }
@@ -893,19 +913,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         
         // Si el descuento es NULL o 0, intentar calcularlo desde el cobro_detalle
         if ((descuento == null || descuento == 0.0) && venta != null && venta.getCobro() != null) {
-            List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(venta.getCobro().getId());
-            Double descuentoTotal = 0.0;
-            Double aumentoTotal = 0.0;
-            for (CobroDetalle cd : cobroDetalleList) {
-                Double valorCalculado = cd.getValor() * cd.getCambio();
-                if (cd.getDescuento() != null && cd.getDescuento()) {
-                    descuentoTotal += valorCalculado;
-                }
-                if (cd.getAumento() != null && cd.getAumento()) {
-                    aumentoTotal += valorCalculado;
-                }
-            }
-            descuento = descuentoTotal - aumentoTotal;
+            // Misma cuenta que la factura y el ticket simple (AjusteCobro): tolera cambio NULL.
+            descuento = cobroDetalleService.ajusteDe(venta.getCobro(), null).getNeto();
             log.warn("⚠️ Descuento calculado desde cobro_detalle para factura legal ID: {} = {}", facturaLegal.getId(), descuento);
         }
         
@@ -1535,19 +1544,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         
         // Si el descuento es NULL o 0, intentar calcularlo desde el cobro_detalle
         if ((descuento == null || descuento == 0.0) && venta != null && venta.getCobro() != null) {
-            List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(venta.getCobro().getId());
-            Double descuentoTotal = 0.0;
-            Double aumentoTotal = 0.0;
-            for (CobroDetalle cd : cobroDetalleList) {
-                Double valorCalculado = cd.getValor() * cd.getCambio();
-                if (cd.getDescuento() != null && cd.getDescuento()) {
-                    descuentoTotal += valorCalculado;
-                }
-                if (cd.getAumento() != null && cd.getAumento()) {
-                    aumentoTotal += valorCalculado;
-                }
-            }
-            descuento = descuentoTotal - aumentoTotal;
+            // Misma cuenta que la factura y el ticket simple (AjusteCobro): tolera cambio NULL.
+            descuento = cobroDetalleService.ajusteDe(venta.getCobro(), null).getNeto();
             log.warn("⚠️ Descuento calculado desde cobro_detalle para factura legal ID: {} (moneda extranjera) = {}", facturaLegal.getId(), descuento);
         }
         

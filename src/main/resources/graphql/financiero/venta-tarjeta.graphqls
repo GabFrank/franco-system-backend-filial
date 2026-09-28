@@ -1,16 +1,37 @@
+type VentaTarjetaPage {
+    getContent: [VentaTarjeta]
+    getTotalElements: Int
+}
+
 type VentaTarjeta {
     id: ID!
     sucursalId: Int
     ventaId: Int
     cajaId: Int
     terminalPos: TerminalPos
+    """Moneda del cobro que respalda. Sin esto, monto no tiene unidad."""
+    moneda: Moneda
     codigoAutorizacion: String
     numeroBoleta: String
     monto: Float
     montoEscaneado: Float
     imagenUrl: String
+    qrCrudo: String
     estado: String
+    """QR | OCR | MANUAL | API. Origen dominante de los datos; null = anterior a la columna."""
+    origen: String
     usuario: Usuario
+    """Por que quedo sin conciliar: CUPON_NO_IMPRESO | POS_FALLADO | CUPON_PERDIDO | OTRO."""
+    noCompletadoMotivo: String
+    """Lo que el cajero escribio. Obligatorio cuando el motivo es OTRO."""
+    noCompletadoObservacion: String
+    """Quien decidio cerrar sin conciliar este cobro."""
+    noCompletadoPor: Usuario
+    noCompletadoEn: Date
+    "Quien devolvio este cobro de NO_COMPLETADO a PENDIENTE. Null = nunca se reabrio."
+    reabiertoPor: Usuario
+    "Cuando se reabrio. Las no_completado_* se conservan: se sabe por que se habia marcado."
+    reabiertoEn: Date
     creadoEn: Date
 }
 
@@ -19,6 +40,7 @@ input VentaTarjetaInput {
     sucursalId: Int
     ventaId: Int
     terminalPosId: Int
+    monedaId: Int
     cajaId: Int
     codigoAutorizacion: String
     numeroBoleta: String
@@ -34,10 +56,156 @@ extend type Query {
     ventaTarjetaPorVentaId(ventaId: ID!, sucId: ID!): VentaTarjeta
     ventasTarjetaPorCaja(cajaId: ID!, sucId: ID!): [VentaTarjeta]
     countVentasTarjetaSinRegistrar(cajaId: ID!, sucId: ID!): Int
+    """
+    El motivo por el que este cupon NO se puede usar, o null si esta libre.
+
+    Existe para que el PDV pueda preguntar ANTES de dar el escaneo por bueno. La misma validacion
+    corre igual al guardar (no se confia en el cliente); esto solo adelanta el aviso, que es la
+    diferencia entre que el cajero rehaga el escaneo con el ticket en la mano o que se entere
+    cuando la venta ya se guardo y el dato escaneado se perdio.
+    """
+    motivoCuponNoUsable(
+        qrCrudo: String
+        identificadorTransaccion: String
+        """
+        Codigo de autorizacion. Es el unico identificador que la carga a mano garantiza para
+        todos los proveedores: qrCrudo solo existe si entro por el lector, e
+        identificadorTransaccion solo lo llenan los formatos que tienen un campo aparte
+        (el EndToEndId de Pix si; Dinelco, Infonet, Stone, BXX y PlugPay no).
+        """
+        codigoAutorizacion: String
+        """Acota el chequeo del codigo de autorizacion, que solo es unico por aparato."""
+        terminalPosId: ID
+        sucId: ID!
+    ): String
+    """
+    Ventas con tarjeta de UNA caja, paginadas y filtradas.
+
+    `cajaId` y `sucId` acotan el universo y no son opcionales: por eso esta consulta no puede
+    devolver datos de otra caja ni de otra sucursal, sin depender de que el cliente filtre bien.
+    """
+    filtrarVentasTarjetaPorCaja(
+        cajaId: ID!
+        sucId: ID!
+        estado: String
+        terminalPosId: ID
+        monedaId: ID
+        montoDesde: Float
+        montoHasta: Float
+        """
+        Cajero que registro el cobro. Opcional y NO se aplica por defecto: una caja cruza turnos
+        --se cierra cuando se cierra, no cuando cambia la persona-- asi que el supervisor que la
+        concilia tiene que poder ver todas. Es una opcion del cajero para encontrar las suyas, no
+        un encierro.
+        """
+        usuarioId: ID
+        page: Int
+        size: Int
+    ): VentaTarjetaPage
+}
+
+input CompletarVentaTarjetaInput {
+    id: ID!
+    sucursalId: Int!
+    codigoAutorizacion: String
+    numeroBoleta: String
+    montoEscaneado: Float
+    identificadorTransaccion: String
+    qrCrudo: String
+    """
+    Cobro al que pertenece este cupon, elegido por el usuario. Cuando viene, manda: no se
+    infiere nada. Es el unico camino posible cuando la venta tiene dos cobros con tarjeta del
+    MISMO monto, porque ahi no hay dato que permita desempatarlos.
+    """
+    cobroDetalleId: Int
+    """
+    Moneda que declara el cupon. Tiene que coincidir con la del cobro: comparar 8.000 Gs contra
+    8.000 R$ da diferencia cero y el registro queda "conciliado" siendo que difiere ~5900x.
+    """
+    monedaId: Int
+    """
+    De donde salieron estos datos: QR | OCR | MANUAL | API. Lo manda el cliente porque es el
+    unico que sabe por que camino los obtuvo — el backend ve el mismo `completar` en los cuatro
+    casos. Si no viene, el servidor lo deduce del qrCrudo, que solo existe en el camino QR.
+    """
+    origen: String
+    """
+    Token de la captura de la que salieron estos datos, cuando vinieron de una foto. Es lo que ata
+    la imagen a la venta: al completar se copia la ruta a venta_tarjeta.imagen_url. Sin esto la
+    foto queda huerfana en captura_cupon y la purga no puede distinguirla de la evidencia de un
+    cobro. Opcional, como todo campo nuevo de input.
+    """
+    capturaToken: String
+    """
+    Los campos que el cupón trae y que NO tienen columna propia, como JSON.
+
+    Es lo que `venta_tarjeta.datos_extra` existe para guardar: un proveedor que imprime un segundo
+    monto en otra moneda, un STONEID, un código de comercio. El OCR ya los separa.
+    """
+    datosExtra: String
+}
+
+input SenaCuponInput {
+    ventaId: Int
+    """El id de la `venta_tarjeta`. Es lo unico que separa dos cobros con tarjeta de la misma venta."""
+    ventaTarjetaId: Int
+    cajaId: Int
+    cajero: String
+    terminal: String
+    monto: Float
+    monedaSimbolo: String
+    """Decimales de la moneda: Gs. no lleva ninguno y R$ lleva dos."""
+    decimales: Int
+    """
+    El QR ya codificado, tal cual lo va a leer el lector.
+
+    Lo arma el desktop con `codificarQr()` y viaja hecho a proposito: el contrato de esa cadena
+    (prefijo `frc-`, campos unidos con `-`, `data` posicional con `|` adentro) vive en el frontend
+    y lo consume tambien el mobile. Reimplementarlo en Java seria un segundo lugar donde se puede
+    desincronizar sin que nada lo avise.
+    """
+    qr: String!
 }
 
 extend type Mutation {
     saveVentaTarjeta(ventaTarjeta: VentaTarjetaInput!): VentaTarjeta!
+    completarVentaTarjeta(input: CompletarVentaTarjetaInput!): VentaTarjeta!
     cancelarVentaTarjetaPorVentaId(ventaId: ID!, sucId: ID!): Boolean
-    marcarVentasTarjetaNoCompletadas(cajaId: ID!, sucId: ID!): Int
+    """
+    Deja sin conciliar TODOS los pendientes de una caja. Devuelve cuantos se marcaron.
+
+    `motivo`, `observacion` y `usuarioId` son opcionales en el schema y obligatorios en el
+    servidor: el mobile es un cliente mas viejo que no los manda, y un input nuevo obligatorio lo
+    dejaria sin poder cerrar caja. Motivos: CUPON_NO_IMPRESO | POS_FALLADO | CUPON_PERDIDO | OTRO,
+    y OTRO exige `observacion`.
+    """
+    marcarVentasTarjetaNoCompletadas(cajaId: ID!, sucId: ID!, motivo: String, observacion: String, usuarioId: ID): Int
+    """
+    Deja UN cobro sin conciliar, con su motivo, y devuelve la fila ya marcada.
+
+    Solo sobre un PENDIENTE: el COMPLETADO ya tiene su cupon y re-marcar un NO_COMPLETADO pisaria
+    quien y por que lo decidio.
+    """
+    marcarVentaTarjetaNoCompletada(id: ID!, sucId: ID!, motivo: String!, observacion: String, usuarioId: ID): VentaTarjeta!
+    """
+    Devuelve un cobro de NO_COMPLETADO a PENDIENTE, para poder conciliarlo de nuevo.
+
+    Los dos casos que lo justifican son reales: se marco la fila equivocada de varias del mismo
+    monto, o aparecio el cupon --CUPON_PERDIDO es "todavia no lo encontre"--. Sin esto, esa plata
+    quedaba sin conciliar para siempre por una decision tomada con informacion incompleta.
+
+    Las columnas no_completado_* NO se limpian: conservan por que se habia marcado. Se suma quien
+    reabrio y cuando.
+    """
+    reabrirVentaTarjeta(id: ID!, sucId: ID!, usuarioId: ID): VentaTarjeta!
+    """
+    Imprime la sena de un cobro con tarjeta que quedo sin cupon.
+
+    Se imprime en el FILIAL, por la misma impresora y el mismo camino que el ticket de la venta
+    (`saveVenta` recibe `printerName` y `local`): no hay un segundo mecanismo de impresion.
+
+    Devuelve false --no lanza-- si el papel no salio. La venta ya se guardo y el cobro ya se cobro;
+    reventar aca no lo arregla y ademas le mentiria al PDV sobre que fallo.
+    """
+    imprimirSenaCupon(input: SenaCuponInput!, printerName: String, local: String): Boolean
 }

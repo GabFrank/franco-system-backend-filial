@@ -5,6 +5,7 @@ import com.franco.dev.graphql.operaciones.input.VueltoInput;
 import com.franco.dev.service.operaciones.VueltoService;
 import com.franco.dev.service.personas.FuncionarioService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -18,6 +19,9 @@ import java.util.Optional;
 
 @Component
 public class VueltoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private AuditorUsuarioId auditorUsuarioId;
 
     @Autowired
     private VueltoService service;
@@ -42,6 +46,7 @@ public class VueltoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
 //    }
 
     public Vuelto saveVuelto(VueltoInput input) {
+        auditorUsuarioId.verificar("VueltoGraphQL.saveVuelto", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         Vuelto e = m.map(input, Vuelto.class);
         if (input.getUsuarioId() != null) {

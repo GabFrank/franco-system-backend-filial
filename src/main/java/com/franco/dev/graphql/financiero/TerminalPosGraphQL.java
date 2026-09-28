@@ -33,8 +33,17 @@ public class TerminalPosGraphQL implements GraphQLQueryResolver {
         return service.searchByAll(texto);
     }
 
-    public Page<TerminalPos> filterTerminalPos(String descripcion, String codigo, Boolean activo, int page, int size) {
-        return service.filter(descripcion, codigo, activo, page, size);
+    public Page<TerminalPos> filterTerminalPos(String descripcion, String codigo, String serie,
+                                               Long sucursalId, Boolean activo, int page, int size) {
+        return service.filter(descripcion, codigo, serie, sucursalId, activo, page, size);
+    }
+
+    /**
+     * Las terminales activas con EXACTAMENTE esta serie, para resolver de que aparato salio un
+     * cupon. El PDV la consume contra este filial, que es contra quien corre.
+     */
+    public List<TerminalPos> terminalesPosPorSerie(String serie) {
+        return service.findPorSerie(serie);
     }
 
     public Long countTerminalPos() {
