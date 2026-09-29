@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.TypeDef;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -84,7 +85,12 @@ public class Delivery implements Serializable {
 
     @Column(name = "fecha_concluido")
      private LocalDateTime fechaConcluido;
+
+    /**
+     * Ticket ESC/POS (base64) para que lo imprima el desktop, cuando la operacion se pidio con
+     * {@code imprimirEnCliente: true}. No se persiste ni viaja en la replicacion: es solo respuesta.
+     */
+    @Transient
+    @JsonIgnore
+    private String ticketEscpos;
 }
-
-
-

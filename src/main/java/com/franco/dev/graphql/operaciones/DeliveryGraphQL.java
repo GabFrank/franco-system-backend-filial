@@ -34,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static com.franco.dev.utilitarios.DateUtils.stringToDate;
 
+import java.io.ByteArrayOutputStream;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
@@ -216,7 +218,11 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     }
 
     public Delivery saveDeliveryEstado(Long deliveryId, DeliveryEstado deliveryEstado, String printerName, String local,
-            Long pdvId) throws GraphQLException {
+            Long pdvId, Boolean imprimirEnCliente) throws GraphQLException {
+        // Impresion desde el cliente: los mismos comprobantes, escritos en memoria en el mismo orden,
+        // vuelven en delivery.ticketEscpos en vez de salir por la impresora del filial.
+        ByteArrayOutputStream ticketCliente = Boolean.TRUE.equals(imprimirEnCliente)
+                ? new ByteArrayOutputStream() : null;
         Delivery delivery = service.findById(deliveryId).orElse(null);
         Venta venta = ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(),
                 delivery.getSucursalId());
@@ -241,7 +247,8 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                             }
 
                             // Imprimir el ticket/factura con los datos del DE
-                            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName);
+                            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
+                                    ticketCliente);
 
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -254,10 +261,13 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                         }
                     } else {
                         ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, false, printerName, local, false,
-                                null, delivery);
+                                null, delivery, ticketCliente);
                     }
                     ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true, printerName, local, false,
-                            null, delivery);
+                            null, delivery, ticketCliente);
+                    if (ticketCliente != null && ticketCliente.size() > 0) {
+                        delivery.setTicketEscpos(Base64.getEncoder().encodeToString(ticketCliente.toByteArray()));
+                    }
                     break;
                 case CONCLUIDO:
                     delivery.setEstado(DeliveryEstado.CONCLUIDO);

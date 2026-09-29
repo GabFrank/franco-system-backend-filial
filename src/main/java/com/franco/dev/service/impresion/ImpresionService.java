@@ -34,6 +34,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -63,14 +64,26 @@ public class ImpresionService {
     }
 
     public Boolean printBalance(PdvCajaBalanceDto balanceDto, String printerName, String local) {
+        return printBalance(balanceDto, printerName, local, null);
+    }
+
+    /**
+     * Con {@code destino != null} el ticket se escribe ahi y NO se busca impresora: es la impresion
+     * desde el cliente (el desktop recibe los bytes y los imprime en su impresora local). Con
+     * {@code destino == null} hace exactamente lo de siempre.
+     */
+    public Boolean printBalance(PdvCajaBalanceDto balanceDto, String printerName, String local, OutputStream destino) {
         try {
-            if (printerName == null) {
-                selectedPrintService = printingService.getLasUsedPrinter();
-            } else {
-                selectedPrintService = printingService.getPrintService(printerName);
+            if (destino == null) {
+                if (printerName == null) {
+                    selectedPrintService = printingService.getLasUsedPrinter();
+                } else {
+                    selectedPrintService = printingService.getPrintService(printerName);
+                }
             }
-            if (selectedPrintService != null) {
-                printerOutputStream = new PrinterOutputStream(selectedPrintService);
+            if (destino != null || selectedPrintService != null) {
+                OutputStream salida = destino != null ? destino
+                        : (printerOutputStream = new PrinterOutputStream(selectedPrintService));
                 // creating the EscPosImage, need buffered image and algorithm.
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
                 //Styles
@@ -81,7 +94,7 @@ public class ImpresionService {
                 BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
                 imageBufferedImage = resize(imageBufferedImage, 200, 100);
                 BitImageWrapper imageWrapper = new BitImageWrapper();
-                EscPos escpos = new EscPos(printerOutputStream);
+                EscPos escpos = new EscPos(salida);
                 Bitonal algorithm = new BitonalThreshold();
                 EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
                 imageWrapper.setJustification(EscPosConst.Justification.Center);
@@ -283,7 +296,7 @@ public class ImpresionService {
                 escpos.feed(5);
                 escpos.cut(EscPos.CutMode.FULL);
                 escpos.close();
-                printerOutputStream.close();
+                if (destino == null) printerOutputStream.close();
                 return true;
             }
         } catch (IOException e) {
@@ -295,10 +308,22 @@ public class ImpresionService {
 
 
     public void printGasto(GastoDto gastoDto, String printerName, String local) {
+        printGasto(gastoDto, printerName, local, null);
+    }
+
+    /**
+     * Con {@code destino != null} el ticket se escribe ahi y NO se busca impresora: es la impresion
+     * desde el cliente (el desktop recibe los bytes y los imprime en su impresora local). Con
+     * {@code destino == null} hace exactamente lo de siempre.
+     */
+    public void printGasto(GastoDto gastoDto, String printerName, String local, OutputStream destino) {
         try {
-            selectedPrintService = printingService.getPrintService(printerName);
-            if (selectedPrintService != null) {
-                printerOutputStream = new PrinterOutputStream(selectedPrintService);
+            if (destino == null) {
+                selectedPrintService = printingService.getPrintService(printerName);
+            }
+            if (destino != null || selectedPrintService != null) {
+                OutputStream salida = destino != null ? destino
+                        : (printerOutputStream = new PrinterOutputStream(selectedPrintService));
                 // creating the EscPosImage, need buffered image and algorithm.
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
                 //Styles
@@ -309,7 +334,7 @@ public class ImpresionService {
                 BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
                 imageBufferedImage = resize(imageBufferedImage, 200, 100);
                 BitImageWrapper imageWrapper = new BitImageWrapper();
-                EscPos escpos = new EscPos(printerOutputStream);
+                EscPos escpos = new EscPos(salida);
                 Bitonal algorithm = new BitonalThreshold();
                 EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
                 imageWrapper.setJustification(EscPosConst.Justification.Center);
@@ -385,7 +410,7 @@ public class ImpresionService {
                 escpos.feed(5);
                 escpos.cut(EscPos.CutMode.FULL);
                 escpos.close();
-                printerOutputStream.close();
+                if (destino == null) printerOutputStream.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -476,10 +501,22 @@ public class ImpresionService {
     }
 
     public void printRetiro(RetiroDto retiroDto, String printerName, String local, Boolean reimpresion) {
+        printRetiro(retiroDto, printerName, local, reimpresion, null);
+    }
+
+    /**
+     * Con {@code destino != null} el ticket se escribe ahi y NO se busca impresora: es la impresion
+     * desde el cliente (el desktop recibe los bytes y los imprime en su impresora local). Con
+     * {@code destino == null} hace exactamente lo de siempre.
+     */
+    public void printRetiro(RetiroDto retiroDto, String printerName, String local, Boolean reimpresion, OutputStream destino) {
         try {
-            selectedPrintService = printingService.getPrintService(printerName);
-            if (selectedPrintService != null) {
-                printerOutputStream = new PrinterOutputStream(selectedPrintService);
+            if (destino == null) {
+                selectedPrintService = printingService.getPrintService(printerName);
+            }
+            if (destino != null || selectedPrintService != null) {
+                OutputStream salida = destino != null ? destino
+                        : (printerOutputStream = new PrinterOutputStream(selectedPrintService));
                 // creating the EscPosImage, need buffered image and algorithm.
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
                 //Styles
@@ -490,7 +527,7 @@ public class ImpresionService {
                 BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
                 imageBufferedImage = resize(imageBufferedImage, 200, 100);
                 BitImageWrapper imageWrapper = new BitImageWrapper();
-                EscPos escpos = new EscPos(printerOutputStream);
+                EscPos escpos = new EscPos(salida);
                 Bitonal algorithm = new BitonalThreshold();
                 EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
                 imageWrapper.setJustification(EscPosConst.Justification.Center);
@@ -545,7 +582,7 @@ public class ImpresionService {
                 escpos.feed(5);
                 escpos.cut(EscPos.CutMode.FULL);
                 escpos.close();
-                printerOutputStream.close();
+                if (destino == null) printerOutputStream.close();
             }
         } catch (IOException e) {
 
@@ -564,10 +601,22 @@ public class ImpresionService {
      * queda pendiente y sin forma cómoda de encontrarlo después.
      */
     public Boolean printSenaCupon(SenaCuponDto dto, String printerName, String local) {
+        return printSenaCupon(dto, printerName, local, null);
+    }
+
+    /**
+     * Con {@code destino != null} el ticket se escribe ahi y NO se busca impresora: es la impresion
+     * desde el cliente (el desktop recibe los bytes y los imprime en su impresora local). Con
+     * {@code destino == null} hace exactamente lo de siempre.
+     */
+    public Boolean printSenaCupon(SenaCuponDto dto, String printerName, String local, OutputStream destino) {
         try {
-            selectedPrintService = printingService.getPrintService(printerName);
-            if (selectedPrintService == null) return false;
-            printerOutputStream = new PrinterOutputStream(selectedPrintService);
+            if (destino == null) {
+                selectedPrintService = printingService.getPrintService(printerName);
+                if (selectedPrintService == null) return false;
+            }
+            OutputStream salida = destino != null ? destino
+                    : (printerOutputStream = new PrinterOutputStream(selectedPrintService));
             // Sin el anho: el papel se concilia el mismo dia o el siguiente, y cada caracter que
             // sobra acerca el renglon a los 32 que entran.
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM HH:mm");
@@ -575,7 +624,7 @@ public class ImpresionService {
             // despues del primer setBold(true); aca el bold se prende y se apaga explicito.
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
             QRCode qrCode = new QRCode();
-            EscPos escpos = new EscPos(printerOutputStream);
+            EscPos escpos = new EscPos(salida);
 
             // ⚠️ Este feed NO es decoracion: sin el, la impresora se come los primeros bytes del
             // trabajo --viene de un corte-- y lo que se pierde es el encabezado y el `GS` que abre
@@ -617,7 +666,7 @@ public class ImpresionService {
             escpos.feed(2);
             escpos.cut(EscPos.CutMode.FULL);
             escpos.close();
-            printerOutputStream.close();
+            if (destino == null) printerOutputStream.close();
             return true;
         } catch (Exception e) {
             // Se traga la excepcion a proposito: la venta YA se guardo y el cobro YA se cobro. Que

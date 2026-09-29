@@ -54,7 +54,7 @@ extend type Query {
 }
 
 extend type Mutation {
-    saveGasto(entity:GastoInput!, printerName: String, local: String):Gasto!
+    saveGasto(entity:GastoInput!, printerName: String, local: String, imprimirEnCliente: Boolean):Gasto!
     saveVueltoGasto(id:ID!, valorGs:Float, valorRs:Float, valorDs:Float, sucId: ID):Gasto!
     deleteGasto(id:ID!, sucId: ID):Boolean!
 }
