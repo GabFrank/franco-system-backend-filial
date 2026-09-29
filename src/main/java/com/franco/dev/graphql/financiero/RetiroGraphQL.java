@@ -73,7 +73,8 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     }
 
     @Transactional
-    public Retiro saveRetiro(RetiroInput input, List<RetiroDetalleInput> retiroDetalleInputList, String printerName, String local) throws GraphQLException {
+    public Retiro saveRetiro(RetiroInput input, List<RetiroDetalleInput> retiroDetalleInputList, String printerName, String local,
+            Boolean imprimirEnCliente) throws GraphQLException {
         auditorUsuarioId.verificar("RetiroGraphQL.saveRetiro", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         Retiro e = m.map(input, Retiro.class);
@@ -102,7 +103,10 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             retiroDto.setRetiroRs(input.getRetiroRs());
             retiroDto.setRetiroDs(input.getRetiroDs());
             retiroDto.setUsuario(retiro.getUsuario());
-            impresionService.printRetiro(retiroDto, printerName, local, false);
+            // imprimirEnCliente: el desktop pide el ticket despues con ticketEscpos(RETIRO) y lo imprime el.
+            if (!Boolean.TRUE.equals(imprimirEnCliente)) {
+                impresionService.printRetiro(retiroDto, printerName, local, false);
+            }
         }
         return retiro;
 

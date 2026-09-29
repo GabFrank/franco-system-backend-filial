@@ -70,8 +70,10 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
@@ -200,7 +202,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     public Venta saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput,
             List<CobroDetalleInput> cobroDetalleList, Boolean ticket, Boolean facturar, String printerName,
             String local, Long pdvId, VentaCreditoInput ventaCreditoInput,
-            List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) throws Exception, GraphQLException {
+            List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList, Boolean imprimirEnCliente)
+            throws Exception, GraphQLException {
         auditorUsuarioId.verificar("VentaGraphQL.saveVenta", ventaInput.getUsuarioId());
         if (ventaItemList == null && cobroDetalleList == null && cobroDetalleList == null) {
             return this.saveVenta2(ventaInput);
@@ -278,6 +281,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             // Con la tabla vacia la decision es la de siempre: ver PoliticaFacturacionServiceTest.
             PoliticaFacturacionService.RutaVenta ruta = politicaFacturacionService.decidirRuta(ticket, facturar,
                     pdvId, credito, politicaFacturacion);
+            // Impresion desde el cliente: la ruta es la misma, pero el comprobante se escribe en memoria
+            // y vuelve en venta.ticketEscpos en vez de salir por la impresora del filial.
+            ByteArrayOutputStream ticketCliente = Boolean.TRUE.equals(imprimirEnCliente)
+                    ? new ByteArrayOutputStream() : null;
             try {
                 switch (ruta) {
                     case FACTURA_E_IMPRESION:
@@ -286,7 +293,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                             FacturaLegal facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList1, pdvId, cobroDetalleList);
 
                             // Imprimir el ticket/factura con los datos del DE
-                            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName);
+                            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
+                                    ticketCliente);
                         } catch (Exception fe) {
                             devolverTurnoSiCorresponde(ruta, credito, politicaFacturacion, fe);
                             throw fe;
@@ -299,12 +307,12 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                                 ventaCreditoCuotaInputList);
                         if (ventaCredito != null) {
                             printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local,
-                                    true, ventaCreditoCuotaInputList, null);
+                                    true, ventaCreditoCuotaInputList, null, ticketCliente);
                         }
                         break;
                     case TICKET_SIMPLE:
                         printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local,
-                                false, null, null);
+                                false, null, null, ticketCliente);
                         break;
                     case SIN_FACTURA:
                         // Sin comprobante automatico: la politica no la factura, o el frontend ya
@@ -338,6 +346,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         }
                         break;
                     }
+                }
+                if (ticketCliente != null && ticketCliente.size() > 0) {
+                    venta.setTicketEscpos(Base64.getEncoder().encodeToString(ticketCliente.toByteArray()));
                 }
 
             } catch (Exception e) {
@@ -525,8 +536,21 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     public Boolean printTicket58mm(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
             List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local,
             Boolean pagare, List<VentaCreditoCuotaInput> itens, Delivery delivery) throws Exception {
+        return printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, reimpresion, printerName, local,
+                pagare, itens, delivery, null);
+    }
+
+    /**
+     * Con {@code destino != null} el ticket se escribe ahi y NO se busca impresora: es la impresion
+     * desde el cliente (el desktop recibe los bytes y los imprime en su impresora local). Con
+     * {@code destino == null} hace exactamente lo de siempre.
+     */
+    public Boolean printTicket58mm(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
+            List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local,
+            Boolean pagare, List<VentaCreditoCuotaInput> itens, Delivery delivery, OutputStream destino)
+            throws Exception {
         Boolean ok = null;
-        PrintService selectedPrintService = printingService.getPrintService(printerName);
+        PrintService selectedPrintService = destino == null ? printingService.getPrintService(printerName) : null;
 
         if (sucursal == null) {
             sucursal = sucursalService.sucursalActual();
@@ -589,8 +613,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             descuentoDs = descuento / cambioDs;
         }
 
-        if (selectedPrintService != null) {
-            printerOutputStream = new PrinterOutputStream(selectedPrintService);
+        if (destino != null || selectedPrintService != null) {
+            OutputStream salida = destino != null ? destino
+                    : (printerOutputStream = new PrinterOutputStream(selectedPrintService));
             // creating the EscPosImage, need buffered image and algorithm.
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
             // Styles
@@ -603,7 +628,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             imageBufferedImage = resize(imageBufferedImage, 200, 100);
             BitImageWrapper imageWrapper = new BitImageWrapper();
             EscPos escpos = null;
-            escpos = new EscPos(printerOutputStream);
+            escpos = new EscPos(salida);
             // escpos.setPrinterCharacterTable(EscPos.CharacterCodeTable.WPC1252.value);
             // escpos.setCharsetName("UTF-8");
             Bitonal algorithm = new BitonalThreshold();
@@ -1013,7 +1038,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             escpos.cut(EscPos.CutMode.FULL);
             try {
                 escpos.close();
-                printerOutputStream.close();
+                if (destino == null) printerOutputStream.close();
                 ok = true;
             } catch (IOException ioe) {
                 ioe.printStackTrace();
