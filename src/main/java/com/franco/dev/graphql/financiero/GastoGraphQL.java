@@ -70,7 +70,8 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return service.findByDate(inicio, fin);
     }
 
-    public Gasto saveGasto(GastoInput input, String printerName, String local) throws GraphQLException {
+    public Gasto saveGasto(GastoInput input, String printerName, String local, Boolean imprimirEnCliente)
+            throws GraphQLException {
         auditorUsuarioId.verificar("GastoGraphQL.saveGasto", input.getUsuarioId());
         if (input.getId() == null) {
             String observacion = input.getObservacion() != null ? input.getObservacion().trim() : "";
@@ -120,7 +121,8 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         }
         Gasto gasto = service.saveAndSend(e, false);
         GastoDto gastoDto = new GastoDto();
-        if (gasto != null && input.getFinalizado() != true) {
+        // imprimirEnCliente: el desktop pide el ticket despues con ticketEscpos(GASTO) y lo imprime el.
+        if (gasto != null && input.getFinalizado() != true && !Boolean.TRUE.equals(imprimirEnCliente)) {
             gastoDto.setId(gasto.getId());
             gastoDto.setFecha(gasto.getCreadoEn());
             gastoDto.setUsuario(gasto.getUsuario());
