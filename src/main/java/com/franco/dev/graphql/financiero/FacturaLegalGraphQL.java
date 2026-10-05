@@ -22,6 +22,7 @@ import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.PagosTicketAgrupador;
 import com.franco.dev.service.operaciones.CobroDetalleService;
 import com.franco.dev.service.operaciones.LoteTicketService;
+import com.franco.dev.service.operaciones.PrecioCobrado;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.PersonaService;
@@ -65,6 +66,7 @@ import javax.print.attribute.standard.OrientationRequested;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
@@ -776,9 +778,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF(vi.getProducto().getDescripcion());
             escpos.write(new Style().setBold(true), cantidad);
             String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN)
-                    .format(vi.getPrecioVenta().getPrecio().intValue());
+                    .format(PrecioCobrado.de(vi).intValue());
             String valorTotal = String
-                    .valueOf(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue());
+                    .valueOf(PrecioCobrado.de(vi).intValue() * vi.getCantidad().intValue());
             for (int i = 10; i > cantidad.length(); i--) {
                 escpos.write(" ");
             }
@@ -787,7 +789,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 escpos.write(" ");
             }
             escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN)
-                    .format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
+                    .format(PrecioCobrado.de(vi).intValue() * vi.getCantidad().intValue()));
             loteTicketService.escribir(escpos, lineasLote.get(vi.getId()));
         }
         escpos.writeLF("--------------------------------");
@@ -899,12 +901,24 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     public void printTicket58mmFactura(Venta venta, FacturaLegal facturaLegal,
             List<FacturaLegalItem> facturaLegalItemList, String printerName) throws Exception {
+        printTicket58mmFactura(venta, facturaLegal, facturaLegalItemList, printerName, null);
+    }
+
+    /**
+     * Con {@code destino != null} la factura se escribe ahi y NO se busca impresora: es la impresion
+     * desde el cliente (el desktop recibe los bytes y los imprime en su impresora local). Con
+     * {@code destino == null} hace exactamente lo de siempre.
+     */
+    public void printTicket58mmFactura(Venta venta, FacturaLegal facturaLegal,
+            List<FacturaLegalItem> facturaLegalItemList, String printerName, OutputStream destino) throws Exception {
 
         if (facturaLegalItemList == null) {
             facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
         }
 
-        printService = PrinterOutputStream.getPrintServiceByName(printerName);
+        if (destino == null) {
+            printService = PrinterOutputStream.getPrintServiceByName(printerName);
+        }
         Sucursal sucursal = sucursalService.findById(facturaLegal.getSucursalId()).orElse(null);
         Delivery delivery = null;
         if (venta != null)
@@ -949,9 +963,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             precioDeliveryDs = precioDeliveryGs / cambioDs;
         }
 
-        if (printService != null) {
-            printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream
-                    : new PrinterOutputStream(printService);
+        if (destino != null || printService != null) {
+            OutputStream salida = destino != null ? destino
+                    : (printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream
+                            : new PrinterOutputStream(printService));
             // creating the EscPosImage, need buffered image and algorithm.
             // Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
@@ -961,7 +976,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             BufferedImage imageBufferedImage = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
             imageBufferedImage = resize(imageBufferedImage, 200, 100);
             BitImageWrapper imageWrapper = new BitImageWrapper();
-            EscPos escpos = new EscPos(printerOutputStream);
+            EscPos escpos = new EscPos(salida);
             Bitonal algorithm = new BitonalThreshold();
             EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
             imageWrapper.setJustification(EscPosConst.Justification.Center);
@@ -1487,8 +1502,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             try {
                 if (true) {
                     escpos.close();
-                    printerOutputStream.close();
-                    this.printerOutputStream = null;
+                    if (destino == null) {
+                        printerOutputStream.close();
+                        this.printerOutputStream = null;
+                    }
                 } else {
                     this.printerOutputStream = printerOutputStream;
                 }
@@ -1530,12 +1547,26 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     public void printTicket58mmFacturaMonedaExtranjera(Venta venta, FacturaLegal facturaLegal,
             List<FacturaLegalItem> facturaLegalItemList, String printerName, String monedaExtranjera, Double tipoCambio) throws Exception {
+        printTicket58mmFacturaMonedaExtranjera(venta, facturaLegal, facturaLegalItemList, printerName, monedaExtranjera,
+                tipoCambio, null);
+    }
+
+    /**
+     * Con {@code destino != null} la factura se escribe ahi y NO se busca impresora: es la impresion
+     * desde el cliente (el desktop recibe los bytes y los imprime en su impresora local). Con
+     * {@code destino == null} hace exactamente lo de siempre.
+     */
+    public void printTicket58mmFacturaMonedaExtranjera(Venta venta, FacturaLegal facturaLegal,
+            List<FacturaLegalItem> facturaLegalItemList, String printerName, String monedaExtranjera, Double tipoCambio,
+            OutputStream destino) throws Exception {
 
         if (facturaLegalItemList == null) {
             facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
         }
 
-        printService = PrinterOutputStream.getPrintServiceByName(printerName);
+        if (destino == null) {
+            printService = PrinterOutputStream.getPrintServiceByName(printerName);
+        }
         Sucursal sucursal = sucursalService.findById(facturaLegal.getSucursalId()).orElse(null);
         Delivery delivery = null;
         if (venta != null)
@@ -1582,15 +1613,16 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         Double totalIvaExtranjera = totalIva / tipoCambio;
         Double totalParcial0Extranjera = (facturaLegal.getTotalParcial0() != null ? facturaLegal.getTotalParcial0() : 0.0) / tipoCambio;
 
-        if (printService != null) {
-            printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream
-                    : new PrinterOutputStream(printService);
+        if (destino != null || printService != null) {
+            OutputStream salida = destino != null ? destino
+                    : (printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream
+                            : new PrinterOutputStream(printService));
             // Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
             Style factura = new Style().setJustification(EscPosConst.Justification.Center)
                     .setFontSize(Style.FontSize._1, Style.FontSize._1);
 
-            EscPos escpos = new EscPos(printerOutputStream);
+            EscPos escpos = new EscPos(salida);
             BitImageWrapper imageWrapper = new BitImageWrapper();
             Bitonal algorithm = new BitonalThreshold();
             
@@ -1849,8 +1881,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             try {
                 if (true) {
                     escpos.close();
-                    printerOutputStream.close();
-                    this.printerOutputStream = null;
+                    if (destino == null) {
+                        printerOutputStream.close();
+                        this.printerOutputStream = null;
+                    }
                 } else {
                     this.printerOutputStream = printerOutputStream;
                 }

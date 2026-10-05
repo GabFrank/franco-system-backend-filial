@@ -21,6 +21,7 @@ import com.franco.dev.service.financiero.VentaCreditoService;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.operaciones.DeliveryService;
 import com.franco.dev.service.operaciones.LoteTicketService;
+import com.franco.dev.service.operaciones.PrecioCobrado;
 import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.ClienteService;
@@ -271,8 +272,8 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 String cantidad = vi.getCantidad().intValue() + " (" + vi.getPresentacion().getCantidad().intValue() + ") " + "10%";
                 escpos.writeLF(vi.getProducto().getDescripcion());
                 escpos.write(new Style().setBold(true), cantidad);
-                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue());
-                String valorTotal = String.valueOf((vi.getPrecioVenta().getPrecio().intValue() - vi.getValorDescuento().intValue()) * vi.getCantidad().intValue());
+                String valorUnitario = NumberFormat.getNumberInstance(Locale.GERMAN).format(PrecioCobrado.de(vi).intValue() - vi.getValorDescuento().intValue());
+                String valorTotal = String.valueOf((PrecioCobrado.de(vi).intValue() - vi.getValorDescuento().intValue()) * vi.getCantidad().intValue());
                 for (int i = 14; i > cantidad.length(); i--) {
                     escpos.write(" ");
                 }
@@ -280,7 +281,7 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 for (int i = 16 - valorUnitario.length(); i > valorTotal.length(); i--) {
                     escpos.write(" ");
                 }
-                escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(vi.getPrecioVenta().getPrecio().intValue() * vi.getCantidad().intValue()));
+                escpos.writeLF(NumberFormat.getNumberInstance(Locale.GERMAN).format(PrecioCobrado.de(vi).intValue() * vi.getCantidad().intValue()));
                 loteTicketService.escribir(escpos, lineasLote.get(vi.getId()));
             }
             if (delivery != null) {

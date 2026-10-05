@@ -436,6 +436,8 @@ class VentaTarjetaServiceTest {
         otro.setVentaId(400L);
         when(repository.findByQrCrudo("FRCP1*X*Y*PYG*5000*REF*202609041100"))
                 .thenReturn(Collections.singletonList(otro));
+        when(repository.findByQrCrudoEnVentasVigentes(eq("FRCP1*X*Y*PYG*5000*REF*202609041100"), any()))
+                .thenReturn(Collections.singletonList(otro));
 
         assertThrows(GraphQLException.class, () ->
                 service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF",
@@ -443,6 +445,62 @@ class VentaTarjetaServiceTest {
 
         // Y no se escribio nada: el registro sigue como estaba.
         verify(repository, never()).save(any(VentaTarjeta.class));
+    }
+
+    // Un cupon de una venta cancelada queda libre para cobrar otra (decidido 2026-09-28). El mock
+    // devuelve el registro viejo por las DOS consultas: con el codigo de antes, que no miraba el
+    // estado, este test falla.
+    @Test
+    void completar_conCuponDeUnaVentaCancelada_pasa() {
+        VentaTarjeta vt = new VentaTarjeta();
+        vt.setId(1L);
+        vt.setSucursalId(24L);
+        vt.setVentaId(500L);
+        vt.setEstado("PENDIENTE");
+        when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
+        when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        VentaTarjeta cancelado = new VentaTarjeta();
+        cancelado.setId(99L);
+        cancelado.setVentaId(400L);
+        cancelado.setEstado("CANCELADO");
+        when(repository.findByQrCrudo("FRCP1*X*Y*PYG*5000*REF*202609041100"))
+                .thenReturn(Collections.singletonList(cancelado));
+        when(repository.findByQrCrudoEnVentasVigentes(eq("FRCP1*X*Y*PYG*5000*REF*202609041100"), any()))
+                .thenReturn(Collections.singletonList(cancelado));
+
+        VentaTarjeta r = service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, null,
+                "FRCP1*X*Y*PYG*5000*REF*202609041100", null, null, null, null, null);
+
+        assertEquals("COMPLETADO", r.getEstado());
+    }
+
+    // La referencia del proveedor en un cobro de una venta CANCELADA tampoco bloquea. El filtro por
+    // estado de la venta vive en la query (findByIdentificadorTransaccionEnVentasVigentes); con el
+    // codigo de antes, que usaba la consulta sin filtro, este test falla.
+    @Test
+    void completar_conIdentificadorDeUnaVentaCancelada_pasa() {
+        VentaTarjeta vt = new VentaTarjeta();
+        vt.setId(1L);
+        vt.setSucursalId(24L);
+        vt.setVentaId(500L);
+        vt.setEstado("PENDIENTE");
+        when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
+        when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CobroDetalle deVentaCancelada = new CobroDetalle();
+        deVentaCancelada.setId(777L);
+        when(cobroDetalleRepository.findByIdentificadorTransaccion("REF-LIBERADA"))
+                .thenReturn(Collections.singletonList(deVentaCancelada));
+        when(cobroDetalleRepository.findByIdentificadorTransaccionEnVentasVigentes(eq("REF-LIBERADA"), any()))
+                .thenReturn(Collections.emptyList());
+        when(cobroDetalleRepository.findByVentaIdAndSucursalId(500L, 24L))
+                .thenReturn(Collections.emptyList());
+
+        VentaTarjeta r = service.completar(1L, 24L, "X", "Y", BigDecimal.TEN, "REF-LIBERADA", "cruda",
+                null, null, null, null, null);
+
+        assertEquals("COMPLETADO", r.getEstado());
     }
 
     // El mismo cupon puede llegar con otra cadena cruda; la referencia del proveedor es la que
@@ -459,6 +517,8 @@ class VentaTarjetaServiceTest {
         CobroDetalle ajeno = new CobroDetalle();
         ajeno.setId(777L);
         when(cobroDetalleRepository.findByIdentificadorTransaccion("REF-USADA"))
+                .thenReturn(Collections.singletonList(ajeno));
+        when(cobroDetalleRepository.findByIdentificadorTransaccionEnVentasVigentes(eq("REF-USADA"), any()))
                 .thenReturn(Collections.singletonList(ajeno));
         when(cobroDetalleRepository.findByVentaIdAndSucursalId(500L, 24L))
                 .thenReturn(Collections.emptyList());
@@ -491,6 +551,8 @@ class VentaTarjetaServiceTest {
         propio.setValor(4000.0);
 
         when(cobroDetalleRepository.findByIdentificadorTransaccion("REF-PROPIA"))
+                .thenReturn(Collections.singletonList(propio));
+        when(cobroDetalleRepository.findByIdentificadorTransaccionEnVentasVigentes(eq("REF-PROPIA"), any()))
                 .thenReturn(Collections.singletonList(propio));
         when(cobroDetalleRepository.findByVentaIdAndSucursalId(500L, 24L))
                 .thenReturn(Collections.singletonList(propio));

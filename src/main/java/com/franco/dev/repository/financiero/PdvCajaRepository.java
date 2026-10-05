@@ -10,7 +10,11 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import javax.persistence.LockModeType;
 
 public interface PdvCajaRepository extends HelperRepository<PdvCaja, Long> {
 
@@ -23,6 +27,19 @@ public interface PdvCajaRepository extends HelperRepository<PdvCaja, Long> {
     boolean existsByMaletinIdAndActivoTrueAndIdNot(Long maletinId, Long id);
 
     Optional<PdvCaja> findById(Long id);
+
+    /**
+     * Toma la caja con lock pesimista antes de cargarle un conteo.
+     *
+     * <p>Sin esto, dos conteos simultaneos sobre la misma caja --doble clic, un reintento del
+     * central tras un timeout, el PDV y el admin a la vez-- leen los dos la caja sin conteo, y
+     * los dos persisten su conteo con sus movimientos de caja. El que pierde queda huerfano pero
+     * sumando efectivo. El SERIALIZABLE de los servicios no lo evita: se unen a la transaccion
+     * ya abierta del resolver y su nivel de aislamiento se ignora.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM PdvCaja c WHERE c.id = :id")
+    Optional<PdvCaja> findByIdForUpdate(@Param("id") Long id);
 
     public List<PdvCaja> findByCreadoEnBetween(LocalDateTime inicio, LocalDateTime fin);
 

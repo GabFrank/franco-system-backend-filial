@@ -90,6 +90,14 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         return repository.findById(id);
     }
 
+    /**
+     * Lee la caja con lock pesimista (SELECT ... FOR UPDATE). Tiene que llamarse dentro de la
+     * transaccion del llamador: el lock dura hasta que esa transaccion termina.
+     */
+    public Optional<PdvCaja> findByIdForUpdate(Long id) {
+        return repository.findByIdForUpdate(id);
+    }
+
     public List<PdvCaja> findByDate(String inicio, String fin) {
         return repository.findByCreadoEnBetween(toDate(inicio), toDate(fin));
     }

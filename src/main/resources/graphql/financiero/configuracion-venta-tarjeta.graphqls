@@ -18,6 +18,8 @@ type ConfiguracionVentaTarjeta {
     diasRetencionImagenes: Int
     """Umbral de espacio libre que alerta, en MB. null = sin alerta. Sin lector hasta la etapa 6."""
     mbLibresMinimos: Int
+    """Si el PDV exige elegir la terminal antes de cerrar una venta con tarjeta. null = true."""
+    terminalObligatoria: Boolean
     usuario: Usuario
     creadoEn: Date
     modificadoEn: Date
