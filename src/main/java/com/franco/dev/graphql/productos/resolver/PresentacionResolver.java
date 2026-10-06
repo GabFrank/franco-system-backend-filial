@@ -40,6 +40,11 @@ public class PresentacionResolver implements GraphQLResolver<Presentacion> {
     @Autowired
     private PrecioEspecialLector precioEspecialLector;
 
+    /** Para vistas grandes. Mismo campo que el central: el escritorio consulta a los dos. */
+    public String imagenPrincipalMediana(Presentacion p) {
+        return imageService.fotoPresentacion(p.getId(), true);
+    }
+
     public String imagenPrincipal(Presentacion p) throws IOException {
         return imageService.getImageWithMediaType(p.getId()+".jpg", imageService.getImagePresentacionesThumbPath());
     }

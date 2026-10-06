@@ -8,6 +8,8 @@ type Presentacion {
     cantidad: Float
     creadoEn: Date
     imagenPrincipal: String
+    # Lado mayor de hasta 800 px, para vistas grandes. null si no hay foto.
+    imagenPrincipalMediana: String
     usuario: Usuario
     codigos: [Codigo]
     precios: [PrecioPorSucursal]
