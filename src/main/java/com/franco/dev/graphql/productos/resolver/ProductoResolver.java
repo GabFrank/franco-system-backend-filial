@@ -1,6 +1,5 @@
 package com.franco.dev.graphql.productos.resolver;
 
-import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.Pedido;
 import com.franco.dev.domain.operaciones.PedidoItem;
@@ -8,8 +7,6 @@ import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.*;
 import com.franco.dev.domain.productos.enums.TipoConservacion;
-import com.franco.dev.graphql.productos.ProductoExistenciaCostoGraphQL;
-import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
 import com.franco.dev.service.operaciones.PedidoItemService;
 import com.franco.dev.service.operaciones.PedidoService;
@@ -21,7 +18,6 @@ import kotlin.collections.ArrayDeque;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -50,16 +46,10 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
     private MovimientoStockService movimientoStockService;
 
     @Autowired
-    private SucursalService sucursalService;
-
-    @Autowired
     private PedidoService pedidoService;
 
     @Autowired
     private PedidoItemService pedidoItemService;
-
-    @Autowired
-    private ProductoPorSucursalService productoPorSucursalService;
 
     @Autowired
     private ProductoImagenService productoImagenService;
@@ -76,8 +66,6 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
     @Autowired
     private PrecioEspecialLector precioEspecialLector;
 
-    private ProductoExistenciaCostoGraphQL productoExistenciaCostoGraphQL;
-
     public Usuario usuario(Producto e){
         if(e.getUsuario()!=null) {
             return usuarioService.findById(e.getUsuario().getId()).orElse(null);
@@ -85,8 +73,6 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
             return null;
         }
     }
-
-    private LocalDateTime fechaUltimaCompra;
 
     public TipoConservacion tipoConservacion(Producto e){ return e.getTipoConservacion(); }
 
@@ -97,61 +83,6 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
             ingredienteList.add(ingredienteService.findById(pi.getIngrediente().getId()).orElse(null));
         }
         return productoIngredienteList;
-    }
-
-    public List<ExistenciaCostoPorSucursal> sucursales(Producto p) {
-        List<ExistenciaCostoPorSucursal> epsList = new ArrayList<>();
-        List<Sucursal> sucursalList = sucursalService.findAll2();
-        for (Sucursal s : sucursalList ){
-            ExistenciaCostoPorSucursal eps = new ExistenciaCostoPorSucursal();
-            eps.setExistencia(movimientoStockService.stockByProductoId(p.getId()));
-            eps.setSucursal(s);
-            CostoPorProducto cps = costosPorProductoService.findLastByProductoId(p.getId());
-            MovimientoStock ms = null;
-            if(cps!=null){
-                if(cps.getMovimientoStock()!=null){
-                    eps.setCantidadUltimaCompra(cps.getMovimientoStock().getCantidad());
-                }
-                ms = cps.getMovimientoStock();
-                eps.setPrecioUltimaCompra(cps.getUltimoPrecioCompra());
-                eps.setCostoMedio(cps.getCostoMedio());
-                eps.setFechaUltimaCompra(cps.getCreadoEn());
-                eps.setMoneda(cps.getMoneda());
-            }
-
-            Long pedidoId;
-            Pedido pedido;
-            if(ms!=null){
-                if(ms.getTipoMovimiento()==TipoMovimiento.COMPRA){
-                    pedidoId = ms.getReferencia();
-                    pedido = pedidoService.findById(pedidoId).orElse(null);
-                    if(pedido!=null){
-                        eps.setPedido(pedido);
-                    }
-                }
-
-            }
-            if(eps.getPrecioUltimaCompra()==null){
-                eps.setPrecioUltimaCompra(Double.parseDouble("0"));
-            }
-            if(eps.getCantidadUltimaCompra()==null){
-                eps.setCantidadUltimaCompra(Double.parseDouble("0"));
-            }
-            if(eps.getCostoMedio()==null){
-                eps.setCostoMedio(Double.parseDouble("0"));
-            }
-
-            //adicionar cantidades minimas, maximas y medias
-            ProductoPorSucursal pps = productoPorSucursalService.findByProIdSucId(p.getId(), s.getId());
-            if(pps!=null){
-                eps.setCantMaxima(pps.getCantMaxima());
-                eps.setCantMedia(pps.getCantMedia());
-                eps.setCantMinima(pps.getCantMinima());
-            }
-
-            epsList.add(eps);
-        }
-        return epsList;
     }
 
     public Float existenciaTotal(Producto p){
