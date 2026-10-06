@@ -112,6 +112,22 @@ public class ProductoResolver implements GraphQLResolver<Producto> {
         return precioEspecialLector.habilitarPresentaciones(presentacionService.findByProductoId(p.getId()));
     }
 
+    /** 250x250, para listas. Mismo campo que el central: el escritorio consulta a los dos. */
+    public String imagenPrincipalMiniatura(Producto p) {
+        return fotoPrincipal(p, false);
+    }
+
+    /** Hasta 800 px de lado mayor, para vistas grandes. */
+    public String imagenPrincipalMediana(Producto p) {
+        return fotoPrincipal(p, true);
+    }
+
+    private String fotoPrincipal(Producto p, boolean mediana) {
+        Presentacion presentacionPrincipal = presentacionService.findByPrincipalAndProductoId(true, p.getId());
+        return presentacionPrincipal == null ? null
+                : imageService.fotoPresentacion(presentacionPrincipal.getId(), mediana);
+    }
+
     public String imagenPrincipal(Producto p) {
         String id = null;
         Presentacion presentacionPrincipal = presentacionService.findByPrincipalAndProductoId(true, p.getId());

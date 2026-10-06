@@ -28,6 +28,10 @@ type Producto {
     observacion: String
     presentaciones: [Presentacion]
     imagenPrincipal: String
+    # 250x250, para iconos, avatares y cards. null si no hay foto.
+    imagenPrincipalMiniatura: String
+    # Lado mayor de hasta 800 px, para vistas grandes. null si no hay foto.
+    imagenPrincipalMediana: String
     codigoPrincipal: String
     precioPrincipal: String
     costo: CostoPorProducto
