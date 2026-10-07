@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.financiero;
 
+import graphql.GraphQLException;
 import com.franco.dev.domain.financiero.CajaBalance;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaEstado;
@@ -172,6 +173,15 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
                 ? desktopPrinterConfigService.getLocalName().orElse(null)
                 : local;
         log.info("[FILIAL imprimirBalance] cajaId={}, printer={}, local={}", id, resolvedPrinter, resolvedLocal);
+        // Sin impresora en el pedido = viene del mobile via central. El desktop siempre manda la suya
+        // y conserva el comportamiento de siempre.
+        if (printerName == null || printerName.isBlank()) {
+            if (!service.imprimirBalanceVerificando(id, resolvedPrinter, resolvedLocal)) {
+                log.warn("[FILIAL imprimirBalance] No se pudo imprimir el balance. cajaId={}, printer={}", id, resolvedPrinter);
+                throw new GraphQLException("No se pudo imprimir el balance: revisar la impresora de tickets de la sucursal");
+            }
+            return service.findById(id).orElse(null);
+        }
         return service.imprimirBalance(id, resolvedPrinter, resolvedLocal);
     }
 
