@@ -1,7 +1,6 @@
 type Usuario {
     id:ID!
     persona: Persona
-    password: String
     nickname: String
     creadoEn: Date
     usuario: Usuario
