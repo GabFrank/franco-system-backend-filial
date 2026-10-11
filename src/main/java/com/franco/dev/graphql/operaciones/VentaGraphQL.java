@@ -288,17 +288,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             try {
                 switch (ruta) {
                     case FACTURA_E_IMPRESION:
-                        try {
-                            // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
-                            FacturaLegal facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList1, pdvId, cobroDetalleList);
-
-                            // Imprimir el ticket/factura con los datos del DE
-                            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
-                                    ticketCliente);
-                        } catch (Exception fe) {
-                            devolverTurnoSiCorresponde(ruta, credito, politicaFacturacion, fe);
-                            throw fe;
-                        }
+                        facturarEImprimir(venta, cobro, ventaItemList1, cobroDetalleList, printerName, local,
+                                pdvId, credito, politicaFacturacion, ticketCliente);
                         break;
                     case PAGARE_CREDITO:
                         ventaCreditoInput.setVentaId(venta.getId());
@@ -418,6 +409,27 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         facturaLegalInput.setDescuento(descuento);
         facturaLegalInput.setTotalFinal(bruto - descuento);
         return facturaLegalInput;
+    }
+
+    /**
+     * "Venta + Ticket": factura la venta e imprime el ticket-factura. Se llama desde
+     * {@link #saveVenta}, dentro de su transaccion y sin pasar por el proxy.
+     */
+    void facturarEImprimir(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
+            List<CobroDetalleInput> cobroDetalleList, String printerName, String local, Long pdvId,
+            boolean credito, PoliticaFacturacion politica, OutputStream ticketCliente) throws Exception {
+        PoliticaFacturacionService.RutaVenta ruta = PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION;
+        try {
+            // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
+            FacturaLegal facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, cobroDetalleList);
+
+            // Imprimir el ticket/factura con los datos del DE
+            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
+                    ticketCliente);
+        } catch (Exception fe) {
+            devolverTurnoSiCorresponde(ruta, credito, politica, fe);
+            throw fe;
+        }
     }
 
     /**
