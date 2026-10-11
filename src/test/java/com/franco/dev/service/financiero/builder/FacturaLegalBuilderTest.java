@@ -9,6 +9,7 @@ import com.franco.dev.domain.financiero.TimbradoDetalle;
 import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.service.financiero.FacturaLegalItemService;
 import com.franco.dev.service.financiero.FacturaLegalService;
+import com.franco.dev.service.financiero.PoliticaFacturacionService;
 import com.franco.dev.service.financiero.TimbradoDetalleService;
 import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -18,6 +19,7 @@ import com.franco.dev.service.sifen.service.SifenService;
 import graphql.GraphQLException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Mock;
 
@@ -35,6 +37,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -383,5 +388,104 @@ class FacturaLegalBuilderTest {
 
         assertNotNull(result);
         assertEquals(Long.valueOf(5105L), timbradoDetalle.getNumeroActual());
+    }
+
+    // ---- ensayo del DE antes de escribir (issue #170) ----
+
+    @Test
+    void elEnsayoDelDEFalla_cortaAntesDeEscribirYSinCausa() throws Exception {
+        timbradoElectronicoConSifen("021123456", null);
+        doThrow(new IllegalArgumentException("El precio unitario del item 'REGALO' debe ser mayor a cero"))
+                .when(sifenService).validarGeneracionDE(any(FacturaLegal.class), any());
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+
+        GraphQLException e = assertThrows(GraphQLException.class,
+                () -> builder.build(requestDeUnItem(fl, true)));
+
+        assertTrue(e.getMessage().startsWith("FACTURA_NO_EMITIBLE"), e.getMessage());
+        assertTrue(e.getMessage().contains("REGALO"), e.getMessage());
+        // Con causa encadenada el turno del contador no volveria: se decide por la causa raiz,
+        // tambien cuando saveFacturaLegal la re-envuelve.
+        assertNull(e.getCause());
+        assertTrue(PoliticaFacturacionService.fallaAntesDeEscribir(e));
+        assertTrue(PoliticaFacturacionService.fallaAntesDeEscribir(new GraphQLException("envuelta", e)));
+        verificarQueNoSeEscribioNada();
+    }
+
+    @Test
+    void elEnsayoVaAntesDelPrimerSaveYVeElTotalCalculado() throws Exception {
+        timbradoElectronicoConSifen("021123456", null);
+        List<Double> totalEnElEnsayo = new ArrayList<>();
+        List<Integer> itemsEnElEnsayo = new ArrayList<>();
+        doAnswer(inv -> {
+            FacturaLegal f = inv.getArgument(0);
+            List<FacturaLegalItem> its = inv.getArgument(1);
+            totalEnElEnsayo.add(f.getTotalFinal());
+            itemsEnElEnsayo.add(its.size());
+            assertEquals(Integer.valueOf(5105), f.getNumeroFactura());
+            return null;
+        }).when(sifenService).validarGeneracionDE(any(FacturaLegal.class), any());
+        List<Double> totalEnCadaSave = new ArrayList<>();
+        when(facturaLegalService.save(any(FacturaLegal.class))).thenAnswer(inv -> {
+            FacturaLegal f = inv.getArgument(0);
+            totalEnCadaSave.add(f.getTotalFinal());
+            if (f.getId() == null) f.setId(100L);
+            return f;
+        });
+        // Como llega desde la venta: sin totalFinal.
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(1000.0);
+
+        FacturaLegal result = builder.build(requestDeUnItem(fl, true));
+
+        assertEquals(Collections.singletonList(10000.0), totalEnElEnsayo);
+        assertEquals(Collections.singletonList(1), itemsEnElEnsayo);
+        assertNull(totalEnCadaSave.get(0), "el INSERT de la cabecera sale como siempre, sin el total");
+        assertEquals(10000.0, result.getTotalFinal(), 0.01);
+        InOrder orden = inOrder(sifenService, facturaLegalService, facturaLegalItemService, timbradoDetalleService);
+        orden.verify(sifenService).validarGeneracionDE(any(FacturaLegal.class), any());
+        orden.verify(facturaLegalService).save(any(FacturaLegal.class));
+        orden.verify(facturaLegalItemService).save(any(FacturaLegalItem.class));
+        orden.verify(timbradoDetalleService).save(any(TimbradoDetalle.class));
+        orden.verify(facturaLegalService).save(any(FacturaLegal.class));
+    }
+
+    /** La API manda generarDE=false y crea el DE por su cuenta: tambien se ensaya. */
+    @Test
+    void porLaApiTambienSeEnsaya() throws Exception {
+        timbradoElectronicoConSifen("021123456", null);
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+        when(productoService.findById(1L)).thenReturn(Optional.of(producto(1L, 10)));
+
+        builder.build(new BuildRequest(fl,
+                Collections.singletonList(descriptor(1L, null, "ITEM", 11000.0)), timbradoDetalle, false));
+
+        verify(sifenService, times(1)).validarGeneracionDE(any(FacturaLegal.class), any());
+        verify(sifenService, never()).crearDocumentoElectronico(any(FacturaLegal.class));
+    }
+
+    @Test
+    void enPapelNoSeEnsaya() throws Exception {
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+
+        builder.build(requestDeUnItem(fl, false));
+
+        verify(sifenService, never()).validarGeneracionDE(any(FacturaLegal.class), any());
+    }
+
+    @Test
+    void conElInterruptorApagadoNoSeEnsaya() throws Exception {
+        timbradoElectronicoConSifen("021123456", null);
+        builder.setEnsayoDeHabilitado(false);
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+
+        FacturaLegal result = builder.build(requestDeUnItem(fl, true));
+
+        verify(sifenService, never()).validarGeneracionDE(any(FacturaLegal.class), any());
+        assertEquals("01800000000000000000000000000000000000000000", result.getCdc());
     }
 }
