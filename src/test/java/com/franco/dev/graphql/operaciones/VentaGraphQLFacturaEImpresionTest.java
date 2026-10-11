@@ -23,17 +23,14 @@ import org.mockito.Spy;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Collections;
-import java.io.OutputStream;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -69,7 +66,7 @@ class VentaGraphQLFacturaEImpresionTest {
         MockitoAnnotations.initMocks(this);
         // En produccion la impresion del ticket-factura revienta con la factura nula.
         doThrow(new NullPointerException("factura nula")).when(facturaLegalGraphQL)
-                .printTicket58mmFactura(any(), isNull(), any(), any(), any());
+                .printTicket58mmFactura(any(), isNull(), any(), any(), any(), any(), any());
         doReturn(true).when(ventaGraphQL).printTicket58mm(any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any(), any());
         venta.setId(77L);
@@ -102,16 +99,16 @@ class VentaGraphQLFacturaEImpresionTest {
         return factura;
     }
 
-    /** El ticket de la venta con los pagares al pie; el destino cambia segun el caso. */
-    private void verificarTicketConPagare(OutputStream destino) throws Exception {
+    /** El ticket de la venta con los pagares al pie. */
+    private void verificarTicketConPagare() throws Exception {
         verify(ventaGraphQL, times(1)).printTicket58mm(eq(venta), eq(cobro), eq(items), isNull(), eq(false),
-                eq("CAJA"), eq("local"), eq(true), eq(cuotas), isNull(), destino == null ? any() : eq(destino));
+                eq("CAJA"), eq("local"), eq(true), eq(cuotas), isNull(), eq(ticketCliente));
     }
 
     private void verificarTicketSimple() throws Exception {
         verify(ventaGraphQL, times(1)).printTicket58mm(eq(venta), eq(cobro), eq(items), isNull(), eq(false),
                 eq("CAJA"), eq("local"), eq(false), isNull(), isNull(), eq(ticketCliente));
-        verify(facturaLegalGraphQL, never()).printTicket58mmFactura(any(), any(), any(), any(), any());
+        verify(facturaLegalGraphQL, never()).printTicket58mmFactura(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -147,19 +144,19 @@ class VentaGraphQLFacturaEImpresionTest {
     void sinFacturaEnVentaACredito_saleElTicketConPagareYElContadorNoSeToca() throws Exception {
         facturaNoCreada();
 
-        facturar(true, intervaloQueRespeta());
+        facturar(true, todas());
 
         verify(ventaCreditoGraphQL, times(1)).saveVentaCredito(ventaCreditoInput, cuotas);
         verify(politicaFacturacionService, never()).devolverTurno();
-        verificarTicketConPagare(ticketCliente);
-        verify(facturaLegalGraphQL, never()).printTicket58mmFactura(any(), any(), any(), any(), any());
+        verificarTicketConPagare();
+        verify(facturaLegalGraphQL, never()).printTicket58mmFactura(any(), any(), any(), any(), any(), any(), any());
     }
 
     // ---- venta a credito facturada (issue #133) ----
 
     /** Esta ruta facturaba sin guardar el VentaCredito ni imprimir el pagare. */
     @Test
-    void creditoConFactura_guardaElCreditoYSalenLaFacturaYElPagare() throws Exception {
+    void creditoConFactura_guardaElCreditoYElPagareSaleAlPieDeLaFactura() throws Exception {
         FacturaLegal factura = facturaCreada();
 
         facturar(true, todas());
@@ -167,81 +164,58 @@ class VentaGraphQLFacturaEImpresionTest {
         verify(ventaCreditoGraphQL, times(1)).saveVentaCredito(ventaCreditoInput, cuotas);
         assertEquals(Long.valueOf(77L), ventaCreditoInput.getVentaId());
         assertEquals(Long.valueOf(24L), ventaCreditoInput.getSucursalId());
-        InOrder orden = inOrder(ventaCreditoGraphQL, facturaService, facturaLegalGraphQL, ventaGraphQL);
+        InOrder orden = inOrder(ventaCreditoGraphQL, facturaService, facturaLegalGraphQL);
         orden.verify(ventaCreditoGraphQL).saveVentaCredito(any(), any());
         orden.verify(facturaService).crearFacturaLegalDesdeVenta(any(), any(), any(), any());
         orden.verify(facturaLegalGraphQL).printTicket58mmFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
-                eq(ticketCliente));
-        orden.verify(ventaGraphQL).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), eq(true),
-                eq(cuotas), any(), any());
-        verificarTicketConPagare(null);
+                eq(ticketCliente), eq(cuotas), eq("local"));
+        // Un solo papel: no hay un segundo ticket con el pagare.
+        verify(ventaGraphQL, never()).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any());
     }
 
-    /** Impresion en el cliente: los dos papeles vuelven en el mismo stream, la factura primero. */
+    /** De contado la factura sale sin pagare. */
     @Test
-    void creditoConFactura_elPagareSeAgregaDespuesDeLaFacturaEnElStreamDelCliente() throws Exception {
-        facturaCreada();
-        doAnswer(inv -> {
-            ((OutputStream) inv.getArgument(4)).write(new byte[]{1, 2});
-            return true;
-        }).when(facturaLegalGraphQL).printTicket58mmFactura(any(), any(), any(), any(), any());
-        doAnswer(inv -> {
-            ((OutputStream) inv.getArgument(10)).write(new byte[]{3});
-            return true;
-        }).when(ventaGraphQL).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(), any(),
-                any(), any());
-
-        facturar(true, todas());
-
-        assertArrayEquals(new byte[]{1, 2, 3}, ticketCliente.toByteArray());
-    }
-
-    /** El pagare falla a medio escribir: no se relanza y al cliente le llega la factura entera. */
-    @Test
-    void creditoConFacturaYElPagareFalla_noSeRelanzaYLaFacturaQueda() throws Exception {
-        facturaCreada();
-        doAnswer(inv -> {
-            ((OutputStream) inv.getArgument(4)).write(new byte[]{1, 2});
-            return true;
-        }).when(facturaLegalGraphQL).printTicket58mmFactura(any(), any(), any(), any(), any());
-        doAnswer(inv -> {
-            ((OutputStream) inv.getArgument(10)).write(new byte[]{3});
-            throw new IllegalStateException("sin logo");
-        }).when(ventaGraphQL).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(), any(),
-                any(), any());
-
-        facturar(true, todas());
-
-        assertArrayEquals(new byte[]{1, 2}, ticketCliente.toByteArray());
-        verify(ventaGraphQL, times(1)).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), eq(true),
-                eq(cuotas), any(), any());
-    }
-
-    /** Impresora del filial (sin stream del cliente): el pagare sale por ella, sin buffer. */
-    @Test
-    void creditoConFacturaEnImpresoraDelFilial_elPagareSaleSinDestino() throws Exception {
+    void contadoConFactura_laFacturaSaleSinPagare() throws Exception {
         FacturaLegal factura = facturaCreada();
 
-        ventaGraphQL.facturarEImprimir(venta, cobro, items, null, "CAJA", "local", PDV, ventaCreditoInput, cuotas,
-                todas(), null);
+        facturar(false, todas());
 
         verify(facturaLegalGraphQL, times(1)).printTicket58mmFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
-                isNull());
-        verify(ventaGraphQL, times(1)).printTicket58mm(eq(venta), eq(cobro), eq(items), isNull(), eq(false),
-                eq("CAJA"), eq("local"), eq(true), eq(cuotas), isNull(), isNull());
+                eq(ticketCliente), isNull(), eq("local"));
     }
 
     /** Sin credito guardado no hay pagare, como en la ruta PAGARE_CREDITO. */
     @Test
-    void creditoQueNoSeGuarda_saleSoloLaFactura() throws Exception {
-        facturaCreada();
+    void creditoQueNoSeGuarda_laFacturaSaleSinPagare() throws Exception {
+        FacturaLegal factura = facturaCreada();
         when(ventaCreditoGraphQL.saveVentaCredito(any(), any())).thenReturn(null);
 
         facturar(true, todas());
 
-        verify(facturaLegalGraphQL, times(1)).printTicket58mmFactura(any(), any(), any(), any(), any());
-        verify(ventaGraphQL, never()).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(),
-                any(), any(), any());
+        verify(facturaLegalGraphQL, times(1)).printTicket58mmFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
+                eq(ticketCliente), isNull(), eq("local"));
+    }
+
+    /** A credito el turno tambien se toma, asi que tambien se devuelve si la factura no se crea. */
+    @Test
+    void sinFacturaEnVentaACreditoQueTomoUnTurno_elTurnoVuelve() throws Exception {
+        facturaNoCreada();
+
+        facturar(true, intervaloQueRespeta());
+
+        verify(politicaFacturacionService, times(1)).devolverTurno();
+    }
+
+    /** La venta se pierde antes de facturar: el turno que tomo no puede quedar consumido. */
+    @Test
+    void elCreditoFallaEnUnaVentaQueTomoUnTurno_elTurnoVuelve() throws Exception {
+        when(ventaCreditoGraphQL.saveVentaCredito(any(), any())).thenThrow(new IllegalStateException("sin cliente"));
+
+        assertThrows(IllegalStateException.class, () -> facturar(true, intervaloQueRespeta()));
+
+        verify(politicaFacturacionService, times(1)).devolverTurno();
+        verify(facturaService, never()).crearFacturaLegalDesdeVenta(any(), any(), any(), any());
     }
 
     /** Si guardar el credito falla, la venta no llega a facturarse. */
@@ -251,6 +225,7 @@ class VentaGraphQLFacturaEImpresionTest {
 
         assertThrows(IllegalStateException.class, () -> facturar(true, todas()));
 
+        verify(politicaFacturacionService, never()).devolverTurno();
         verify(facturaService, never()).crearFacturaLegalDesdeVenta(any(), any(), any(), any());
         verify(ventaGraphQL, never()).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any());
@@ -277,7 +252,7 @@ class VentaGraphQLFacturaEImpresionTest {
         facturar(false, intervaloQueRespeta());
 
         verify(facturaLegalGraphQL, times(1)).printTicket58mmFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
-                eq(ticketCliente));
+                eq(ticketCliente), isNull(), eq("local"));
         verify(ventaGraphQL, never()).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any());
         verify(politicaFacturacionService, never()).devolverTurno();
@@ -313,7 +288,7 @@ class VentaGraphQLFacturaEImpresionTest {
         FacturaLegal factura = new FacturaLegal();
         when(facturaService.crearFacturaLegalDesdeVenta(any(), any(), any(), any())).thenReturn(factura);
         doThrow(new IllegalStateException("sin papel")).when(facturaLegalGraphQL)
-                .printTicket58mmFactura(any(), eq(factura), any(), any(), any());
+                .printTicket58mmFactura(any(), eq(factura), any(), any(), any(), any(), any());
 
         assertThrows(IllegalStateException.class, () -> facturar(false, intervaloQueRespeta()));
 
@@ -340,7 +315,7 @@ class VentaGraphQLFacturaEImpresionTest {
 
     private void facturarEnSilencio(PoliticaFacturacion politica) {
         ventaGraphQL.facturarEnSilencio(new com.franco.dev.graphql.financiero.input.FacturaLegalInput(),
-                Collections.emptyList(), "CAJA", PDV, false, politica);
+                Collections.emptyList(), "CAJA", PDV, politica);
     }
 
     private void laFacturaSilenciosaFallaCon(Exception error) {

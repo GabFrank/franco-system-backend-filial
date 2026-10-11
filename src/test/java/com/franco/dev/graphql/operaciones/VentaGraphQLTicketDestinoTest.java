@@ -185,6 +185,30 @@ class VentaGraphQLTicketDestinoTest {
         verifyZeroInteractions(printingService);
     }
 
+    /** El ticket de una venta a credito lleva un pagare por cuota, numerado y con su vencimiento. */
+    @Test
+    void ticketConPagareLlevaUnPagarePorCuota() throws Exception {
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        assertTrue(ventaGraphQL.printTicket58mm(venta, cobro, items, null, false, null, "CAJA 1", true,
+                Arrays.asList(cuota(9000.0, "2026-10-29 10:30"), cuota(9000.0, "2026-11-29 10:30")), null,
+                memoria));
+
+        String texto = new String(memoria.toByteArray(), java.nio.charset.StandardCharsets.ISO_8859_1);
+        assertTrue(texto.contains("PAGARE A LA ORDEN 1/2"), "primer pagare");
+        assertTrue(texto.contains("PAGARE A LA ORDEN 2/2"), "segundo pagare");
+        assertTrue(texto.contains("El dia 29-11-2026"), "vencimiento de la segunda cuota");
+        assertTrue(texto.contains("Deudor: CLIENTE"), "deudor");
+    }
+
+    private static com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput cuota(double valor,
+            String vencimiento) {
+        com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput c =
+                new com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput();
+        c.setValor(valor);
+        c.setVencimiento(vencimiento);
+        return c;
+    }
+
     @Test
     void sinImpresoraElServidorNoImprimeYElClienteIgualRecibeElTicket() throws Exception {
         when(printingService.getPrintService(any())).thenReturn(null);

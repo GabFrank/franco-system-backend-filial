@@ -20,7 +20,7 @@ public class PoliticaFacturacionService {
 
     /** Que hace {@code saveVenta} con la venta ya guardada. */
     public enum RutaVenta {
-        /** Factura legal con DE e impresion del ticket-factura. */
+        /** Factura legal con DE e impresion del ticket-factura (con el pagare al pie si es a credito). */
         FACTURA_E_IMPRESION,
         /** Venta a credito: guarda VentaCredito e imprime el pagare. */
         PAGARE_CREDITO,
@@ -46,10 +46,9 @@ public class PoliticaFacturacionService {
     public synchronized RutaVenta decidirRuta(Boolean ticket, Boolean facturar, Long pdvId, boolean credito,
                                               PoliticaFacturacion politica) {
         if (Boolean.TRUE.equals(ticket)) {
-            // Las ventas a credito siguen la ruta de siempre, fuera de "respeta": si no, guardar o no
-            // el VentaCredito dependeria del turno. Ver issue #133.
-            if (pdvId != null && Boolean.TRUE.equals(facturar)
-                    && (credito || facturaInmediata(politica, pdvId))) {
+            // La venta a credito sigue la misma regla: el VentaCredito se guarda en las dos rutas
+            // (issue #133), asi que facturarla o no ya puede depender de la politica.
+            if (pdvId != null && Boolean.TRUE.equals(facturar) && facturaInmediata(politica, pdvId)) {
                 return RutaVenta.FACTURA_E_IMPRESION;
             }
             return credito ? RutaVenta.PAGARE_CREDITO : RutaVenta.TICKET_SIMPLE;
@@ -77,17 +76,17 @@ public class PoliticaFacturacionService {
 
     /**
      * Si la factura de esta ruta la dio un turno del contador. "Venta + Ticket" que no respeta la
-     * politica, o una venta a credito, facturan sin tocar el contador: devolverles un turno que no
-     * tomaron adelantaria la factura de otra venta.
+     * politica factura sin tocar el contador: devolverle un turno que no tomo adelantaria la
+     * factura de otra venta.
      */
-    public static boolean salioDeUnTurno(RutaVenta ruta, boolean credito, PoliticaFacturacion politica) {
+    public static boolean salioDeUnTurno(RutaVenta ruta, PoliticaFacturacion politica) {
         if (!ConfiguracionFacturacion.MODO_INTERVALO.equals(politica.getModo())) {
             return false;
         }
         if (ruta == RutaVenta.FACTURA_SILENCIOSA) {
             return true;
         }
-        return ruta == RutaVenta.FACTURA_E_IMPRESION && !credito && politica.isVentaTicketRespetaPolitica();
+        return ruta == RutaVenta.FACTURA_E_IMPRESION && politica.isVentaTicketRespetaPolitica();
     }
 
     /**

@@ -2,7 +2,11 @@
 
 Estado: **implementado, sin probar en el PDV** (11/10/2026). Rama
 `fix/venta-credito-facturada-guarda-credito`, desde `develop` (`5d306c6`). Solo filial: el desktop
-ya manda todo lo necesario. El papel que sale (decisión 3) es un supuesto a confirmar por Franco.
+ya manda todo lo necesario.
+
+Franco definió el 11/10/2026, al ver la primera versión (dos papeles, crédito fuera de la
+política): **un solo papel, con el pagaré al pie de la factura, y que la venta a crédito siga la
+política de facturación**. Las decisiones 1, 3, 4 y 7 de abajo son las de esa definición.
 
 ## El problema
 
@@ -27,32 +31,42 @@ se toca».
 
 ## Decisiones
 
-1. **La ruta no cambia.** `decidirRuta` queda igual: una venta a crédito con `facturar=true`
-   sigue en `FACTURA_E_IMPRESION`, fuera de «respeta» y sin tomar turno.
+1. **La venta a crédito sigue la política de facturación**, igual que «Venta + Ticket». En
+   `decidirRuta`, con `facturar=true` y `pdvId`, factura si la política lo indica
+   (`facturaInmediata`): siempre cuando `venta_ticket_respeta_politica` es `false` (el
+   comportamiento por defecto, sin cambios), y según el modo cuando es `true` (toma turno en
+   `INTERVALO`, nunca en `A_PEDIDO`). Si no toca factura, va por `PAGARE_CREDITO`. Antes quedaba
+   fuera de «respeta» porque en la ruta de factura el crédito no se guardaba; ahora se guarda en
+   las dos. Por eso `salioDeUnTurno` ya no recibe `credito`: una venta a crédito que tomó turno
+   lo devuelve como cualquier otra.
 2. **El crédito se guarda antes de facturar**, dentro de `facturarEImprimir`, con el mismo código
    que usa `PAGARE_CREDITO` (se extrae a un método). Todo corre en la transacción de `saveVenta`
    y nada sale de ella (`saveAndSend` es un `save`; el DE queda `PENDIENTE`), así que el orden no
    cambia lo que se persiste: se guarda primero para no armar una factura si el crédito falla.
    Si la factura rechaza la venta (`VentaNoFacturableException`) o falla después de escribir, el
    crédito se revierte con la venta.
-3. **Salen los dos papeles: el ticket-factura y después el pagaré** (supuesto, a confirmar por
-   Franco). El pagaré se imprime con `printTicket58mm(..., pagare=true, cuotas)`, igual que en
-   `PAGARE_CREDITO`: es el ticket de la venta con los pagarés al pie, no un pagaré suelto. Con
-   `imprimirEnCliente` los dos van al mismo `ticketEscpos`, uno detrás del otro. El
-   ticket-factura no corta papel (termina en `feed(5)`): en modo cliente salen en una sola tira
-   y el cajero los separa a mano.
-4. **Una falla del pagaré no se lleva la factura.** El pagaré se arma aparte (en modo cliente, en
-   un buffer que solo se agrega si terminó) y su falla se loguea sin relanzar: la venta, el
-   crédito y la factura ya están, y el ticket-factura sale igual.
+3. **Sale un solo papel: el ticket-factura con los pagarés al pie.**
+   `FacturaLegalGraphQL.printTicket58mmFactura` gana una sobrecarga con las cuotas y la caja:
+   después de «GRACIAS POR LA PREFERENCIA» escribe un pagaré por cuota. El bloque del pagaré se
+   extrajo a `PagareTicket` y lo comparten el ticket de venta y el ticket-factura; el texto es el
+   mismo de siempre (se comparó el ticket con pagaré antes y después: solo cambia la numeración,
+   ver decisión 8). Con `imprimirEnCliente` es un único comprobante en `ticketEscpos`.
+4. **Una falla del pagaré no se lleva la factura.** Si armar el pagaré falla (cuota sin
+   vencimiento, venta sin cliente), se loguea y el ticket-factura se cierra y sale igual; puede
+   quedar un pagaré a medio escribir al pie.
 5. **Si la factura no se pudo crear** (`null`: cortó una validación previa), el crédito ya está
    guardado y la venta sigue viva: en vez del ticket simple sale el ticket **con pagaré**. Cambia
    la decisión 6 del plan de la #169, que dejaba el ticket simple porque el crédito no existía.
 6. **Si el `VentaCredito` vuelve `null`** (no debería: `saveAndSend` devuelve la entidad), no se
    imprime pagaré, como hoy en `PAGARE_CREDITO`.
-7. **Si la impresión del ticket-factura falla**, se relanza como hoy y el pagaré no sale. El
-   crédito ya quedó guardado. Se reimprime con la mutation `imprimirPagare`, que **solo imprime
-   en la impresora del filial**: en una caja con «Imprimir desde esta PC» no hay reimpresión del
-   pagaré (`TicketEscposTipo` no tiene `PAGARE`). Limitación previa, fuera de alcance.
+7. **Si la impresión del ticket-factura falla**, se relanza como hoy y no sale ningún papel. El
+   crédito ya quedó guardado. El pagaré se reimprime con la mutation `imprimirPagare`, que
+   **solo imprime en la impresora del filial**: en una caja con «Imprimir desde esta PC» no hay
+   reimpresión del pagaré (`TicketEscposTipo` no tiene `PAGARE`). Limitación previa, fuera de
+   alcance. La reimpresión de la factura (`TicketEscposGraphQL`, `imprimirFacturaLegal`) sale sin
+   pagaré.
+8. **Numeración del pagaré corregida.** El encabezado concatenaba `x + 1` como texto: la primera
+   de dos cuotas salía «01/2» y la segunda «11/2». Ahora «1/2» y «2/2», en los dos tickets.
 
 ## Qué no se toca
 
@@ -69,40 +83,50 @@ se toca».
   no se reparan acá (en la 24 no hay ninguna).
 - Preexistente en `PAGARE_CREDITO` y ahora también acá: si guardar el crédito falla, la
   transacción se revierte en el commit, el cajero ve un error genérico y la huella de venta
-  duplicada queda confirmada 5 segundos. Y el encabezado del pagaré imprime «01/2» por una
-  concatenación (`VentaGraphQL:1040`).
+  duplicada queda confirmada 5 segundos.
+- **«Factura Legal = No» sigue sin facturar nunca.** El desktop lo manda como `facturar=false`,
+  que para el filial significa «el frontend ya emitió una factura manual»: la venta va por
+  `PAGARE_CREDITO` y no entra a la política ni siquiera en modo `TODAS`. El filial no puede
+  distinguir los dos casos; cambiarlo es del desktop.
 
 ## Fases
 
-### Fase 1 — fix + tests (un commit)
+### Fase 1 — guardar el crédito (`d41e11b`)
 
-- `VentaGraphQL`: método `guardarVentaCredito(venta, input, cuotas)`; `PAGARE_CREDITO` lo usa;
-  `facturarEImprimir` recibe el input y las cuotas en vez del `boolean credito`, guarda el
-  crédito, factura e imprime el pagaré.
-- Tests (`VentaGraphQLFacturaEImpresionTest`; `VentaGraphQLTicketDestinoTest` por el cambio de
-  firma):
-  - crédito + factura → se guarda el `VentaCredito` (con `ventaId` y `sucursalId` de la venta),
-    sale el ticket-factura y después el pagaré con las cuotas;
-  - el crédito se guarda **antes** de crear la factura (`InOrder`);
-  - crédito + factura `null` → ticket con pagaré, sin ticket-factura, el turno no se toca;
-  - el pagaré falla → no se relanza y el ticket-factura queda en el stream del cliente;
-  - contado → nunca se llama a `saveVentaCredito` ni sale pagaré (no cambia);
-  - **Revertir el fix y comprobar que los tests nuevos fallan.**
-- Los tests entran por `facturarEImprimir`: no cubren el `switch` de `saveVenta` ni la
-  transacción. Eso lo cubre la prueba de runtime (abajo).
+`VentaGraphQL.guardarVentaCredito`, usado por `PAGARE_CREDITO` y por `facturarEImprimir`, que
+recibe el input y las cuotas, guarda el crédito y después factura. Esa versión imprimía dos
+papeles; lo reemplazó la fase 3.
 
-### Fase 2 — documentación (un commit)
+### Fase 2 — documentación
 
 Este archivo pasa de plan a registro.
 
+### Fase 3 — un solo papel y crédito dentro de la política
+
+- `PagareTicket` (nuevo): el bloque del pagaré, compartido.
+- `FacturaLegalGraphQL.printTicket58mmFactura(…, cuotasPagare, local)`: pagaré al pie.
+- `VentaGraphQL.facturarEImprimir`: llama a esa sobrecarga; se va el segundo ticket.
+- `PoliticaFacturacionService`: `decidirRuta` sin la excepción del crédito; `salioDeUnTurno`
+  sin `credito` (y sus llamadores en `VentaGraphQL` y `DeliveryGraphQL`).
+- Tests:
+  - `PoliticaFacturacionServiceTest`: crédito con y sin turno, `A_PEDIDO`, política que no
+    respeta, factura manual. La comparación con la lógica vieja sigue pasando sin tocarla: con
+    la política por defecto el crédito factura siempre y no toca el contador.
+  - `VentaGraphQLFacturaEImpresionTest`: el crédito se guarda antes de facturar, las cuotas y la
+    caja llegan a la impresión de la factura, no hay segundo ticket; contado y crédito no
+    guardado salen sin pagaré; a crédito el turno se devuelve si la factura no se crea.
+  - `FacturaLegalTicketDestinoTest`: el pagaré va después del pie de la factura; si el pagaré
+    falla la factura sale; sin cuotas el ticket-factura no cambia byte a byte.
+  - `VentaGraphQLTicketDestinoTest`: un pagaré por cuota, numerado, con su vencimiento.
+
 ## Verificación hecha
 
-- `./mvnw clean verify -B`: 448 tests, 0 fallas, antes de sumar el último test; después se corrió
-  la clase tocada (19 tests en `VentaGraphQLFacturaEImpresionTest`).
-- Con el fix desactivado fallan los 4 tests de crédito que afirman el guardado y el pagaré.
-- Auditoría del diff (paso 8): sin bugs. Sumó dos tests: que el pagaré se intenta aunque falle, y
-  el caso de la impresora del filial. Ejes fijos 2 y 3: N/A, el diff no toca migraciones,
-  entidades ni `.graphqls`.
+- Fase 1: con el fix desactivado fallaban los 4 tests que afirmaban el guardado del crédito.
+- Auditoría del diff de la fase 1 (paso 8): sin bugs; sumó dos tests.
+- Fase 3: `./mvnw clean verify -B` en verde. Auditoría del diff: sin bugs que bloqueen. Encontró
+  que, al entrar el crédito a la política, una venta a crédito que tomó turno lo perdía si
+  fallaba el guardado del crédito (la venta se revierte sin haber intentado facturar): ahora el
+  turno vuelve, con su test. También reforzó tres tests y sacó código muerto.
 
 ## Auditoría del plan (paso 5)
 
@@ -126,7 +150,11 @@ el ticket-factura y `SifenService`.
 
 ## Qué queda sin verificar
 
-- **La impresión física** de los dos papeles seguidos en una térmica, y su orden.
+- **La impresión física** del ticket-factura con el pagaré al pie en una térmica.
 - La prueba manual en el PDV: venta con CONVENIO y «Factura Legal = Sí».
+- Con `venta_ticket_respeta_politica = true`: que una venta a crédito sin turno salga solo con
+  pagaré. No se revisó qué sucursales tienen hoy esa bandera activa.
 - Que una venta a crédito rechazada por `VentaNoFacturableException` no deje `venta_credito`.
+- El «Suc:» del pagaré al pie sale de la sucursal de la factura (`facturaLegal.getSucursalId()`)
+  y el del ticket de venta de `sucursalActual()`: no se verificó si pueden diferir.
 - Cuántas ventas perdieron el crédito en otras sucursales.

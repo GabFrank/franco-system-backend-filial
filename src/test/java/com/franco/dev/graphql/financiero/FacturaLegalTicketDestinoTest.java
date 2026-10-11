@@ -135,6 +135,72 @@ class FacturaLegalTicketDestinoTest {
         assertTrue(texto.contains("GRACIAS POR LA PREFERENCIA"), "pie");
     }
 
+    /** Venta a credito facturada (issue #133): un solo papel, la factura completa y el pagare al pie. */
+    @Test
+    void facturaDeVentaACreditoLlevaElPagareAlPie() throws Exception {
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        facturaLegalGraphQL.printTicket58mmFactura(ventaACredito(), factura, items, null, memoria,
+                java.util.Arrays.asList(cuota(9000.0, "2026-10-29 10:30"), cuota(9000.0, "2026-11-29 10:30")),
+                "CAJA 1");
+
+        String texto = new String(memoria.toByteArray(), StandardCharsets.ISO_8859_1);
+        int pie = texto.indexOf("GRACIAS POR LA PREFERENCIA");
+        int pagare = texto.indexOf("PAGARE A LA ORDEN 1/2");
+        assertTrue(pie > 0, "pie de la factura");
+        assertTrue(pagare > pie, "el pagare va despues de la factura");
+        assertTrue(texto.contains("PAGARE A LA ORDEN 2/2"), "segundo pagare");
+        assertTrue(texto.contains("El dia 29-11-2026"), "vencimiento de la segunda cuota");
+        assertTrue(texto.contains("Local: CAJA 1"), "caja");
+        assertTrue(texto.contains("Deudor: CLIENTE A CREDITO"), "deudor");
+    }
+
+    /** Si el pagare no se puede armar (cuota sin vencimiento), la factura sale completa igual. */
+    @Test
+    void siElPagareFallaLaFacturaSaleIgual() throws Exception {
+        ByteArrayOutputStream sinPagare = new ByteArrayOutputStream();
+        facturaLegalGraphQL.printTicket58mmFactura(ventaACredito(), factura, items, null, sinPagare);
+
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        facturaLegalGraphQL.printTicket58mmFactura(ventaACredito(), factura, items, null, memoria,
+                Collections.singletonList(cuota(9000.0, null)), "CAJA 1");
+
+        byte[] factura = sinPagare.toByteArray();
+        byte[] conPagareRoto = memoria.toByteArray();
+        // La factura sin pagare termina en "GRACIAS..." + el avance final de papel.
+        int pie = new String(factura, StandardCharsets.ISO_8859_1).lastIndexOf("GRACIAS POR LA PREFERENCIA");
+        byte[] cierre = java.util.Arrays.copyOfRange(factura, pie + "GRACIAS POR LA PREFERENCIA".length(),
+                factura.length);
+        assertArrayEquals(java.util.Arrays.copyOfRange(factura, 0, pie),
+                java.util.Arrays.copyOfRange(conPagareRoto, 0, pie), "la factura sale entera");
+        assertTrue(conPagareRoto.length > factura.length, "el pagare se llego a intentar");
+        // Despues del pagare fallido el ticket se cierra con el mismo avance final.
+        byte[] avance = java.util.Arrays.copyOfRange(cierre, cierre.length - 3, cierre.length);
+        assertArrayEquals(avance, java.util.Arrays.copyOfRange(conPagareRoto, conPagareRoto.length - 3,
+                conPagareRoto.length), "el ticket se cierra");
+    }
+
+    private static com.franco.dev.domain.operaciones.Venta ventaACredito() {
+        com.franco.dev.domain.personas.Persona persona = new com.franco.dev.domain.personas.Persona();
+        persona.setNombre("Cliente a credito");
+        persona.setDocumento("1234567");
+        com.franco.dev.domain.personas.Cliente cliente = new com.franco.dev.domain.personas.Cliente();
+        cliente.setPersona(persona);
+        com.franco.dev.domain.operaciones.Venta venta = new com.franco.dev.domain.operaciones.Venta();
+        venta.setId(80078L);
+        venta.setCliente(cliente);
+        venta.setCreadoEn(LocalDateTime.of(2026, 9, 29, 10, 30));
+        return venta;
+    }
+
+    private static com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput cuota(Double valor,
+            String vencimiento) {
+        com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput c =
+                new com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput();
+        c.setValor(valor);
+        c.setVencimiento(vencimiento);
+        return c;
+    }
+
     @Test
     void facturaEnMonedaExtranjeraSeEscribeEnMemoriaSinImpresora() throws Exception {
         ByteArrayOutputStream memoria = new ByteArrayOutputStream();
