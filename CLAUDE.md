@@ -241,6 +241,18 @@ decide `PoliticaFacturacionService.decidirRuta(...)`, con la política que resue
   combinaciones de `ticket`/`facturar`/`pdvId`/crédito/contador. Si tocás la decisión, esa tabla
   tiene que seguir pasando o el cambio de comportamiento tiene que declararse.
 
+## «Venta + Ticket» cuando la factura no se puede crear
+
+`FacturaService.crearFacturaLegalDesdeVenta` devuelve `null` **solo** si cortó una validación de
+`FacturaLegalBuilder.build()` (`GraphQLException`, siempre antes del primer write): no hay factura
+y la venta sigue viva. En ese caso `VentaGraphQL.facturarEImprimir` devuelve el turno del contador
+e imprime el ticket simple, para que el cliente no se vaya sin comprobante (issue #169).
+
+- Cualquier otra excepción de `build()` ya dejó la venta rollback-only y **se relanza**: ni papel
+  ni turno. No volver a atajarla con un `catch (Exception)` que devuelva `null`.
+- Por eso una validación nueva en `build()` va antes del primer `save` y lanza `GraphQLException`.
+- No hay aviso al cajero: el motivo queda en el log como `FACTURA_NO_CREADA`.
+
 ## El descuento de la venta vive en el cobro
 
 El PDV no guarda el descuento ni el aumento en la venta (`venta.total_gs` queda **bruto**): son
