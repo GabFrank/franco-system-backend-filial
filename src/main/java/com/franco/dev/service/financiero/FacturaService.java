@@ -399,9 +399,15 @@ public class FacturaService {
                     new com.franco.dev.service.financiero.builder.BuildRequest(
                             facturaLegal, descriptores, pdvId, true);
             return facturaLegalBuilder.build(buildReq);
-        } catch (Exception e) {
-            log.error("Error creando factura legal desde venta: {}", e.getMessage(), e);
+        } catch (GraphQLException e) {
+            // Validacion del builder, previa al primer write: no hay factura y la transaccion sigue
+            // sana. Cualquier otra excepcion de build() ya la dejo rollback-only y no se ataja: un
+            // null ahi haria creer al que llama que la venta sobrevive (issue #169).
+            log.error("FACTURA_NO_CREADA: venta {}: {}", venta.getId(), e.getMessage());
             return null;
+        } catch (RuntimeException e) {
+            log.error("Error creando factura legal desde venta {}: {}", venta.getId(), e.getMessage(), e);
+            throw e;
         }
     }
 

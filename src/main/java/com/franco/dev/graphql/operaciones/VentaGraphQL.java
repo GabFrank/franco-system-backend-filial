@@ -288,17 +288,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             try {
                 switch (ruta) {
                     case FACTURA_E_IMPRESION:
-                        try {
-                            // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
-                            FacturaLegal facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList1, pdvId, cobroDetalleList);
-
-                            // Imprimir el ticket/factura con los datos del DE
-                            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
-                                    ticketCliente);
-                        } catch (Exception fe) {
-                            devolverTurnoSiCorresponde(ruta, credito, politicaFacturacion, fe);
-                            throw fe;
-                        }
+                        facturarEImprimir(venta, cobro, ventaItemList1, cobroDetalleList, printerName, local,
+                                pdvId, credito, politicaFacturacion, ticketCliente);
                         break;
                     case PAGARE_CREDITO:
                         ventaCreditoInput.setVentaId(venta.getId());
@@ -418,6 +409,46 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         facturaLegalInput.setDescuento(descuento);
         facturaLegalInput.setTotalFinal(bruto - descuento);
         return facturaLegalInput;
+    }
+
+    /**
+     * "Venta + Ticket": factura la venta e imprime el ticket-factura. Se llama desde
+     * {@link #saveVenta}, dentro de su transaccion y sin pasar por el proxy.
+     * <p>
+     * {@code FacturaService} devuelve null cuando una validacion corto antes de escribir (timbrado
+     * vencido, rango agotado, timbrado sin telefono): la venta sigue viva y no hay factura. Ahi sale
+     * el ticket simple, para que el cliente no se vaya sin comprobante, y el turno vuelve. Cualquier
+     * otra falla llega como excepcion, con la venta ya rollback-only: ni papel ni turno (issue #169).
+     */
+    void facturarEImprimir(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
+            List<CobroDetalleInput> cobroDetalleList, String printerName, String local, Long pdvId,
+            boolean credito, PoliticaFacturacion politica, OutputStream ticketCliente) throws Exception {
+        PoliticaFacturacionService.RutaVenta ruta = PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION;
+        FacturaLegal facturaLegalConDE;
+        try {
+            // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
+            facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, cobroDetalleList);
+        } catch (Exception fe) {
+            devolverTurnoSiCorresponde(ruta, credito, politica, fe);
+            throw fe;
+        }
+        if (facturaLegalConDE == null) {
+            log.warn("La venta {} sale con ticket simple: no se pudo crear su factura", venta.getId());
+            if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politica)) {
+                politicaFacturacionService.devolverTurno();
+            }
+            printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, false, printerName, local,
+                    false, null, null, ticketCliente);
+            return;
+        }
+        try {
+            // Imprimir el ticket/factura con los datos del DE
+            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
+                    ticketCliente);
+        } catch (Exception fe) {
+            devolverTurnoSiCorresponde(ruta, credito, politica, fe);
+            throw fe;
+        }
     }
 
     /**

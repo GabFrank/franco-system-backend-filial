@@ -59,6 +59,8 @@ class VentaGraphQLTicketDestinoTest {
     @Mock private CobroDetalleService cobroDetalleService;
     @Mock private VentaItemService ventaItemService;
     @Mock private LoteTicketService loteTicketService;
+    @Mock private com.franco.dev.service.financiero.FacturaService facturaService;
+    @Mock private com.franco.dev.service.financiero.PoliticaFacturacionService politicaFacturacionService;
     @InjectMocks private VentaGraphQL ventaGraphQL;
 
     private CapturaPrintService impresora;
@@ -193,5 +195,24 @@ class VentaGraphQLTicketDestinoTest {
         assertTrue(ventaGraphQL.printTicket58mm(venta, cobro, items, null, false, null, null, false, null, null,
                 memoria));
         assertTrue(memoria.size() > 0);
+    }
+
+    /**
+     * "Venta + Ticket" sin factura (issue #169): el respaldo es este mismo ticket, con lo que la
+     * ruta tiene a mano. Sin stub de impresion: tiene que salir un ticket de verdad.
+     */
+    @Test
+    void ventaMasTicketSinFacturaEntregaElTicketSimpleAlCliente() throws Exception {
+        when(facturaService.crearFacturaLegalDesdeVenta(any(), any(), any(), any())).thenReturn(null);
+        ByteArrayOutputStream esperado = new ByteArrayOutputStream();
+        assertTrue(ventaGraphQL.printTicket58mm(venta, cobro, items, null, false, null, "CAJA 1", false, null,
+                null, esperado));
+
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        ventaGraphQL.facturarEImprimir(venta, cobro, items, null, null, "CAJA 1", 3L, false,
+                com.franco.dev.service.financiero.PoliticaFacturacion.sinFacturacionAutomatica(), memoria);
+
+        assertTrue(memoria.size() > 0);
+        assertArrayEquals(esperado.toByteArray(), memoria.toByteArray());
     }
 }
