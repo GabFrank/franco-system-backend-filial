@@ -17,8 +17,10 @@ Ruta `FACTURA_E_IMPRESION` de `VentaGraphQL#saveVenta` (`VentaGraphQL.java:290-3
 
 La venta se guarda (el NPE no cruza ningún proxy transaccional), pero el cliente se va **sin
 ningún comprobante** y el cajero no recibe aviso. Lo disparan las validaciones previas del
-builder: timbrado vencido, rango agotado, PDV sin timbrado del tipo que corresponde, timbrado sin
-teléfono (#168).
+builder (`FacturaLegalBuilder:112-133`): PDV sin timbrado activo del tipo que corresponde,
+timbrado sin cabecera, tipo de timbrado que no coincide con SIFEN, y timbrado sin teléfono (#168).
+(«Timbrado vencido» y «rango agotado», que citaba la issue, no son validaciones del builder: el
+único filtro ahí es `activo`.)
 
 ### Por qué primero
 
@@ -137,4 +139,26 @@ con el colaborador mockeado y `doNothing()` no sirve porque `printTicket58mm` de
 Confirmado: la extracción no cambia AOP ni transacciones; el desktop imprime los bytes que recibe y
 no marca la venta como facturada; mobile y mobile-pwa no llaman a `saveVenta`; no hay ningún canal
 existente para avisarle al cajero; rollback del JAR sin estado nuevo.
+
+## Auditoría del diff (paso 8, 11/10/2026)
+
+Tres ejes fijos; ningún condicional. Sin hallazgos bloqueantes.
+
+| Eje | Resultado |
+|---|---|
+| Fijo 1 — autorización y corrección | N/A en autorización (`facturarEImprimir` no está en ningún schema ni pasa por proxy). Extracción idéntica al código anterior; ningún caso pasa de «venta guardada» a «venta perdida». Faltaban tests → agregados |
+| Fijo 2 — esquema y estado | N/A. El estado que deja el camino nuevo es idéntico al de una venta `TICKET_SIMPLE`; `printTicket58mm` no escribe nada |
+| Fijo 3 — contrato y llamadores | Sin regresiones. Delivery se comporta igual (solo cambia el stacktrace). El desktop imprime lo que recibe y nada asume que la venta tiene factura. Reimpresión: sin factura reimprime el ticket simple |
+
+Aplicado: test sin stub de impresión (el respaldo entrega, byte por byte, el ticket simple); tests
+del orden turno → impresión, de `INTERVALO` que no respeta y de la impresión de factura que falla;
+`log.error` de las fallas no-GraphQL antes de relanzar; invariante en el javadoc de `build()`
+(«una validación nueva va antes del primer save»); un solo `error` por corte (el de `VentaGraphQL`
+bajó a `warn`).
+
+## Registro de implementación
+
+- 11/10/2026: fases 1 y 2 y ajustes de auditoría implementados y pusheados. Los tests nuevos se
+  vieron fallar contra el código sin el fix.
+- **Pendiente:** prueba de runtime (necesita una venta completa con sesión), prueba de Franco, PR.
 
