@@ -1,8 +1,8 @@
 # PDV: la venta a crédito facturada no guarda el crédito (issue #133)
 
-Estado: **en implementación** (Franco pidió implementar el 11/10/2026; el papel que sale es un
-supuesto, ver decisión 3). Rama `fix/venta-credito-facturada-guarda-credito`, desde `develop`
-(`5d306c6`). Solo filial: el desktop ya manda todo lo necesario.
+Estado: **implementado, sin probar en el PDV** (11/10/2026). Rama
+`fix/venta-credito-facturada-guarda-credito`, desde `develop` (`5d306c6`). Solo filial: el desktop
+ya manda todo lo necesario. El papel que sale (decisión 3) es un supuesto a confirmar por Franco.
 
 ## El problema
 
@@ -93,7 +93,16 @@ se toca».
 
 ### Fase 2 — documentación (un commit)
 
-Este archivo pasa de plan a registro (estado, qué quedó sin verificar).
+Este archivo pasa de plan a registro.
+
+## Verificación hecha
+
+- `./mvnw clean verify -B`: 448 tests, 0 fallas, antes de sumar el último test; después se corrió
+  la clase tocada (19 tests en `VentaGraphQLFacturaEImpresionTest`).
+- Con el fix desactivado fallan los 4 tests de crédito que afirman el guardado y el pagaré.
+- Auditoría del diff (paso 8): sin bugs. Sumó dos tests: que el pagaré se intenta aunque falle, y
+  el caso de la impresora del filial. Ejes fijos 2 y 3: N/A, el diff no toca migraciones,
+  entidades ni `.graphqls`.
 
 ## Auditoría del plan (paso 5)
 
