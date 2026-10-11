@@ -128,6 +128,21 @@ Este archivo pasa de plan a registro.
   fallaba el guardado del crédito (la venta se revierte sin haber intentado facturar): ahora el
   turno vuelve, con su test. También reforzó tres tests y sacó código muerto.
 
+### Prueba de runtime (11/10/2026, filial local, sucursal 24)
+
+`saveVenta` llamado como lo hace el PDV (crédito con dos cuotas, `ticket=true`,
+`imprimirEnCliente=true` para leer el comprobante devuelto), con la política local de la 24
+(`venta_ticket_respeta_politica = true`):
+
+| Caso | Comprobante devuelto | En la base |
+|---|---|---|
+| `A_PEDIDO`, «Factura Legal = Sí» | ticket con pagarés 1/2 y 2/2, sin factura | crédito + 2 cuotas, sin factura |
+| `TODAS`, «Factura Legal = Sí» | un solo comprobante: factura y, tras el pie, pagarés 1/2 y 2/2 | crédito + 2 cuotas, factura con DE `PENDIENTE` |
+| `TODAS`, «Factura Legal = No» | ticket con pagarés, sin factura | crédito + 2 cuotas, sin factura |
+
+Cubre el `switch` de `saveVenta` y la transacción, que los tests unitarios no tocan. El modo
+`INTERVALO` solo se probó en tests.
+
 ## Auditoría del plan (paso 5)
 
 Dos auditores, sin verse. Hallazgos y qué se hizo:
@@ -151,9 +166,9 @@ el ticket-factura y `SifenService`.
 ## Qué queda sin verificar
 
 - **La impresión física** del ticket-factura con el pagaré al pie en una térmica.
-- La prueba manual en el PDV: venta con CONVENIO y «Factura Legal = Sí».
-- Con `venta_ticket_respeta_politica = true`: que una venta a crédito sin turno salga solo con
-  pagaré. No se revisó qué sucursales tienen hoy esa bandera activa.
+- La prueba desde la pantalla del PDV (el diálogo de crédito y el toggle): el runtime se probó
+  llamando a la mutation.
+- No se revisó qué sucursales tienen hoy `venta_ticket_respeta_politica` activa.
 - Que una venta a crédito rechazada por `VentaNoFacturableException` no deje `venta_credito`.
 - El «Suc:» del pagaré al pie sale de la sucursal de la factura (`facturaLegal.getSucursalId()`)
   y el del ticket de venta de `sucursalActual()`: no se verificó si pueden diferir.
