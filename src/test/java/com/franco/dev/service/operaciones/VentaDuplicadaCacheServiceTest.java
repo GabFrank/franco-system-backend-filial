@@ -218,4 +218,22 @@ class VentaDuplicadaCacheServiceTest {
         assertEquals(0, servicio.getTamanioCache());
         assertFalse(servicio.reservar(48L, itemsDeLaCaja662()).esDuplicado());
     }
+
+    @Test
+    @DisplayName("una venta rechazada despues de confirmada suelta la huella: el reintento no espera")
+    void liberarDespuesDeConfirmarDejaReintentar() {
+        VentaDuplicadaCacheService servicio = new VentaDuplicadaCacheService();
+
+        // La venta llego a existir y despues se rechazo (issue #170: sin nombre desde 7.000.000).
+        // La base revierte la venta; la huella no incluye al cliente, asi que el reintento con el
+        // cliente cargado es la misma huella.
+        VentaDuplicadaCacheService.Reserva reserva = servicio.reservar(48L, itemsDeLaCaja662());
+        servicio.confirmar(reserva, 25457L, null);
+        assertTrue(servicio.reservar(48L, itemsDeLaCaja662()).esDuplicado(), "confirmada, bloquea a la gemela");
+
+        servicio.liberar(reserva);
+
+        assertEquals(0, servicio.getTamanioCache());
+        assertFalse(servicio.reservar(48L, itemsDeLaCaja662()).esDuplicado());
+    }
 }

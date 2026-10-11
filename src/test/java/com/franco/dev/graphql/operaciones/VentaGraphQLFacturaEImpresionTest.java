@@ -202,4 +202,52 @@ class VentaGraphQLFacturaEImpresionTest {
                 any(), any(), any());
         verify(politicaFacturacionService, times(1)).devolverTurno();
     }
+
+    // ---- factura silenciosa (issue #170) ----
+
+    private void facturarEnSilencio(PoliticaFacturacion politica) {
+        ventaGraphQL.facturarEnSilencio(new com.franco.dev.graphql.financiero.input.FacturaLegalInput(),
+                Collections.emptyList(), "CAJA", PDV, false, politica);
+    }
+
+    private void laFacturaSilenciosaFallaCon(Exception error) {
+        when(facturaLegalGraphQL.saveFacturaLegal(any(), any(), any(), any(), any())).thenThrow(error);
+    }
+
+    /** saveFacturaLegal re-envuelve lo que lanza el builder: el rechazo se busca en la causa. */
+    @Test
+    void silenciosa_ventaNoFacturableEnvuelta_rechazaLaVentaYElTurnoVuelve() {
+        com.franco.dev.service.financiero.builder.VentaNoFacturableException rechazo =
+                new com.franco.dev.service.financiero.builder.VentaNoFacturableException("cargue un cliente");
+        laFacturaSilenciosaFallaCon(new graphql.GraphQLException("Error al guardar factura legal: ...", rechazo));
+
+        com.franco.dev.service.financiero.builder.VentaNoFacturableException lanzada = assertThrows(
+                com.franco.dev.service.financiero.builder.VentaNoFacturableException.class,
+                () -> facturarEnSilencio(intervaloQueRespeta()));
+
+        org.junit.jupiter.api.Assertions.assertSame(rechazo, lanzada);
+        verify(politicaFacturacionService, times(1)).devolverTurno();
+    }
+
+    /** Lo que el cajero no puede corregir no rompe la venta: sigue sin factura y el turno vuelve. */
+    @Test
+    void silenciosa_facturaNoEmitible_noRompeLaVentaYElTurnoVuelve() {
+        laFacturaSilenciosaFallaCon(new graphql.GraphQLException("Error al guardar factura legal: ...",
+                new graphql.GraphQLException("FACTURA_NO_EMITIBLE: precio cero")));
+
+        facturarEnSilencio(intervaloQueRespeta());
+
+        verify(politicaFacturacionService, times(1)).devolverTurno();
+    }
+
+    /** Una falla posterior a un write tampoco se relanza desde aca, y el turno no vuelve. */
+    @Test
+    void silenciosa_otraFalla_noSeRelanzaYElTurnoNoVuelve() {
+        laFacturaSilenciosaFallaCon(new graphql.GraphQLException("Error al guardar factura legal: ...",
+                new IllegalStateException("fallo el insert")));
+
+        facturarEnSilencio(intervaloQueRespeta());
+
+        verify(politicaFacturacionService, never()).devolverTurno();
+    }
 }

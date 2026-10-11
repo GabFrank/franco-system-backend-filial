@@ -535,7 +535,7 @@ class FacturaLegalBuilderTest {
         VentaNoFacturableException e = assertThrows(VentaNoFacturableException.class,
                 () -> builder.build(requestDeUnItem(fl, true)));
 
-        assertTrue(e.getMessage().contains("Cargue el cliente"), e.getMessage());
+        assertTrue(e.getMessage().contains("Cargue un cliente con nombre y documento"), e.getMessage());
         assertNull(e.getCause());
         assertTrue(PoliticaFacturacionService.fallaAntesDeEscribir(e));
         verificarQueNoSeEscribioNada();

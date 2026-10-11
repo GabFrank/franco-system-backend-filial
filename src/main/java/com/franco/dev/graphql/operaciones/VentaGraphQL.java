@@ -327,20 +327,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                             throw armado;
                         }
 
-                        // Generar factura legal con DE SIN IMPRIMIR (print = false)
-                        try {
-                            facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, 
-                                facturaLegalItemInputList, printerName, pdvId.intValue(), false);
-                        } catch (Exception fe) {
-                            log.error("❌ Error en facturación silenciosa: {}", fe.getMessage(), fe);
-                            devolverTurnoSiCorresponde(ruta, credito, politicaFacturacion, fe);
-                            // No lanzamos excepción para no romper el flujo de venta, salvo que el
-                            // cajero pueda corregirlo: ahi la venta se rechaza con el motivo.
-                            VentaNoFacturableException rechazo = VentaNoFacturableException.en(fe);
-                            if (rechazo != null) {
-                                throw rechazo;
-                            }
-                        }
+                        facturarEnSilencio(facturaLegalInput, facturaLegalItemInputList, printerName, pdvId,
+                                credito, politicaFacturacion);
                         break;
                     }
                 }
@@ -421,6 +409,26 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         facturaLegalInput.setDescuento(descuento);
         facturaLegalInput.setTotalFinal(bruto - descuento);
         return facturaLegalInput;
+    }
+
+    /**
+     * Factura silenciosa: genera la factura legal con su DE, sin imprimir. Si falla no rompe la
+     * venta, salvo que el cajero pueda corregirlo ({@link VentaNoFacturableException}): ahi la
+     * venta se rechaza con el motivo (issue #170).
+     */
+    void facturarEnSilencio(FacturaLegalInput facturaLegalInput, List<FacturaLegalItemInput> items,
+            String printerName, Long pdvId, boolean credito, PoliticaFacturacion politica) {
+        PoliticaFacturacionService.RutaVenta ruta = PoliticaFacturacionService.RutaVenta.FACTURA_SILENCIOSA;
+        try {
+            facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, items, printerName, pdvId.intValue(), false);
+        } catch (Exception fe) {
+            log.error("❌ Error en facturación silenciosa: {}", fe.getMessage(), fe);
+            devolverTurnoSiCorresponde(ruta, credito, politica, fe);
+            VentaNoFacturableException rechazo = VentaNoFacturableException.en(fe);
+            if (rechazo != null) {
+                throw rechazo;
+            }
+        }
     }
 
     /**

@@ -255,7 +255,7 @@ public class FacturaLegalBuilder {
             log.warn("VENTA_NO_FACTURABLE: timbrado detalle {}: {}",
                     facturaLegal.getTimbradoDetalle().getId(), e.getMessage());
             throw new VentaNoFacturableException("No se puede facturar sin nombre una venta de 7.000.000 o mas."
-                    + " Cargue el cliente y vuelva a intentar.");
+                    + " Cargue un cliente con nombre y documento (CI o RUC) y vuelva a intentar.");
         } catch (Exception e) {
             log.error("FACTURA_NO_EMITIBLE: timbrado detalle {}: {}",
                     facturaLegal.getTimbradoDetalle().getId(), e.getMessage(), e);

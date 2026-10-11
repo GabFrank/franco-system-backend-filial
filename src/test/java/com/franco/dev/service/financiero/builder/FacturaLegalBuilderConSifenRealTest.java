@@ -180,7 +180,7 @@ class FacturaLegalBuilderConSifenRealTest {
                 () -> builder.build(new BuildRequest(desdeVenta(0.0),
                         Collections.singletonList(descriptor("TV", 1, 7000000.0)), PDV, true)));
 
-        assertTrue(e.getMessage().contains("Cargue el cliente"), e.getMessage());
+        assertTrue(e.getMessage().contains("Cargue un cliente con nombre y documento"), e.getMessage());
         verify(facturaLegalService, never()).save(any(FacturaLegal.class));
     }
 
