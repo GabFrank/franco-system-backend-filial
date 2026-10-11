@@ -1,9 +1,10 @@
 # SIFEN: una falla al generar el DE pierde la venta (issue #170)
 
-Estado: **plan (opción B) aprobado por Franco el 11/10/2026, con interruptor; en implementación**. Rama
+Estado: **implementado y pusheado el 11/10/2026; decisión de negocio abierta (ver «Decisión abierta») y pendiente de prueba de Franco y de PR**. Rama
 `fix/sifen-falla-de-pierde-venta`, desde `develop` (`b6137fe`, incluye el #168). Solo filial.
-Relacionado: #169 / PR #171 (ticket simple cuando «Venta + Ticket» no puede facturar), que
-conviene que llegue antes a cada canal.
+**Precondición de merge: el PR #171 (#169) tiene que estar mergeado antes** en `develop` (el
+orden se hereda a beta y master): sin él, en «Venta + Ticket» el corte deja la venta sin papel,
+sin aviso y sin devolver el turno. Las dos ramas no tienen conflictos.
 
 ## El problema
 
@@ -80,11 +81,13 @@ memoria antes del primer write.
    y certificado, y cualquier dato que solo reviente al calcular totales en la librería. Los dos
    casos de datos conocidos van como guardas (punto 1); en una sonda con 25 variantes (crédito,
    USD, RUC, CI, pesable, delivery, descuento, nulos del emisor) ensayo y XML coincidieron.
-7. **Interruptor `sifen.ensayo-de.enabled`**, `true` por defecto **en código** (`@Value` con
-   default; no hace falta crear nada en ninguna filial y no afecta el arranque). En `false` el
-   builder no ensaya y todo queda como hoy. Es la salida si aparece un falso positivo en
-   producción sin esperar un release; apagarlo exige editar la configuración de la filial y
-   reiniciarla.
+7. **Interruptor `sifen.ensayo-de.enabled`**, `true` por defecto en código y declarado en
+   `application.properties`; no hace falta crear nada en ninguna filial. Solo `false` lo apaga: se
+   lee como texto, así que un valor mal escrito no impide arrancar (deja el ensayo encendido). En
+   `false` el builder no ensaya y todo queda como antes de este fix. **Para apagarlo en una
+   filial**: agregar la línea `sifen.ensayo-de.enabled=false` en
+   `/opt/frc-filial/application.properties` y reiniciar `frc.service`. No se probó por ese archivo
+   (se probó como argumento de arranque); la variable de entorno equivalente no se verificó.
 6. La validación de `dEst` y el corte del teléfono quedan cubiertos por el ensayo; el corte
    explícito del teléfono (#168) se mantiene, con su mensaje propio.
 
@@ -92,13 +95,32 @@ memoria antes del primer write.
 
 | Vía | Hoy | Con el fix |
 |---|---|---|
-| Factura silenciosa del PDV | «Ups! Algo salió mal: Transaction silently rolled back», **venta perdida** | venta guardada sin factura, número no consumido, el turno vuelve, `FACTURA_NO_EMITIBLE` en el log |
-| «Venta + Ticket» | venta perdida | venta guardada; con #171, sale el ticket simple; sin #171, sin papel ni aviso |
+| Factura silenciosa del PDV | «Ups! Algo salió mal: Transaction silently rolled back»; la venta no se guarda y **el carrito queda intacto para corregir y reintentar** | «Venta guardada con éxito»; venta guardada sin factura, número no consumido, el turno vuelve, `FACTURA_NO_EMITIBLE` solo en el log |
+| «Venta + Ticket» | ídem | venta guardada; con #171, sale el ticket simple y el turno vuelve; sin #171, sin papel, sin aviso y el turno no vuelve |
 | Delivery | «Delivery no encontrado»; el delivery ya quedó `PARA_ENTREGA` (se guarda antes, sin transacción) | igual mensaje y estado; sin factura ni comprobante; el turno vuelve. **Un delivery con ítem a precio 0 queda sin comprobante** |
-| Carga manual | error genérico; no se guarda la factura | error con el motivo; no se guarda la factura (persona y cliente se crean antes, como hoy) |
+| Carga manual | error genérico; no se guarda la factura | el motivo sale unos segundos y detrás el desktop encola «No se pudo confirmar la factura. Verifique en la lista…» (desktop #470); no se guarda la factura (persona y cliente se crean antes, como hoy) |
 | API (desde el central) | 500 «Transaction silently rolled back» | 400 con el motivo |
 
 Una factura normal no cambia: mismo DE, mismo XML, un armado en memoria más por factura.
+
+## Decisión abierta (Franco): guardar sin factura, o rechazar con mensaje
+
+Lo encontró la auditoría del diff, mirando el desktop. Hoy estos casos **rechazan la venta**: sale
+«Ups! Algo salió mal», el carrito queda intacto (`venta-touch.component.ts:1693-1717`) y el cajero
+corrige y reintenta. En una venta sin nombre de 7.000.000 o más, corregir es cargar el cliente, y
+la factura sale. Con el fix tal como está, esa venta **se guarda sin factura** y el desktop
+muestra «Venta guardada con éxito» (`:1575-1580`), sin ninguna señal. El desktop no valida ni el
+tope de 7.000.000 ni el precio mayor a cero: el error críptico de hoy es el único freno.
+
+- **Guardar sin factura** (lo implementado): sirve cuando el cajero no puede corregir (ítem de
+  regalo a precio 0; sucursal sin código de establecimiento, donde hoy no cierra ninguna venta
+  con factura). Costo: ventas sin facturar que nadie ve en el momento.
+- **Rechazar la venta con el motivo**, antes de escribir: lo de hoy, pero legible. El cajero
+  corrige y reintenta. Costo: una venta con un regalo a precio 0 no se puede cerrar con factura.
+- **Por caso**: rechazar con mensaje lo que el cajero puede corregir (el tope de 7.000.000) y
+  guardar sin factura lo que no.
+
+Hasta que se decida, **esta rama no se mergea**.
 
 ## Fases
 
@@ -117,10 +139,12 @@ Una factura normal no cambia: mismo DE, mismo XML, un armado en memoria más por
 
 ### Fase 2 — el builder ensaya antes de escribir
 
-- Reorden de `build()` según el diseño; los parciales y `totalFinal` se setean en la cabecera
-  **antes** del ensayo (sin eso el armado lanza y todo «Venta + Ticket» y delivery dejarían de
-  facturar). El INSERT de `factura_legal` pasa a llevar los parciales y el segundo `save` deja de
-  emitir `UPDATE`: actualizar el javadoc de la clase (`:37-43`).
+- Reorden de `build()` según el diseño. El armado solo lee `totalFinal` entre los totales:
+  `ensayarDE` se lo **presta** a la cabecera mientras corre el ensayo y lo restaura en un
+  `finally` (sin eso el armado lanza y todo «Venta + Ticket» y delivery dejarían de facturar).
+  **Los writes y su orden quedan idénticos a `develop`**: INSERT de la cabecera sin parciales →
+  ítems → `numero_actual` → UPDATE con parciales. (El plan original preveía mandar los parciales
+  en el INSERT; se descartó para no cambiar nada del flujo que se replica al central.)
 - Interruptor `sifen.ensayo-de.enabled`.
 - Tests en `FacturaLegalBuilderTest` (mock de `SifenService`):
   - el ensayo lanza → `GraphQLException` con prefijo `FACTURA_NO_EMITIBLE` y **sin causa**
@@ -149,8 +173,7 @@ Una factura normal no cambia: mismo DE, mismo XML, un armado en memoria más por
   1. El `POST` del ítem a precio 0: **400** con `FACTURA_NO_EMITIBLE`, sin factura ni DE,
      `numero_actual` sin avanzar.
   2. Una factura normal: 201, DE `PENDIENTE`, y el `xml_original` con los mismos datos que antes
-     (comparar contra una emitida con `develop`, salvo CDC/fecha/firma). Comprobar en la base que
-     el INSERT llevó los parciales.
+     (comparar contra una emitida con `develop`, salvo CDC/fecha/firma).
   3. El mismo `POST` con `sifen.ensayo-de.enabled=false`: vuelve el 500 de hoy (el interruptor
      apaga de verdad).
   4. Borrar la factura y el DE de prueba y restaurar `numero_actual`.
@@ -220,4 +243,40 @@ Dos auditores, por eje y sin verse; el del eje B corrió una sonda con el `Sifen
 - **Queda abierto**: el armado real relee los ítems sin `ORDER BY`
   (`FacturaLegalItemRepository:20`) y el último absorbe el residuo del descuento: el orden podría
   diferir del ensayo. No reproducido; no cambia qué casos cortan.
+
+## Auditoría del diff (paso 8, 11/10/2026)
+
+Tres ejes fijos; ningún condicional. Sin bloqueantes técnicos; un hallazgo de negocio que queda
+como «Decisión abierta».
+
+| Eje | Resultado |
+|---|---|
+| Fijo 1 — autorización y corrección | N/A en autorización. Reorden equivalente (mismos `save`, datos y orden; `save` devuelve la misma instancia); el ensayo no muta nada persistible y restaura `totalFinal` también al cortar; ningún llamador ensaya sin crear el DE después. Sonda propia con el `SifenService` real |
+| Fijo 2 — esquema, estado y config | Sin esquema. Writes idénticos a `develop`; el corte no deja filas nuevas; por la API revierte todo. Faltaba declarar la property y el procedimiento para apagar el interruptor |
+| Fijo 3 — contrato con clientes | Central: trata igual 400 y 500, no reintenta, mejora el texto. Sin otros consumidores de la API. **Desktop: la venta sin factura es indistinguible de una normal** → «Decisión abierta». Orden de merge con #171 |
+
+Aplicado: la guarda de moneda solo corta si el código es una moneda extranjera conocida (un
+código fuera del enum se factura en guaraníes y no necesita cambio: era un falso positivo);
+interruptor leído como texto (un valor mal escrito tumbaba el arranque); motivo sin «null» cuando
+la causa no trae mensaje; property declarada en `application.properties`; plan corregido donde
+contradecía al código.
+
+Queda abierto: descripción de ítem nula (pasa el ensayo; `generarXml` no verificado); ítems
+releídos sin `ORDER BY`; una `SifenException` chequeada de `obtenerCDC` antes dejaba la factura
+sin DE con la venta guardada y ahora corta (solo alcanzable con `fecha` nula, que ningún llamador
+produce).
+
+## Registro de implementación
+
+- 11/10/2026: fases 1 a 3 y ajustes de auditoría implementados y pusheados. `./mvnw clean verify
+  -B`: 420 tests, verde. Los tests del ensayo fallan si el builder no ensaya.
+- 11/10/2026, runtime en local (`:8082`, perfil `dev`, `--sifen.scheduler.enabled=false`, API):
+  - ítem a precio 0 → **400** `FACTURA_NO_EMITIBLE: El precio unitario del item 'ITEM DE REGALO'
+    debe ser mayor a cero`; sin factura ni DE; `numero_actual` sin avanzar.
+  - factura normal → 201, DE `PENDIENTE`, XML con total, cantidad, precio y teléfono correctos.
+  - interruptor en `false` (como argumento de arranque, antes y después de pasarlo a texto) →
+    vuelve el 500 «Transaction silently rolled back».
+  - Sin envíos a SIFEN; factura, ítem y DE de prueba borrados y `numero_actual` restaurado.
+- **Pendiente:** decisión abierta; prueba de Franco por `saveVenta` desde el desktop (una venta
+  normal que siga facturando y una con un ítem a precio 0); PR, después del #171.
 
