@@ -16,6 +16,7 @@ import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.sifen.service.SifenService;
+import com.franco.dev.service.sifen.util.SifenReceptorHelper;
 import graphql.GraphQLException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -520,5 +521,34 @@ class FacturaLegalBuilderTest {
                 () -> builder.build(requestDeUnItem(fl, true)));
 
         assertEquals("FACTURA_NO_EMITIBLE: NullPointerException", e.getMessage());
+    }
+
+    /** Lo que el cajero puede corregir rechaza la venta, en vez de dejarla sin factura. */
+    @Test
+    void innominadaSobreElTope_rechazaLaVentaSinEscribir() throws Exception {
+        timbradoElectronicoConSifen("021123456", null);
+        doThrow(new SifenReceptorHelper.FacturaInnominadaSobreTopeException("Factura innominada no permitida"))
+                .when(sifenService).validarGeneracionDE(any(FacturaLegal.class), any());
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+
+        VentaNoFacturableException e = assertThrows(VentaNoFacturableException.class,
+                () -> builder.build(requestDeUnItem(fl, true)));
+
+        assertTrue(e.getMessage().contains("Cargue el cliente"), e.getMessage());
+        assertNull(e.getCause());
+        assertTrue(PoliticaFacturacionService.fallaAntesDeEscribir(e));
+        verificarQueNoSeEscribioNada();
+    }
+
+    @Test
+    void ventaNoFacturable_seEncuentraAunqueVengaEnvuelta() {
+        VentaNoFacturableException rechazo = new VentaNoFacturableException("cargue el cliente");
+
+        assertEquals(rechazo, VentaNoFacturableException.en(rechazo));
+        assertEquals(rechazo, VentaNoFacturableException.en(
+                new GraphQLException("Error al guardar factura legal: cargue el cliente", rechazo)));
+        assertNull(VentaNoFacturableException.en(new GraphQLException("FACTURA_NO_EMITIBLE: ...")));
+        assertNull(VentaNoFacturableException.en(null));
     }
 }

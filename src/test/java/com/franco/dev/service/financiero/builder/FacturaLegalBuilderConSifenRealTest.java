@@ -173,14 +173,34 @@ class FacturaLegalBuilderConSifenRealTest {
         assertEquals(Long.valueOf(5104L), timbradoDetalle.getNumeroActual());
     }
 
-    /** Rutinario: una venta grande sin nombre. Hoy pierde la venta; ahora se guarda sin factura. */
+    /** Rutinario: una venta grande sin nombre. El cajero carga el cliente: la venta se rechaza con el motivo. */
     @Test
-    void innominadaDeSieteMillones_cortaSinEscribir() {
-        GraphQLException e = assertThrows(GraphQLException.class,
+    void innominadaDeSieteMillones_rechazaLaVentaSinEscribir() {
+        VentaNoFacturableException e = assertThrows(VentaNoFacturableException.class,
                 () -> builder.build(new BuildRequest(desdeVenta(0.0),
                         Collections.singletonList(descriptor("TV", 1, 7000000.0)), PDV, true)));
 
-        assertTrue(e.getMessage().startsWith("FACTURA_NO_EMITIBLE"), e.getMessage());
+        assertTrue(e.getMessage().contains("Cargue el cliente"), e.getMessage());
         verify(facturaLegalService, never()).save(any(FacturaLegal.class));
+    }
+
+    /** La misma venta con el cliente cargado se factura. */
+    @Test
+    void sieteMillonesConCliente_noSeCorta() throws Exception {
+        com.franco.dev.domain.personas.Persona persona = new com.franco.dev.domain.personas.Persona();
+        persona.setNombre("JUAN PEREZ");
+        persona.setDocumento("4043581");
+        com.franco.dev.domain.personas.Cliente cliente = new com.franco.dev.domain.personas.Cliente();
+        cliente.setPersona(persona);
+        cliente.setTributa(false);
+        FacturaLegal fl = desdeVenta(0.0);
+        fl.setCliente(cliente);
+        fl.setNombre("JUAN PEREZ");
+        fl.setRuc("4043581");
+
+        FacturaLegal result = builder.build(new BuildRequest(fl,
+                Collections.singletonList(descriptor("TV", 1, 7000000.0)), PDV, true));
+
+        verificarEmitida(result, 7000000.0);
     }
 }

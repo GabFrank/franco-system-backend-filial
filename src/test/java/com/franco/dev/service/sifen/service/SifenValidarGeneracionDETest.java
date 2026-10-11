@@ -182,4 +182,14 @@ class SifenValidarGeneracionDETest {
 
         pasa(f, unItem());
     }
+
+    /** Tiene tipo propio: es lo unico que el cajero corrige solo, y el builder lo trata aparte. */
+    @Test
+    void innominadaDeSieteMillones_lanzaElTipoPropio() {
+        FacturaLegal f = factura();
+        f.setTotalFinal(7000000.0);
+
+        assertThrows(com.franco.dev.service.sifen.util.SifenReceptorHelper.FacturaInnominadaSobreTopeException.class,
+                () -> service.validarGeneracionDE(f, Collections.singletonList(item("TV", 1f, 7000000.0))));
+    }
 }

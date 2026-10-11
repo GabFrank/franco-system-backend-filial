@@ -188,4 +188,18 @@ class VentaGraphQLFacturaEImpresionTest {
                 any(), any(), any());
         verify(politicaFacturacionService, never()).devolverTurno();
     }
+
+    /** El cajero puede corregirlo: sale para rechazar la venta, sin ticket simple; el turno vuelve. */
+    @Test
+    void ventaNoFacturable_seRelanzaSinTicketSimpleYElTurnoVuelve() throws Exception {
+        when(facturaService.crearFacturaLegalDesdeVenta(any(), any(), any(), any()))
+                .thenThrow(new com.franco.dev.service.financiero.builder.VentaNoFacturableException("cargue el cliente"));
+
+        assertThrows(com.franco.dev.service.financiero.builder.VentaNoFacturableException.class,
+                () -> facturar(false, intervaloQueRespeta()));
+
+        verify(ventaGraphQL, never()).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any());
+        verify(politicaFacturacionService, times(1)).devolverTurno();
+    }
 }

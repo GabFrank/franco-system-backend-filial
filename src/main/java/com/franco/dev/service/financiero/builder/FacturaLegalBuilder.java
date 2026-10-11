@@ -16,6 +16,7 @@ import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.sifen.service.SifenService;
+import com.franco.dev.service.sifen.util.SifenReceptorHelper;
 import com.franco.dev.service.sifen.util.SifenTimbradoHelper;
 import graphql.GraphQLException;
 import org.slf4j.Logger;
@@ -236,6 +237,10 @@ public class FacturaLegalBuilder {
      * {@code totalFinal}, que recien se graba en el paso 5: se le presta el valor calculado y se
      * devuelve el que traia, para que el INSERT de la cabecera salga igual que siempre.
      * <p>
+     * Casi todo lo que el armado rechaza deja la venta guardada sin factura (FACTURA_NO_EMITIBLE):
+     * el cajero no puede hacer nada con un item a precio cero o una sucursal mal configurada. La
+     * excepcion es lo que si puede corregir, que rechaza la venta ({@link VentaNoFacturableException}).
+     * <p>
      * La GraphQLException va SIN causa: {@code PoliticaFacturacionService.fallaAntesDeEscribir}
      * mira la causa raiz para devolver el turno del contador.
      */
@@ -244,6 +249,13 @@ public class FacturaLegalBuilder {
         facturaLegal.setTotalFinal(totalFinal);
         try {
             sifenService.validarGeneracionDE(facturaLegal, itemsArmados);
+        } catch (SifenReceptorHelper.FacturaInnominadaSobreTopeException e) {
+            // El cajero lo corrige cargando el cliente: la venta se rechaza con el motivo, en vez
+            // de guardarse sin factura y sin que nadie lo note.
+            log.warn("VENTA_NO_FACTURABLE: timbrado detalle {}: {}",
+                    facturaLegal.getTimbradoDetalle().getId(), e.getMessage());
+            throw new VentaNoFacturableException("No se puede facturar sin nombre una venta de 7.000.000 o mas."
+                    + " Cargue el cliente y vuelva a intentar.");
         } catch (Exception e) {
             log.error("FACTURA_NO_EMITIBLE: timbrado detalle {}: {}",
                     facturaLegal.getTimbradoDetalle().getId(), e.getMessage(), e);

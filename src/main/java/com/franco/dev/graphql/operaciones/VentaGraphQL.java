@@ -27,6 +27,7 @@ import com.franco.dev.graphql.operaciones.input.VentaInput;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.*;
+import com.franco.dev.service.financiero.builder.VentaNoFacturableException;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.PagosTicketAgrupador;
 import com.franco.dev.service.operaciones.CobroDetalleService;
@@ -332,8 +333,13 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                                 facturaLegalItemInputList, printerName, pdvId.intValue(), false);
                         } catch (Exception fe) {
                             log.error("❌ Error en facturación silenciosa: {}", fe.getMessage(), fe);
-                            // No lanzamos excepción para no romper el flujo de venta
                             devolverTurnoSiCorresponde(ruta, credito, politicaFacturacion, fe);
+                            // No lanzamos excepción para no romper el flujo de venta, salvo que el
+                            // cajero pueda corregirlo: ahi la venta se rechaza con el motivo.
+                            VentaNoFacturableException rechazo = VentaNoFacturableException.en(fe);
+                            if (rechazo != null) {
+                                throw rechazo;
+                            }
                         }
                         break;
                     }
@@ -342,6 +348,12 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     venta.setTicketEscpos(Base64.getEncoder().encodeToString(ticketCliente.toByteArray()));
                 }
 
+            } catch (VentaNoFacturableException rechazo) {
+                // La venta no se guarda (saveVenta revierte al salir la excepcion) y el cajero va a
+                // reintentar enseguida: se suelta la huella para que no lo frene el control de
+                // ventas duplicadas, que no se entera del rollback.
+                ventaDuplicadaCacheService.liberar(reservaVenta);
+                throw rechazo;
             } catch (Exception e) {
                 e.printStackTrace();
                 return venta;
