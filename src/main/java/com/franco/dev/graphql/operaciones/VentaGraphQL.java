@@ -27,6 +27,7 @@ import com.franco.dev.graphql.operaciones.input.VentaInput;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.*;
+import com.franco.dev.service.financiero.builder.VentaNoFacturableException;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.PagosTicketAgrupador;
 import com.franco.dev.service.operaciones.CobroDetalleService;
@@ -326,15 +327,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                             throw armado;
                         }
 
-                        // Generar factura legal con DE SIN IMPRIMIR (print = false)
-                        try {
-                            facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, 
-                                facturaLegalItemInputList, printerName, pdvId.intValue(), false);
-                        } catch (Exception fe) {
-                            log.error("❌ Error en facturación silenciosa: {}", fe.getMessage(), fe);
-                            // No lanzamos excepción para no romper el flujo de venta
-                            devolverTurnoSiCorresponde(ruta, credito, politicaFacturacion, fe);
-                        }
+                        facturarEnSilencio(facturaLegalInput, facturaLegalItemInputList, printerName, pdvId,
+                                credito, politicaFacturacion);
                         break;
                     }
                 }
@@ -342,6 +336,12 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     venta.setTicketEscpos(Base64.getEncoder().encodeToString(ticketCliente.toByteArray()));
                 }
 
+            } catch (VentaNoFacturableException rechazo) {
+                // La venta no se guarda (saveVenta revierte al salir la excepcion) y el cajero va a
+                // reintentar enseguida: se suelta la huella para que no lo frene el control de
+                // ventas duplicadas, que no se entera del rollback.
+                ventaDuplicadaCacheService.liberar(reservaVenta);
+                throw rechazo;
             } catch (Exception e) {
                 e.printStackTrace();
                 return venta;
@@ -409,6 +409,26 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         facturaLegalInput.setDescuento(descuento);
         facturaLegalInput.setTotalFinal(bruto - descuento);
         return facturaLegalInput;
+    }
+
+    /**
+     * Factura silenciosa: genera la factura legal con su DE, sin imprimir. Si falla no rompe la
+     * venta, salvo que el cajero pueda corregirlo ({@link VentaNoFacturableException}): ahi la
+     * venta se rechaza con el motivo (issue #170).
+     */
+    void facturarEnSilencio(FacturaLegalInput facturaLegalInput, List<FacturaLegalItemInput> items,
+            String printerName, Long pdvId, boolean credito, PoliticaFacturacion politica) {
+        PoliticaFacturacionService.RutaVenta ruta = PoliticaFacturacionService.RutaVenta.FACTURA_SILENCIOSA;
+        try {
+            facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, items, printerName, pdvId.intValue(), false);
+        } catch (Exception fe) {
+            log.error("❌ Error en facturación silenciosa: {}", fe.getMessage(), fe);
+            devolverTurnoSiCorresponde(ruta, credito, politica, fe);
+            VentaNoFacturableException rechazo = VentaNoFacturableException.en(fe);
+            if (rechazo != null) {
+                throw rechazo;
+            }
+        }
     }
 
     /**

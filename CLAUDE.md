@@ -253,6 +253,28 @@ e imprime el ticket simple, para que el cliente no se vaya sin comprobante (issu
 - Por eso una validación nueva en `build()` va antes del primer `save` y lanza `GraphQLException`.
 - No hay aviso al cajero: el motivo queda en el log como `FACTURA_NO_CREADA`.
 
+## El DE se ensaya antes de guardar la factura
+
+Una falla al armar el DE dentro de `SifenService.crearDocumentoElectronico` deja la transacción de
+`saveVenta` rollback-only aunque quien llama la ataje: la venta entera se revierte con «Transaction
+silently rolled back». Por eso `FacturaLegalBuilder.build()` arma ítems y parciales en memoria y
+llama a `SifenService.validarGeneracionDE` (el mismo armado, sin persistir ni firmar, y **sin
+`@Transactional`**) antes del primer `save` (issue #170).
+
+- **Si el ensayo falla, casi siempre la venta se guarda sin factura**: `GraphQLException`
+  `FACTURA_NO_EMITIBLE: <motivo>`, sin causa encadenada (el turno del contador se decide por la
+  causa raíz). Ítem a precio cero, cantidad que redondea a cero, sucursal sin código de
+  establecimiento, sin ítems, moneda extranjera sin tipo de cambio.
+- **Lo que el cajero corrige en el momento rechaza la venta**: `VentaNoFacturableException`. Hoy
+  solo la factura sin nombre de 7.000.000 o más. Quien ataja excepciones del builder para seguir
+  sin factura tiene que relanzarla (`FacturaService`, `VentaGraphQL.facturarEnSilencio` y el
+  `catch` externo de `saveVenta`, que además suelta la huella de `VentaDuplicadaCacheService`).
+- Los `save` de `build()` y su orden no cambian: el ensayo solo le presta `totalFinal` a la
+  cabecera mientras corre. Una regla nueva del armado ya queda cubierta; no duplicarla en el builder.
+- El ensayo no cubre `generarXml` (firma, certificado): eso sigue revirtiendo la venta.
+- Interruptor: `sifen.ensayo-de.enabled=false` (solo `false` lo apaga) vuelve al comportamiento
+  anterior. En una filial: esa línea en `/opt/frc-filial/application.properties` y reiniciar.
+
 ## El descuento de la venta vive en el cobro
 
 El PDV no guarda el descuento ni el aumento en la venta (`venta.total_gs` queda **bruto**): son

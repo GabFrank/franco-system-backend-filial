@@ -70,4 +70,13 @@ class FacturaServiceDesdeVentaTest {
 
         assertSame(factura, crear());
     }
+
+    /** Lo que el cajero puede corregir no sigue sin factura: sale para rechazar la venta. */
+    @Test
+    void ventaNoFacturable_seRelanza() {
+        when(facturaLegalBuilder.build(any(BuildRequest.class)))
+                .thenThrow(new com.franco.dev.service.financiero.builder.VentaNoFacturableException("cargue el cliente"));
+
+        assertThrows(com.franco.dev.service.financiero.builder.VentaNoFacturableException.class, this::crear);
+    }
 }
