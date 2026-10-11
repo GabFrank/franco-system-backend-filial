@@ -209,7 +209,7 @@ class VentaGraphQLTicketDestinoTest {
                 null, esperado));
 
         ByteArrayOutputStream memoria = new ByteArrayOutputStream();
-        ventaGraphQL.facturarEImprimir(venta, cobro, items, null, null, "CAJA 1", 3L, false,
+        ventaGraphQL.facturarEImprimir(venta, cobro, items, null, null, "CAJA 1", 3L, null, null,
                 com.franco.dev.service.financiero.PoliticaFacturacion.sinFacturacionAutomatica(), memoria);
 
         assertTrue(memoria.size() > 0);

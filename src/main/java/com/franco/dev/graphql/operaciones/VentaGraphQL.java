@@ -290,12 +290,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 switch (ruta) {
                     case FACTURA_E_IMPRESION:
                         facturarEImprimir(venta, cobro, ventaItemList1, cobroDetalleList, printerName, local,
-                                pdvId, credito, politicaFacturacion, ticketCliente);
+                                pdvId, credito ? ventaCreditoInput : null,
+                                credito ? ventaCreditoCuotaInputList : null, politicaFacturacion, ticketCliente);
                         break;
                     case PAGARE_CREDITO:
-                        ventaCreditoInput.setVentaId(venta.getId());
-                        ventaCreditoInput.setSucursalId(venta.getSucursalId());
-                        VentaCredito ventaCredito = ventaCreditoGraphQL.saveVentaCredito(ventaCreditoInput,
+                        VentaCredito ventaCredito = guardarVentaCredito(venta, ventaCreditoInput,
                                 ventaCreditoCuotaInputList);
                         if (ventaCredito != null) {
                             printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local,
@@ -439,11 +438,21 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
      * vencido, rango agotado, timbrado sin telefono): la venta sigue viva y no hay factura. Ahi sale
      * el ticket simple, para que el cliente no se vaya sin comprobante, y el turno vuelve. Cualquier
      * otra falla llega como excepcion, con la venta ya rollback-only: ni papel ni turno (issue #169).
+     * <p>
+     * Venta a credito ({@code ventaCreditoInput} y sus cuotas, los dos o ninguno): antes de facturar
+     * se guarda el VentaCredito, que esta ruta no guardaba (issue #133), y despues del
+     * ticket-factura sale el pagare. Sin factura, el respaldo es el ticket con pagare.
      */
     void facturarEImprimir(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
             List<CobroDetalleInput> cobroDetalleList, String printerName, String local, Long pdvId,
-            boolean credito, PoliticaFacturacion politica, OutputStream ticketCliente) throws Exception {
+            VentaCreditoInput ventaCreditoInput, List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList,
+            PoliticaFacturacion politica, OutputStream ticketCliente) throws Exception {
         PoliticaFacturacionService.RutaVenta ruta = PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION;
+        boolean credito = ventaCreditoInput != null && ventaCreditoCuotaInputList != null;
+        // Solo hay pagare si el credito quedo guardado, como en PAGARE_CREDITO.
+        List<VentaCreditoCuotaInput> cuotasPagare = credito
+                && guardarVentaCredito(venta, ventaCreditoInput, ventaCreditoCuotaInputList) != null
+                        ? ventaCreditoCuotaInputList : null;
         FacturaLegal facturaLegalConDE;
         try {
             // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
@@ -453,12 +462,12 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             throw fe;
         }
         if (facturaLegalConDE == null) {
-            log.warn("La venta {} sale con ticket simple: no se pudo crear su factura", venta.getId());
+            log.warn("La venta {} sale sin ticket-factura: no se pudo crear su factura", venta.getId());
             if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politica)) {
                 politicaFacturacionService.devolverTurno();
             }
             printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, false, printerName, local,
-                    false, null, null, ticketCliente);
+                    cuotasPagare != null, cuotasPagare, null, ticketCliente);
             return;
         }
         try {
@@ -468,6 +477,39 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         } catch (Exception fe) {
             devolverTurnoSiCorresponde(ruta, credito, politica, fe);
             throw fe;
+        }
+        if (cuotasPagare != null) {
+            imprimirPagareTrasFactura(venta, cobro, ventaItemList, cobroDetalleList, printerName, local,
+                    cuotasPagare, ticketCliente);
+        }
+    }
+
+    /** Guarda el VentaCredito de la venta con sus cuotas, dentro de la transaccion de {@link #saveVenta}. */
+    private VentaCredito guardarVentaCredito(Venta venta, VentaCreditoInput ventaCreditoInput,
+            List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) {
+        ventaCreditoInput.setVentaId(venta.getId());
+        ventaCreditoInput.setSucursalId(venta.getSucursalId());
+        return ventaCreditoGraphQL.saveVentaCredito(ventaCreditoInput, ventaCreditoCuotaInputList);
+    }
+
+    /**
+     * El pagare de una venta a credito ya facturada. Si falla no se relanza: la venta, el credito y
+     * la factura ya estan, y relanzar dejaria al cliente tambien sin el ticket-factura cuando la
+     * impresion es en el cliente. Por eso ahi se arma aparte y solo se agrega si termino.
+     */
+    private void imprimirPagareTrasFactura(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
+            List<CobroDetalleInput> cobroDetalleList, String printerName, String local,
+            List<VentaCreditoCuotaInput> cuotas, OutputStream ticketCliente) {
+        try {
+            ByteArrayOutputStream pagare = ticketCliente != null ? new ByteArrayOutputStream() : null;
+            printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, false, printerName, local,
+                    true, cuotas, null, pagare);
+            if (pagare != null) {
+                pagare.writeTo(ticketCliente);
+            }
+        } catch (Exception e) {
+            log.error("La venta {} se facturo pero no se pudo imprimir su pagare: {}", venta.getId(),
+                    e.getMessage(), e);
         }
     }
 
