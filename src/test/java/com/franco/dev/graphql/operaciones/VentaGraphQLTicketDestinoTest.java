@@ -185,6 +185,87 @@ class VentaGraphQLTicketDestinoTest {
         verifyZeroInteractions(printingService);
     }
 
+    /** El ticket de una venta a credito lleva un pagare por cuota, numerado y con su vencimiento. */
+    @Test
+    void ticketConPagareLlevaUnPagarePorCuota() throws Exception {
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        assertTrue(ventaGraphQL.printTicket58mm(venta, cobro, items, null, false, null, "CAJA 1", true,
+                Arrays.asList(cuota(9000.0, "2026-10-29 10:30"), cuota(9000.0, "2026-11-29 10:30")), null,
+                memoria));
+
+        String texto = new String(memoria.toByteArray(), java.nio.charset.StandardCharsets.ISO_8859_1);
+        assertTrue(texto.contains("PAGARE A LA ORDEN 1/2"), "primer pagare");
+        assertTrue(texto.contains("PAGARE A LA ORDEN 2/2"), "segundo pagare");
+        assertTrue(texto.contains("El dia 29-11-2026"), "vencimiento de la segunda cuota");
+        assertTrue(texto.contains("Deudor: CLIENTE"), "deudor");
+    }
+
+    /** El pagare suelto de una venta facturada: solo los pagares, sin repetir la venta, y cortado. */
+    @Test
+    void pagareSueltoLlevaSoloLosPagares() throws Exception {
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        ventaGraphQL.imprimirPagareSuelto(venta, null, "CAJA 1",
+                Arrays.asList(cuota(9000.0, "2026-10-29 10:30"), cuota(9000.0, "2026-11-29 10:30")), memoria);
+
+        byte[] bytes = memoria.toByteArray();
+        String texto = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+        assertTrue(texto.contains("PAGARE A LA ORDEN 1/2"), "primer pagare");
+        assertTrue(texto.contains("PAGARE A LA ORDEN 2/2"), "segundo pagare");
+        assertTrue(texto.contains("Venta: 80078"), "venta");
+        assertTrue(texto.contains("Local: CAJA 1"), "caja");
+        assertTrue(texto.contains("Deudor: CLIENTE"), "deudor");
+        assertFalse(texto.contains("PRODUCTO 1"), "no repite los items");
+        assertFalse(texto.contains("GRACIAS POR LA PREFERENCIA"), "no es el ticket de venta");
+        // Termina cortando (GS V 0): el ticket-factura que sale despues queda en otro papel.
+        byte[] corte = {0x1d, 'V', 48};
+        assertArrayEquals(corte, Arrays.copyOfRange(bytes, bytes.length - 3, bytes.length), "corte final");
+        assertEquals(1, texto.split(new String(corte, java.nio.charset.StandardCharsets.ISO_8859_1), -1).length - 1,
+                "un solo corte");
+    }
+
+    @Test
+    void pagareSueltoEnMemoriaIgualAlImpreso() throws Exception {
+        List<com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput> cuotas =
+                Collections.singletonList(cuota(18000.0, "2026-10-29 10:30"));
+        ventaGraphQL.imprimirPagareSuelto(venta, "ticket", "CAJA 1", cuotas, null);
+        byte[] impreso = impresora.bytes();
+
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        ventaGraphQL.imprimirPagareSuelto(venta, null, "CAJA 1", cuotas, memoria);
+
+        assertTrue(impreso.length > 0);
+        assertArrayEquals(impreso, memoria.toByteArray());
+    }
+
+    @Test
+    void pagareSueltoSinCuotasNoSaca() throws Exception {
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+
+        ventaGraphQL.imprimirPagareSuelto(venta, null, "CAJA 1", Collections.emptyList(), memoria);
+
+        assertEquals(0, memoria.size());
+    }
+
+    /** Si el pagare no se puede armar (cuota sin vencimiento) no sale nada: ni medio pagare. */
+    @Test
+    void pagareSueltoQueFallaNoEscribeNada() {
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+
+        assertThrows(Exception.class, () -> ventaGraphQL.imprimirPagareSuelto(venta, null, "CAJA 1",
+                Collections.singletonList(cuota(9000.0, null)), memoria));
+
+        assertEquals(0, memoria.size());
+    }
+
+    private static com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput cuota(double valor,
+            String vencimiento) {
+        com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput c =
+                new com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput();
+        c.setValor(valor);
+        c.setVencimiento(vencimiento);
+        return c;
+    }
+
     @Test
     void sinImpresoraElServidorNoImprimeYElClienteIgualRecibeElTicket() throws Exception {
         when(printingService.getPrintService(any())).thenReturn(null);
@@ -209,7 +290,7 @@ class VentaGraphQLTicketDestinoTest {
                 null, esperado));
 
         ByteArrayOutputStream memoria = new ByteArrayOutputStream();
-        ventaGraphQL.facturarEImprimir(venta, cobro, items, null, null, "CAJA 1", 3L, false,
+        ventaGraphQL.facturarEImprimir(venta, cobro, items, null, null, "CAJA 1", 3L, null, null,
                 com.franco.dev.service.financiero.PoliticaFacturacion.sinFacturacionAutomatica(), memoria);
 
         assertTrue(memoria.size() > 0);

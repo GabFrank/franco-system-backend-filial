@@ -46,6 +46,7 @@ import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.reports.TicketReportService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
+import com.franco.dev.utilitarios.print.PagareTicket;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
 import com.franco.dev.utilitarios.print.escpos.Style;
@@ -84,8 +85,6 @@ import java.util.*;
 import static java.util.Locale.GERMAN;
 
 import static com.franco.dev.service.utils.PrintingService.resize;
-import static com.franco.dev.utilitarios.CalcularVerificadorRuc.getDigitoVerificadorString;
-import static com.franco.dev.utilitarios.DateUtils.toDate;
 import static com.franco.dev.utilitarios.StringUtils.removeAccents;
 
 @Component
@@ -290,12 +289,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 switch (ruta) {
                     case FACTURA_E_IMPRESION:
                         facturarEImprimir(venta, cobro, ventaItemList1, cobroDetalleList, printerName, local,
-                                pdvId, credito, politicaFacturacion, ticketCliente);
+                                pdvId, credito ? ventaCreditoInput : null,
+                                credito ? ventaCreditoCuotaInputList : null, politicaFacturacion, ticketCliente);
                         break;
                     case PAGARE_CREDITO:
-                        ventaCreditoInput.setVentaId(venta.getId());
-                        ventaCreditoInput.setSucursalId(venta.getSucursalId());
-                        VentaCredito ventaCredito = ventaCreditoGraphQL.saveVentaCredito(ventaCreditoInput,
+                        VentaCredito ventaCredito = guardarVentaCredito(venta, ventaCreditoInput,
                                 ventaCreditoCuotaInputList);
                         if (ventaCredito != null) {
                             printTicket58mm(venta, cobro, ventaItemList1, cobroDetalleList, false, printerName, local,
@@ -321,14 +319,14 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                                     ventaInput.getUsuarioId(), ventaCreditoInput != null,
                                     cobroDetalleService.ajusteDe(cobro, cobroDetalleList));
                         } catch (RuntimeException armado) {
-                            if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politicaFacturacion)) {
+                            if (PoliticaFacturacionService.salioDeUnTurno(ruta, politicaFacturacion)) {
                                 politicaFacturacionService.devolverTurno();
                             }
                             throw armado;
                         }
 
                         facturarEnSilencio(facturaLegalInput, facturaLegalItemInputList, printerName, pdvId,
-                                credito, politicaFacturacion);
+                                politicaFacturacion);
                         break;
                     }
                 }
@@ -417,13 +415,13 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
      * venta se rechaza con el motivo (issue #170).
      */
     void facturarEnSilencio(FacturaLegalInput facturaLegalInput, List<FacturaLegalItemInput> items,
-            String printerName, Long pdvId, boolean credito, PoliticaFacturacion politica) {
+            String printerName, Long pdvId, PoliticaFacturacion politica) {
         PoliticaFacturacionService.RutaVenta ruta = PoliticaFacturacionService.RutaVenta.FACTURA_SILENCIOSA;
         try {
             facturaLegalGraphQL.saveFacturaLegal(facturaLegalInput, items, printerName, pdvId.intValue(), false);
         } catch (Exception fe) {
             log.error("❌ Error en facturación silenciosa: {}", fe.getMessage(), fe);
-            devolverTurnoSiCorresponde(ruta, credito, politica, fe);
+            devolverTurnoSiCorresponde(ruta, politica, fe);
             VentaNoFacturableException rechazo = VentaNoFacturableException.en(fe);
             if (rechazo != null) {
                 throw rechazo;
@@ -439,36 +437,119 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
      * vencido, rango agotado, timbrado sin telefono): la venta sigue viva y no hay factura. Ahi sale
      * el ticket simple, para que el cliente no se vaya sin comprobante, y el turno vuelve. Cualquier
      * otra falla llega como excepcion, con la venta ya rollback-only: ni papel ni turno (issue #169).
+     * <p>
+     * Venta a credito ({@code ventaCreditoInput} y sus cuotas, los dos o ninguno): antes de facturar
+     * se guarda el VentaCredito, que esta ruta no guardaba (issue #133), y con la factura ya
+     * creada sale el pagare en un papel aparte, antes del ticket-factura. Sin factura, el respaldo
+     * es el ticket con pagare.
      */
     void facturarEImprimir(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
             List<CobroDetalleInput> cobroDetalleList, String printerName, String local, Long pdvId,
-            boolean credito, PoliticaFacturacion politica, OutputStream ticketCliente) throws Exception {
+            VentaCreditoInput ventaCreditoInput, List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList,
+            PoliticaFacturacion politica, OutputStream ticketCliente) throws Exception {
         PoliticaFacturacionService.RutaVenta ruta = PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION;
+        // Solo hay pagare si el credito quedo guardado, como en PAGARE_CREDITO.
+        List<VentaCreditoCuotaInput> cuotasPagare = null;
+        if (ventaCreditoInput != null && ventaCreditoCuotaInputList != null) {
+            try {
+                if (guardarVentaCredito(venta, ventaCreditoInput, ventaCreditoCuotaInputList) != null) {
+                    cuotasPagare = ventaCreditoCuotaInputList;
+                }
+            } catch (RuntimeException ce) {
+                // La venta se pierde sin haber intentado facturar: el turno que tomo vuelve.
+                if (PoliticaFacturacionService.salioDeUnTurno(ruta, politica)) {
+                    politicaFacturacionService.devolverTurno();
+                }
+                throw ce;
+            }
+        }
         FacturaLegal facturaLegalConDE;
         try {
             // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
             facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, cobroDetalleList);
         } catch (Exception fe) {
-            devolverTurnoSiCorresponde(ruta, credito, politica, fe);
+            devolverTurnoSiCorresponde(ruta, politica, fe);
             throw fe;
         }
         if (facturaLegalConDE == null) {
-            log.warn("La venta {} sale con ticket simple: no se pudo crear su factura", venta.getId());
-            if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politica)) {
+            log.warn("La venta {} sale sin ticket-factura: no se pudo crear su factura", venta.getId());
+            if (PoliticaFacturacionService.salioDeUnTurno(ruta, politica)) {
                 politicaFacturacionService.devolverTurno();
             }
             printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, false, printerName, local,
-                    false, null, null, ticketCliente);
+                    cuotasPagare != null, cuotasPagare, null, ticketCliente);
             return;
+        }
+        if (cuotasPagare != null) {
+            // Si el pagare falla no se relanza: la venta, el credito y la factura ya estan, y
+            // relanzar dejaria al cliente tambien sin el ticket-factura.
+            try {
+                imprimirPagareSuelto(venta, printerName, local, cuotasPagare, ticketCliente);
+            } catch (Exception e) {
+                log.error("La venta {} se facturo pero no se pudo imprimir su pagare: {}", venta.getId(),
+                        e.getMessage(), e);
+            }
         }
         try {
             // Imprimir el ticket/factura con los datos del DE
             facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
                     ticketCliente);
         } catch (Exception fe) {
-            devolverTurnoSiCorresponde(ruta, credito, politica, fe);
+            devolverTurnoSiCorresponde(ruta, politica, fe);
             throw fe;
         }
+    }
+
+    /** Cuanto se espera a que el pagare quede enviado a la impresora antes de seguir con la factura. */
+    private static final long ESPERA_ENVIO_PAGARE_MS = 5000;
+
+    /**
+     * Los pagares de una venta a credito ya facturada, en un papel aparte: el cliente se lleva el
+     * ticket-factura y la caja se queda con el pagare firmado. Lleva solo los pagares, sin repetir
+     * la venta. Se arma entero antes de mandarlo, para no dejar un pagare a medias.
+     * <p>
+     * Sale ANTES que el ticket-factura y termina con un corte. En la impresora del filial se espera
+     * a que el trabajo quede enviado: el envio corre en otro hilo y, sin esperar, el ticket-factura
+     * (que no corta el papel) podia llegar a la cola en cualquier orden. Con {@code destino != null}
+     * se escribe ahi (impresion desde el cliente) y el ticket-factura va a continuacion.
+     */
+    void imprimirPagareSuelto(Venta venta, String printerName, String local,
+            List<VentaCreditoCuotaInput> cuotas, OutputStream destino) throws Exception {
+        if (cuotas.isEmpty()) {
+            return;
+        }
+        PrintService impresora = destino == null ? printingService.getPrintService(printerName) : null;
+        if (destino == null && impresora == null) {
+            log.warn("La venta {} queda sin pagare impreso: no se encontro la impresora {}", venta.getId(),
+                    printerName);
+            return;
+        }
+        ByteArrayOutputStream papel = new ByteArrayOutputStream();
+        EscPos escpos = new EscPos(papel);
+        Style center = new Style().setJustification(EscPosConst.Justification.Center);
+        escpos.writeLF("--------------------------------");
+        PagareTicket.escribir(escpos, center, venta, sucursalService.sucursalActual(), local, cuotas);
+        escpos.feed(5);
+        escpos.cut(EscPos.CutMode.FULL);
+
+        if (destino != null) {
+            papel.writeTo(destino);
+            return;
+        }
+        PrinterOutputStream salida = new PrinterOutputStream(impresora);
+        try {
+            papel.writeTo(salida);
+        } finally {
+            salida.closeYEsperarEnvio(ESPERA_ENVIO_PAGARE_MS);
+        }
+    }
+
+    /** Guarda el VentaCredito de la venta con sus cuotas, dentro de la transaccion de {@link #saveVenta}. */
+    private VentaCredito guardarVentaCredito(Venta venta, VentaCreditoInput ventaCreditoInput,
+            List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) {
+        ventaCreditoInput.setVentaId(venta.getId());
+        ventaCreditoInput.setSucursalId(venta.getSucursalId());
+        return ventaCreditoGraphQL.saveVentaCredito(ventaCreditoInput, ventaCreditoCuotaInputList);
     }
 
     /**
@@ -477,9 +558,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
      * SIFEN caido, error despues del insert) no lo devuelve: reintentarla en cada venta, dentro de
      * su transaccion, multiplicaria las ventas perdidas.
      */
-    private void devolverTurnoSiCorresponde(PoliticaFacturacionService.RutaVenta ruta, boolean credito,
+    private void devolverTurnoSiCorresponde(PoliticaFacturacionService.RutaVenta ruta,
                                             PoliticaFacturacion politica, Exception error) {
-        if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politica)
+        if (PoliticaFacturacionService.salioDeUnTurno(ruta, politica)
                 && PoliticaFacturacionService.fallaAntesDeEscribir(error)) {
             politicaFacturacionService.devolverTurno();
         }
@@ -1036,42 +1117,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             
             escpos.writeLF("--------------------------------");
             if (pagare != null && pagare == true) {
-                for (int x = 0; x < itens.size(); x++) {
-                    escpos.writeLF(center, "PAGARE A LA ORDEN " + x + 1 + "/" + itens.size());
-                    escpos.feed(1);
-                    escpos.write("Total Gs: ");
-                    String valorPagare = df.format(itens.get(x).getValor().intValue());
-                    for (int i = 22; i > valorPagare.length(); i--) {
-                        escpos.write(" ");
-                    }
-                    escpos.writeLF(valorPagare);
-                    escpos.writeLF("Fecha: " + venta.getCreadoEn().format(formatter));
-                    escpos.writeLF(center.setBold(true), "Venta: " + venta.getId());
-                    if (sucursal != null) {
-                        escpos.writeLF(center, "Suc: " + sucursal.getNombre());
-                        if (sucursal.getCiudad() != null) {
-                            escpos.writeLF(center, sucursal.getCiudad().getDescripcion());
-                        }
-                    }
-                    if (local != null) {
-                        escpos.writeLF(center, "Local: " + local);
-                    }
-
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("El dia ");
-                    sb.append(toDate(itens.get(x).getVencimiento()).format(formatter));
-                    sb.append(" pagare solidariamente al Sr. FRANCO AREVALOS S.A. la suma de G$ ");
-                    sb.append(valorPagare);
-                    sb.append(
-                            " por el valor recibido a mi/nuestra entera satisfaccion. En caso de retardo o incumplimiento total o parcial a la fecha de su vencimiento quedara constituida la MORA automatica, sin necesidad de interpelacion alguna.");
-                    escpos.write(sb.toString());
-                    escpos.feed(4);
-                    escpos.writeLF("   --------------------------   ");
-                    escpos.writeLF(center, "FIRMA");
-                    escpos.writeLF(center, "Deudor: " + venta.getCliente().getPersona().getNombre().toUpperCase());
-                    escpos.writeLF(center, "RUC: " + venta.getCliente().getPersona().getDocumento()
-                            + getDigitoVerificadorString(venta.getCliente().getPersona().getDocumento()));
-                }
+                PagareTicket.escribir(escpos, center, venta, sucursal, local, itens);
             } else {
                 if (sucursal != null && sucursal.getNroDelivery() != null) {
                     escpos.write(center, "Delivery? Escanea el codigo qr o escribinos al ");

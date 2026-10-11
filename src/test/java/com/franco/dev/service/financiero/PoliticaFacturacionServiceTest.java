@@ -162,12 +162,47 @@ public class PoliticaFacturacionServiceTest {
         assertEquals(Integer.valueOf(5), service.contadorActual());
     }
 
+    // ── Venta a credito: sigue la politica como "Venta + Ticket" (issue #133) ──
+
     @Test
-    public void ventaACreditoQuedaFueraDeRespeta() {
+    public void ventaACreditoQueRespetaLaPoliticaSinTurnoSaleConPagareSinFactura() {
+        PoliticaFacturacion p = politica(ConfiguracionFacturacion.MODO_INTERVALO, 2, true);
+        service.fijarContador(2);
+        assertEquals(RutaVenta.PAGARE_CREDITO, service.decidirRuta(true, true, PDV, true, p));
+        assertEquals(Integer.valueOf(1), service.contadorActual());
+    }
+
+    @Test
+    public void ventaACreditoQueRespetaLaPoliticaConTurnoFacturaYReinicia() {
+        PoliticaFacturacion p = politica(ConfiguracionFacturacion.MODO_INTERVALO, 2, true);
+        service.fijarContador(0);
+        assertEquals(RutaVenta.FACTURA_E_IMPRESION, service.decidirRuta(true, true, PDV, true, p));
+        assertEquals(Integer.valueOf(2), service.contadorActual());
+    }
+
+    @Test
+    public void ventaACreditoAPedidoQueRespetaNoFactura() {
         PoliticaFacturacion p = politica(ConfiguracionFacturacion.MODO_A_PEDIDO, 0, true);
         service.fijarContador(3);
-        assertEquals(RutaVenta.FACTURA_E_IMPRESION, service.decidirRuta(true, true, PDV, true, p));
+        assertEquals(RutaVenta.PAGARE_CREDITO, service.decidirRuta(true, true, PDV, true, p));
         assertEquals(Integer.valueOf(3), service.contadorActual());
+    }
+
+    @Test
+    public void ventaACreditoQueNoRespetaFacturaSiempreYNoTocaElContador() {
+        PoliticaFacturacion p = politica(ConfiguracionFacturacion.MODO_A_PEDIDO, 0, false);
+        service.fijarContador(5);
+        assertEquals(RutaVenta.FACTURA_E_IMPRESION, service.decidirRuta(true, true, PDV, true, p));
+        assertEquals(Integer.valueOf(5), service.contadorActual());
+    }
+
+    /** Factura manual ya emitida ({@code facturar=false}): solo el pagare, sin tocar el contador. */
+    @Test
+    public void ventaACreditoConFacturaManualSaleSoloConPagare() {
+        PoliticaFacturacion p = politica(ConfiguracionFacturacion.MODO_TODAS, 0, true);
+        service.fijarContador(0);
+        assertEquals(RutaVenta.PAGARE_CREDITO, service.decidirRuta(true, false, PDV, true, p));
+        assertEquals(Integer.valueOf(0), service.contadorActual());
     }
 
     // ── Modos ──
@@ -260,13 +295,12 @@ public class PoliticaFacturacionServiceTest {
         PoliticaFacturacion intervaloNoRespeta = politica(ConfiguracionFacturacion.MODO_INTERVALO, 2, false);
         PoliticaFacturacion todas = politica(ConfiguracionFacturacion.MODO_TODAS, 0, true);
 
-        assertTrue(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_SILENCIOSA, false, intervaloNoRespeta));
-        assertTrue(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_E_IMPRESION, false, intervaloRespeta));
-        // "Venta + Ticket" que factura siempre, o una venta a credito: no tomaron turno.
-        assertFalse(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_E_IMPRESION, false, intervaloNoRespeta));
-        assertFalse(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_E_IMPRESION, true, intervaloRespeta));
+        assertTrue(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_SILENCIOSA, intervaloNoRespeta));
+        assertTrue(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_E_IMPRESION, intervaloRespeta));
+        // "Venta + Ticket" que factura siempre no tomo turno.
+        assertFalse(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_E_IMPRESION, intervaloNoRespeta));
         // Sin contador no hay turno.
-        assertFalse(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_SILENCIOSA, false, todas));
+        assertFalse(PoliticaFacturacionService.salioDeUnTurno(RutaVenta.FACTURA_SILENCIOSA, todas));
     }
 
     @Test
