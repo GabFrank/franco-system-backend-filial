@@ -143,6 +143,11 @@ Este archivo pasa de plan a registro.
 Cubre el `switch` de `saveVenta` y la transacción, que los tests unitarios no tocan. El modo
 `INTERVALO` solo se probó en tests.
 
+Y desde la pantalla del PDV (desktop servido como web, modo de impresión `BACKEND`, política
+`TODAS`): venta con CONVENIO, cliente buscado en el diálogo de crédito, «Factura Legal = Sí» y
+Firma. Quedó la venta con su crédito, una cuota y su factura, y **un solo trabajo de impresión**
+en la térmica de la caja. El papel no se revisó a ojo.
+
 ## Auditoría del plan (paso 5)
 
 Dos auditores, sin verse. Hallazgos y qué se hizo:
@@ -165,9 +170,7 @@ el ticket-factura y `SifenService`.
 
 ## Qué queda sin verificar
 
-- **La impresión física** del ticket-factura con el pagaré al pie en una térmica.
-- La prueba desde la pantalla del PDV (el diálogo de crédito y el toggle): el runtime se probó
-  llamando a la mutation.
+- **Cómo se ve el papel**: el ticket-factura con el pagaré al pie se imprimió, pero nadie lo miró.
 - No se revisó qué sucursales tienen hoy `venta_ticket_respeta_politica` activa.
 - Que una venta a crédito rechazada por `VentaNoFacturableException` no deje `venta_credito`.
 - El «Suc:» del pagaré al pie sale de la sucursal de la factura (`facturaLegal.getSucursalId()`)
