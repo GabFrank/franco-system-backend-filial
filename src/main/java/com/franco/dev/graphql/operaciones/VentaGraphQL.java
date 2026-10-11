@@ -414,15 +414,34 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     /**
      * "Venta + Ticket": factura la venta e imprime el ticket-factura. Se llama desde
      * {@link #saveVenta}, dentro de su transaccion y sin pasar por el proxy.
+     * <p>
+     * {@code FacturaService} devuelve null cuando una validacion corto antes de escribir (timbrado
+     * vencido, rango agotado, timbrado sin telefono): la venta sigue viva y no hay factura. Ahi sale
+     * el ticket simple, para que el cliente no se vaya sin comprobante, y el turno vuelve. Cualquier
+     * otra falla llega como excepcion, con la venta ya rollback-only: ni papel ni turno (issue #169).
      */
     void facturarEImprimir(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
             List<CobroDetalleInput> cobroDetalleList, String printerName, String local, Long pdvId,
             boolean credito, PoliticaFacturacion politica, OutputStream ticketCliente) throws Exception {
         PoliticaFacturacionService.RutaVenta ruta = PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION;
+        FacturaLegal facturaLegalConDE;
         try {
             // Crear factura legal con documento electrónico integrado (incluye cálculo de descuentos)
-            FacturaLegal facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, cobroDetalleList);
-
+            facturaLegalConDE = facturaService.crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, cobroDetalleList);
+        } catch (Exception fe) {
+            devolverTurnoSiCorresponde(ruta, credito, politica, fe);
+            throw fe;
+        }
+        if (facturaLegalConDE == null) {
+            log.error("FACTURA_NO_CREADA: la venta {} sale con ticket simple", venta.getId());
+            if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politica)) {
+                politicaFacturacionService.devolverTurno();
+            }
+            printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, false, printerName, local,
+                    false, null, null, ticketCliente);
+            return;
+        }
+        try {
             // Imprimir el ticket/factura con los datos del DE
             facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
                     ticketCliente);
