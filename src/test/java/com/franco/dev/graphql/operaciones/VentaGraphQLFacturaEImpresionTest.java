@@ -159,7 +159,7 @@ class VentaGraphQLFacturaEImpresionTest {
 
     /** Esta ruta facturaba sin guardar el VentaCredito ni imprimir el pagare. */
     @Test
-    void creditoConFactura_guardaElCreditoYSalenLaFacturaYElPagareAparte() throws Exception {
+    void creditoConFactura_guardaElCreditoYSalenElPagareYLaFactura() throws Exception {
         FacturaLegal factura = facturaCreada();
 
         facturar(true, todas());
@@ -170,16 +170,17 @@ class VentaGraphQLFacturaEImpresionTest {
         InOrder orden = inOrder(ventaCreditoGraphQL, facturaService, facturaLegalGraphQL, ventaGraphQL);
         orden.verify(ventaCreditoGraphQL).saveVentaCredito(any(), any());
         orden.verify(facturaService).crearFacturaLegalDesdeVenta(any(), any(), any(), any());
-        orden.verify(facturaLegalGraphQL).printTicket58mmFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
-                eq(ticketCliente));
+        // El pagare primero: es el trabajo chico y, si saliera despues, podia adelantarse en la cola.
         orden.verify(ventaGraphQL).imprimirPagareSuelto(eq(venta), eq("CAJA"), eq("local"), eq(cuotas),
+                eq(ticketCliente));
+        orden.verify(facturaLegalGraphQL).printTicket58mmFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
                 eq(ticketCliente));
         // El pagare va solo: no se repite el ticket de la venta.
         verify(ventaGraphQL, never()).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any());
     }
 
-    /** El pagare falla: no se relanza, la factura ya salio. */
+    /** El pagare falla: no se relanza y la factura sale igual. */
     @Test
     void creditoConFacturaYElPagareFalla_noSeRelanza() throws Exception {
         FacturaLegal factura = facturaCreada();

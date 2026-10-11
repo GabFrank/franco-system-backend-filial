@@ -48,14 +48,18 @@ se toca».
    cambia lo que se persiste: se guarda primero para no armar una factura si el crédito falla.
    Si la factura rechaza la venta (`VentaNoFacturableException`) o falla después de escribir, el
    crédito se revierte con la venta.
-3. **Salen dos papeles: el ticket-factura y, aparte, los pagarés solos.** El cliente se lleva
-   la factura y la caja se queda con el pagaré firmado. `VentaGraphQL.imprimirPagareSuelto`
-   imprime un pagaré por cuota, sin repetir la venta (ni ítems, ni cobro, ni logo). El bloque del
-   pagaré vive en `PagareTicket` y lo comparte con el ticket de venta; el texto es el de siempre
-   (se comparó el ticket con pagaré antes y después: solo cambia la numeración, decisión 8). El
-   ticket-factura no corta el papel, así que el pagaré **empieza con un corte** y termina con
-   otro. Con `imprimirEnCliente` van los dos en `ticketEscpos`, separados por ese corte.
-   El ticket-factura no cambia.
+3. **Salen dos papeles: los pagarés solos y el ticket-factura.** El cliente se lleva la factura
+   y la caja se queda con el pagaré firmado. `VentaGraphQL.imprimirPagareSuelto` imprime un
+   pagaré por cuota, sin repetir la venta (ni ítems, ni cobro, ni logo), y termina con un corte.
+   El bloque del pagaré vive en `PagareTicket` y lo comparte con el ticket de venta; el texto es
+   el de siempre (se comparó el ticket con pagaré antes y después: solo cambia la numeración,
+   decisión 8). El ticket-factura no cambia.
+   **El pagaré sale primero**, con la factura ya creada, y en la impresora del filial se espera
+   (hasta 5 s) a que su trabajo quede enviado antes de imprimir la factura
+   (`PrinterOutputStream.closeYEsperarEnvio`). No es un detalle: el envío a la impresora corre
+   en otro hilo y `close()` no lo espera, así que con la factura primero el pagaré —el trabajo
+   chico— llegó antes a la cola en la primera prueba real. Con `imprimirEnCliente` van los dos
+   en `ticketEscpos`: los pagarés, un corte y la factura.
 4. **Una falla del pagaré no se lleva la factura.** El pagaré se arma entero en memoria antes de
    mandarlo: si falla (cuota sin vencimiento, venta sin cliente) no sale ni medio pagaré, se
    loguea y no se relanza. La venta, el crédito y la factura ya están.
@@ -114,7 +118,9 @@ Este archivo pasa de plan a registro.
 
 ### Fase 4 — pagaré en un papel aparte
 
-- `VentaGraphQL.imprimirPagareSuelto`; `facturarEImprimir` lo llama después del ticket-factura.
+- `VentaGraphQL.imprimirPagareSuelto`; `facturarEImprimir` lo llama con la factura ya creada,
+  antes de imprimirla.
+- `PrinterOutputStream.closeYEsperarEnvio`: cierra y espera el hilo de impresión.
 - `FacturaLegalGraphQL` vuelve a quedar como en `develop`: el ticket-factura no cambia.
 - Tests:
   - `PoliticaFacturacionServiceTest`: crédito con y sin turno, `A_PEDIDO`, política que no
@@ -155,7 +161,13 @@ Y desde la pantalla del PDV (desktop servido como web, modo de impresión `BACKE
 Firma. Con la fase 3 quedó la venta con su crédito, una cuota y su factura, y un solo trabajo de
 impresión; Franco vio ese papel y lo encontró demasiado largo, de ahí la fase 4.
 
-La fase 4 se volvió a probar en runtime: ver el cierre de la sesión.
+La fase 4 se probó en runtime con la política `TODAS` y dos cuotas:
+
+- Impresión en cliente: el comprobante devuelto trae los pagarés 1/2 y 2/2 (2,4 KB, sin
+  ítems), un corte y la factura (17 KB).
+- Impresora de la caja: dos trabajos, primero el pagaré y después la factura. En la versión
+  anterior (factura primero, sin esperar) habían entrado a la cola al revés.
+- En los dos casos la venta quedó con su crédito, dos cuotas y su factura.
 
 ## Auditoría del plan (paso 5)
 
@@ -179,8 +191,9 @@ el ticket-factura y `SifenService`.
 
 ## Qué queda sin verificar
 
-- **El orden de los dos trabajos** en la impresora del filial: son dos envíos seguidos y el
-  pagaré corta el papel al empezar; si llegara antes que la factura, el corte caería mal.
+- **Cómo se ven los dos papeles** impresos: los trabajos salieron en orden, nadie los miró.
+- El caso de una impresora que no acepta trabajos: la espera del pagaré corta a los 5 s, pero
+  escribir en el pipe de un hilo de impresión muerto se cuelga, igual que ya pasa con la factura.
 - No se revisó qué sucursales tienen hoy `venta_ticket_respeta_politica` activa.
 - Que una venta a crédito rechazada por `VentaNoFacturableException` no deje `venta_credito`.
 - Cuántas ventas perdieron el crédito en otras sucursales.

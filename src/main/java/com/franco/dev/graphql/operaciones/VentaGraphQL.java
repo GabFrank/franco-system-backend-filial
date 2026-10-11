@@ -439,9 +439,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
      * otra falla llega como excepcion, con la venta ya rollback-only: ni papel ni turno (issue #169).
      * <p>
      * Venta a credito ({@code ventaCreditoInput} y sus cuotas, los dos o ninguno): antes de facturar
-     * se guarda el VentaCredito, que esta ruta no guardaba (issue #133), y despues del
-     * ticket-factura sale el pagare en un papel aparte. Sin factura, el respaldo es el ticket con
-     * pagare.
+     * se guarda el VentaCredito, que esta ruta no guardaba (issue #133), y con la factura ya
+     * creada sale el pagare en un papel aparte, antes del ticket-factura. Sin factura, el respaldo
+     * es el ticket con pagare.
      */
     void facturarEImprimir(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
             List<CobroDetalleInput> cobroDetalleList, String printerName, String local, Long pdvId,
@@ -480,6 +480,16 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     cuotasPagare != null, cuotasPagare, null, ticketCliente);
             return;
         }
+        if (cuotasPagare != null) {
+            // Si el pagare falla no se relanza: la venta, el credito y la factura ya estan, y
+            // relanzar dejaria al cliente tambien sin el ticket-factura.
+            try {
+                imprimirPagareSuelto(venta, printerName, local, cuotasPagare, ticketCliente);
+            } catch (Exception e) {
+                log.error("La venta {} se facturo pero no se pudo imprimir su pagare: {}", venta.getId(),
+                        e.getMessage(), e);
+            }
+        }
         try {
             // Imprimir el ticket/factura con los datos del DE
             facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
@@ -488,25 +498,20 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             devolverTurnoSiCorresponde(ruta, politica, fe);
             throw fe;
         }
-        if (cuotasPagare != null) {
-            // Si el pagare falla no se relanza: la venta, el credito y la factura ya estan, y
-            // relanzar dejaria al cliente tambien sin el ticket-factura cuando imprime su PC.
-            try {
-                imprimirPagareSuelto(venta, printerName, local, cuotasPagare, ticketCliente);
-            } catch (Exception e) {
-                log.error("La venta {} se facturo pero no se pudo imprimir su pagare: {}", venta.getId(),
-                        e.getMessage(), e);
-            }
-        }
     }
+
+    /** Cuanto se espera a que el pagare quede enviado a la impresora antes de seguir con la factura. */
+    private static final long ESPERA_ENVIO_PAGARE_MS = 5000;
 
     /**
      * Los pagares de una venta a credito ya facturada, en un papel aparte: el cliente se lleva el
      * ticket-factura y la caja se queda con el pagare firmado. Lleva solo los pagares, sin repetir
      * la venta. Se arma entero antes de mandarlo, para no dejar un pagare a medias.
      * <p>
-     * Con {@code destino != null} se escribe ahi (impresion desde el cliente), a continuacion del
-     * ticket-factura. El ticket-factura no corta el papel, asi que el pagare empieza con un corte.
+     * Sale ANTES que el ticket-factura y termina con un corte. En la impresora del filial se espera
+     * a que el trabajo quede enviado: el envio corre en otro hilo y, sin esperar, el ticket-factura
+     * (que no corta el papel) podia llegar a la cola en cualquier orden. Con {@code destino != null}
+     * se escribe ahi (impresion desde el cliente) y el ticket-factura va a continuacion.
      */
     void imprimirPagareSuelto(Venta venta, String printerName, String local,
             List<VentaCreditoCuotaInput> cuotas, OutputStream destino) throws Exception {
@@ -522,7 +527,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         ByteArrayOutputStream papel = new ByteArrayOutputStream();
         EscPos escpos = new EscPos(papel);
         Style center = new Style().setJustification(EscPosConst.Justification.Center);
-        escpos.cut(EscPos.CutMode.FULL);
         escpos.writeLF("--------------------------------");
         PagareTicket.escribir(escpos, center, venta, sucursalService.sucursalActual(), local, cuotas);
         escpos.feed(5);
@@ -536,7 +540,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         try {
             papel.writeTo(salida);
         } finally {
-            salida.close();
+            salida.closeYEsperarEnvio(ESPERA_ENVIO_PAGARE_MS);
         }
     }
 

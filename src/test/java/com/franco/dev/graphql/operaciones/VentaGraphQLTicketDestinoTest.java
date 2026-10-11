@@ -216,10 +216,11 @@ class VentaGraphQLTicketDestinoTest {
         assertTrue(texto.contains("Deudor: CLIENTE"), "deudor");
         assertFalse(texto.contains("PRODUCTO 1"), "no repite los items");
         assertFalse(texto.contains("GRACIAS POR LA PREFERENCIA"), "no es el ticket de venta");
-        // Empieza cortando (el ticket-factura no corta) y termina cortando: GS V 0.
+        // Termina cortando (GS V 0): el ticket-factura que sale despues queda en otro papel.
         byte[] corte = {0x1d, 'V', 48};
-        assertArrayEquals(corte, Arrays.copyOfRange(bytes, 0, 3), "corte inicial");
         assertArrayEquals(corte, Arrays.copyOfRange(bytes, bytes.length - 3, bytes.length), "corte final");
+        assertEquals(1, texto.split(new String(corte, java.nio.charset.StandardCharsets.ISO_8859_1), -1).length - 1,
+                "un solo corte");
     }
 
     @Test
