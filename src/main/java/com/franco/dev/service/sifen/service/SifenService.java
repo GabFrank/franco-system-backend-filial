@@ -259,7 +259,10 @@ public class SifenService {
         if (items == null || items.isEmpty()) {
             throw new IllegalArgumentException("Factura sin items - no se puede crear DE");
         }
-        if (esMonedaExtranjera(factura) && (factura.getTipoCambio() == null || factura.getTipoCambio() <= 0)) {
+        // Un codigo que el enum no conoce se factura en guaranies (obtenerCMondT): no necesita cambio.
+        boolean enMonedaExtranjera = esMonedaExtranjera(factura)
+                && obtenerCMondT(factura.getMonedaExtranjera().toUpperCase()) != CMondT.PYG;
+        if (enMonedaExtranjera && (factura.getTipoCambio() == null || factura.getTipoCambio() <= 0)) {
             throw new IllegalArgumentException("Factura en " + factura.getMonedaExtranjera().toUpperCase()
                     + " sin tipo de cambio - no se puede crear DE");
         }

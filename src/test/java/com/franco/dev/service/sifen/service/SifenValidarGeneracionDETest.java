@@ -173,4 +173,13 @@ class SifenValidarGeneracionDETest {
 
         corta(f, unItem());
     }
+
+    /** Un codigo que no es una moneda conocida se factura en guaranies: no hace falta cambio. */
+    @Test
+    void monedaQueNoEsExtranjeraSinTipoDeCambio_noCorta() {
+        FacturaLegal f = factura();
+        f.setMonedaExtranjera("GS");
+
+        pasa(f, unItem());
+    }
 }

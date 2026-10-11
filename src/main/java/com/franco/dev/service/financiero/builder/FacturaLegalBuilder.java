@@ -66,11 +66,15 @@ public class FacturaLegalBuilder {
      * a perder la venta, como antes del issue #170: es la salida si el ensayo cortara una factura
      * que deberia emitirse, sin esperar un release.
      */
-    @Value("${sifen.ensayo-de.enabled:true}")
     private boolean ensayoDeHabilitado = true;
 
-    void setEnsayoDeHabilitado(boolean ensayoDeHabilitado) {
-        this.ensayoDeHabilitado = ensayoDeHabilitado;
+    /**
+     * Solo "false" lo apaga. Se lee como texto a proposito: un valor mal escrito en la
+     * configuracion de una filial no puede impedir que el servicio arranque.
+     */
+    @Value("${sifen.ensayo-de.enabled:true}")
+    void setEnsayoDeHabilitado(String valor) {
+        this.ensayoDeHabilitado = valor == null || !"false".equalsIgnoreCase(valor.trim());
     }
 
     public FacturaLegalBuilder(FacturaLegalService facturaLegalService,
@@ -239,7 +243,8 @@ public class FacturaLegalBuilder {
         } catch (Exception e) {
             log.error("FACTURA_NO_EMITIBLE: timbrado detalle {}: {}",
                     facturaLegal.getTimbradoDetalle().getId(), e.getMessage(), e);
-            throw new GraphQLException("FACTURA_NO_EMITIBLE: " + e.getMessage());
+            throw new GraphQLException("FACTURA_NO_EMITIBLE: "
+                    + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
         } finally {
             facturaLegal.setTotalFinal(totalFinalOriginal);
         }

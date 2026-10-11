@@ -479,7 +479,7 @@ class FacturaLegalBuilderTest {
     @Test
     void conElInterruptorApagadoNoSeEnsaya() throws Exception {
         timbradoElectronicoConSifen("021123456", null);
-        builder.setEnsayoDeHabilitado(false);
+        builder.setEnsayoDeHabilitado("false");
         FacturaLegal fl = new FacturaLegal();
         fl.setDescuento(0.0);
 
@@ -487,5 +487,38 @@ class FacturaLegalBuilderTest {
 
         verify(sifenService, never()).validarGeneracionDE(any(FacturaLegal.class), any());
         assertEquals("01800000000000000000000000000000000000000000", result.getCdc());
+    }
+
+    /** Un valor mal escrito en la configuracion no apaga el ensayo (ni tumba el arranque). */
+    @Test
+    void soloFalseApagaElEnsayo() throws Exception {
+        timbradoElectronicoConSifen("021123456", null);
+        for (String valor : new String[]{"true", "", "  ", "si", "flase", null}) {
+            builder.setEnsayoDeHabilitado(valor);
+            FacturaLegal fl = new FacturaLegal();
+            fl.setDescuento(0.0);
+            builder.build(requestDeUnItem(fl, true));
+        }
+        verify(sifenService, times(6)).validarGeneracionDE(any(FacturaLegal.class), any());
+
+        builder.setEnsayoDeHabilitado(" FALSE ");
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+        builder.build(requestDeUnItem(fl, true));
+        verify(sifenService, times(6)).validarGeneracionDE(any(FacturaLegal.class), any());
+    }
+
+    /** Un NullPointerException del armado no tiene mensaje: el motivo no puede salir como "null". */
+    @Test
+    void elEnsayoFallaSinMensaje_elMotivoEsElTipoDeError() throws Exception {
+        timbradoElectronicoConSifen("021123456", null);
+        doThrow(new NullPointerException()).when(sifenService).validarGeneracionDE(any(FacturaLegal.class), any());
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+
+        GraphQLException e = assertThrows(GraphQLException.class,
+                () -> builder.build(requestDeUnItem(fl, true)));
+
+        assertEquals("FACTURA_NO_EMITIBLE: NullPointerException", e.getMessage());
     }
 }
