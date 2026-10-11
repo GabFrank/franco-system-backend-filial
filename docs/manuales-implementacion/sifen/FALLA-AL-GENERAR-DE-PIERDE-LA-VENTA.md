@@ -1,6 +1,6 @@
 # SIFEN: una falla al generar el DE pierde la venta (issue #170)
 
-Estado: **implementado y pusheado el 11/10/2026; decisión de negocio abierta (ver «Decisión abierta») y pendiente de prueba de Franco y de PR**. Rama
+Estado: **implementado y pusheado el 11/10/2026, con `develop` (y el #171) integrado; pendiente de prueba de Franco y de PR**. Rama
 `fix/sifen-falla-de-pierde-venta`, desde `develop` (`b6137fe`, incluye el #168). Solo filial.
 **Precondición de merge: el PR #171 (#169) tiene que estar mergeado antes** en `develop` (el
 orden se hereda a beta y master): sin él, en «Venta + Ticket» el corte deja la venta sin papel,
@@ -103,7 +103,7 @@ memoria antes del primer write.
 
 Una factura normal no cambia: mismo DE, mismo XML, un armado en memoria más por factura.
 
-## Decisión abierta (Franco): guardar sin factura, o rechazar con mensaje
+## Guardar sin factura, o rechazar con mensaje — decidido (Franco, 11/10/2026): por caso
 
 Lo encontró la auditoría del diff, mirando el desktop. Hoy estos casos **rechazan la venta**: sale
 «Ups! Algo salió mal», el carrito queda intacto (`venta-touch.component.ts:1693-1717`) y el cajero
@@ -120,7 +120,26 @@ tope de 7.000.000 ni el precio mayor a cero: el error críptico de hoy es el ún
 - **Por caso**: rechazar con mensaje lo que el cajero puede corregir (el tope de 7.000.000) y
   guardar sin factura lo que no.
 
-Hasta que se decida, **esta rama no se mergea**.
+**Decidido: por caso.**
+
+- **Rechaza la venta** lo que el cajero corrige en el momento. Hoy es un solo caso: factura sin
+  nombre con total de 7.000.000 o más. El armado lanza `FacturaInnominadaSobreTopeException`, el
+  builder la convierte en `VentaNoFacturableException` (una `GraphQLException`, sin causa), y
+  quien antes seguía sin factura la relanza: `FacturaService.crearFacturaLegalDesdeVenta` y las
+  dos rutas de `VentaGraphQL.saveVenta`. La venta se revierte entera, el cajero ve «No se puede
+  facturar sin nombre una venta de 7.000.000 o mas. Cargue un cliente con nombre y documento (CI o
+  RUC) y vuelva a intentar.», y se suelta la huella del control de ventas duplicadas para que el
+  reintento no espere (la huella no incluye al cliente).
+- **Guarda la venta sin factura** todo lo demás (`FACTURA_NO_EMITIBLE`).
+
+A saber: «sin nombre» para el armado no es solo cliente nulo. También cae ahí un cliente sin
+persona, con nombre vacío o «Sin Nombre», o no contribuyente sin documento; y en la factura
+silenciosa, un cliente cuya búsqueda por documento falla queda en nulo sin avisar
+(`FacturaLegalGraphQL:254-303`). En esos casos la venta de 7.000.000 o más se rechaza —como ya
+pasaba antes de este fix, con el error críptico— y el mensaje pide nombre y documento.
+
+Delivery no cambia: el motivo queda dentro de «Problema al generar factura electrónica: …», pero
+el `catch` externo lo sigue reemplazando por «Delivery no encontrado», con el estado ya guardado.
 
 ## Fases
 
@@ -279,4 +298,19 @@ produce).
   - Sin envíos a SIFEN; factura, ítem y DE de prueba borrados y `numero_actual` restaurado.
 - **Pendiente:** decisión abierta; prueba de Franco por `saveVenta` desde el desktop (una venta
   normal que siga facturando y una con un ítem a precio 0); PR, después del #171.
+- 11/10/2026, «por caso»: `develop` (con el #171) integrado por merge; rechazo de la venta sin
+  nombre desde 7.000.000. `./mvnw clean verify -B`: 443 tests, verde. Runtime por la API: sin
+  nombre y 7.000.000 → 400 con el mensaje de cargar el cliente; ítem a precio 0 → 400
+  `FACTURA_NO_EMITIBLE`; nada guardado en ninguno.
+- Auditoría del incremento (un auditor, con sonda de Spring 5.1.16): en las dos rutas de
+  `saveVenta` relanzar propaga la excepción original con rollback, y el mensaje llega al desktop
+  igual que «Esta caja ya esta cerrada»; no hay efectos fuera de la base antes del rechazo; el
+  turno vuelve una sola vez; `liberar` después de `confirmar` funciona. Aplicado: mensaje más
+  preciso; la factura silenciosa pasó a `facturarEnSilencio` para poder testear el relanzamiento;
+  test de liberar una reserva ya confirmada.
+- **Sin test**: el `catch` externo de `saveVenta` que suelta la huella y relanza (tres líneas).
+  Lo cubre la prueba desde el desktop.
+- **Pendiente:** prueba de Franco por `saveVenta` desde el desktop (una venta normal que siga
+  facturando; una con un ítem a precio 0; una sin cliente de 7.000.000 o más, que tiene que
+  mostrar el motivo y dejar el carrito intacto); avisar a Gabriel de la property; PR.
 
