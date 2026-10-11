@@ -246,5 +246,16 @@ con un aviso genérico, y el error de la vía central se muestra como «Error de
 
 - 11/10/2026: fases 1, 2 y 3 implementadas y pusheadas. `./mvnw clean verify -B`: 390 tests, verde.
   Los tests nuevos se vieron fallar contra el código sin el fix en las tres fases.
-- **Pendiente:** prueba de runtime en local, prueba de Franco, PR.
+- 11/10/2026, prueba de runtime en local (filial del worktree en `:8082`, perfil `dev`,
+  `--sifen.scheduler.enabled=false`, base `general` local, detalle 108 / timbrado 6):
+  - Detalle sin teléfono y cabecera con teléfono: `POST /api/facturas-legales` → 201, DE
+    `PENDIENTE` y `<dTelEmi>0982700027</dTelEmi>` en `xml_original`.
+  - Sin teléfono en ninguno de los dos: disponibilidad `false` con `TIMBRADO_SIN_TELEFONO`, `POST`
+    → 400, sin factura ni DE nuevos y `numero_actual` sin avanzar.
+  - Sin envíos a SIFEN en el log. Teléfonos restaurados; factura, ítem y DE de prueba borrados y
+    `numero_actual` vuelto a su valor.
+  - **No se corrió:** el corte del builder por GraphQL (`saveFacturaLegal`, factura silenciosa,
+    «Venta + Ticket»). Hace falta un token del central local y su checkout estaba en otra rama con
+    cambios; el corte queda cubierto por `FacturaLegalBuilderTest` y por la prueba de Franco.
+- **Pendiente:** prueba de Franco desde el desktop, PR.
 
