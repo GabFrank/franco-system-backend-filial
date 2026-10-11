@@ -241,6 +241,31 @@ public class SifenService {
         return deGuardado;
     }
 
+    /**
+     * Ensaya en memoria el armado del DE de una factura que todavia no se guardo: no persiste, no
+     * firma y no habla con SIFEN. Si el DE no se puede armar (item a precio cero, cantidad que
+     * redondea a cero, sucursal sin codigo de establecimiento, innominada de 7.000.000 o mas...)
+     * lanza, y {@code FacturaLegalBuilder} corta antes del primer write (issue #170).
+     * <p>
+     * No es {@code @Transactional} a proposito: asi la excepcion sale sin marcar la transaccion de
+     * la venta. La misma falla dentro de {@link #crearDocumentoElectronico} la deja rollback-only
+     * y pierde la venta ya cobrada, aunque quien llama la ataje.
+     * <p>
+     * Es la misma funcion que el armado real. Lo que no cubre es {@code generarXml} (firma,
+     * certificado, totales que calcula la libreria): los dos casos de datos que solo reventaban
+     * ahi, o despues de escribir, se chequean aca.
+     */
+    public void validarGeneracionDE(FacturaLegal factura, List<FacturaLegalItem> items) throws Exception {
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("Factura sin items - no se puede crear DE");
+        }
+        if (esMonedaExtranjera(factura) && (factura.getTipoCambio() == null || factura.getTipoCambio() <= 0)) {
+            throw new IllegalArgumentException("Factura en " + factura.getMonedaExtranjera().toUpperCase()
+                    + " sin tipo de cambio - no se puede crear DE");
+        }
+        generarDEDesdeFacturaDatosReales(factura, items).obtenerCDC();
+    }
+
     // ===================== GESTIÓN DE LOTES =====================
 
     /**
