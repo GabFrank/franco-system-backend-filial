@@ -355,7 +355,9 @@ class FacturaLegalBuilderTest {
         BuildRequest req = new BuildRequest(fl,
                 Collections.singletonList(descriptor(1L, null, "ITEM", 11000.0)), timbradoDetalle, false);
 
-        assertThrows(GraphQLException.class, () -> builder.build(req));
+        GraphQLException e = assertThrows(GraphQLException.class, () -> builder.build(req));
+
+        assertTrue(e.getMessage().startsWith("TIMBRADO_SIN_TELEFONO"), e.getMessage());
 
         verificarQueNoSeEscribioNada();
     }

@@ -125,9 +125,7 @@ public class FacturaLegalBuilder {
         // aca, antes del primer write: una excepcion en SifenService dejaria la venta rollback-only.
         // No depende de generarDE: la API lo manda en false y crea el DE por su cuenta.
         if (sifenHabilitado && timbradoElectronico && SifenTimbradoHelper.telefonoEmisor(timbradoDetalle) == null) {
-            throw new GraphQLException("TIMBRADO_SIN_TELEFONO: el timbrado " + timbradoDetalle.getTimbrado().getNumero()
-                    + " (detalle " + timbradoDetalle.getId() + ") no tiene telefono cargado ni en el detalle ni en"
-                    + " la cabecera: SIFEN rechazaria la factura");
+            throw new GraphQLException(SifenTimbradoHelper.mensajeSinTelefono(timbradoDetalle));
         }
 
         facturaLegal.setTimbradoDetalle(timbradoDetalle);

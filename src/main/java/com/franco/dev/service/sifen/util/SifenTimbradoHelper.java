@@ -29,6 +29,16 @@ public final class SifenTimbradoHelper {
         return telefono;
     }
 
+    /**
+     * Mensaje del corte por falta de telefono. El prefijo es fijo para poder buscarlo en el log: una
+     * factura silenciosa que no se emite por esto no deja ninguna fila, solo esta linea.
+     */
+    public static String mensajeSinTelefono(TimbradoDetalle detalle) {
+        return "TIMBRADO_SIN_TELEFONO: el timbrado " + detalle.getTimbrado().getNumero()
+                + " (detalle " + detalle.getId() + ") no tiene telefono cargado ni en el detalle ni en"
+                + " la cabecera: SIFEN rechazaria la factura";
+    }
+
     private static String recortado(String valor) {
         if (valor == null) {
             return null;

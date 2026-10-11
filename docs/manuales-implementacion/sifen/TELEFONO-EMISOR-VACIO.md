@@ -50,9 +50,9 @@ repite el patrón sin respaldo. No se vio fallar todavía.
 |---|---|---|
 | Factura silenciosa del PDV (`VentaGraphQL:340`) | venta OK, factura con número, SIFEN la rechaza (0160) | venta OK **sin factura**, número no consumido, el turno vuelve, error en el log |
 | «Venta + Ticket» (`FACTURA_E_IMPRESION`, `VentaGraphQL:293`) | ídem, y sale el ticket-factura | venta OK **sin factura y sin ticket, sin mensaje al cajero**; el turno no vuelve. Ver «Venta + Ticket» abajo |
-| Delivery (`DeliveryGraphQL:245`) | ídem | corta con «Problema al crear factura legal» (ya chequea el `null`) |
-| Carga manual desde el desktop (`saveFacturaLegal`) | ídem | error legible; no se guarda la factura ni se consume número (la Persona/Cliente que `saveFacturaLegal` crea antes de `build()` sí queda, como hoy) |
-| API externa (`FacturaLegalApiService`, la usa el central) | ídem | la `GraphQLException` sale de `crearFacturaLegal`, que es `@Transactional` común: rollback completo, nada guardado |
+| Delivery (`DeliveryGraphQL:245`) | ídem | el delivery ya pasó a `PARA_ENTREGA` (`:231`, sin transacción) y después sale «Problema al generar factura electrónica: Problema al crear factura legal»; sin factura. Preexistente para cualquier falla de validación |
+| Carga manual desde el desktop (`saveFacturaLegal`) | ídem | no se guarda la factura ni se consume número (la Persona/Cliente que `saveFacturaLegal` crea antes de `build()` sí queda, como hoy). El filial devuelve el mensaje, pero **el desktop lo pisa** con «No se pudo confirmar la factura. Verifique en la lista…» (`add-factura-legal-dialog.component.ts:954`); no reintenta |
+| API externa (`FacturaLegalApiService`, la usa el central) | ídem | `verificarDisponibilidadTimbradoDetalle` responde «no disponible» con el motivo y `crearFacturaLegal` devuelve **400** antes de escribir (fase 3). El corte del builder queda de respaldo. El central lo propaga sin reintentar; su desktop lo muestra como «Error desconocido» (preexistente) |
 
 Con teléfono en la cabecera (el caso real del 23/09) no cambia nada visible: la factura sale con
 el teléfono de la cabecera.
@@ -125,6 +125,16 @@ fallas de validación, no solo de esta. Queda como issue aparte.
     `sifenFalla_facturaPersisteSinCDC`, `facturaElectronicaConActivoNull_naceActiva`) arman el
     timbrado sin teléfono: hay que cargárselo en el fixture.
 
+### Fase 3 — ajustes de la auditoría del diff
+
+- `FacturaLegalApiService.verificarDisponibilidadTimbradoDetalle`: mismo chequeo, antes del rango.
+  Sin esto la vía API respondía 500 «Error inesperado» con stacktrace (`FacturaLegalController:88`
+  solo trata `IllegalStateException` como 400). Test `FacturaLegalApiServiceDisponibilidadTest`,
+  visto fallar sin el cambio.
+- El mensaje del corte vive en `SifenTimbradoHelper.mensajeSinTelefono` (un solo texto para el
+  builder y la API). El prefijo `TIMBRADO_SIN_TELEFONO` no tiene lector programático: es para el log.
+- El test de la vía API del builder afirma también el prefijo.
+
 ### Verificación
 
 - `./mvnw clean verify -B` (lo mismo que corre el CI), leído del log.
@@ -155,6 +165,9 @@ ya existe; lo escribe el central (ABM de timbrados) y llega por replicación; pa
   verificar» en farmacia y en bodega respectivamente. Cualquier timbrado electrónico activo sin
   teléfono en el detalle **y** en la cabecera se carga antes de promover: con el corte, esa
   sucursal dejaría de facturar en silencio (todas las ventas en modo `TODAS`).
+  El filial no escribe `timbrado.telefono`: depende entero de la réplica, y la consulta corre en el
+  central. Confirmar además con `replica-monitor` que las suscripciones del canal están al día (o
+  correr la consulta en cada filial).
 
 ## Fuera de alcance
 
@@ -215,3 +228,23 @@ el corte queda antes de `save` (`:142`) y de `numero_actual` (`:156`); jsifenlib
 `dTelEmi` sin rama de null (`javap`); `TimbradoDetalle.timbrado` es `EAGER`; se rompen exactamente
 los 3 tests electrónicos existentes del builder; `new SifenService(null × 9)` es viable con
 `timbrado.ruc` y `codigoCiudad` numérico en el fixture.
+
+## Auditoría del diff (paso 8, 11/10/2026)
+
+Tres ejes fijos; ningún condicional (el diff no toca migraciones, replicación ni release).
+
+| Eje | Resultado |
+|---|---|
+| Fijo 1 — autorización y fuga | N/A: sin resolvers, schema, DTOs ni seguridad tocados. Hallazgos de corrección: 500 en la vía API y test flojo → fase 3 |
+| Fijo 2 — esquema y espejo | Sin hallazgos altos ni medios. Columna, mapeo, `EAGER` y publicación `MAIN_TO_ALL` verificados. Riesgo bajo: filial con la réplica atrasada → sumado a la precondición de promoción |
+| Fijo 3 — contrato con clientes | Sin ruptura de contrato ni orden de despliegue; ningún cliente reintenta. Tabla «Qué ve el usuario» corregida (delivery, carga manual, API) |
+
+Queda para el desktop, fuera de esta rama: el diálogo de carga manual pisa el mensaje del backend
+con un aviso genérico, y el error de la vía central se muestra como «Error desconocido».
+
+## Registro de implementación
+
+- 11/10/2026: fases 1, 2 y 3 implementadas y pusheadas. `./mvnw clean verify -B`: 390 tests, verde.
+  Los tests nuevos se vieron fallar contra el código sin el fix en las tres fases.
+- **Pendiente:** prueba de runtime en local, prueba de Franco, PR.
+
