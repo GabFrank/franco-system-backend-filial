@@ -276,6 +276,14 @@ la recorre el central y la baja la replica bidireccional (`central_filialN_pub`)
 duplicado (`VentaTarjetaService.motivoCuponNoUsable`) ignora los cupones de ventas canceladas: un
 ticket de una venta cancelada se puede usar en otra.
 
+## `factura_legal.activo`: NULL es activa
+
+`FacturaLegalBuilder` pone `activo = true` en el alta (issue #131) y el entity lo trae por defecto,
+pero **no hubo backfill**: las facturas emitidas entre fines de 2025 y ese fix quedaron en `NULL`
+para siempre. `NULL` y `true` son sinónimos; solo `false` es cancelada. Todo lector compara contra
+`false` (`Boolean.FALSE.equals`, `IS NOT FALSE`), nunca contra `true`. Detalle:
+`docs/manuales-implementacion/financiero/FACTURA-LEGAL-ACTIVO-NULL.md`.
+
 ## Pull Requests
 
 - **Tamaño**: idealmente menos de 400 líneas de cambio neto. Una responsabilidad por PR.

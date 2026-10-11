@@ -20,8 +20,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Mock;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -228,5 +230,80 @@ class FacturaLegalBuilderTest {
         assertNotNull(result);
         assertNull(result.getCdc());
         assertEquals(11000.0, result.getTotalFinal(), 0.01);
+    }
+
+    // ---- activo en el alta (issue #131) ----
+
+    /** Valor de activo en cada llamada a save, en orden: el objeto es mutable y un captor veria solo el final. */
+    private List<Boolean> activoEnCadaSave() {
+        List<Boolean> vistos = new ArrayList<>();
+        when(facturaLegalService.save(any(FacturaLegal.class)))
+                .thenAnswer(inv -> {
+                    FacturaLegal fl = inv.getArgument(0);
+                    vistos.add(fl.getActivo());
+                    if (fl.getId() == null) fl.setId(100L);
+                    return fl;
+                });
+        return vistos;
+    }
+
+    private BuildRequest requestDeUnItem(FacturaLegal fl, boolean electronica) {
+        when(productoService.findById(1L)).thenReturn(Optional.of(producto(1L, 10)));
+        return new BuildRequest(fl, Collections.singletonList(descriptor(1L, null, "ITEM", 11000.0)), 3L, electronica);
+    }
+
+    @Test
+    void facturaPapelConActivoNull_naceActiva() {
+        List<Boolean> vistos = activoEnCadaSave();
+        FacturaLegal fl = new FacturaLegal();
+        // null explicito: sin esto el default del entity taparia la falta de la guarda del builder
+        fl.setActivo(null);
+        fl.setDescuento(0.0);
+
+        FacturaLegal result = builder.build(requestDeUnItem(fl, false));
+
+        assertEquals(Boolean.TRUE, vistos.get(0), "el primer save es el INSERT: ya tiene que ir en true");
+        assertEquals(Boolean.TRUE, result.getActivo());
+    }
+
+    @Test
+    void facturaElectronicaConActivoNull_naceActiva() throws Exception {
+        timbradoDetalle.getTimbrado().setIsElectronico(true);
+        when(sifenService.isSifenEnabled()).thenReturn(true);
+        when(timbradoDetalleService.getTimbradoDetalleActual(eq(3L), eq(true))).thenReturn(timbradoDetalle);
+        DocumentoElectronico de = new DocumentoElectronico();
+        de.setCdc("01800000000000000000000000000000000000000000");
+        when(sifenService.crearDocumentoElectronico(any(FacturaLegal.class))).thenReturn(de);
+
+        List<Boolean> vistos = activoEnCadaSave();
+        FacturaLegal fl = new FacturaLegal();
+        fl.setActivo(null);
+        fl.setDescuento(0.0);
+
+        FacturaLegal result = builder.build(requestDeUnItem(fl, true));
+
+        assertEquals(Boolean.TRUE, vistos.get(0));
+        assertEquals(Boolean.TRUE, result.getActivo());
+        for (Boolean visto : vistos) {
+            assertEquals(Boolean.TRUE, visto, "ningun save posterior lo vuelve a null");
+        }
+    }
+
+    @Test
+    void facturaConActivoFalse_seRespeta() {
+        List<Boolean> vistos = activoEnCadaSave();
+        FacturaLegal fl = new FacturaLegal();
+        fl.setActivo(false);
+        fl.setDescuento(0.0);
+
+        FacturaLegal result = builder.build(requestDeUnItem(fl, false));
+
+        assertEquals(Boolean.FALSE, vistos.get(0));
+        assertEquals(Boolean.FALSE, result.getActivo());
+    }
+
+    @Test
+    void facturaNueva_naceActivaPorElDefaultDelEntity() {
+        assertEquals(Boolean.TRUE, new FacturaLegal().getActivo());
     }
 }

@@ -132,6 +132,12 @@ public class FacturaLegalBuilder {
                 : 1L;
         facturaLegal.setNumeroFactura(numeroFactura.intValue());
 
+        // Hibernate manda el null explicito y el DEFAULT true de la columna no se aplica (issue #131).
+        // Un false que venga puesto se respeta.
+        if (facturaLegal.getActivo() == null) {
+            facturaLegal.setActivo(true);
+        }
+
         // 2. INSERT factura_legal
         FacturaLegal facturaLegalGuardada = facturaLegalService.save(facturaLegal);
 

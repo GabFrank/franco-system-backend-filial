@@ -83,7 +83,7 @@ public class FacturaLegal implements Serializable {
     @Column(name = "tipo_cambio")
     private Double tipoCambio;
 
-    private Boolean activo;
+    private Boolean activo = true;
 
     @CreationTimestamp
     private LocalDateTime creadoEn;
