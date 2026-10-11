@@ -433,7 +433,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             throw fe;
         }
         if (facturaLegalConDE == null) {
-            log.error("FACTURA_NO_CREADA: la venta {} sale con ticket simple", venta.getId());
+            log.warn("La venta {} sale con ticket simple: no se pudo crear su factura", venta.getId());
             if (PoliticaFacturacionService.salioDeUnTurno(ruta, credito, politica)) {
                 politicaFacturacionService.devolverTurno();
             }

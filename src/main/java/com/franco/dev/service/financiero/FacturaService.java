@@ -405,6 +405,9 @@ public class FacturaService {
             // null ahi haria creer al que llama que la venta sobrevive (issue #169).
             log.error("FACTURA_NO_CREADA: venta {}: {}", venta.getId(), e.getMessage());
             return null;
+        } catch (RuntimeException e) {
+            log.error("Error creando factura legal desde venta {}: {}", venta.getId(), e.getMessage(), e);
+            throw e;
         }
     }
 

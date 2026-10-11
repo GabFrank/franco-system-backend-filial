@@ -90,6 +90,10 @@ public class FacturaLegalBuilder {
      * despues de insertar la cabecera o parte de los items, esas filas quedarian a medias dentro
      * de la transaccion de la venta y confirmarlas seria peor que perder la operacion.
      * <p>
+     * Quien llama cuenta con esto: una GraphQLException de este metodo significa "no se escribio
+     * nada" ({@code FacturaService} la convierte en null y la venta sale con ticket simple; el turno
+     * del contador vuelve). Una validacion nueva va ANTES del primer save, nunca despues.
+     * <p>
      * REQUIRES_NEW no es alternativa: financiero.factura_legal tiene FK a operaciones.venta y la
      * venta todavia no esta commiteada, asi que en otra transaccion el insert violaria la FK.
      */

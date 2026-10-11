@@ -150,4 +150,42 @@ class VentaGraphQLFacturaEImpresionTest {
                 any(), any(), any());
         verify(politicaFacturacionService, never()).devolverTurno();
     }
+
+    /** El turno se devuelve antes de imprimir: si la impresora falla, igual volvio. */
+    @Test
+    void sinFacturaYElTicketSimpleFalla_elTurnoYaVolvio() throws Exception {
+        facturaNoCreada();
+        doThrow(new IllegalStateException("sin impresora")).when(ventaGraphQL).printTicket58mm(any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any());
+
+        assertThrows(IllegalStateException.class, () -> facturar(false, intervaloQueRespeta()));
+
+        verify(politicaFacturacionService, times(1)).devolverTurno();
+    }
+
+    @Test
+    void sinFacturaConIntervaloQueNoRespeta_elContadorNoSeToca() throws Exception {
+        facturaNoCreada();
+
+        facturar(false, new PoliticaFacturacion(ConfiguracionFacturacion.MODO_INTERVALO, 3, false,
+                PoliticaFacturacion.Origen.GLOBAL));
+
+        verify(politicaFacturacionService, never()).devolverTurno();
+        verificarTicketSimple();
+    }
+
+    /** La factura existe y lo que falla es su impresion: se relanza, sin ticket simple (no cambia). */
+    @Test
+    void conFacturaYLaImpresionFalla_seRelanzaSinTicketSimple() throws Exception {
+        FacturaLegal factura = new FacturaLegal();
+        when(facturaService.crearFacturaLegalDesdeVenta(any(), any(), any(), any())).thenReturn(factura);
+        doThrow(new IllegalStateException("sin papel")).when(facturaLegalGraphQL)
+                .printTicket58mmFactura(any(), eq(factura), any(), any(), any());
+
+        assertThrows(IllegalStateException.class, () -> facturar(false, intervaloQueRespeta()));
+
+        verify(ventaGraphQL, never()).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any());
+        verify(politicaFacturacionService, never()).devolverTurno();
+    }
 }
