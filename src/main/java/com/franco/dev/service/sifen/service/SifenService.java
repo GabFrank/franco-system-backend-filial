@@ -45,6 +45,7 @@ import com.franco.dev.service.sifen.util.SifenEventoParser;
 import com.franco.dev.service.sifen.util.SifenXmlParser;
 import com.franco.dev.utilitarios.CalcularVerificadorRuc;
 import com.franco.dev.service.sifen.util.SifenReceptorHelper;
+import com.franco.dev.service.sifen.util.SifenTimbradoHelper;
 import com.roshka.sifen.Sifen;
 import com.roshka.sifen.core.beans.response.RespuestaConsultaDE;
 import com.roshka.sifen.core.beans.response.RespuestaConsultaLoteDE;
@@ -1684,7 +1685,7 @@ public class SifenService {
     /**
      * Construye los datos del emisor desde la factura.
      */
-    private TgEmis construirDatosEmisor(FacturaLegal factura) {
+    TgEmis construirDatosEmisor(FacturaLegal factura) {
         TgEmis gEmis = new TgEmis();
         
         String rucCompleto = factura.getTimbradoDetalle().getTimbrado().getRuc();
@@ -1698,7 +1699,7 @@ public class SifenService {
         gEmis.setdNomEmi(factura.getTimbradoDetalle().getTimbrado().getRazonSocial());
         gEmis.setdDirEmi(factura.getTimbradoDetalle().getDireccion());
         gEmis.setdNumCas("0");
-        gEmis.setdTelEmi(factura.getTimbradoDetalle().getTelefono());
+        gEmis.setdTelEmi(SifenTimbradoHelper.telefonoEmisor(factura.getTimbradoDetalle()));
         gEmis.setdEmailE(factura.getTimbradoDetalle().getTimbrado().getEmail());
         
         // Datos geográficos

@@ -16,6 +16,7 @@ import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.sifen.service.SifenService;
+import com.franco.dev.service.sifen.util.SifenTimbradoHelper;
 import graphql.GraphQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,6 +120,12 @@ public class FacturaLegalBuilder {
         }
         if (!sifenHabilitado && timbradoElectronico) {
             throw new GraphQLException("SIFEN deshabilitado, se requiere timbrado no electronico activo para PDV " + pdvId);
+        }
+        // jsifenlib escribe dTelEmi siempre y SIFEN rechaza el lote si va vacio (issue #139). Se corta
+        // aca, antes del primer write: una excepcion en SifenService dejaria la venta rollback-only.
+        // No depende de generarDE: la API lo manda en false y crea el DE por su cuenta.
+        if (sifenHabilitado && timbradoElectronico && SifenTimbradoHelper.telefonoEmisor(timbradoDetalle) == null) {
+            throw new GraphQLException(SifenTimbradoHelper.mensajeSinTelefono(timbradoDetalle));
         }
 
         facturaLegal.setTimbradoDetalle(timbradoDetalle);

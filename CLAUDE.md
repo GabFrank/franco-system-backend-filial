@@ -284,6 +284,22 @@ para siempre. `NULL` y `true` son sinónimos; solo `false` es cancelada. Todo le
 `false` (`Boolean.FALSE.equals`, `IS NOT FALSE`), nunca contra `true`. Detalle:
 `docs/manuales-implementacion/financiero/FACTURA-LEGAL-ACTIVO-NULL.md`.
 
+## El teléfono del emisor del DE sale del timbrado
+
+`dTelEmi` es el teléfono del `timbrado_detalle` y, si está vacío o en blanco, el de la cabecera
+`timbrado` (`SifenTimbradoHelper.telefonoEmisor`, mismo respaldo que el central). jsifenlib escribe
+el elemento siempre: vacío, SIFEN rechaza el lote con 0160 (issue #139).
+
+- **Sin teléfono en ninguno de los dos no se emite.** `FacturaLegalBuilder.build()` corta con
+  `GraphQLException` antes del primer write (no consume número ni deja la venta rollback-only) y
+  `FacturaLegalApiService.verificarDisponibilidadTimbradoDetalle` lo informa, así la API responde
+  400. La factura silenciosa del PDV guarda la venta sin factura y lo único que queda es la línea
+  `TIMBRADO_SIN_TELEFONO` en el log.
+- **No validar esto dentro de `SifenService`**: una excepción en `crearDocumentoElectronico` corre
+  dentro de la transacción de `saveVenta` y pierde la venta ya cobrada.
+- El filial no escribe `timbrado.telefono`: llega por réplica desde el central. Solo se chequea
+  que no esté vacío; un teléfono inválido (`"0"`, `"-"`) se sigue rechazando en SIFEN.
+
 ## Pull Requests
 
 - **Tamaño**: idealmente menos de 400 líneas de cambio neto. Una responsabilidad por PR.

@@ -15,6 +15,7 @@ import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.sifen.service.SifenService;
+import graphql.GraphQLException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockitoAnnotations;
@@ -29,6 +30,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -70,6 +73,7 @@ class FacturaLegalBuilderTest {
         timbradoDetalle.setNumeroActual(5104L);
         timbradoDetalle.setSucursal(sucursal);
         timbradoDetalle.setTimbrado(timbrado);
+        timbradoDetalle.setTelefono("021123456");
 
         when(sifenService.isSifenEnabled()).thenReturn(false);
         when(timbradoDetalleService.getTimbradoDetalleActual(eq(3L), eq(false))).thenReturn(timbradoDetalle);
@@ -305,5 +309,79 @@ class FacturaLegalBuilderTest {
     @Test
     void facturaNueva_naceActivaPorElDefaultDelEntity() {
         assertEquals(Boolean.TRUE, new FacturaLegal().getActivo());
+    }
+
+    // ---- telefono del emisor (issue #139) ----
+
+    private void timbradoElectronicoConSifen(String telefonoDetalle, String telefonoCabecera) throws Exception {
+        timbradoDetalle.getTimbrado().setIsElectronico(true);
+        timbradoDetalle.getTimbrado().setTelefono(telefonoCabecera);
+        timbradoDetalle.setTelefono(telefonoDetalle);
+        when(sifenService.isSifenEnabled()).thenReturn(true);
+        when(timbradoDetalleService.getTimbradoDetalleActual(eq(3L), eq(true))).thenReturn(timbradoDetalle);
+        DocumentoElectronico de = new DocumentoElectronico();
+        de.setCdc("01800000000000000000000000000000000000000000");
+        when(sifenService.crearDocumentoElectronico(any(FacturaLegal.class))).thenReturn(de);
+    }
+
+    private void verificarQueNoSeEscribioNada() throws Exception {
+        verify(facturaLegalService, never()).save(any(FacturaLegal.class));
+        verify(facturaLegalItemService, never()).save(any(FacturaLegalItem.class));
+        verify(timbradoDetalleService, never()).save(any(TimbradoDetalle.class));
+        verify(sifenService, never()).crearDocumentoElectronico(any(FacturaLegal.class));
+        assertEquals(Long.valueOf(5104L), timbradoDetalle.getNumeroActual(), "no se consume numero de timbrado");
+    }
+
+    @Test
+    void electronicaSinTelefonoEnNingunLado_cortaAntesDeEscribir() throws Exception {
+        timbradoElectronicoConSifen("  ", null);
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+
+        GraphQLException e = assertThrows(GraphQLException.class,
+                () -> builder.build(requestDeUnItem(fl, true)));
+
+        assertTrue(e.getMessage().startsWith("TIMBRADO_SIN_TELEFONO"), e.getMessage());
+        verificarQueNoSeEscribioNada();
+    }
+
+    /** La API arma el request con el detalle resuelto y generarDE=false: crea el DE por su cuenta. */
+    @Test
+    void electronicaSinTelefonoPorLaApi_cortaAntesDeEscribir() throws Exception {
+        timbradoElectronicoConSifen(null, "");
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+        when(productoService.findById(1L)).thenReturn(Optional.of(producto(1L, 10)));
+        BuildRequest req = new BuildRequest(fl,
+                Collections.singletonList(descriptor(1L, null, "ITEM", 11000.0)), timbradoDetalle, false);
+
+        GraphQLException e = assertThrows(GraphQLException.class, () -> builder.build(req));
+
+        assertTrue(e.getMessage().startsWith("TIMBRADO_SIN_TELEFONO"), e.getMessage());
+
+        verificarQueNoSeEscribioNada();
+    }
+
+    @Test
+    void electronicaConTelefonoSoloEnLaCabecera_seEmite() throws Exception {
+        timbradoElectronicoConSifen(null, "0982700027");
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+
+        FacturaLegal result = builder.build(requestDeUnItem(fl, true));
+
+        assertEquals("01800000000000000000000000000000000000000000", result.getCdc());
+    }
+
+    @Test
+    void papelSinTelefono_seEmite() {
+        timbradoDetalle.setTelefono(null);
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+
+        FacturaLegal result = builder.build(requestDeUnItem(fl, false));
+
+        assertNotNull(result);
+        assertEquals(Long.valueOf(5105L), timbradoDetalle.getNumeroActual());
     }
 }
