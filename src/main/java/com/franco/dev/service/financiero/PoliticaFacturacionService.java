@@ -20,7 +20,7 @@ public class PoliticaFacturacionService {
 
     /** Que hace {@code saveVenta} con la venta ya guardada. */
     public enum RutaVenta {
-        /** Factura legal con DE e impresion del ticket-factura (con el pagare al pie si es a credito). */
+        /** Factura legal con DE e impresion del ticket-factura (y el pagare aparte si es a credito). */
         FACTURA_E_IMPRESION,
         /** Venta a credito: guarda VentaCredito e imprime el pagare. */
         PAGARE_CREDITO,

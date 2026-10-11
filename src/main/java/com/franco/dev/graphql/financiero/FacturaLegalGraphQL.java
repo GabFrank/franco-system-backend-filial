@@ -33,8 +33,6 @@ import com.franco.dev.service.sifen.service.SifenService;
 import com.franco.dev.utilitarios.NumeroALetrasService;
 import com.franco.dev.utilitarios.print.QRCodeImageGenerator;
 import com.franco.dev.utilitarios.print.TicketFormato;
-import com.franco.dev.graphql.financiero.input.VentaCreditoCuotaInput;
-import com.franco.dev.utilitarios.print.PagareTicket;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
 import com.franco.dev.utilitarios.print.escpos.Style;
@@ -913,16 +911,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     public void printTicket58mmFactura(Venta venta, FacturaLegal facturaLegal,
             List<FacturaLegalItem> facturaLegalItemList, String printerName, OutputStream destino) throws Exception {
-        printTicket58mmFactura(venta, facturaLegal, facturaLegalItemList, printerName, destino, null, null);
-    }
-
-    /**
-     * Con {@code cuotasPagare != null} la factura es de una venta a credito y lleva al pie un pagare
-     * por cuota, en el mismo papel (issue #133). {@code local} es la caja que figura en el pagare.
-     */
-    public void printTicket58mmFactura(Venta venta, FacturaLegal facturaLegal,
-            List<FacturaLegalItem> facturaLegalItemList, String printerName, OutputStream destino,
-            List<VentaCreditoCuotaInput> cuotasPagare, String local) throws Exception {
 
         if (facturaLegalItemList == null) {
             facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
@@ -1509,15 +1497,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
             // escpos.writeLF("--------------------------------");
             // escpos.write( "Conservar este papel ");
-            if (cuotasPagare != null && venta != null) {
-                // Si el pagare falla, la factura de arriba ya esta escrita y el papel sale igual.
-                try {
-                    escpos.writeLF("--------------------------------");
-                    PagareTicket.escribir(escpos, center, venta, sucursal, local, cuotasPagare);
-                } catch (Exception e) {
-                    log.error("La factura legal {} sale sin su pagare: {}", facturaLegal.getId(), e.getMessage(), e);
-                }
-            }
             escpos.feed(5);
 
             try {

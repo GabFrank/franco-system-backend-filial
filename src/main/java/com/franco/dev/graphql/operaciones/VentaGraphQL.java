@@ -439,8 +439,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
      * otra falla llega como excepcion, con la venta ya rollback-only: ni papel ni turno (issue #169).
      * <p>
      * Venta a credito ({@code ventaCreditoInput} y sus cuotas, los dos o ninguno): antes de facturar
-     * se guarda el VentaCredito, que esta ruta no guardaba (issue #133), y el pagare sale al pie
-     * del ticket-factura, en el mismo papel. Sin factura, el respaldo es el ticket con pagare.
+     * se guarda el VentaCredito, que esta ruta no guardaba (issue #133), y despues del
+     * ticket-factura sale el pagare en un papel aparte. Sin factura, el respaldo es el ticket con
+     * pagare.
      */
     void facturarEImprimir(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
             List<CobroDetalleInput> cobroDetalleList, String printerName, String local, Long pdvId,
@@ -482,10 +483,60 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         try {
             // Imprimir el ticket/factura con los datos del DE
             facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
-                    ticketCliente, cuotasPagare, local);
+                    ticketCliente);
         } catch (Exception fe) {
             devolverTurnoSiCorresponde(ruta, politica, fe);
             throw fe;
+        }
+        if (cuotasPagare != null) {
+            // Si el pagare falla no se relanza: la venta, el credito y la factura ya estan, y
+            // relanzar dejaria al cliente tambien sin el ticket-factura cuando imprime su PC.
+            try {
+                imprimirPagareSuelto(venta, printerName, local, cuotasPagare, ticketCliente);
+            } catch (Exception e) {
+                log.error("La venta {} se facturo pero no se pudo imprimir su pagare: {}", venta.getId(),
+                        e.getMessage(), e);
+            }
+        }
+    }
+
+    /**
+     * Los pagares de una venta a credito ya facturada, en un papel aparte: el cliente se lleva el
+     * ticket-factura y la caja se queda con el pagare firmado. Lleva solo los pagares, sin repetir
+     * la venta. Se arma entero antes de mandarlo, para no dejar un pagare a medias.
+     * <p>
+     * Con {@code destino != null} se escribe ahi (impresion desde el cliente), a continuacion del
+     * ticket-factura. El ticket-factura no corta el papel, asi que el pagare empieza con un corte.
+     */
+    void imprimirPagareSuelto(Venta venta, String printerName, String local,
+            List<VentaCreditoCuotaInput> cuotas, OutputStream destino) throws Exception {
+        if (cuotas.isEmpty()) {
+            return;
+        }
+        PrintService impresora = destino == null ? printingService.getPrintService(printerName) : null;
+        if (destino == null && impresora == null) {
+            log.warn("La venta {} queda sin pagare impreso: no se encontro la impresora {}", venta.getId(),
+                    printerName);
+            return;
+        }
+        ByteArrayOutputStream papel = new ByteArrayOutputStream();
+        EscPos escpos = new EscPos(papel);
+        Style center = new Style().setJustification(EscPosConst.Justification.Center);
+        escpos.cut(EscPos.CutMode.FULL);
+        escpos.writeLF("--------------------------------");
+        PagareTicket.escribir(escpos, center, venta, sucursalService.sucursalActual(), local, cuotas);
+        escpos.feed(5);
+        escpos.cut(EscPos.CutMode.FULL);
+
+        if (destino != null) {
+            papel.writeTo(destino);
+            return;
+        }
+        PrinterOutputStream salida = new PrinterOutputStream(impresora);
+        try {
+            papel.writeTo(salida);
+        } finally {
+            salida.close();
         }
     }
 

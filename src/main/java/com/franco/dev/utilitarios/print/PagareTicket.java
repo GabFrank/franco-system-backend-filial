@@ -16,7 +16,7 @@ import static com.franco.dev.utilitarios.DateUtils.toDate;
 
 /**
  * Los pagares de una venta a credito, uno por cuota. Van al pie del ticket de la venta y, si la
- * venta se facturo, al pie del ticket-factura (issue #133).
+ * venta se facturo, en un papel aparte del ticket-factura (issue #133).
  */
 public final class PagareTicket {
 
