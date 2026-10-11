@@ -1,6 +1,6 @@
 # Factura legal: `activo` nace en NULL (issue #131)
 
-Estado: **plan auditado (paso 5) y aprobado por Franco el 11/10/2026**. Rama `fix/factura-legal-activo-null` en filial, central y desktop.
+Estado: **implementado en las tres ramas el 11/10/2026; pendiente de prueba de Franco y de PR**. Rama `fix/factura-legal-activo-null` en filial, central y desktop.
 
 ## El problema
 
@@ -170,14 +170,42 @@ Dos auditores, sin verse. Ningún bloqueante.
 | B | El IT de queries del central no corre en CI | Declarado; corrida manual con evidencia en el PR |
 | B | El fix del filial alcanza: `build()` es el único alta y ningún `save` posterior pisa el valor | Confirma la fase 1 |
 
+## Resultado (11/10/2026)
+
+| Fase | Commit | Gate | Prueba de runtime en local |
+|---|---|---|---|
+| 1 filial | `fix(facturacion): la factura legal nace con activo en true` | `./mvnw clean verify -B`: 376 tests, verde | Factura 33106 (suc. 24, nro. 14404, electrónica) emitida por `saveFacturaLegal`: `activo = true` en `general` y replicada igual a `bodega`. La 33105, de septiembre, sigue en `NULL` y el filial la lee en `NULL` (Hibernate pisa el default al hidratar) |
+| 2 central | `fix(facturacion): leer activo en null como factura activa` | `./mvnw clean verify -B -DskipFlyway=true`: 1731 tests, verde | `facturaLegales` con los 9 cruces de Estado × Tipo coincide con el SQL de referencia (01/10/2025–12/10/2026: «Activos» electrónicas pasa de 12 a 536.548). `cancelarFacturaLegal` sobre una PENDIENTE, una EN_LOTE y una RECHAZADO devuelve el error con el estado y no cambia factura, venta ni eventos |
+| 3 desktop | `fix(facturacion): mostrar como activa la factura con activo en null` | `npm run check` (AOT): sin errores | pendiente: la hace Franco en la pantalla |
+
+Tests de bug, con el fix revertido: filial 3 fallas de 9 (`FacturaLegalBuilderTest`); central 6 fallas de
+15 (`CancelarFacturaLegalPlazoTest` 2, `FacturaLegalActivoQueriesIT` 4). El IT se corrió a mano contra
+`bodega` local (`-Dit.facturaActivo=true`); no corre en CI. El spec del desktop
+(`factura-legal-estado.spec.ts`, 7 casos) pasa corrido con jasmine-core fuera de Karma.
+
+Costo del filtro nuevo, `EXPLAIN ANALYZE` sobre un mes en `bodega` local: «Activos» 438 ms contra
+455 ms del filtro viejo; «Inactivos» 769 ms. La subconsulta usa
+`uk_documento_electronico_factura_legal (factura_legal_id, sucursal_id)`.
+
+### Auditoría del diff (paso 8)
+
+Tres ejes fijos; los condicionales no se dispararon (sin migraciones ni maquinaria de release).
+
+| Eje | Hallazgo | Qué se hizo |
+|---|---|---|
+| Fijo 1 | La guarda cubre `cancelarFacturaLegal`. **Cancelar una venta** (`VentaService.cancelarVenta` del central) sigue mandando el evento sin mirar el estado del documento, y marca la factura inactiva aunque el evento falle. Es anterior a este cambio, deliberado («no impedir la cancelación de la venta») y no depende de `activo` | Fuera de alcance. Queda como seguimiento |
+| Fijo 1 | Sin documento electrónico o con `estado` en NULL la guarda deja seguir | Se mantiene: sin dato no se inventa una restricción, igual que `validarPlazoDeCancelacion`. Sin documento, `cancelarDE` falla y no se toca nada |
+| Fijo 2 | Sin migraciones. Subconsulta, lógica de tres valores, JPQL y siembra del IT correctos | Sin cambios |
+| Fijo 2 | El central puede guardar una `FacturaLegal` por `saveFacturaLegal` (ModelMapper desde el input) y dejar `activo` en `NULL` | Inofensivo con la regla «NULL es activa». Sin cambios |
+| Fijo 3 | Las queries del desktop ya piden `activo`, `cdc` y `documentoElectronico.estado`; un desktop viejo muestra el mensaje nuevo como error; mobile y PWA no consumen facturas legales | Sin cambios |
+
 ## Sin verificar
 
-1. **Cuántas electrónicas canceladas tienen `activo` en `NULL`** en bodega. No cambia el diseño
+1. **Cuántas electrónicas canceladas tienen `activo` en `NULL`** en bodega (en la copia local son 78 de 1.331). No cambia el diseño
    (el filtro ya las contempla); dimensiona cuánto se habría roto sin la subconsulta.
 2. **Farmacia**: no se midió nada. Mismo conteo, base `farmacia`.
-3. **La batería del filial con el default en el entity** (que Hibernate pise el default al hidratar
-   una fila en `NULL` está inferido, no probado): se ve al correr `./mvnw clean verify -B` y al
-   leer una factura vieja en la prueba de runtime de la fase 1.
-4. **Costo de la subconsulta `EXISTS`** en el listado paginado contra ~2,3 M de facturas: se mide
-   con `EXPLAIN ANALYZE` en la base local en la fase 2.
+3. **Alta en papel en runtime**: la base local solo tiene timbrado electrónico activo, así que la
+   emisión real probada fue electrónica. El papel pasa por la misma línea del builder y lo cubre
+   `facturaPapelConActivoNull_naceActiva`; en farmacia (alpha/beta) se confirma con una venta.
+4. **La pantalla del desktop**: probada por reglas (spec) y por build, no en el navegador.
 5. **Qué commit quitó el `true`** en 2025. No cambia el fix.
