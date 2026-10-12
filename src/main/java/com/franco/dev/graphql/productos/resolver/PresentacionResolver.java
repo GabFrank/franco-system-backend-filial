@@ -8,7 +8,6 @@ import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.*;
 import com.franco.dev.domain.productos.enums.TipoConservacion;
-import com.franco.dev.graphql.productos.ProductoExistenciaCostoGraphQL;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
 import com.franco.dev.service.operaciones.PedidoItemService;
@@ -40,6 +39,11 @@ public class PresentacionResolver implements GraphQLResolver<Presentacion> {
 
     @Autowired
     private PrecioEspecialLector precioEspecialLector;
+
+    /** Para vistas grandes. Mismo campo que el central: el escritorio consulta a los dos. */
+    public String imagenPrincipalMediana(Presentacion p) {
+        return imageService.fotoPresentacion(p.getId(), true);
+    }
 
     public String imagenPrincipal(Presentacion p) throws IOException {
         return imageService.getImageWithMediaType(p.getId()+".jpg", imageService.getImagePresentacionesThumbPath());

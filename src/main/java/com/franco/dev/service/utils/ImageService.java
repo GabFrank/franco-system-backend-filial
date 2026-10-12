@@ -27,6 +27,8 @@ public class ImageService {
     public String imagePresentaciones = userDirectory + "/FRC/resources/images/productos/presentaciones";
     public String imagePresentacionesThumbPath = userDirectory
             + "/FRC/resources/images/productos/presentaciones/thumbnails";
+    public String imagePresentacionesMedianaPath = userDirectory
+            + "/FRC/resources/images/productos/presentaciones/medianas";
     public String storageDirectoryPathReports = userDirectory + "/FRC/resources/reports";
     public String serverPath = userDirectory + "/FRC/frc-server";
     public String appPath = userDirectory + File.separator + "FRC";
@@ -46,6 +48,7 @@ public class ImageService {
             storageDirectoryPathReports = "C:\\\\FRC\\resources\\reports\\";
             imagePresentaciones = "C:\\\\FRC\\resources\\images\\productos\\presentaciones\\";
             imagePresentacionesThumbPath = "C:\\\\FRC\\resources\\images\\productos\\presentaciones\\thumbnails\\";
+            imagePresentacionesMedianaPath = "C:\\\\FRC\\resources\\images\\productos\\presentaciones\\medianas\\";
             serverPath = "C:\\\\FRC\\frc-service\\";
             appPath = "C:\\\\FRC\\";
         } else {
@@ -53,6 +56,7 @@ public class ImageService {
             storageDirectoryPathReports = storageDirectoryPathReports + "/";
             imagePresentaciones = imagePresentaciones + "/";
             imagePresentacionesThumbPath = imagePresentacionesThumbPath + "/";
+            imagePresentacionesMedianaPath = imagePresentacionesMedianaPath + "/";
             serverPath = serverPath + "/";
             appPath = appPath + "/";
         }
@@ -68,6 +72,29 @@ public class ImageService {
 
     public String getImagePresentacionesThumbPath() {
         return imagePresentacionesThumbPath;
+    }
+
+    public String getImagePresentacionesMedianaPath() {
+        return imagePresentacionesMedianaPath;
+    }
+
+    /**
+     * La foto de una presentacion en el tamano que la pantalla dibuja, con la misma regla que el
+     * central: si falta el tamano pedido se devuelve el siguiente mas grande que haya en disco, y
+     * {@code null} si no hay foto.
+     *
+     * @param mediana {@code true} para vistas grandes (hasta 800 px); {@code false} para la miniatura
+     */
+    public String fotoPresentacion(Long presentacionId, boolean mediana) {
+        if (presentacionId == null) {
+            return null;
+        }
+        String nombre = presentacionId + ".jpg";
+        String foto = mediana ? null : getImageWithMediaType(nombre, imagePresentacionesThumbPath);
+        if (foto == null) {
+            foto = getImageWithMediaType(nombre, imagePresentacionesMedianaPath);
+        }
+        return foto != null ? foto : getImageWithMediaType(nombre, imagePresentaciones);
     }
 
     public static MultipartFile converter(String source) {

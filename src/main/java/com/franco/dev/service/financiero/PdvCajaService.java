@@ -560,6 +560,18 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         return pdvCaja;
     }
 
+    /**
+     * Igual que {@link #imprimirBalance} pero dice si el ticket salio. Lo usa el pedido que llega
+     * sin impresora (mobile): ahi nadie esta frente a la impresora para notar que no imprimio.
+     */
+    public boolean imprimirBalanceVerificando(Long id, String printerName, String local) {
+        PdvCaja pdvCaja = findById(id).orElse(null);
+        if (pdvCaja == null) {
+            return false;
+        }
+        return Boolean.TRUE.equals(impresionService.printBalance(generarBalance(pdvCaja), printerName, local));
+    }
+
     public Page<PdvCaja> findAllWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId,
             String fechaInicio, String fechaFin, Long sucId, Boolean verificado, Pageable pageable) {
         return repository.findAllWithFilters(cajaId, estado, maletinId, cajeroId,
