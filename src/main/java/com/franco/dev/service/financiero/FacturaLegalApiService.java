@@ -11,6 +11,7 @@ import com.franco.dev.graphql.financiero.FacturaLegalGraphQL;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.sifen.service.SifenService;
+import com.franco.dev.service.sifen.util.SifenTimbradoHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -106,6 +107,20 @@ public class FacturaLegalApiService {
                     .mensaje("SIFEN está deshabilitado y el timbrado es electrónico")
                     .timbradoDetalleId(timbradoDetalleId)
                     .esElectronico(true)
+                    .build();
+        }
+
+        // Sin telefono en el detalle ni en la cabecera SIFEN rechaza el DE (issue #139). El builder
+        // corta igual, pero avisarlo aca hace que crearFacturaLegal responda 400 y no 500.
+        if (sifenHabilitado && esElectronico && SifenTimbradoHelper.telefonoEmisor(timbradoDetalle) == null) {
+            return DisponibilidadTimbradoDetalleResponseDTO.builder()
+                    .disponible(false)
+                    .mensaje(SifenTimbradoHelper.mensajeSinTelefono(timbradoDetalle))
+                    .timbradoDetalleId(timbradoDetalleId)
+                    .esElectronico(true)
+                    .numeroTimbrado(timbradoDetalle.getTimbrado().getNumero())
+                    .activo(true)
+                    .timbradoActivo(true)
                     .build();
         }
 

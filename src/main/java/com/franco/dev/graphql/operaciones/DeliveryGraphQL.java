@@ -253,7 +253,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                         } catch (Exception e) {
                             e.printStackTrace();
                             if (PoliticaFacturacionService.salioDeUnTurno(
-                                    PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION, false, politica)
+                                    PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION, politica)
                                     && PoliticaFacturacionService.fallaAntesDeEscribir(e)) {
                                 politicaFacturacionService.devolverTurno();
                             }

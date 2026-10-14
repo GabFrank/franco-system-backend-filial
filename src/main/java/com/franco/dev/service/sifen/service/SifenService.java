@@ -45,6 +45,7 @@ import com.franco.dev.service.sifen.util.SifenEventoParser;
 import com.franco.dev.service.sifen.util.SifenXmlParser;
 import com.franco.dev.utilitarios.CalcularVerificadorRuc;
 import com.franco.dev.service.sifen.util.SifenReceptorHelper;
+import com.franco.dev.service.sifen.util.SifenTimbradoHelper;
 import com.roshka.sifen.Sifen;
 import com.roshka.sifen.core.beans.response.RespuestaConsultaDE;
 import com.roshka.sifen.core.beans.response.RespuestaConsultaLoteDE;
@@ -238,6 +239,34 @@ public class SifenService {
             documentoElectronicoService.save(de);
         
         return deGuardado;
+    }
+
+    /**
+     * Ensaya en memoria el armado del DE de una factura que todavia no se guardo: no persiste, no
+     * firma y no habla con SIFEN. Si el DE no se puede armar (item a precio cero, cantidad que
+     * redondea a cero, sucursal sin codigo de establecimiento, innominada de 7.000.000 o mas...)
+     * lanza, y {@code FacturaLegalBuilder} corta antes del primer write (issue #170).
+     * <p>
+     * No es {@code @Transactional} a proposito: asi la excepcion sale sin marcar la transaccion de
+     * la venta. La misma falla dentro de {@link #crearDocumentoElectronico} la deja rollback-only
+     * y pierde la venta ya cobrada, aunque quien llama la ataje.
+     * <p>
+     * Es la misma funcion que el armado real. Lo que no cubre es {@code generarXml} (firma,
+     * certificado, totales que calcula la libreria): los dos casos de datos que solo reventaban
+     * ahi, o despues de escribir, se chequean aca.
+     */
+    public void validarGeneracionDE(FacturaLegal factura, List<FacturaLegalItem> items) throws Exception {
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("Factura sin items - no se puede crear DE");
+        }
+        // Un codigo que el enum no conoce se factura en guaranies (obtenerCMondT): no necesita cambio.
+        boolean enMonedaExtranjera = esMonedaExtranjera(factura)
+                && obtenerCMondT(factura.getMonedaExtranjera().toUpperCase()) != CMondT.PYG;
+        if (enMonedaExtranjera && (factura.getTipoCambio() == null || factura.getTipoCambio() <= 0)) {
+            throw new IllegalArgumentException("Factura en " + factura.getMonedaExtranjera().toUpperCase()
+                    + " sin tipo de cambio - no se puede crear DE");
+        }
+        generarDEDesdeFacturaDatosReales(factura, items).obtenerCDC();
     }
 
     // ===================== GESTIÓN DE LOTES =====================
@@ -1684,7 +1713,7 @@ public class SifenService {
     /**
      * Construye los datos del emisor desde la factura.
      */
-    private TgEmis construirDatosEmisor(FacturaLegal factura) {
+    TgEmis construirDatosEmisor(FacturaLegal factura) {
         TgEmis gEmis = new TgEmis();
         
         String rucCompleto = factura.getTimbradoDetalle().getTimbrado().getRuc();
@@ -1698,7 +1727,7 @@ public class SifenService {
         gEmis.setdNomEmi(factura.getTimbradoDetalle().getTimbrado().getRazonSocial());
         gEmis.setdDirEmi(factura.getTimbradoDetalle().getDireccion());
         gEmis.setdNumCas("0");
-        gEmis.setdTelEmi(factura.getTimbradoDetalle().getTelefono());
+        gEmis.setdTelEmi(SifenTimbradoHelper.telefonoEmisor(factura.getTimbradoDetalle()));
         gEmis.setdEmailE(factura.getTimbradoDetalle().getTimbrado().getEmail());
         
         // Datos geográficos

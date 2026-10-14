@@ -20,6 +20,7 @@ import com.franco.dev.service.sifen.service.SifenService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
 import com.franco.dev.service.financiero.DocumentoElectronicoService;
+import com.franco.dev.service.financiero.builder.VentaNoFacturableException;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
 import com.franco.dev.utilitarios.print.escpos.Style;
@@ -399,9 +400,18 @@ public class FacturaService {
                     new com.franco.dev.service.financiero.builder.BuildRequest(
                             facturaLegal, descriptores, pdvId, true);
             return facturaLegalBuilder.build(buildReq);
-        } catch (Exception e) {
-            log.error("Error creando factura legal desde venta: {}", e.getMessage(), e);
+        } catch (VentaNoFacturableException e) {
+            // El cajero puede corregirlo: la venta se rechaza con el motivo, no sigue sin factura.
+            throw e;
+        } catch (GraphQLException e) {
+            // Validacion del builder, previa al primer write: no hay factura y la transaccion sigue
+            // sana. Cualquier otra excepcion de build() ya la dejo rollback-only y no se ataja: un
+            // null ahi haria creer al que llama que la venta sobrevive (issue #169).
+            log.error("FACTURA_NO_CREADA: venta {}: {}", venta.getId(), e.getMessage());
             return null;
+        } catch (RuntimeException e) {
+            log.error("Error creando factura legal desde venta {}: {}", venta.getId(), e.getMessage(), e);
+            throw e;
         }
     }
 
