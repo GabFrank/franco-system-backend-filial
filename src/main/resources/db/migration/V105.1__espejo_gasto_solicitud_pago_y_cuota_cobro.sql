@@ -2,8 +2,9 @@
 -- Espejo de central V221.3 (gasto.solicitud_pago_id) y V181.5 (venta_credito_cuota.monto_cobrado,
 -- estado_cobro)
 -- =====================================================================
--- Central publica estas columnas a cada filial en central_filial{N}_pub (filtro sucursal_id = N) y
--- la filial no las tenia. Con la primera fila que central toca, el apply worker se detiene:
+-- El central de farmacia publica estas columnas a cada filial en central_filial{N}_pub (filtro
+-- sucursal_id = N) y la filial no las tenia. Bodega hoy no publica ninguna de las dos tablas.
+-- Con la primera fila que central toca, el apply worker se detiene:
 --
 --   logical replication target relation "financiero.gasto" is missing replicated column: "solicitud_pago_id"
 --
@@ -13,15 +14,16 @@
 -- cobro ninguna cuota de filial, pero es el mismo mecanismo.
 --
 -- La filial no lee ni escribe estas columnas: existen para que el apply worker pueda aplicar lo que
--- manda central. Mismos tipos y defaults que central; sin el indice unico ni la FK de V221.3 (las
--- solicitudes de pago no viajan a la filial).
+-- manda central. Mismos tipos y defaults que central; sin el indice unico uk_gasto_solicitud_pago de
+-- V221.3 (lo mantiene central, donde nacen esos gastos).
 --
 -- Invariante: la filial no actualiza venta_credito_cuota (solo la inserta al crear la venta). Su
 -- filial{N}_pub no tiene lista de columnas, asi que un UPDATE nacido aca mandaria monto_cobrado y
 -- estado_cobro a central y pisaria un cobro hecho alla.
 --
--- lock_timeout: ADD COLUMN toma ACCESS EXCLUSIVE. Mejor fallar el arranque y reintentar que colgar
--- el health check de check-update detras de una transaccion larga.
+-- lock_timeout: ADD COLUMN toma ACCESS EXCLUSIVE. Mejor fallar el arranque que colgar el health
+-- check de check-update detras de una transaccion larga: PG revierte la migracion entera y el
+-- proximo reinicio del servicio la vuelve a intentar.
 -- =====================================================================
 SET LOCAL lock_timeout = '10s';
 

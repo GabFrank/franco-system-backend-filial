@@ -41,8 +41,8 @@ ALTER TABLE financiero.venta_credito_cuota ADD COLUMN IF NOT EXISTS estado_cobro
 
 - Tipos y defaults idénticos a central. `IF NOT EXISTS`: en las 4 filiales de farmacia `gasto` ya la
   tiene (fix manual) y es no-op.
-- Sin índice único ni FK: el índice `ux` de V221.3 y la FK a `operaciones.solicitud_pago` son de central
-  (las solicitudes de pago no viajan a la filial).
+- Sin el índice único `uk_gasto_solicitud_pago` de V221.3: lo mantiene central, donde nacen esos gastos
+  (V221.3 no crea FK).
 - Sin cambios de entity: la filial no lee ni escribe estas columnas. Solo existen para que el apply
   worker pueda aplicar lo que central manda.
 
@@ -106,6 +106,18 @@ columnas: si alguna sub filial→central se trabara por ellas, el arreglo es agr
 | Lock de `ADD COLUMN` | B (baja) | PG ≥11 no reescribe con default constante; se agrega `SET LOCAL lock_timeout = '10s'` para no colgar el arranque |
 | Otras columnas del central sin espejo | A (baja) | Comparado publicación vs catálogo en vivo: filial 4 de farmacia → solo las de este plan; filial 24 de bodega → ninguna |
 | Test que atrape esto | B | N/A JUnit. El chequeo útil es comparar `pg_publication_tables` del que publica con `information_schema.columns` del que suscribe; se corrió a mano en los dos casos de arriba |
+
+## Auditoría del diff (paso 8)
+
+Fijo 1 y Fijo 3: N/A para filial porque el diff es un `.sql` y este plan, sin resolver, `.graphqls` ni
+entity [ev: `git diff --name-only origin/develop...HEAD`]. Fijo 2 + Condicional B en un auditor:
+
+| Hallazgo | Qué se hizo |
+|---|---|
+| El comentario y el plan nombraban una FK de V221.3 que no existe, y el índice como `ux` | Corregido: el índice es `uk_gasto_solicitud_pago` y no hay FK |
+| «Central publica a cada filial» generaliza a bodega | Aclarado: solo farmacia |
+| `lock_timeout`: nada reintenta solo | Aclarado en el comentario: PG revierte la migración y el próximo reinicio la reintenta |
+| El invariante «la filial no actualiza cuotas» no tiene test | Javadoc en `VentaCreditoCuota.java` |
 
 ## Sin verificar
 
