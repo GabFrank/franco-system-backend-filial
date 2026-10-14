@@ -190,6 +190,23 @@ ALTER TABLE clientes RENAME COLUMN telefono_nuevo TO telefono;
 - [ ] No hace `DROP`/`RENAME`/cambio de tipo sin la estrategia de 2 versiones
 - [ ] La descripción del PR documenta el impacto en DB y el plan de rollback
 
+### Columna nueva en una tabla que publica el central: espejo acá, en el mismo release
+
+Si el central agrega una columna a una tabla que manda a las filiales (`central_pub` o
+`central_filial{N}_pub`), la filial necesita la misma columna **antes** de que el central toque una fila:
+si no, el apply worker se detiene con `missing replicated column` y todo lo de esa suscripción queda
+trabado. Pasó en farmacia filial 4 el 2026-10-14 con `gasto.solicitud_pago_id` (central V221.3,
+espejo V105.1). El fallo no aparece al migrar el central sino con la primera fila que viaja, a veces
+semanas después.
+
+- Mismo tipo y default que el central, con `ADD COLUMN IF NOT EXISTS` (puede que ya se haya agregado a
+  mano para destrabar).
+- La `filial{N}_pub` no tiene lista de columnas: la columna nueva **también sube** al central. Si la
+  filial no la escribe, un UPDATE nacido acá pisa el valor del central (por eso la filial no actualiza
+  `venta_credito_cuota`; ver su javadoc).
+- Chequeo de solo lectura: comparar `pg_publication_tables.attnames` del central contra
+  `information_schema.columns` de la filial.
+
 ## Otros cambios con riesgo de rollback
 
 ### Variables de entorno nuevas
