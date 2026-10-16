@@ -4,6 +4,8 @@ import com.franco.dev.domain.personas.Funcionario;
 import com.franco.dev.repository.personas.FuncionarioRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -32,6 +34,11 @@ public class FuncionarioService extends CrudService<Funcionario, FuncionarioRepo
         texto = texto != null ? texto.replace(" ", "%").toUpperCase() : "";
         List<Funcionario> aux = repository.findByIdOrPersonaNombre(texto);
         return aux;
+    }
+
+    public Page<Funcionario> searchPage(String texto, Boolean soloActivos, Pageable pageable) {
+        texto = texto != null && !texto.isBlank() ? texto.trim().replace(" ", "%").toUpperCase() : "%";
+        return repository.searchPage(texto, Boolean.TRUE.equals(soloActivos), pageable);
     }
 
     @Override
