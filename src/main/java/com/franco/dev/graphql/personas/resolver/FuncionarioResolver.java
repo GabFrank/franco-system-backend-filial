@@ -56,8 +56,9 @@ public class FuncionarioResolver implements GraphQLResolver<Funcionario> {
     }
 
     public String nickname(Funcionario f){
-        Usuario usuario = usuarioService.findByPersonaId(f.getPersona().getId());
-        return usuario.getNickname().toUpperCase();
+        // No todo funcionario tiene usuario: sin este control un solo caso rompe la busqueda entera.
+        Usuario usuario = f.getPersona() != null ? usuarioService.findByPersonaId(f.getPersona().getId()) : null;
+        return usuario != null && usuario.getNickname() != null ? usuario.getNickname().toUpperCase() : "";
     }
 
 }

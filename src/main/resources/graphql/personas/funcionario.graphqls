@@ -47,9 +47,22 @@ input FuncionarioInput {
     contactoEmergenciaTelefono: String
 }
 
+type FuncionarioPage {
+    getTotalPages: Int
+    getTotalElements: Int
+    getNumberOfElements: Int
+    isFirst: Boolean
+    isLast: Boolean
+    hasNext: Boolean
+    hasPrevious: Boolean
+    getContent: [Funcionario]
+    getPageable: Pageable
+}
+
 extend type Query {
     funcionario(id:ID!):Funcionario
     funcionariosSearch(texto:String):[Funcionario]
+    funcionariosSearchPage(texto:String, page:Int = 0, size:Int = 15, soloActivos:Boolean = false):FuncionarioPage
     funcionarioPorPersona(id:ID!):Funcionario
     funcionarios(page:Int = 0, size:Int = 10):[Funcionario]!
     countFuncionario:Int
