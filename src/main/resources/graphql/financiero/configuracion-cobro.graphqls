@@ -1,0 +1,12 @@
+type ConfiguracionCobro {
+    id: ID!
+    """true = el aumento del cobro no puede pasar aumentoTopePorcentaje del total. Nunca null."""
+    aumentoConTope: Boolean!
+    """Tope del aumento, en porcentaje del total del cobro. Nunca null (default 20)."""
+    aumentoTopePorcentaje: Float!
+    modificadoEn: Date
+}
+
+extend type Query {
+    configuracionCobro: ConfiguracionCobro!
+}
