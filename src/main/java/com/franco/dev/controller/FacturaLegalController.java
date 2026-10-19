@@ -6,6 +6,7 @@ import com.franco.dev.dto.factura.DisponibilidadTimbradoDetalleResponseDTO;
 import com.franco.dev.dto.factura.ErrorResponseDTO;
 import com.franco.dev.service.financiero.FacturaLegalApiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -79,6 +80,16 @@ public class FacturaLegalController {
             return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
         } catch (IllegalStateException e) {
             log.error("Error al crear factura legal: {}", e.getMessage());
+            ErrorResponseDTO errorResponse = ErrorResponseDTO.builder()
+                    .mensaje(e.getMessage())
+                    .error("BAD_REQUEST")
+                    .codigo(HttpStatus.BAD_REQUEST.value())
+                    .build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        } catch (GraphQLException e) {
+            // Validacion del builder, previa al primer write (FACTURA_NO_EMITIBLE, timbrado...): es
+            // un problema del pedido o de la configuracion, no un error interno.
+            log.error("Factura legal rechazada: {}", e.getMessage());
             ErrorResponseDTO errorResponse = ErrorResponseDTO.builder()
                     .mensaje(e.getMessage())
                     .error("BAD_REQUEST")

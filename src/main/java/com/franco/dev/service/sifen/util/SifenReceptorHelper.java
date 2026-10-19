@@ -234,6 +234,16 @@ public class SifenReceptorHelper {
     }
     
     /**
+     * La unica falla del armado que el cajero resuelve solo: cargando el cliente. Tiene tipo propio
+     * para que {@code FacturaLegalBuilder} la distinga sin leer el mensaje.
+     */
+    public static class FacturaInnominadaSobreTopeException extends IllegalArgumentException {
+        public FacturaInnominadaSobreTopeException(String mensaje) {
+            super(mensaje);
+        }
+    }
+
+    /**
      * Configura un receptor innominado.
      * Caso 9) Innominado (B2C de bajo monto)
      */
@@ -241,7 +251,7 @@ public class SifenReceptorHelper {
         // Validar monto máximo
         final double MONTO_MAXIMO_INNOMINADO = 7_000_000.0;
         if (montoTotal != null && montoTotal >= MONTO_MAXIMO_INNOMINADO) {
-            throw new IllegalArgumentException(
+            throw new FacturaInnominadaSobreTopeException(
                 "Factura innominada no permitida para montos >= 7.000.000 PYG. Monto: " + montoTotal
             );
         }

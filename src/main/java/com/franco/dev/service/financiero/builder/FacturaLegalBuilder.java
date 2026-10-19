@@ -16,9 +16,12 @@ import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.sifen.service.SifenService;
+import com.franco.dev.service.sifen.util.SifenReceptorHelper;
+import com.franco.dev.service.sifen.util.SifenTimbradoHelper;
 import graphql.GraphQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +35,10 @@ import java.util.Optional;
  *
  * Reemplaza la logica duplicada que existia en FacturaLegalGraphQL,
  * FacturaLegalApiService, FacturaService.crearFacturaLegalDesdeVenta, etc.
+ *
+ * Antes de escribir se arman los items y los parciales en memoria y, si la factura es electronica,
+ * se ensaya el armado del DE ({@code SifenService.validarGeneracionDE}): si no se puede armar, se
+ * corta con GraphQLException sin haber escrito nada (issue #170).
  *
  * El flujo respeta el orden de inserts original para no romper la replicacion
  * logica PG hacia central:
@@ -54,6 +61,22 @@ public class FacturaLegalBuilder {
     private final PresentacionService presentacionService;
     private final UsuarioService usuarioService;
     private final SifenService sifenService; // puede ser null si SIFEN desactivado
+
+    /**
+     * Interruptor del ensayo del DE. En false el builder no ensaya y una falla al armar el DE vuelve
+     * a perder la venta, como antes del issue #170: es la salida si el ensayo cortara una factura
+     * que deberia emitirse, sin esperar un release.
+     */
+    private boolean ensayoDeHabilitado = true;
+
+    /**
+     * Solo "false" lo apaga. Se lee como texto a proposito: un valor mal escrito en la
+     * configuracion de una filial no puede impedir que el servicio arranque.
+     */
+    @Value("${sifen.ensayo-de.enabled:true}")
+    void setEnsayoDeHabilitado(String valor) {
+        this.ensayoDeHabilitado = valor == null || !"false".equalsIgnoreCase(valor.trim());
+    }
 
     public FacturaLegalBuilder(FacturaLegalService facturaLegalService,
                                FacturaLegalItemService facturaLegalItemService,
@@ -89,6 +112,10 @@ public class FacturaLegalBuilder {
      * despues de insertar la cabecera o parte de los items, esas filas quedarian a medias dentro
      * de la transaccion de la venta y confirmarlas seria peor que perder la operacion.
      * <p>
+     * Quien llama cuenta con esto: una GraphQLException de este metodo significa "no se escribio
+     * nada" ({@code FacturaService} la convierte en null y la venta sale con ticket simple; el turno
+     * del contador vuelve). Una validacion nueva va ANTES del primer save, nunca despues.
+     * <p>
      * REQUIRES_NEW no es alternativa: financiero.factura_legal tiene FK a operaciones.venta y la
      * venta todavia no esta commiteada, asi que en otra transaccion el insert violaria la FK.
      */
@@ -120,6 +147,12 @@ public class FacturaLegalBuilder {
         if (!sifenHabilitado && timbradoElectronico) {
             throw new GraphQLException("SIFEN deshabilitado, se requiere timbrado no electronico activo para PDV " + pdvId);
         }
+        // jsifenlib escribe dTelEmi siempre y SIFEN rechaza el lote si va vacio (issue #139). Se corta
+        // aca, antes del primer write: una excepcion en SifenService dejaria la venta rollback-only.
+        // No depende de generarDE: la API lo manda en false y crea el DE por su cuenta.
+        if (sifenHabilitado && timbradoElectronico && SifenTimbradoHelper.telefonoEmisor(timbradoDetalle) == null) {
+            throw new GraphQLException(SifenTimbradoHelper.mensajeSinTelefono(timbradoDetalle));
+        }
 
         facturaLegal.setTimbradoDetalle(timbradoDetalle);
         if (timbradoDetalle.getSucursal() == null || timbradoDetalle.getSucursal().getId() == null) {
@@ -132,17 +165,38 @@ public class FacturaLegalBuilder {
                 : 1L;
         facturaLegal.setNumeroFactura(numeroFactura.intValue());
 
+        // Hibernate manda el null explicito y el DEFAULT true de la columna no se aplica (issue #131).
+        // Un false que venga puesto se respeta.
+        if (facturaLegal.getActivo() == null) {
+            facturaLegal.setActivo(true);
+        }
+
+        // Items y parciales en memoria, todavia sin escribir nada.
+        List<FacturaLegalItem> itemsArmados = new ArrayList<>();
+        List<ParcialesCalculator.ItemIvaTuple> tuples = new ArrayList<>();
+        if (items != null) {
+            for (FacturaLegalItemDescriptor d : items) {
+                FacturaLegalItem item = construirItem(d, facturaLegal);
+                itemsArmados.add(item);
+                tuples.add(new ParcialesCalculator.ItemIvaTuple(item.getIva(), item.getTotal()));
+            }
+        }
+        double descuento = facturaLegal.getDescuento() != null ? facturaLegal.getDescuento() : 0.0;
+        ParcialesCalculator.Resultado resultado = ParcialesCalculator.calcular(tuples, descuento);
+
+        // Ensayo del DE antes del primer write. No depende de generarDE: la API lo manda en false y
+        // crea el DE por su cuenta.
+        if (ensayoDeHabilitado && sifenHabilitado && timbradoElectronico) {
+            ensayarDE(facturaLegal, itemsArmados, resultado.getTotalFinal());
+        }
+
         // 2. INSERT factura_legal
         FacturaLegal facturaLegalGuardada = facturaLegalService.save(facturaLegal);
 
         // 3. INSERT factura_legal_item por descriptor
-        List<ParcialesCalculator.ItemIvaTuple> tuples = new ArrayList<>();
-        if (items != null) {
-            for (FacturaLegalItemDescriptor d : items) {
-                FacturaLegalItem item = construirItem(d, facturaLegalGuardada);
-                facturaLegalItemService.save(item);
-                tuples.add(new ParcialesCalculator.ItemIvaTuple(item.getIva(), item.getTotal()));
-            }
+        for (FacturaLegalItem item : itemsArmados) {
+            item.setFacturaLegal(facturaLegalGuardada);
+            facturaLegalItemService.save(item);
         }
 
         // 4. UPDATE timbrado_detalle.numero_actual
@@ -150,8 +204,6 @@ public class FacturaLegalBuilder {
         timbradoDetalleService.save(timbradoDetalle);
 
         // 5. UPDATE factura_legal con parciales calculados
-        double descuento = facturaLegalGuardada.getDescuento() != null ? facturaLegalGuardada.getDescuento() : 0.0;
-        ParcialesCalculator.Resultado resultado = ParcialesCalculator.calcular(tuples, descuento);
         facturaLegalGuardada.setTotalParcial0(resultado.getTotalParcial0());
         facturaLegalGuardada.setTotalParcial5(resultado.getTotalParcial5());
         facturaLegalGuardada.setTotalParcial10(resultado.getTotalParcial10());
@@ -180,6 +232,41 @@ public class FacturaLegalBuilder {
         return facturaLegalGuardada;
     }
 
+    /**
+     * Arma el DE en memoria con el total que va a tener la factura. El armado lee
+     * {@code totalFinal}, que recien se graba en el paso 5: se le presta el valor calculado y se
+     * devuelve el que traia, para que el INSERT de la cabecera salga igual que siempre.
+     * <p>
+     * Casi todo lo que el armado rechaza deja la venta guardada sin factura (FACTURA_NO_EMITIBLE):
+     * el cajero no puede hacer nada con un item a precio cero o una sucursal mal configurada. La
+     * excepcion es lo que si puede corregir, que rechaza la venta ({@link VentaNoFacturableException}).
+     * <p>
+     * La GraphQLException va SIN causa: {@code PoliticaFacturacionService.fallaAntesDeEscribir}
+     * mira la causa raiz para devolver el turno del contador.
+     */
+    private void ensayarDE(FacturaLegal facturaLegal, List<FacturaLegalItem> itemsArmados, Double totalFinal) {
+        Double totalFinalOriginal = facturaLegal.getTotalFinal();
+        facturaLegal.setTotalFinal(totalFinal);
+        try {
+            sifenService.validarGeneracionDE(facturaLegal, itemsArmados);
+        } catch (SifenReceptorHelper.FacturaInnominadaSobreTopeException e) {
+            // El cajero lo corrige cargando el cliente: la venta se rechaza con el motivo, en vez
+            // de guardarse sin factura y sin que nadie lo note.
+            log.warn("VENTA_NO_FACTURABLE: timbrado detalle {}: {}",
+                    facturaLegal.getTimbradoDetalle().getId(), e.getMessage());
+            throw new VentaNoFacturableException("No se puede facturar sin nombre una venta de 7.000.000 o mas."
+                    + " Cargue un cliente con nombre y documento (CI o RUC) y vuelva a intentar.");
+        } catch (Exception e) {
+            log.error("FACTURA_NO_EMITIBLE: timbrado detalle {}: {}",
+                    facturaLegal.getTimbradoDetalle().getId(), e.getMessage(), e);
+            throw new GraphQLException("FACTURA_NO_EMITIBLE: "
+                    + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+        } finally {
+            facturaLegal.setTotalFinal(totalFinalOriginal);
+        }
+    }
+
+    /** Solo lee: no necesita que la cabecera este guardada. */
     private FacturaLegalItem construirItem(FacturaLegalItemDescriptor d, FacturaLegal facturaLegalGuardada) {
         FacturaLegalItem item = new FacturaLegalItem();
         item.setFacturaLegal(facturaLegalGuardada);

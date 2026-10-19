@@ -190,6 +190,23 @@ ALTER TABLE clientes RENAME COLUMN telefono_nuevo TO telefono;
 - [ ] No hace `DROP`/`RENAME`/cambio de tipo sin la estrategia de 2 versiones
 - [ ] La descripción del PR documenta el impacto en DB y el plan de rollback
 
+### Columna nueva en una tabla que publica el central: espejo acá, en el mismo release
+
+Si el central agrega una columna a una tabla que manda a las filiales (`central_pub` o
+`central_filial{N}_pub`), la filial necesita la misma columna **antes** de que el central toque una fila:
+si no, el apply worker se detiene con `missing replicated column` y todo lo de esa suscripción queda
+trabado. Pasó en farmacia filial 4 el 2026-10-14 con `gasto.solicitud_pago_id` (central V221.3,
+espejo V105.1). El fallo no aparece al migrar el central sino con la primera fila que viaja, a veces
+semanas después.
+
+- Mismo tipo y default que el central, con `ADD COLUMN IF NOT EXISTS` (puede que ya se haya agregado a
+  mano para destrabar).
+- La `filial{N}_pub` no tiene lista de columnas: la columna nueva **también sube** al central. Si la
+  filial no la escribe, un UPDATE nacido acá pisa el valor del central (por eso la filial no actualiza
+  `venta_credito_cuota`; ver su javadoc).
+- Chequeo de solo lectura: comparar `pg_publication_tables.attnames` del central contra
+  `information_schema.columns` de la filial.
+
 ## Otros cambios con riesgo de rollback
 
 ### Variables de entorno nuevas
@@ -241,6 +258,40 @@ decide `PoliticaFacturacionService.decidirRuta(...)`, con la política que resue
   combinaciones de `ticket`/`facturar`/`pdvId`/crédito/contador. Si tocás la decisión, esa tabla
   tiene que seguir pasando o el cambio de comportamiento tiene que declararse.
 
+## «Venta + Ticket» cuando la factura no se puede crear
+
+`FacturaService.crearFacturaLegalDesdeVenta` devuelve `null` **solo** si cortó una validación de
+`FacturaLegalBuilder.build()` (`GraphQLException`, siempre antes del primer write): no hay factura
+y la venta sigue viva. En ese caso `VentaGraphQL.facturarEImprimir` devuelve el turno del contador
+e imprime el ticket simple, para que el cliente no se vaya sin comprobante (issue #169).
+
+- Cualquier otra excepción de `build()` ya dejó la venta rollback-only y **se relanza**: ni papel
+  ni turno. No volver a atajarla con un `catch (Exception)` que devuelva `null`.
+- Por eso una validación nueva en `build()` va antes del primer `save` y lanza `GraphQLException`.
+- No hay aviso al cajero: el motivo queda en el log como `FACTURA_NO_CREADA`.
+
+## El DE se ensaya antes de guardar la factura
+
+Una falla al armar el DE dentro de `SifenService.crearDocumentoElectronico` deja la transacción de
+`saveVenta` rollback-only aunque quien llama la ataje: la venta entera se revierte con «Transaction
+silently rolled back». Por eso `FacturaLegalBuilder.build()` arma ítems y parciales en memoria y
+llama a `SifenService.validarGeneracionDE` (el mismo armado, sin persistir ni firmar, y **sin
+`@Transactional`**) antes del primer `save` (issue #170).
+
+- **Si el ensayo falla, casi siempre la venta se guarda sin factura**: `GraphQLException`
+  `FACTURA_NO_EMITIBLE: <motivo>`, sin causa encadenada (el turno del contador se decide por la
+  causa raíz). Ítem a precio cero, cantidad que redondea a cero, sucursal sin código de
+  establecimiento, sin ítems, moneda extranjera sin tipo de cambio.
+- **Lo que el cajero corrige en el momento rechaza la venta**: `VentaNoFacturableException`. Hoy
+  solo la factura sin nombre de 7.000.000 o más. Quien ataja excepciones del builder para seguir
+  sin factura tiene que relanzarla (`FacturaService`, `VentaGraphQL.facturarEnSilencio` y el
+  `catch` externo de `saveVenta`, que además suelta la huella de `VentaDuplicadaCacheService`).
+- Los `save` de `build()` y su orden no cambian: el ensayo solo le presta `totalFinal` a la
+  cabecera mientras corre. Una regla nueva del armado ya queda cubierta; no duplicarla en el builder.
+- El ensayo no cubre `generarXml` (firma, certificado): eso sigue revirtiendo la venta.
+- Interruptor: `sifen.ensayo-de.enabled=false` (solo `false` lo apaga) vuelve al comportamiento
+  anterior. En una filial: esa línea en `/opt/frc-filial/application.properties` y reiniciar.
+
 ## El descuento de la venta vive en el cobro
 
 El PDV no guarda el descuento ni el aumento en la venta (`venta.total_gs` queda **bruto**): son
@@ -275,6 +326,30 @@ devolvia true sin hacer nada). La cadena --caja, stock, delivery, credito, factu
 la recorre el central y la baja la replica bidireccional (`central_filialN_pub`). El control de cupon
 duplicado (`VentaTarjetaService.motivoCuponNoUsable`) ignora los cupones de ventas canceladas: un
 ticket de una venta cancelada se puede usar en otra.
+
+## `factura_legal.activo`: NULL es activa
+
+`FacturaLegalBuilder` pone `activo = true` en el alta (issue #131) y el entity lo trae por defecto,
+pero **no hubo backfill**: las facturas emitidas entre fines de 2025 y ese fix quedaron en `NULL`
+para siempre. `NULL` y `true` son sinónimos; solo `false` es cancelada. Todo lector compara contra
+`false` (`Boolean.FALSE.equals`, `IS NOT FALSE`), nunca contra `true`. Detalle:
+`docs/manuales-implementacion/financiero/FACTURA-LEGAL-ACTIVO-NULL.md`.
+
+## El teléfono del emisor del DE sale del timbrado
+
+`dTelEmi` es el teléfono del `timbrado_detalle` y, si está vacío o en blanco, el de la cabecera
+`timbrado` (`SifenTimbradoHelper.telefonoEmisor`, mismo respaldo que el central). jsifenlib escribe
+el elemento siempre: vacío, SIFEN rechaza el lote con 0160 (issue #139).
+
+- **Sin teléfono en ninguno de los dos no se emite.** `FacturaLegalBuilder.build()` corta con
+  `GraphQLException` antes del primer write (no consume número ni deja la venta rollback-only) y
+  `FacturaLegalApiService.verificarDisponibilidadTimbradoDetalle` lo informa, así la API responde
+  400. La factura silenciosa del PDV guarda la venta sin factura y lo único que queda es la línea
+  `TIMBRADO_SIN_TELEFONO` en el log.
+- **No validar esto dentro de `SifenService`**: una excepción en `crearDocumentoElectronico` corre
+  dentro de la transacción de `saveVenta` y pierde la venta ya cobrada.
+- El filial no escribe `timbrado.telefono`: llega por réplica desde el central. Solo se chequea
+  que no esté vacío; un teléfono inválido (`"0"`, `"-"`) se sigue rechazando en SIFEN.
 
 ## Pull Requests
 

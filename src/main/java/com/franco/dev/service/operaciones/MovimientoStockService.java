@@ -17,7 +17,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -86,8 +85,13 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
         return repository.findByReferencia(id);
     }
 
+    /**
+     * Sin SERIALIZABLE (#166): nadie reintentaba, y Postgres cancelaba una de dos modificaciones
+     * simultaneas de movimientos vecinos (SQLState 40001). No protegia ningun calculo: el id
+     * sale de la secuencia.
+     */
     @Override
-    @Transactional(isolation = Isolation.SERIALIZABLE)
+    @Transactional
     public MovimientoStock save(MovimientoStock entity) {
         if (entity.getId() == null)
             entity.setCreadoEn(LocalDateTime.now());
@@ -97,8 +101,9 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
         return e;
     }
 
+    /** Sin SERIALIZABLE, igual que {@link #save}. */
     @Override
-    @Transactional(isolation = Isolation.SERIALIZABLE)
+    @Transactional
     public MovimientoStock saveAndSend(MovimientoStock entity, Boolean recibir) {
         if (entity.getId() == null)
             entity.setCreadoEn(LocalDateTime.now());
