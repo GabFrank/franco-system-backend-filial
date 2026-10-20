@@ -1185,7 +1185,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
             escpos.write(parcialGsStr);
             
-            String descGsStr = NumberFormat.getNumberInstance(Locale.GERMAN).format(Math.abs(descuento.intValue()));
+            String descGsStr = NumberFormat.getNumberInstance(Locale.GERMAN).format(descuento < 0
+                    ? Math.round(Math.abs(descuento)) : descuento.intValue()); // el aumento en Rs/Us da Gs con decimales
             int espaciosDescGs = 9 - descGsStr.length();
             for (int i = 0; i < espaciosDescGs; i++) {
                 escpos.write(" ");
@@ -1252,7 +1253,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 // Filtrar solo pagos y vueltos, ignorar descuentos y aumentos
                 List<CobroDetalle> pagosYVueltos = new ArrayList<>();
                 for (CobroDetalle cd : cobroDetalleList) {
-                    if ((cd.getPago() != null && cd.getPago()) || (cd.getVuelto() != null && cd.getVuelto())) {
+                    // Una linea de aumento marcada tambien como vuelto (deliverys 2022-2024) no es vuelto: el
+                    // aumento ya va en los totales y contarla aca lo mostraria dos veces.
+                    if ((cd.getPago() != null && cd.getPago()) || (cd.getVuelto() != null && cd.getVuelto() && !Boolean.TRUE.equals(cd.getAumento()))) {
                         pagosYVueltos.add(cd);
                     }
                 }
@@ -1289,7 +1292,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                         Double vueltoTotal = 0.0;
 
                         for (CobroDetalle cd : detallesMoneda) {
-                            if (cd.getVuelto() != null && cd.getVuelto()) {
+                            if (cd.getVuelto() != null && cd.getVuelto() && !Boolean.TRUE.equals(cd.getAumento())) {
                                 vueltoTotal += cd.getValor();
                             }
                         }

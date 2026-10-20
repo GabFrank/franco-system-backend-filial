@@ -85,6 +85,8 @@ Ninguno: no hay migración ni cambio de GraphQL. Es solo el formato de tres tick
 - **Fuera de alcance** (siguen con el total bruto, como hoy): el ticket de venta a crédito del central
   (`VentaCreditoGraphQL.imprimirVentaCredito`), el `reimprimirVenta` del central (sin llamador en el
   desktop) y el `VentaCreditoGraphQL.printTicket58mm` del filial (sin uso).
+- **También fuera de alcance**: el ticket de factura que reimprime el **central**
+  (`FacturaLegalGraphQL.printTicket58mmFactura` del central) sigue mostrando `Desc. -90.000`.
 
 ## Límites (escritos a propósito)
 
@@ -118,3 +120,16 @@ anterior imprime como hoy. Riesgo bajo: solo cambia el texto de los tickets de v
 | `intValue()` trunca un aumento en moneda extranjera | B | `Math.round` del aumento + test |
 | «El PDV no ofrece descuento y aumento juntos» era falso (145 cobros) | B | Texto corregido + test |
 | Variables sin uso | A | Se sacan |
+
+## Hallazgos de la auditoría del diff (paso 8) y qué se hizo
+
+Fijo 1 (autorización) y Fijo 2 (esquema y espejo): N/A, el diff no toca resolvers, permisos, `.graphqls`
+ni migraciones. Condicionales: ninguno se dispara.
+
+| Hallazgo (Fijo 3) | Qué se hizo |
+|---|---|
+| Líneas de aumento marcadas también como vuelto (2.001 en `bodega`, 2022 a 2024-08): con el aumento en los totales, Detalles las mostraba otra vez como vuelto | En Detalles una línea de aumento no cuenta como vuelto, en el ticket simple y en el de factura; test que falla sin el arreglo (verificado) |
+| La factura truncaba un aumento con decimales (799 en vez de 800) | Redondeo solo cuando es aumento (el descuento sale como antes); test |
+| Sin test de la factura en moneda extranjera ni del aumento que la factura toma del cobro | Tests agregados |
+| El ticket de factura del central sigue con `Desc. -90.000` | Listado como fuera de alcance |
+| Ajuste neto entre −1 y 0 imprime ` Aum.` con 0 | Sin cambio: requiere un descuento con fracción y un aumento menor a 1 Gs |

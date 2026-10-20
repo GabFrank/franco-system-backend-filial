@@ -379,6 +379,39 @@ class VentaGraphQLTicketDestinoTest {
                 "Gs.      3,29     1,29      4,57"), totalesDelTicket(delivery));
     }
 
+    /**
+     * Deliverys de 2022-2024 guardaron el aumento con vuelto = true tambien: con el aumento ya en los
+     * totales, contarlo como vuelto en Detalles lo mostraria dos veces y el ticket no cerraria.
+     */
+    @Test
+    void lineaDeAumentoMarcadaComoVueltoNoSeCuentaComoVuelto() throws Exception {
+        Moneda gs = moneda(1L, "GUARANI");
+        FormaPago efectivo = new FormaPago();
+        efectivo.setId(1L);
+        efectivo.setDescripcion("EFECTIVO");
+        CobroDetalle pago = linea(false, false, 27000.0, 1.0);
+        pago.setPago(true);
+        pago.setMoneda(gs);
+        pago.setFormaPago(efectivo);
+        CobroDetalle aumentoYVuelto = linea(true, false, -9000.0, 1.0);
+        aumentoYVuelto.setVuelto(true);
+        aumentoYVuelto.setMoneda(gs);
+        aumentoYVuelto.setFormaPago(efectivo);
+        when(cobroDetalleService.findByCobroId(anyLong())).thenReturn(Arrays.asList(pago, aumentoYVuelto));
+        when(cobroDetalleService.ajusteDe(any(), any())).thenReturn(AjusteCobro.deDetalles(Arrays.asList(pago, aumentoYVuelto)));
+
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        ventaGraphQL.printTicket58mm(venta, cobro, items, null, false, null, "CAJA 1", false, null, null, memoria);
+        String texto = com.franco.dev.utilitarios.print.TicketTexto.plano(memoria.toByteArray());
+
+        assertEquals("Gs.    18.000    9.000    27.000",
+                com.franco.dev.utilitarios.print.TicketTexto.totales(memoria.toByteArray()).get(1));
+        String detalles = texto.substring(texto.indexOf("------------Detalles------------"));
+        String lineaPago = detalles.split("\n")[2];
+        assertTrue(lineaPago.contains("27.000"), lineaPago);
+        assertTrue(lineaPago.trim().endsWith(" 0"), "sin vuelto: " + lineaPago);
+    }
+
     private static CobroDetalle linea(boolean aumento, boolean descuento, double valor, double cambio) {
         CobroDetalle cd = new CobroDetalle();
         cd.setAumento(aumento);
