@@ -1143,7 +1143,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.write("   "); // 4 espacios para moneda
             escpos.write("   Parcial"); // 7 chars
             escpos.write("    "); // 2 espacios = 9 total
-            escpos.write("Desc."); // 5 chars
+            // La factura guarda el aumento como descuento negativo: aca va con su nombre y sin signo.
+            escpos.write(descuento < 0 ? " Aum." : "Desc."); // 5 chars
             escpos.write("     "); // 4 espacios = 9 total
             escpos.writeLF("Final"); // 5 chars
             
@@ -1169,8 +1170,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             Double totalParcialRs = totalParcialGs / cambioRs;
             Double totalParcialDs = totalParcialGs / cambioDs;
             
-            Double descuentoRs = descuento / cambioRs;
-            Double descuentoDs = descuento / cambioDs;
+            Double descuentoRs = Math.abs(descuento) / cambioRs;
+            Double descuentoDs = Math.abs(descuento) / cambioDs;
             
             Double totalFinalRs = totalFinal / cambioRs;
             Double totalFinalDs = totalFinal / cambioDs;
@@ -1184,7 +1185,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
             escpos.write(parcialGsStr);
             
-            String descGsStr = NumberFormat.getNumberInstance(Locale.GERMAN).format(descuento.intValue());
+            String descGsStr = NumberFormat.getNumberInstance(Locale.GERMAN).format(Math.abs(descuento.intValue()));
             int espaciosDescGs = 9 - descGsStr.length();
             for (int i = 0; i < espaciosDescGs; i++) {
                 escpos.write(" ");
@@ -1769,7 +1770,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.write("   "); // 4 espacios para moneda
             escpos.write("   Parcial"); // 7 chars
             escpos.write("    "); // 2 espacios = 9 total
-            escpos.write("Desc."); // 5 chars
+            // La factura guarda el aumento como descuento negativo: aca va con su nombre y sin signo.
+            escpos.write(descuento < 0 ? " Aum." : "Desc."); // 5 chars
             escpos.write("     "); // 4 espacios = 9 total
             escpos.writeLF("Final"); // 5 chars
             
@@ -1782,7 +1784,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
             escpos.write(parcialExtStr);
             
-            String descExtStr = formatearMonedaExtranjera(descuentoExtranjera);
+            String descExtStr = formatearMonedaExtranjera(Math.abs(descuentoExtranjera));
             int espaciosDescExt = 9 - descExtStr.length();
             for (int i = 0; i < espaciosDescExt; i++) {
                 escpos.write(" ");

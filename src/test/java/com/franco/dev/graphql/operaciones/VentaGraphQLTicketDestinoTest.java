@@ -296,4 +296,95 @@ class VentaGraphQLTicketDestinoTest {
         assertTrue(memoria.size() > 0);
         assertArrayEquals(esperado.toByteArray(), memoria.toByteArray());
     }
+
+    // ── Tabla de totales: el ajuste del cobro (descuento o aumento) en la columna del medio ──────────
+    // Las lineas "Gs." de Rs y Us salen asi porque el mock de MonedaService devuelve GUARANI para las
+    // tres monedas; lo que importa son los numeros (cambio 7000).
+
+    private static final String ENCABEZADO_DESC = "      Parcial    Desc.     Final";
+    private static final String ENCABEZADO_AUM = "      Parcial     Aum.     Final";
+
+    private List<String> totalesCon(CobroDetalle... lineas) throws Exception {
+        when(cobroDetalleService.ajusteDe(any(), any())).thenReturn(AjusteCobro.deDetalles(Arrays.asList(lineas)));
+        return totalesDelTicket(null);
+    }
+
+    private List<String> totalesDelTicket(com.franco.dev.domain.operaciones.Delivery delivery) throws Exception {
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        assertTrue(ventaGraphQL.printTicket58mm(venta, cobro, items, null, false, null, "CAJA 1", false, null,
+                delivery, memoria));
+        return com.franco.dev.utilitarios.print.TicketTexto.totales(memoria.toByteArray());
+    }
+
+    /** Fijado con el codigo anterior a este cambio: sin ajuste, la tabla no cambia. */
+    @Test
+    void totalesSinAjusteComoAntes() throws Exception {
+        assertEquals(Arrays.asList(ENCABEZADO_DESC,
+                "Gs.    18.000        0    18.000",
+                "Gs.      2,57     0,00      2,57",
+                "Gs.      2,57     0,00      2,57"), totalesDelTicket(null));
+    }
+
+    /** Fijado con el codigo anterior a este cambio: con descuento, la tabla no cambia. */
+    @Test
+    void totalesConDescuentoComoAntes() throws Exception {
+        assertEquals(Arrays.asList(ENCABEZADO_DESC,
+                "Gs.    18.000    3.000    15.000",
+                "Gs.      2,57     0,43      2,14",
+                "Gs.      2,57     0,43      2,14"), totalesCon(linea(false, true, 3000.0, 1.0)));
+    }
+
+    /** El aumento (cobrar de mas con F8) va en la columna del medio y suma al Final, que cierra con el pago. */
+    @Test
+    void totalesConAumento() throws Exception {
+        assertEquals(Arrays.asList(ENCABEZADO_AUM,
+                "Gs.    18.000    9.000    27.000",
+                "Gs.      2,57     1,29      3,86",
+                "Gs.      2,57     1,29      3,86"), totalesCon(linea(true, false, 9000.0, 1.0)));
+    }
+
+    /** Hay aumentos guardados en negativo (deliverys hasta 2024-10): se imprimen igual. */
+    @Test
+    void totalesConAumentoGuardadoEnNegativo() throws Exception {
+        assertEquals(totalesCon(linea(true, false, 9000.0, 1.0)), totalesCon(linea(true, false, -9000.0, 1.0)));
+    }
+
+    /** Un aumento en reales da guaranies con decimales: se redondea, no se trunca (799 seria 1 Gs menos). */
+    @Test
+    void totalesConAumentoEnRealesSeRedondean() throws Exception {
+        assertEquals("Gs.    18.000      800    18.800",
+                totalesCon(linea(true, false, 0.695652173913043, 1150.0)).get(1));
+    }
+
+    /** Descuento y aumento en el mismo cobro (redondeo del PDV): se imprime el neto. */
+    @Test
+    void totalesConDescuentoYAumentoMuestranElNeto() throws Exception {
+        List<String> totales = totalesCon(linea(false, true, 1380.0, 1.0), linea(true, false, 380.0, 1.0));
+        assertEquals(ENCABEZADO_DESC, totales.get(0));
+        assertEquals("Gs.    18.000    1.000    17.000", totales.get(1));
+    }
+
+    /** En un delivery el envio va en Parcial y el aumento aparte: no se suma dos veces. */
+    @Test
+    void totalesDeDeliveryConAumento() throws Exception {
+        when(cobroDetalleService.ajusteDe(any(), any())).thenReturn(AjusteCobro.deDetalles(
+                Collections.singletonList(linea(true, false, 9000.0, 1.0))));
+        com.franco.dev.domain.operaciones.PrecioDelivery precio = new com.franco.dev.domain.operaciones.PrecioDelivery();
+        precio.setValor(5000.0);
+        com.franco.dev.domain.operaciones.Delivery delivery = new com.franco.dev.domain.operaciones.Delivery();
+        delivery.setPrecio(precio);
+        assertEquals(Arrays.asList(ENCABEZADO_AUM,
+                "Gs.    23.000    9.000    32.000",
+                "Gs.      3,29     1,29      4,57",
+                "Gs.      3,29     1,29      4,57"), totalesDelTicket(delivery));
+    }
+
+    private static CobroDetalle linea(boolean aumento, boolean descuento, double valor, double cambio) {
+        CobroDetalle cd = new CobroDetalle();
+        cd.setAumento(aumento);
+        cd.setDescuento(descuento);
+        cd.setValor(valor);
+        cd.setCambio(cambio);
+        return cd;
+    }
 }

@@ -145,4 +145,43 @@ class FacturaLegalTicketDestinoTest {
         assertTrue(texto.contains("FRANCO AREVALOS S.A."), "razon social");
         assertTrue(texto.contains("GRACIAS POR LA PREFERENCIA"), "pie");
     }
+
+    // ── Tabla de totales: el ajuste de la factura (descuento o aumento) en la columna del medio ──────
+
+    private java.util.List<String> totalesDeLaFactura() throws Exception {
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        facturaLegalGraphQL.printTicket58mmFactura(null, factura, items, null, memoria);
+        return com.franco.dev.utilitarios.print.TicketTexto.totales(memoria.toByteArray());
+    }
+
+    /** Fijado con el codigo anterior a este cambio: sin ajuste, la tabla no cambia. */
+    @Test
+    void totalesSinAjusteComoAntes() throws Exception {
+        assertEquals(java.util.Arrays.asList("      Parcial    Desc.     Final",
+                "Gs.    18.000        0    18.000",
+                "Gs.      2,57     0,00      2,57",
+                "Gs.      2,57     0,00      2,57"), totalesDeLaFactura());
+    }
+
+    /** Fijado con el codigo anterior a este cambio: con descuento, la tabla no cambia. */
+    @Test
+    void totalesConDescuentoComoAntes() throws Exception {
+        factura.setDescuento(3000.0);
+        factura.setTotalFinal(15000.0);
+        assertEquals(java.util.Arrays.asList("      Parcial    Desc.     Final",
+                "Gs.    18.000    3.000    15.000",
+                "Gs.      2,57     0,43      2,14",
+                "Gs.      2,57     0,43      2,14"), totalesDeLaFactura());
+    }
+
+    /** La factura guarda el aumento como descuento negativo: antes salia "Desc. -9.000". */
+    @Test
+    void totalesConAumento() throws Exception {
+        factura.setDescuento(-9000.0);
+        factura.setTotalFinal(27000.0);
+        assertEquals(java.util.Arrays.asList("      Parcial     Aum.     Final",
+                "Gs.    18.000    9.000    27.000",
+                "Gs.      2,57     1,29      3,86",
+                "Gs.      2,57     1,29      3,86"), totalesDeLaFactura());
+    }
 }
