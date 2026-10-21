@@ -351,6 +351,28 @@ el elemento siempre: vacío, SIFEN rechaza el lote con 0160 (issue #139).
 - El filial no escribe `timbrado.telefono`: llega por réplica desde el central. Solo se chequea
   que no esté vacío; un teléfono inválido (`"0"`, `"-"`) se sigue rechazando en SIFEN.
 
+## Saldo por lote: lock por sucursal hasta el commit de la venta
+
+`LoteFefoService.asignar*` toma `pg_advisory_xact_lock(hashtext('lote-saldo:<sucursalId>'))` antes de
+leer el saldo (issue #185, port del central #463). Sin él, dos cajas leían el mismo saldo y dejaban el
+lote negativo. El lock dura hasta el commit de **toda** la venta (`saveVenta` es una sola transacción):
+la otra caja con un producto con lote espera hasta 15 s y, si vence, la venta entera se revierte con
+«Hay otra operación con lotes en curso… Reintentá». Las ventas sin productos con lote no lo piden.
+
+- **No pedirlo desde un `REQUIRES_NEW`** mientras la transacción de afuera lo tiene: el lock es por
+  conexión y se espera a sí mismo hasta vencer. Tampoco teniendo tomadas filas que el dueño del lock
+  vaya a escribir.
+- **La transacción tiene que ser READ COMMITTED** (la de siempre). Con REPEATABLE READ o SERIALIZABLE
+  la foto puede ser anterior al lock y el saldo leído, viejo.
+- `saveVentaItem` (ítem suelto de delivery) es `@Transactional` por esto: los overrides de
+  `VentaItemService` no heredan el `@javax.transaction.Transactional` de `CrudService`, y sin
+  transacción de afuera el ítem quedaba guardado sin desglose si vencía la espera.
+- Las salidas por lote que escribe el central sobre esta sucursal y bajan por réplica no pasan por este
+  lock (vive en la base del central).
+- Diagnóstico, quién lo tiene: `select pid, granted from pg_locks where locktype = 'advisory' and
+  objid::bigint = (hashtext('lote-saldo:N')::bigint & 4294967295)` (la máscara porque `objid` guarda
+  los 32 bits bajos y el hash puede ser negativo).
+
 ## Pull Requests
 
 - **Tamaño**: idealmente menos de 400 líneas de cambio neto. Una responsabilidad por PR.
