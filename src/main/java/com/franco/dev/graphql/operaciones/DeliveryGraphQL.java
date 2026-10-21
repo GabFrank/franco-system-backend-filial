@@ -206,6 +206,9 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
             } else {
                 throw new GraphQLException("Algo salió mal. Comuniquese con el soporte");
             }
+        } catch (GraphQLException e) {
+            // Ya trae un mensaje para el cajero, como el de reintentar del lock de saldo por lote (#185).
+            throw e;
         } catch (Exception e) {
             e.printStackTrace();
             throw new GraphQLException("Algo salió mal. Comuniquese con el soporte");
