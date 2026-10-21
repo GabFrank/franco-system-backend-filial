@@ -123,10 +123,38 @@ Filial propio en el 8082 (sucursal 24, SIFEN apagado), desktop `ng serve -c web`
 6. Medir el tiempo de una venta con lote (ítem → commit), con ticket y con factura.
 7. Restaurar los datos y comparar con la línea base.
 
+## Resultado de la prueba (2026-10-21, filial local 8082, sucursal 24)
+
+Semilla: producto 472 con `lote = true`, lote `PRUEBA185` LIBERADO con 30 unidades. Restaurado al final
+(sin filas por encima de la línea base en `general` ni en la réplica `bodega` local).
+
+| Caso | Sin el fix | Con el fix |
+|---|---|---|
+| Dos `saveVenta` en paralelo, 20 y 21 u. | las dos del lote: saldo **−11** | 21 del lote, 9 + 11 SIN LOTE: saldo **0** |
+| Tres en paralelo, 10 + 11 + 12 u. | — | lote 0, 3 SIN LOTE |
+| `saveVenta` con el lock retenido (API) | — | 15,9 s, «Reintentá», nada guardado (venta, ítem, cobro, caja, stock) |
+| Ítem suelto de delivery (`saveVentaItem`) con lock retenido | — | 15,5 s, «Reintentá», ni `venta_item` ni `movimiento_stock` |
+| `saveDeliveryAndVenta` con lock retenido (API y pantalla) | — | «Reintentá» (ya no «soporte»), nada guardado; al reintentar, guarda |
+| Venta por pantalla eligiendo lote | — | desglose −3 del lote, saldo bien |
+| Cobro rápido por pantalla con lock retenido | — | toast «Reintentá», carrito intacto, nada guardado; al reintentar, guarda |
+| Re-guardar un ítem existente por API (4 → 6) | — | el desglose se rehace: una sola salida de −6 |
+| Venta sin lote con el lock retenido | — | 0,7 s: no espera |
+
+- `LoteFefoServiceBloqueoTest` sin las llamadas a `bloquearSaldo`: 4 de 7 fallan (los de orden y el
+  aviso). Batería completa: 491 tests, 0 fallas.
+- Duración de una venta con lote, de punta a punta por API: 0,5 a 2,6 s (con SIFEN apagado y sin
+  impresión), muy por debajo de los 15 s.
+- Agregar ítems a un delivery existente no tiene pantalla (edición de ítems deshabilitada a propósito):
+  ese camino se probó solo por API.
+- En el PDV, un producto con lote siempre pasa por el selector; el FEFO puro se probó por API.
+
 ## Qué queda sin verificar
 
 - Contención real con varias cajas y muchos productos con lote (ver «Pendiente de Franco»).
-- El armado y firma del DE dentro del lock (SIFEN apagado en local).
+- El armado y firma del DE dentro del lock (SIFEN apagado en local), y el flujo «Finalizar con
+  factura», que emite la factura antes de `saveVenta`: si la venta vence la espera, la factura queda
+  sin venta (riesgo previo al fix, `venta-touch.component.ts:1689`). Necesita SIFEN, que en local
+  apunta a producción.
 - **Salidas por lote que escribe el central** sobre la sucursal de un filial (ajustes `ajustarStockLote`,
   salida de transferencias) y bajan por replicación: su lock vive en la base del central, así que esa
   carrera (venta del filial contra salida del central) sigue abierta. No la cierra este diseño.
