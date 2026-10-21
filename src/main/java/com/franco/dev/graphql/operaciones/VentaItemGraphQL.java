@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -68,6 +69,13 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
     // return service.findByAll(texto);
     // }
 
+    /**
+     * Transaccional para que el ítem, su movimiento de stock y el desglose por lote se guarden o se
+     * reviertan juntos: el desktop agrega así los ítems de un delivery, y sin transacción de afuera cada
+     * paso commiteaba por su lado (los overrides de VentaItemService no heredan la anotación de
+     * CrudService). Si vencía la espera del lock de saldo (#185) quedaba el ítem sin desglose.
+     */
+    @Transactional
     public VentaItem saveVentaItem(VentaItemInput input) {
         ModelMapper m = new ModelMapper();
         Venta venta = ventaService.findById(input.getVentaId()).orElse(null);

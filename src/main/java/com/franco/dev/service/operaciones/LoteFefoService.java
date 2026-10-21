@@ -2,11 +2,14 @@ package com.franco.dev.service.operaciones;
 
 import com.franco.dev.domain.operaciones.dto.StockLoteDto;
 import com.franco.dev.domain.operaciones.enums.EstadoLote;
+import com.franco.dev.service.financiero.BloqueoTransaccionalService;
+import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,7 +39,63 @@ public class LoteFefoService {
      */
     public static final String NUMERO_LOTE_SIN_TRAZAR = "SIN LOTE";
 
+    /** Prefijo de la clave del lock de saldo por lote. Ver {@link #bloquearSaldo(Long)}. */
+    static final String CLAVE_SALDO = "lote-saldo:";
+
+    /**
+     * Cuánto espera una venta a que otra de la misma sucursal suelte el lock. Por debajo de los 60 s
+     * con que el desktop corta una mutation, y corto para no llenar el pool de conexiones de esperas.
+     */
+    static final String ESPERA_MAXIMA = "15s";
+
+    /** SQLSTATE de PostgreSQL cuando vence el {@code lock_timeout}. */
+    private static final String SQLSTATE_ESPERA_VENCIDA = "55P03";
+
     private final MovimientoStockLoteService movimientoStockLoteService;
+
+    private final BloqueoTransaccionalService bloqueo;
+
+    /**
+     * Serializa, por sucursal, la lectura del saldo de un lote y la escritura que se hace en base a él
+     * (#185). Sin esto, dos ventas en paralelo leían el mismo saldo y asignaban dos veces las mismas
+     * unidades: el lote quedaba negativo.
+     *
+     * <p>La clave es la sucursal y no (producto, sucursal): una venta con varios ítems con lote toma una
+     * sola clave, así que dos ventas no pueden cruzarse por el orden de los ítems.</p>
+     *
+     * <p>⚠️ El lock dura hasta el commit de la transacción de afuera (toda la venta). Invariantes de los
+     * que depende que no haya deadlocks ni lecturas viejas:</p>
+     * <ul>
+     *   <li>Quien lo pide no tiene tomada ninguna fila que el dueño vaya a escribir después.</li>
+     *   <li>Es reentrante por <b>conexión</b>: un {@code REQUIRES_NEW} que llegue acá mientras la
+     *   transacción de afuera lo tiene se espera a sí mismo hasta {@link #ESPERA_MAXIMA}.</li>
+     *   <li>La transacción tiene que ser READ COMMITTED: con REPEATABLE READ o SERIALIZABLE la foto de la
+     *   base puede ser anterior al lock y el saldo leído, viejo.</li>
+     * </ul>
+     *
+     * <p>Requiere una transacción abierta. Si la espera vence, la transacción ya está abortada y se avisa
+     * con un mensaje para reintentar.</p>
+     */
+    public void bloquearSaldo(Long sucursalId) {
+        try {
+            bloqueo.tomar(CLAVE_SALDO + sucursalId, ESPERA_MAXIMA);
+        } catch (RuntimeException e) {
+            if (!esEsperaVencida(e)) {
+                throw e;
+            }
+            throw new GraphQLException("Hay otra operación con lotes en curso en la sucursal " + sucursalId
+                    + ". Reintentá en unos segundos.");
+        }
+    }
+
+    static boolean esEsperaVencida(Throwable error) {
+        for (Throwable t = error; t != null; t = t.getCause()) {
+            if (t instanceof SQLException && SQLSTATE_ESPERA_VENCIDA.equals(((SQLException) t).getSQLState())) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /** Una porción de la cantidad total, asignada a un lote concreto. */
     @Data
@@ -84,6 +143,7 @@ public class LoteFefoService {
             return asignaciones;
         }
 
+        bloquearSaldo(sucursalId);
         List<StockLoteDto> disponibles = movimientoStockLoteService.stockPorLote(productoId, sucursalId);
         double pendiente = cantidad;
 
@@ -133,6 +193,7 @@ public class LoteFefoService {
             return new ArrayList<>();
         }
 
+        bloquearSaldo(sucursalId);
         Map<Long, StockLoteDto> saldoPorLote = new HashMap<>();
         for (StockLoteDto lote : movimientoStockLoteService.stockPorLote(productoId, sucursalId)) {
             if (lote.getLoteId() != null) {
