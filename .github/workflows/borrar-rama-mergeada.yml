@@ -1,0 +1,43 @@
+name: Borrar rama mergeada
+
+# Al mergear una PR a develop, borra su rama. Hace lo mismo que la opción
+# "Automatically delete head branches" de Settings (que el PWA tiene prendida),
+# pero sin necesitar permisos de admin, y nunca toca las ramas principales:
+# las PRs de promoción salen de develop/release/* y esas ramas no se borran.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [develop]
+
+permissions:
+  contents: write
+
+jobs:
+  borrar:
+    if: |
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Borrar la rama
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RAMA: ${{ github.event.pull_request.head.ref }}
+        run: |
+          case "$RAMA" in
+            develop|master|main|release/*)
+              echo "La rama $RAMA es principal: no se borra."
+              exit 0 ;;
+          esac
+          # Otra PR abierta puede usar esta rama como base: en ese caso se deja.
+          if [ -n "$(gh pr list -R "$REPO" --base "$RAMA" --state open --json number --jq '.[].number')" ]; then
+            echo "La rama $RAMA es base de otra PR abierta: no se borra."
+            exit 0
+          fi
+          if gh api -X DELETE "repos/$REPO/git/refs/heads/$RAMA"; then
+            echo "Rama $RAMA borrada."
+          else
+            echo "No se pudo borrar $RAMA (puede que ya no exista)."
+          fi
