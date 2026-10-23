@@ -1,0 +1,80 @@
+name: Auto-update PRs
+
+# Cada vez que entra algo a develop, hace "Update branch" (merge de develop en
+# la rama) en todas las PRs abiertas contra develop, para no tener que andar
+# apretando el botón a mano.
+#
+# Para excluir una PR, ponerle la etiqueta `no-auto-update`.
+#
+# ⚠️ Un push hecho con GITHUB_TOKEN NO dispara `pull_request: synchronize`, así
+# que el CI no correría sobre el merge nuevo. Por eso, después de actualizar,
+# se lanza el CI a mano con workflow_dispatch (la única vía que GITHUB_TOKEN sí
+# puede disparar). El check aparece en la PR porque queda colgado del mismo SHA.
+#
+# Límites conocidos:
+#  - Si hay conflictos, la PR se saltea: hay que resolverla a mano.
+#  - Si develop trae cambios en .github/workflows/, GitHub rechaza el update
+#    (GITHUB_TOKEN no tiene permiso `workflows`): esas PRs se actualizan a mano.
+#  - PRs desde forks: se actualizan si permiten edición, pero no se relanza el CI.
+
+on:
+  push:
+    branches: [develop]
+
+concurrency:
+  group: auto-update-prs
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Actualizar PRs abiertas contra develop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          resumen() { echo "$1" | tee -a "$GITHUB_STEP_SUMMARY"; }
+          resumen "## PRs abiertas contra develop"
+
+          gh pr list -R "$REPO" --base develop --state open --limit 100 \
+            --json number,headRefName,headRefOid,isCrossRepository,labels \
+            --jq '.[] | select([.labels[].name] | index("no-auto-update") | not)
+                       | [.number, .headRefName, .headRefOid, .isCrossRepository] | @tsv' |
+          while IFS=$'\t' read -r PR RAMA SHA FORK; do
+            ESTADO=$(gh api "repos/$REPO/compare/develop...$SHA" --jq .behind_by 2>/dev/null || echo "?")
+            if [ "$ESTADO" = "0" ]; then
+              resumen "- #$PR ($RAMA): ya estaba al día"
+              continue
+            fi
+
+            if ! SALIDA=$(gh api -X PUT "repos/$REPO/pulls/$PR/update-branch" \
+                  -f expected_head_sha="$SHA" 2>&1); then
+              resumen "- ⚠️ #$PR ($RAMA): no se pudo actualizar — ${SALIDA//$'\n'/ }"
+              continue
+            fi
+
+            # update-branch es asíncrono: esperar a que la rama tenga el commit nuevo.
+            NUEVO="$SHA"
+            for _ in $(seq 1 30); do
+              sleep 2
+              NUEVO=$(gh pr view "$PR" -R "$REPO" --json headRefOid --jq .headRefOid)
+              [ "$NUEVO" != "$SHA" ] && break
+            done
+
+            if [ "$NUEVO" = "$SHA" ]; then
+              resumen "- ⚠️ #$PR ($RAMA): update pedido pero la rama no cambió en 60 s"
+            elif [ "$FORK" = "true" ]; then
+              resumen "- ✅ #$PR ($RAMA): actualizada (fork: CI sin relanzar)"
+            elif gh workflow run ci.yml -R "$REPO" --ref "$RAMA"; then
+              resumen "- ✅ #$PR ($RAMA): actualizada y CI lanzado"
+            else
+              resumen "- ⚠️ #$PR ($RAMA): actualizada, pero no se pudo lanzar el CI"
+            fi
+          done
