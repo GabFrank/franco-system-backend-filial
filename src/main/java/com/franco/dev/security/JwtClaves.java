@@ -27,8 +27,9 @@ import java.util.regex.Pattern;
  *   <li>{@code app.jwt.legacy} (APP_JWT_LEGACY): ademas acepta la clave historica.</li>
  * </ul>
  *
- * Una clave configurada tiene que ser base64 estandar de al menos 32 bytes: si no, el arranque falla.
- * La clave historica se reconoce por sus bytes (el decoder de jjwt ignora caracteres sueltos).
+ * Una clave configurada tiene que ser base64 estandar de al menos 64 bytes: si no, el arranque falla.
+ * Un valor vacio equivale a no configurado. La clave historica se reconoce por sus bytes (el decoder de
+ * jjwt ignora caracteres sueltos), y con legacy=false no se acepta ni como clave configurada.
  */
 @Component
 @Lazy(false)
@@ -37,7 +38,7 @@ public class JwtClaves {
     private static final Logger log = LoggerFactory.getLogger(JwtClaves.class);
 
     static final String LEGACY = "Graphql";
-    static final int MINIMO_BYTES = 32;
+    static final int MINIMO_BYTES = 64;
     private static final Pattern BASE64 = Pattern.compile("^[A-Za-z0-9+/]+={0,2}$");
     private static final byte[] LEGACY_BYTES = TextCodec.BASE64.decode(LEGACY);
 
@@ -46,11 +47,17 @@ public class JwtClaves {
 
     public JwtClaves(@Value("${app.jwt.secret:" + LEGACY + "}") String secret,
                      @Value("${app.jwt.aceptar:}") String aceptar,
-                     @Value("${app.jwt.legacy:true}") boolean legacy) {
+                     @Value("${app.jwt.legacy:true}") String legacyTexto) {
+        // Una variable presente pero vacia (APP_JWT_SECRET=) no activa el default del placeholder.
+        boolean legacy = vacio(legacyTexto) || Boolean.parseBoolean(legacyTexto.trim());
+        if (vacio(secret)) secret = LEGACY;
+        if (!legacy && (esLegacy(secret) || esLegacy(aceptar))) {
+            throw new IllegalStateException("app.jwt.legacy=false exige claves propias en app.jwt.secret y app.jwt.aceptar.");
+        }
         this.firma = esLegacy(secret) ? LEGACY_BYTES : decodificar("app.jwt.secret", secret);
         List<byte[]> lista = new ArrayList<>();
         agregar(lista, firma);
-        if (aceptar != null && !aceptar.trim().isEmpty()) {
+        if (!vacio(aceptar)) {
             agregar(lista, esLegacy(aceptar) ? LEGACY_BYTES : decodificar("app.jwt.aceptar", aceptar));
         }
         if (legacy) agregar(lista, LEGACY_BYTES);
@@ -84,8 +91,12 @@ public class JwtClaves {
         }
     }
 
+    private static boolean vacio(String valor) {
+        return valor == null || valor.trim().isEmpty();
+    }
+
     private static boolean esLegacy(String valor) {
-        if (valor == null) return false;
+        if (vacio(valor)) return false;
         try {
             return Arrays.equals(TextCodec.BASE64.decode(valor), LEGACY_BYTES);
         } catch (RuntimeException e) {

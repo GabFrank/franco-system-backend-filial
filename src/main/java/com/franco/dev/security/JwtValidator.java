@@ -37,6 +37,7 @@ public class JwtValidator {
             // firmado igual que cualquier claim; leerlo no cambia el modelo de confianza.
             String nickname = (String) body.get("nickname");
             if (nickname == null || nickname.trim().isEmpty()) nickname = body.getSubject();
+            if (nickname == null || nickname.trim().isEmpty()) return null; // firma valida pero sin usuario
             jwtUser.setNickname(nickname);
             return jwtUser;
         }

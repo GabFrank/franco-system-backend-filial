@@ -30,7 +30,7 @@ class JwtValidatorTest {
     }
 
     private static JwtClaves claves(String secret, String aceptar, boolean legacy) {
-        return new JwtClaves(secret, aceptar, legacy);
+        return new JwtClaves(secret, aceptar, String.valueOf(legacy));
     }
 
     /** Token como lo emite el JwtGenerator viejo del central: subject + nickname + password. */
@@ -74,11 +74,11 @@ class JwtValidatorTest {
     }
 
     @Test
-    void nicknameNuloSiElTokenNoTraeNiClaimNiSubject() {
+    void sinClaimNiSubjectNoHayUsuario() {
         Claims claims = Jwts.claims();
         claims.put("password", "x");
         String token = Jwts.builder().setClaims(claims).signWith(SignatureAlgorithm.HS512, LEGACY).compact();
-        assertNull(new JwtValidator(claves(LEGACY, "", true)).validate(token).getNickname());
+        assertNull(new JwtValidator(claves(LEGACY, "", true)).validate(token));
     }
 
     // --- rotacion de clave ---
