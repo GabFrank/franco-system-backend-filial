@@ -2,24 +2,32 @@ package com.franco.dev.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
 public class JwtValidator {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtValidator.class);
 
-    private String secret = "Graphql";
+    private final JwtClaves claves;
 
+    public JwtValidator(JwtClaves claves) {
+        this.claves = claves;
+    }
+
+    /** El usuario del token, o null si ninguna clave aceptada valida la firma. Nunca lanza. */
     public JwtUser validate(String token) {
-
-        JwtUser jwtUser = null;
-        try {
-            Claims body = Jwts.parser()
-                    .setSigningKey(secret)
-                    .parseClaimsJws(token)
-                    .getBody();
-
-            jwtUser = new JwtUser();
+        if (token == null) return null;
+        for (byte[] clave : claves.aceptadas()) {
+            Claims body;
+            try {
+                body = Jwts.parser().setSigningKey(clave).parseClaimsJws(token).getBody();
+            } catch (RuntimeException e) {
+                continue;
+            }
+            JwtUser jwtUser = new JwtUser();
 
             // El generador (JwtGenerator) pone el nickname en el SUBJECT, no en un claim
             // "nickname": esta linea leia siempre null y JwtUserDetails.getUsername() quedaba
@@ -30,11 +38,9 @@ public class JwtValidator {
             String nickname = (String) body.get("nickname");
             if (nickname == null || nickname.trim().isEmpty()) nickname = body.getSubject();
             jwtUser.setNickname(nickname);
-            jwtUser.setPassword((String) body.get("password"));
-        } catch (Exception e) {
-            System.out.println(e);
+            return jwtUser;
         }
-
-        return jwtUser;
+        log.warn("Token de sesion rechazado: ninguna clave aceptada valida la firma.");
+        return null;
     }
 }
