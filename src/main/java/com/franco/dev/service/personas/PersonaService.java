@@ -4,6 +4,7 @@ import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.repository.personas.PersonaRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @AllArgsConstructor
 public class PersonaService extends CrudService<Persona, PersonaRepository> {
@@ -38,25 +40,32 @@ public class PersonaService extends CrudService<Persona, PersonaRepository> {
         return repository.findByDocumentoIgnoreCase(documento);
     }
 
+    static final String EDICION_EN_CENTRAL = "Las ediciones de personas y clientes se hacen en el servidor central.";
+
+    /**
+     * Solo altas: la persona se crea en el central. Si la tabla llega por replica se espera la fila (escribirla
+     * aca trabaria la suscripcion); si no, se guarda local con el id del central.
+     */
     @Override
     public Persona save(Persona entity) {
-        // IMPORTANTE: Las personas se guardan en el servidor central, no localmente.
-        // El ID debe venir del servidor central. Si la sincronización falla, no debemos
-        // guardar localmente.
+        if (entity.getId() != null) {
+            throw new IllegalStateException(EDICION_EN_CENTRAL);
+        }
         Persona synced = centralPersonasIntegrationService.syncPersona(entity);
-
-        // Si la sincronización fue exitosa, aplicar los valores sincronizados
-        if (synced != null) {
-            applySyncedValues(entity, synced);
-        } else {
-            // Si synced es null, la sincronización falló silenciosamente
-            // No debemos intentar guardar localmente sin ID
+        if (synced == null || synced.getId() == null) {
             throw new IllegalStateException(
                     "No se pudo sincronizar persona con el servidor central. La persona no tiene ID asignado.");
         }
-
-        // Normalizar campos antes de guardar localmente (solo como caché/referencia)
-        if (entity.getId() == null) {
+        if (centralPersonasIntegrationService.llegaPorReplica("personas.persona")) {
+            Long id = synced.getId();
+            return centralPersonasIntegrationService.esperarReplica(() -> repository.findById(id))
+                    .orElseThrow(() -> {
+                        log.warn("La persona {} se creo en el central pero no llego por la replica a tiempo", id);
+                        return new IllegalStateException("La persona " + id + " se creo en el servidor central pero todavia no llego a esta sucursal.");
+                    });
+        }
+        applySyncedValues(entity, synced);
+        if (entity.getCreadoEn() == null) {
             entity.setCreadoEn(LocalDateTime.now());
         }
         if (entity.getNombre() != null)
@@ -67,18 +76,7 @@ public class PersonaService extends CrudService<Persona, PersonaRepository> {
             entity.setDireccion(entity.getDireccion().toUpperCase());
         if (entity.getEmail() != null)
             entity.setEmail(entity.getEmail().toUpperCase());
-
-        // Guardar localmente solo si tiene ID (viene del servidor central)
-        // Esto es solo para tener una referencia local, el guardado real es en el
-        // servidor central
-        if (entity.getId() == null) {
-            throw new IllegalStateException(
-                    "No se puede guardar persona localmente sin ID. El ID debe venir del servidor central.");
-        }
-
-        Persona p = super.save(entity);
-        // personaPublisher.publish(p);
-        return p;
+        return super.save(entity);
     }
 
     public List<Persona> saveAll(List<Persona> entityList) {
