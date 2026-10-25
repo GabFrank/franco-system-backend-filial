@@ -4,10 +4,12 @@ import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.repository.personas.ClienteRepository;
 import com.franco.dev.service.CrudService;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @AllArgsConstructor
 public class ClienteService extends CrudService<Cliente, ClienteRepository> {
@@ -35,27 +37,25 @@ public class ClienteService extends CrudService<Cliente, ClienteRepository> {
         return  repository.findByPersona(texto.toUpperCase());
     }
 
+    /** Solo altas, como {@link PersonaService#save}. */
     @Override
     public Cliente save(Cliente entity) {
-        // IMPORTANTE: Los clientes se guardan en el servidor central, no localmente.
-        // El ID debe venir del servidor central. Si la sincronización falla, no debemos guardar localmente.
+        if (entity.getId() != null) {
+            throw new IllegalStateException(PersonaService.EDICION_EN_CENTRAL);
+        }
         Cliente synced = centralPersonasIntegrationService.syncCliente(entity);
-        
-        // Si la sincronización fue exitosa, aplicar los valores sincronizados
-        if (synced != null) {
-            applySyncedValues(entity, synced);
-        } else {
-            // Si synced es null, la sincronización falló silenciosamente
-            // No debemos intentar guardar localmente sin ID
+        if (synced == null || synced.getId() == null) {
             throw new IllegalStateException("No se pudo sincronizar cliente con el servidor central. El cliente no tiene ID asignado.");
         }
-        
-        // Guardar localmente solo si tiene ID (viene del servidor central)
-        // Esto es solo para tener una referencia local, el guardado real es en el servidor central
-        if (entity.getId() == null) {
-            throw new IllegalStateException("No se puede guardar cliente localmente sin ID. El ID debe venir del servidor central.");
+        if (centralPersonasIntegrationService.llegaPorReplica("personas.cliente")) {
+            Long id = synced.getId();
+            return centralPersonasIntegrationService.esperarReplica(() -> repository.findById(id))
+                    .orElseThrow(() -> {
+                        log.warn("El cliente {} se creo en el central pero no llego por la replica a tiempo", id);
+                        return new IllegalStateException("El cliente " + id + " se creo en el servidor central pero todavia no llego a esta sucursal.");
+                    });
         }
-        
+        applySyncedValues(entity, synced);
         return super.save(entity);
     }
 
