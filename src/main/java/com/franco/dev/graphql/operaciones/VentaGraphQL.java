@@ -688,10 +688,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             sucursal = sucursalService.sucursalActual();
         }
 
-        Double descuento = 0.0;
-        Double descuentoRs = 0.0;
-        Double descuentoDs = 0.0;
-        Double aumento = 0.0;
         Double vueltoGs = 0.0;
         Double vueltoRs = 0.0;
         Double vueltoDs = 0.0;
@@ -721,8 +717,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         // del PDV, y con el input solo esos tickets salian con "Desc. 0" y el total bruto.
         AjusteCobro ajuste = cobroDetalleService.ajusteDe(cobro != null ? cobro : venta.getCobro(),
                 cobroDetalleList);
-        descuento = ajuste.getDescuento();
-        aumento = ajuste.getAumento();
+        // Descuento menos aumento, en la columna del medio de los totales: el aumento (cobrar de mas con
+        // F8) suma al Final, que asi cierra con el pago. |aumento| porque hay aumentos guardados en
+        // negativo (deliverys hasta 2024-10); redondeado porque uno en Rs/Us da Gs con decimales y el
+        // intValue() de abajo lo truncaria (799 en vez de 800).
+        Double ajusteNeto = ajuste.getDescuento() - Math.round(Math.abs(ajuste.getAumento()));
 
         if (cobroDetalleList != null) {
             for (CobroDetalleInput cdi : cobroDetalleList) {
@@ -738,11 +737,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     }
                 }
             }
-        }
-
-        if (descuento > 0) {
-            descuentoRs = descuento / cambioRs;
-            descuentoDs = descuento / cambioDs;
         }
 
         if (destino != null || selectedPrintService != null) {
@@ -888,18 +882,20 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             escpos.write("   "); // 3 espacios para moneda
             escpos.write("   Parcial"); // 10 chars
             escpos.write("    "); // 4 espacios
-            escpos.write("Desc."); // 5 chars
+            escpos.write(ajusteNeto < 0 ? " Aum." : "Desc."); // 5 chars
             escpos.write("     "); // 5 espacios
             escpos.writeLF("Final"); // 5 chars
             
             // Calcular totales por moneda
             Double totalParcialGs = venta.getTotalGs() + precioDeliveryGs;
-            Double totalFinalGs = totalParcialGs - descuento;
+            Double totalFinalGs = totalParcialGs - ajusteNeto;
             Double totalParcialRs = totalParcialGs / cambioRs;
             Double totalParcialDs = totalParcialGs / cambioDs;
             
-            Double descuentoRsCalc = descuento / cambioRs;
-            Double descuentoDsCalc = descuento / cambioDs;
+            // Sin signo: el encabezado ya dice si es descuento o aumento
+            Double ajusteGs = Math.abs(ajusteNeto);
+            Double descuentoRsCalc = ajusteGs / cambioRs;
+            Double descuentoDsCalc = ajusteGs / cambioDs;
             
             Double totalFinalRs = totalFinalGs / cambioRs;
             Double totalFinalDs = totalFinalGs / cambioDs;
@@ -913,7 +909,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
             escpos.write(parcialGsStr);
             
-            String descGsStr = NumberFormat.getNumberInstance(GERMAN).format(descuento.intValue());
+            String descGsStr = NumberFormat.getNumberInstance(GERMAN).format(ajusteGs.intValue());
             int espaciosDescGs = 9 - descGsStr.length();
             for (int i = 0; i < espaciosDescGs; i++) {
                 escpos.write(" ");
@@ -980,7 +976,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 // Filtrar solo pagos y vueltos, ignorar descuentos y aumentos
                 List<CobroDetalle> pagosYVueltos = new ArrayList<>();
                 for (CobroDetalle cd : cobroDetalles) {
-                    if ((cd.getPago() != null && cd.getPago()) || (cd.getVuelto() != null && cd.getVuelto())) {
+                    // Una linea de aumento marcada tambien como vuelto (deliverys 2022-2024) no es vuelto: el
+                    // aumento ya va en los totales y contarla aca lo mostraria dos veces.
+                    if ((cd.getPago() != null && cd.getPago()) || (cd.getVuelto() != null && cd.getVuelto() && !Boolean.TRUE.equals(cd.getAumento()))) {
                         pagosYVueltos.add(cd);
                     }
                 }
@@ -1017,7 +1015,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         Double vueltoTotal = 0.0;
 
                         for (CobroDetalle cd : detallesMoneda) {
-                            if (cd.getVuelto() != null && cd.getVuelto()) {
+                            if (cd.getVuelto() != null && cd.getVuelto() && !Boolean.TRUE.equals(cd.getAumento())) {
                                 vueltoTotal += cd.getValor();
                             }
                         }

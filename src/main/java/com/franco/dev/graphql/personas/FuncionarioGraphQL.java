@@ -13,6 +13,7 @@ import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -52,6 +53,11 @@ public class FuncionarioGraphQL implements GraphQLQueryResolver, GraphQLMutation
 
     public List<Funcionario> funcionariosSearch(String texto) {
         return service.findByPersonaNombre(texto);
+    }
+
+    public Page<Funcionario> funcionariosSearchPage(String texto, Integer page, Integer size, Boolean soloActivos) {
+        Pageable pageable = PageRequest.of(page != null ? page : 0, size != null ? size : 15);
+        return service.searchPage(texto, soloActivos, pageable);
     }
 
     public Funcionario saveFuncionario(FuncionarioInput input) {
