@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.productos;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.productos.Familia;
 import com.franco.dev.domain.productos.TipoPrecio;
 import com.franco.dev.graphql.productos.input.FamiliaInput;
@@ -21,6 +22,9 @@ import java.util.Optional;
 public class TipoPrecioGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private TipoPrecioService service;
 
     public Optional<TipoPrecio> tipoPrecio(Long id) {return service.findById(id);}
@@ -33,6 +37,7 @@ public class TipoPrecioGraphQL implements GraphQLQueryResolver, GraphQLMutationR
     }
 
     public TipoPrecio saveTipoPrecio(TipoPrecioInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         TipoPrecio e = m.map(input, TipoPrecio.class);
         return service.save(e);
@@ -46,6 +51,7 @@ public class TipoPrecioGraphQL implements GraphQLQueryResolver, GraphQLMutationR
     }
 
     public Boolean deleteTipoPrecio(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

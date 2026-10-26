@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.personas;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.personas.Role;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.personas.UsuarioRole;
@@ -22,6 +23,9 @@ import java.util.Optional;
 
 @Component
 public class UsuarioGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     @Autowired
     private UsuarioService service;
@@ -53,6 +57,7 @@ public class UsuarioGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public Usuario saveUsuario(UsuarioInput input) {
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Usuario e = m.map(input, Usuario.class);
         if (input.getUsuarioId() != null)
@@ -63,6 +68,7 @@ public class UsuarioGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public Boolean deleteUsuario(Long id) {
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 
@@ -88,6 +94,7 @@ public class UsuarioGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
     public Boolean saveUsuarioImage(Long id, String type, String image, List<Double> embedding)
             throws java.io.IOException {
+        rolSesionService.exigirAdmin();
         return service.saveUserImage(id, type, image, embedding);
     }
 }

@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.operaciones.Transferencia;
 import com.franco.dev.domain.operaciones.TransferenciaItem;
 import com.franco.dev.domain.operaciones.enums.EtapaTransferencia;
@@ -23,6 +24,9 @@ import java.util.Optional;
 
 @Component
 public class TransferenciaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     @Autowired
     private TransferenciaService service;
@@ -61,6 +65,7 @@ public class TransferenciaGraphQL implements GraphQLQueryResolver, GraphQLMutati
     }
 
     public Transferencia saveTransferencia(TransferenciaInput input) {
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Transferencia e = m.map(input, Transferencia.class);
         if (input.getUsuarioPreTransferenciaId() != null)
@@ -77,6 +82,7 @@ public class TransferenciaGraphQL implements GraphQLQueryResolver, GraphQLMutati
     }
 
     public Boolean avanzarEtapaTransferencia(Long id, EtapaTransferencia etapa, Long usuarioId) {
+        rolSesionService.exigirAdmin();
         Boolean ok = false;
         Transferencia transferencia = transferencia(id).orElse(null);
         if (transferencia != null) {
@@ -108,6 +114,7 @@ public class TransferenciaGraphQL implements GraphQLQueryResolver, GraphQLMutati
     }
 
     public Boolean deleteTransferencia(Long id) {
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

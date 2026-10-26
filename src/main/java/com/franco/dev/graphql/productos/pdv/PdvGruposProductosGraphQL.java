@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.productos.pdv;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.productos.pdv.PdvCategoria;
 import com.franco.dev.domain.productos.pdv.PdvGruposProductos;
 import com.franco.dev.graphql.productos.input.pdv.PdvCategoriaInput;
@@ -22,6 +23,9 @@ import java.util.Optional;
 
 @Component
 public class PdvGruposProductosGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     @Autowired
     private PdvGruposProductosService service;
@@ -49,6 +53,7 @@ public class PdvGruposProductosGraphQL implements GraphQLQueryResolver, GraphQLM
     }
 
     public PdvGruposProductos savePdvGruposProductos(PdvGruposProductosInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         PdvGruposProductos e = m.map(input, PdvGruposProductos.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -58,6 +63,7 @@ public class PdvGruposProductosGraphQL implements GraphQLQueryResolver, GraphQLM
     }
 
     public Boolean deletePdvGruposProductos(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 
