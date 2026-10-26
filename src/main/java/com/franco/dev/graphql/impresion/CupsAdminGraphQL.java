@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.impresion;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.service.impresion.ColaEstado;
 import com.franco.dev.service.impresion.CupsAdminService;
 import com.franco.dev.service.impresion.DispositivoDetectado;
@@ -16,6 +17,9 @@ import java.util.List;
  */
 @Component
 public class CupsAdminGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     @Autowired
     private CupsAdminService cupsAdminService;
@@ -40,6 +44,7 @@ public class CupsAdminGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
 
     /** Instala una cola CUPS (raw por defecto, ideal para termicas ESC/POS). */
     public Boolean instalarImpresoraCups(String nombreCola, String uri, Boolean raw) {
+        rolSesionService.exigirRol("CONFIGURACION");
         return cupsAdminService.instalarImpresora(nombreCola, uri, raw == null || raw);
     }
 
@@ -49,6 +54,7 @@ public class CupsAdminGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
      */
     public Boolean instalarImpresoraSmb(String nombreCola, String host, String recurso,
                                         String usuario, String dominio, String password, Boolean raw) {
+        rolSesionService.exigirRol("CONFIGURACION");
         return cupsAdminService.instalarImpresoraSmb(nombreCola, host, recurso, usuario, dominio,
                 password, raw == null || raw);
     }
@@ -58,11 +64,13 @@ public class CupsAdminGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
      * host pueda instalar una cola proxy que reenvie hacia ella (ver {@code instalarImpresoraCups}).
      */
     public Boolean compartirColaCups(String nombreCola, String ipDestino) {
+        rolSesionService.exigirRol("CONFIGURACION");
         return cupsAdminService.compartirCola(nombreCola, ipDestino);
     }
 
     /** Rehabilita una cola frenada por CUPS y libera los jobs retenidos. */
     public Boolean reactivarCola(String nombreCola) {
+        rolSesionService.exigirRol("CONFIGURACION");
         return cupsAdminService.reactivarCola(nombreCola);
     }
 }
