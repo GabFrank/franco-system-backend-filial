@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.empresarial;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.empresarial.Zona;
 import com.franco.dev.graphql.empresarial.input.ZonaInput;
 import com.franco.dev.service.empresarial.SectorService;
@@ -19,6 +20,9 @@ import java.util.Optional;
 
 @Component
 public class ZonaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     @Autowired
     private ZonaService service;
@@ -47,6 +51,7 @@ public class ZonaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolve
 
 
     public Zona saveZona(ZonaInput input) {
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Zona e = m.map(input, Zona.class);
         e.setSector(sectorService.findById(input.getSectorId()).orElse(null));
@@ -55,6 +60,7 @@ public class ZonaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolve
     }
 
     public Boolean deleteZona(Long id) {
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

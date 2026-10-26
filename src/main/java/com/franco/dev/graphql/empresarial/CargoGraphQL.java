@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.empresarial;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.empresarial.Cargo;
 import com.franco.dev.domain.general.Ciudad;
 import com.franco.dev.graphql.empresarial.input.CargoInput;
@@ -22,6 +23,9 @@ import java.util.Optional;
 public class CargoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private CargoService service;
 
     @Autowired
@@ -40,6 +44,7 @@ public class CargoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
 
     public Cargo saveCargo(CargoInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Cargo e = m.map(input, Cargo.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -48,6 +53,7 @@ public class CargoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     public Boolean deleteCargo(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

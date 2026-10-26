@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.financiero;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.financiero.Banco;
 import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.graphql.financiero.input.BancoInput;
@@ -23,6 +24,9 @@ import java.util.Optional;
 public class BancoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private BancoService service;
 
     @Autowired
@@ -40,6 +44,7 @@ public class BancoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
 
     public Banco saveBanco(BancoInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Banco e = m.map(input, Banco.class);
         if(input.getUsuarioId()!=null){
@@ -53,6 +58,7 @@ public class BancoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     public Boolean deleteBanco(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 
