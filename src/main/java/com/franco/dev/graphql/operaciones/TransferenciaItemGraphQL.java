@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.domain.operaciones.TransferenciaItem;
 import com.franco.dev.graphql.operaciones.input.TransferenciaItemInput;
@@ -26,6 +27,9 @@ import static com.franco.dev.utilitarios.DateUtils.toDate;
 public class TransferenciaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private TransferenciaItemService service;
 
     @Autowired
@@ -49,6 +53,7 @@ public class TransferenciaItemGraphQL implements GraphQLQueryResolver, GraphQLMu
     }
 
     public TransferenciaItem saveTransferenciaItem(TransferenciaItemInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         TransferenciaItem e = m.map(input, TransferenciaItem.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -66,6 +71,7 @@ public class TransferenciaItemGraphQL implements GraphQLQueryResolver, GraphQLMu
     }
 
     public Boolean deleteTransferenciaItem(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 }

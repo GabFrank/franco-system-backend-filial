@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.productos;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.productos.Subfamilia;
 import com.franco.dev.graphql.productos.input.SubfamiliaInput;
 import com.franco.dev.service.personas.UsuarioService;
@@ -20,6 +21,9 @@ import java.util.Optional;
 public class SubfamiliaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private SubFamiliaService service;
 
     @Autowired
@@ -38,6 +42,7 @@ public class SubfamiliaGraphQL implements GraphQLQueryResolver, GraphQLMutationR
 //    }
 
     public Subfamilia saveSubfamilia(SubfamiliaInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Subfamilia e = m.map(input, Subfamilia.class);
         if(input.getUsuarioId()!=null){
@@ -61,6 +66,7 @@ public class SubfamiliaGraphQL implements GraphQLQueryResolver, GraphQLMutationR
     }
 
     public Boolean deleteSubfamilia(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 
