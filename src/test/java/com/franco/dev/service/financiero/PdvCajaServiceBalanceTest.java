@@ -98,6 +98,17 @@ class PdvCajaServiceBalanceTest {
     }
 
     @Test
+    void ventaConcluidaSinCobroSumaIgualAlTotalGeneral() {
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "GUARANI", 100_000);
+        venta(VentaEstado.CONCLUIDA, 25_000);
+        when(cobroService.findById(anyLong())).thenReturn(Optional.empty());
+
+        PdvCajaBalanceDto b = service.generarBalance(caja());
+
+        igual(25_000.0, b.getTotalGeneral(), "como el central, no depende del cobro");
+    }
+
+    @Test
     void ventaCanceladaEnRealesYDolaresNoSumaSuVuelto() {
         movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "REAL", 100);
         movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "DOLAR", 50);
