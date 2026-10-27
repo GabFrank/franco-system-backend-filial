@@ -81,6 +81,11 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     @Autowired
     private DeliveryService deliveryService;
 
+    /** Id del usuario dueño de la caja, o null si no tiene. */
+    public static Long duenioId(PdvCaja caja) {
+        return caja != null && caja.getUsuario() != null ? caja.getUsuario().getId() : null;
+    }
+
     @Override
     public PdvCajaRepository getRepository() {
         return repository;

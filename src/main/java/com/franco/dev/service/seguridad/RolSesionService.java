@@ -32,6 +32,8 @@ public class RolSesionService {
 
     private static final Logger log = LoggerFactory.getLogger(RolSesionService.class);
     static final String ADMIN = "ADMIN";
+    /** Rol que ve y maneja cajas ajenas (lista de cajas, analisis de diferencias). */
+    public static final String ANALISIS_DE_CAJA = "ANALISIS DE CAJA";
 
     @Autowired
     private UsuarioSesionService usuarioSesionService;
@@ -52,11 +54,7 @@ public class RolSesionService {
             log.warn("No autorizado: {} el nickname {} no existe en esta sucursal", operacion(), nickname);
             throw new GraphQLException("No autorizado: el usuario no existe en esta sucursal.");
         }
-        Set<String> mios = nombres(roleService.findByUsuarioId(usuarioId.get()));
-        if (mios.contains(ADMIN)) return;
-        for (String r : roles) {
-            if (mios.contains(r.trim().toUpperCase())) return;
-        }
+        if (pasaConRoles(usuarioId.get(), roles)) return;
         String requeridos = roles.length == 0 ? ADMIN : String.join(" o ", roles);
         log.warn("No autorizado: {} {} sin {}", operacion(), nickname, requeridos);
         throw new GraphQLException("No autorizado: se requiere el rol " + requeridos + ".");
@@ -66,6 +64,45 @@ public class RolSesionService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED, readOnly = true)
     public void exigirAdmin() {
         exigirRol();
+    }
+
+    /** Como {@link #exigirRol} pero sin lanzar. */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED, readOnly = true)
+    public boolean tieneRol(String... roles) {
+        return esDuenioOTieneRol(null, roles);
+    }
+
+    /**
+     * Pasa el dueño (sin consultar roles), ADMIN o quien tenga alguno de los roles. Dueño null: solo el rol.
+     * Lleva su propia anotacion por lo mismo que {@link #exigirAdmin}.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED, readOnly = true)
+    public boolean esDuenioOTieneRol(Long usuarioIdDuenio, String... roles) {
+        String nickname = nickname();
+        if (nickname == null) return false;
+        if (ADMIN.equalsIgnoreCase(nickname.trim())) return true;
+        Optional<Long> usuarioId = usuarioSesionService.idDelUsuarioAutenticado();
+        if (!usuarioId.isPresent()) return false;
+        if (usuarioId.get().equals(usuarioIdDuenio)) return true;
+        return pasaConRoles(usuarioId.get(), roles);
+    }
+
+    /** Lanza "No autorizado: ..." si no pasa {@link #esDuenioOTieneRol}. */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED, readOnly = true)
+    public void exigirDuenioORol(Long usuarioIdDuenio, String... roles) {
+        if (esDuenioOTieneRol(usuarioIdDuenio, roles)) return;
+        log.warn("No autorizado: {} {} no es el dueño ({}) ni tiene {}", operacion(), nickname(), usuarioIdDuenio,
+                String.join(" o ", roles));
+        throw new GraphQLException("No autorizado: solo el dueño o el rol " + String.join(" o ", roles) + ".");
+    }
+
+    private boolean pasaConRoles(Long usuarioId, String... roles) {
+        Set<String> mios = nombres(roleService.findByUsuarioId(usuarioId));
+        if (mios.contains(ADMIN)) return true;
+        for (String r : roles) {
+            if (mios.contains(r.trim().toUpperCase())) return true;
+        }
+        return false;
     }
 
     private static Set<String> nombres(List<Role> roles) {

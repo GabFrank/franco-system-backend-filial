@@ -11,6 +11,7 @@ import com.franco.dev.service.operaciones.VentaService;
 import graphql.kickstart.tools.GraphQLResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.franco.dev.service.seguridad.RolSesionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -53,7 +54,14 @@ public class CajaResolver implements GraphQLResolver<PdvCaja> {
         return Collections.emptyList();
     }
 
+    @Autowired
+    private RolSesionService rolSesionService;
+
+    /** null (no error) a quien no es dueño ni tiene el rol: un error haria que el proxy del central descarte la caja. */
     public CajaBalance balance(PdvCaja e){
+        if (!rolSesionService.esDuenioOTieneRol(PdvCajaService.duenioId(e), RolSesionService.ANALISIS_DE_CAJA)) {
+            return null;
+        }
         return pdvCajaService.getBalance(e.getId());
     }
 
