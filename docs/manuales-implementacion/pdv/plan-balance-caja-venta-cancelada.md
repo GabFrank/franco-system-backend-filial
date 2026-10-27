@@ -43,7 +43,7 @@ de la caja calculado por el filial no baja al cancelar.
 | PWA (`caja-cerrar`, `caja-detalle`) y mobile (`caja-info`) → central `imprimirBalance` sin impresora → `FilialCajaProxyService.imprimirBalanceEnFilial` → filial `imprimirBalanceVerificando` | `diferencia*` | el papel pasa a coincidir con lo que la PWA muestra en pantalla (que viene del central) |
 | `balancePorCajaId` / `PdvCaja.balance` / `CajaResolver` → desktop `adicionar-retiro-dialog` y `adicionar-gasto-dialog` (`servidor=false`) | `−diferencia*` = saldo disponible | el saldo baja al real: hoy deja retirar de más por el vuelto de cada venta cancelada |
 | `balancePorFecha` | `totalVenta*`, tarjeta, crédito | sin cambio (no tocan esos campos) |
-| nadie hoy | `totalGeneral`, `totalDescuento`, `totalAumento`, `vuelto*`, `totalCanceladas*` del filial | se alinean con el central por coherencia. Los totales de caja del desktop (`list-venta`, `analisis-diferencia`) los pide al central con `balancePorCajaIdAndSucursalId`, que el filial no expone |
+| nadie hoy | `totalGeneral`, `totalDescuento`, `totalAumento`, `vuelto*`, `totalCanceladas*` del filial | dejan de contar las canceladas, como el central. No quedan idénticos al central: su `totalGeneral` suma además el precio del delivery y su `totalAumento` usa `ABS` (#457); sin lector en el filial, queda así. Los totales de caja del desktop (`list-venta`, `analisis-diferencia`) los pide al central con `balancePorCajaIdAndSucursalId`, que el filial no expone |
 
 No cambia ningún tipo ni campo GraphQL ni tabla.
 
