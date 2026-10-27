@@ -51,3 +51,15 @@ la anterior en ≤15 min).
 
 Si un usuario no se encuentra en la filial (réplica atrasada, nickname cambiado con la sesión
 abierta), sus operaciones de caja se rechazan: volver a iniciar sesión, o esperar la réplica.
+
+## Resultado de las pruebas (2026-10-27, filial local, sucursal 24)
+
+- Cajero con solo `VENTA TOUCH`, por pantalla: abrir caja, venta, retiro (el saldo se verifica),
+  transferir la caja a otro cajero (con su usuario y clave), y el destino la cierra y se imprime el
+  cierre con diferencia 0. Sin rechazos.
+- El mismo cajero sobre una caja de otro usuario: balance, impresión, ticket, transferencia,
+  edición y conteos responden «No autorizado» y la caja no cambia; el campo `balance` llega `null`.
+- Con `ANALISIS DE CAJA` la caja ajena pasa; ADMIN pasa siempre.
+- Tests: 628, sin fallas (`./mvnw clean verify`).
+- No probado de punta a punta: la reimpresión desde PWA/mobile pasando por el central (el central
+  reenvía el token del usuario; el control en el filial es el mismo).
