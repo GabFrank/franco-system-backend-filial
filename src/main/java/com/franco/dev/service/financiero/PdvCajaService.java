@@ -419,7 +419,11 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             }
 
             for (Venta venta : ventaList) {
-                totalGeneral += venta.getTotalGs();
+                // Como el central: solo concluidas y en verificacion, haya o no cobro.
+                if (venta.getEstado() == VentaEstado.CONCLUIDA
+                        || venta.getEstado() == VentaEstado.EN_VERIFICACION) {
+                    totalGeneral += venta.getTotalGs();
+                }
 
                 Cobro cobro = cobroService.findById(venta.getCobro().getId()).orElse(null);
                 if (cobro != null) {
@@ -484,29 +488,18 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                             }
                         }
                     } else if (venta.getEstado() == VentaEstado.CANCELADA) {
+                        // Una cancelada no toca vuelto, descuento ni aumento: nunca los sumo arriba.
+                        // Restar el vuelto (negativo) lo sumaba y la caja daba faltante (caja 7440).
                         for (CobroDetalle cobroDetalle : cobroDetalleList) {
+                            if (!Boolean.TRUE.equals(cobroDetalle.getPago())) {
+                                continue;
+                            }
                             if (cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")) {
-                                if (cobroDetalle.getPago()) {
-                                    totalCanceladasGs += cobroDetalle.getValor();
-                                } else if (cobroDetalle.getVuelto()) {
-                                    vueltoGs -= cobroDetalle.getValor();
-                                } else if (cobroDetalle.getDescuento()) {
-                                    totalDescuento -= cobroDetalle.getValor();
-                                } else if (cobroDetalle.getAumento()) {
-                                    totalAumento -= cobroDetalle.getValor();
-                                }
+                                totalCanceladasGs += cobroDetalle.getValor();
                             } else if (cobroDetalle.getMoneda().getDenominacion().contains("REAL")) {
-                                if (cobroDetalle.getPago()) {
-                                    totalCanceladasRs += cobroDetalle.getValor();
-                                } else if (cobroDetalle.getVuelto()) {
-                                    vueltoRs -= cobroDetalle.getValor();
-                                }
+                                totalCanceladasRs += cobroDetalle.getValor();
                             } else if (cobroDetalle.getMoneda().getDenominacion().contains("DOLAR")) {
-                                if (cobroDetalle.getPago()) {
-                                    totalCanceladasDs += cobroDetalle.getValor();
-                                } else if (cobroDetalle.getVuelto()) {
-                                    vueltoDs -= cobroDetalle.getValor();
-                                }
+                                totalCanceladasDs += cobroDetalle.getValor();
                             }
                         }
                     }
