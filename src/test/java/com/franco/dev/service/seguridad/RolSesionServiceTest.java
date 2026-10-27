@@ -99,4 +99,52 @@ class RolSesionServiceTest {
         autenticarComo("NUEVO");
         assertTrue(rechazo(() -> servicio(Optional.empty()).exigirRol("CONFIGURACION")).contains("no existe"));
     }
+
+    private static RoleService roles(RolSesionService s) {
+        return (RoleService) ReflectionTestUtils.getField(s, "roleService");
+    }
+
+    @Test
+    void elDuenioPasaSinConsultarRoles() {
+        autenticarComo("CAJERO");
+        RolSesionService s = servicio(Optional.of(7L));
+        assertTrue(s.esDuenioOTieneRol(7L, RolSesionService.ANALISIS_DE_CAJA));
+        verify(roles(s), never()).findByUsuarioId(anyLong());
+    }
+
+    @Test
+    void elQueNoEsDuenioNecesitaElRol() {
+        autenticarComo("CAJERO");
+        assertFalse(servicio(Optional.of(7L), "VENTA TOUCH").esDuenioOTieneRol(5L, RolSesionService.ANALISIS_DE_CAJA));
+        assertTrue(servicio(Optional.of(7L), "ANALISIS DE CAJA").esDuenioOTieneRol(5L, RolSesionService.ANALISIS_DE_CAJA));
+        assertTrue(servicio(Optional.of(7L), "ADMIN").esDuenioOTieneRol(5L, RolSesionService.ANALISIS_DE_CAJA));
+    }
+
+    @Test
+    void cajaSinDuenioSoloConElRol() {
+        autenticarComo("CAJERO");
+        assertFalse(servicio(Optional.of(7L)).esDuenioOTieneRol(null, RolSesionService.ANALISIS_DE_CAJA));
+        assertTrue(servicio(Optional.of(7L), "ANALISIS DE CAJA").esDuenioOTieneRol(null, RolSesionService.ANALISIS_DE_CAJA));
+    }
+
+    @Test
+    void sinSesionOUsuarioInexistenteNoPasa() {
+        assertFalse(servicio(Optional.of(7L), "ADMIN").esDuenioOTieneRol(7L));
+        autenticarComo("NUEVO");
+        assertFalse(servicio(Optional.empty()).esDuenioOTieneRol(7L, RolSesionService.ANALISIS_DE_CAJA));
+    }
+
+    @Test
+    void elNicknameAdminPasaComoDuenio() {
+        autenticarComo("admin");
+        assertTrue(servicio(Optional.empty()).esDuenioOTieneRol(5L, RolSesionService.ANALISIS_DE_CAJA));
+    }
+
+    @Test
+    void exigirDuenioORolLanzaNoAutorizado() {
+        autenticarComo("CAJERO");
+        RolSesionService s = servicio(Optional.of(7L));
+        assertTrue(rechazo(() -> s.exigirDuenioORol(5L, RolSesionService.ANALISIS_DE_CAJA)).contains("ANALISIS DE CAJA"));
+        s.exigirDuenioORol(7L, RolSesionService.ANALISIS_DE_CAJA);
+    }
 }

@@ -16,6 +16,7 @@ import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.seguridad.AuditorUsuarioId;
+import com.franco.dev.service.seguridad.RolSesionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -38,6 +39,9 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
 
     @Autowired
     private AuditorUsuarioId auditorUsuarioId;
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     private static final Logger log = LoggerFactory.getLogger(ConteoGraphQL.class);
     @Autowired
@@ -92,6 +96,8 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             log.error("[FILIAL saveConteo] No se encontro la PdvCaja con id={}. No se puede guardar el conteo. Abortando.", cajaId);
             throw new GraphQLException("No se encontro la caja id=" + cajaId + " en esta sucursal");
         }
+        // Abrir, cerrar e imprimir el cierre: el dueño de la caja o ANALISIS DE CAJA.
+        rolSesionService.exigirDuenioORol(PdvCajaService.duenioId(pdvCaja), RolSesionService.ANALISIS_DE_CAJA);
         if (pdvCaja != null) {
             if (input.getUsuarioId() != null) {
                 e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -174,9 +180,8 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                 input != null ? input.getTotalDs() : null,
                 conteoMonedaInputList != null ? conteoMonedaInputList.size() : "null");
 
-        if (!usuarioService.tieneRol(usuarioId, "ADMIN")) {
-            throw new GraphQLException("Solo un usuario ADMIN puede editar los montos de una caja");
-        }
+        // ADMIN de la sesion, no del usuarioId que manda el cliente (el central ya manda el de la sesion).
+        rolSesionService.exigirAdmin();
         if (conteoMonedaInputList == null || conteoMonedaInputList.isEmpty()) {
             throw new GraphQLException("No se recibio el detalle de billetes del conteo");
         }

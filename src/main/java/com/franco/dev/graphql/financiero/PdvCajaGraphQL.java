@@ -12,6 +12,7 @@ import com.franco.dev.service.financiero.MaletinService;
 import com.franco.dev.service.financiero.PdvCajaService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.seguridad.AuditorUsuarioId;
+import com.franco.dev.service.seguridad.RolSesionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -58,6 +59,9 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     @Autowired
     private DesktopPrinterConfigService desktopPrinterConfigService;
 
+    @Autowired
+    private RolSesionService rolSesionService;
+
     public Optional<PdvCaja> pdvCaja(Long id, Long sucId) {
         return service.findById(id);
     }
@@ -72,6 +76,7 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public CajaBalance balancePorFecha(String inicio, String fin, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         List<PdvCaja> pdvCajaList = service.findByDate(inicio, fin);
         Double totalVentaGs = 0.0;
         Double totalVentaRs = 0.0;
@@ -96,11 +101,21 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public CajaBalance balancePorCajaId(Long id) {
+        exigirAccesoACaja(id);
         return service.getBalance(id);
     }
 
     public PdvCaja savePdvCaja(PdvCajaInput input) {
         auditorUsuarioId.verificar("PdvCajaGraphQL.savePdvCaja", input.getUsuarioId());
+        // Una caja que ya existe la toca su dueño o el rol; pasarla a otro usuario, solo el rol.
+        PdvCaja existente = input.getId() != null ? service.findById(input.getId()).orElse(null) : null;
+        if (existente != null) {
+            Long duenio = PdvCajaService.duenioId(existente);
+            rolSesionService.exigirDuenioORol(duenio, RolSesionService.ANALISIS_DE_CAJA);
+            if (input.getUsuarioId() != null && !input.getUsuarioId().equals(duenio)) {
+                rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
+            }
+        }
         log.info("[FILIAL savePdvCaja] INICIO -> id={}, sucursalId={}, maletinId={}, usuarioId={}, estado={}, activo={}, fechaApertura={}",
                 input != null ? input.getId() : null,
                 input != null ? input.getSucursalId() : null,
@@ -146,6 +161,10 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public PdvCaja transferirCaja(Long cajaId, Long usuarioId) {
+        // El desktop inicia sesion con el destino antes de transferir: pasa el dueño, el rol o el propio destino.
+        if (!rolSesionService.esDuenioOTieneRol(usuarioId)) {
+            exigirAccesoACaja(cajaId);
+        }
         return service.transferirCaja(cajaId, usuarioId);
     }
 
@@ -166,6 +185,7 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public PdvCaja imprimirBalance(Long id, String printerName, String local, Long sucId) {
+        exigirAccesoACaja(id);
         String resolvedPrinter = (printerName == null || printerName.isBlank())
                 ? desktopPrinterConfigService.getTicketPrinterName().orElse(null)
                 : printerName;
@@ -192,5 +212,13 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         Page<PdvCaja> pdvCajaPage = service.findAllWithFilters(cajaId, estado, maletinId, cajeroId, fechaInicio,
                 fechaFin, sucId, verificado, pageable);
         return pdvCajaPage;
+    }
+
+    /** Dueño de la caja o ANALISIS DE CAJA (ADMIN pasa). Una caja que no existe sigue como antes. */
+    private void exigirAccesoACaja(Long cajaId) {
+        PdvCaja caja = cajaId != null ? service.findById(cajaId).orElse(null) : null;
+        if (caja != null) {
+            rolSesionService.exigirDuenioORol(PdvCajaService.duenioId(caja), RolSesionService.ANALISIS_DE_CAJA);
+        }
     }
 }
