@@ -100,4 +100,25 @@ class VentaGraphQLSorteoTest {
         assertDoesNotThrow(() -> ventaGraphQL.registrarEImprimirSorteo(v, detalles, c, 3L, "p", "l", null));
         assertNull(v.getSorteoTickets());
     }
+
+    @Test
+    void reimprimirSorteoImprimePorLaImpresoraConLeyenda() {
+        List<SorteoTicketDto> tickets = SorteoParticipacionService.tickets(
+                Collections.singletonList(participacion(2)), true);
+        when(sorteoParticipacionService.ticketsDeVenta(100L, true)).thenReturn(tickets);
+        when(impresionService.printSorteoTickets(same(tickets), eq("impresora"), eq("caja 1"), isNull()))
+                .thenReturn(true);
+
+        assertTrue(ventaGraphQL.reimprimirSorteo(100L, "impresora", "caja 1"));
+        verify(sorteoParticipacionService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    void reimprimirSorteoSinParticipacionesLanza() {
+        when(sorteoParticipacionService.ticketsDeVenta(100L, true)).thenReturn(Collections.emptyList());
+        graphql.GraphQLException e = assertThrows(graphql.GraphQLException.class,
+                () -> ventaGraphQL.reimprimirSorteo(100L, "impresora", "caja 1"));
+        assertEquals("La venta 100 no tiene tickets de sorteo", e.getMessage());
+        verifyNoInteractions(impresionService);
+    }
 }

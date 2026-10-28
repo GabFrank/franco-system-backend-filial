@@ -4,6 +4,8 @@ type Venta {
     ticketEscpos: String
     # Tickets de sorteo que salieron con la venta (saveVenta con sorteoCliente)
     sorteoTickets: [SorteoTicketInfo]
+    # Hay participaciones de sorteo registradas para la venta (habilita reimprimir el ticket)
+    tieneSorteo: Boolean
     sucursalId: Int
     caja: PdvCaja
     cliente: Cliente
@@ -63,6 +65,8 @@ extend type Mutation {
     deleteVenta(id:ID!, sucId: ID):Boolean!
     cancelarVenta(id:ID!, sucId: ID):Boolean!
     reimprimirVenta(id:ID!, printerName: String, local: String, sucId: ID):Boolean!
+    # Reimprime los tickets de sorteo ya registrados de la venta (error si no tiene)
+    reimprimirSorteo(ventaId: ID!, printerName: String, local: String):Boolean!
     imprimirPagare(id:ID!, itens:[VentaCreditoCuotaInput]!, printerName: String, local: String, sucId: ID):Boolean!
     saveVentaDelivery(ventaInput: VentaInput!, deliveryInput: DeliveryInput!, cobroDetalleList: [CobroDetalleInput], ventaCreditoInput: VentaCreditoInput, ventaCreditoCuotaInputList: [VentaCreditoCuotaInput]):Venta
 }

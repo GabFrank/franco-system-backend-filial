@@ -45,6 +45,7 @@ import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.reports.TicketReportService;
+import com.franco.dev.service.impresion.dto.SorteoTicketDto;
 import com.franco.dev.service.sorteo.SorteoParticipacionService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
@@ -1287,6 +1288,18 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
         }
         return false;
+    }
+
+    /**
+     * Reimprime por la impresora del filial los tickets de sorteo de una venta, marcados REIMPRESION.
+     * No crea participaciones: solo vuelve a imprimir las ya registradas.
+     */
+    public Boolean reimprimirSorteo(Long ventaId, String printerName, String local) {
+        List<SorteoTicketDto> tickets = sorteoParticipacionService.ticketsDeVenta(ventaId, true);
+        if (tickets == null || tickets.isEmpty()) {
+            throw new GraphQLException("La venta " + ventaId + " no tiene tickets de sorteo");
+        }
+        return impresionService.printSorteoTickets(tickets, printerName, local, null);
     }
 
     public List<VentaPorPeriodoV1Dto> ventaPorPeriodo(String inicio, String fin, Long sucId) {

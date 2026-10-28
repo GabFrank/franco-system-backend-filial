@@ -185,6 +185,23 @@ public class SorteoParticipacionService {
         }
     }
 
+    /**
+     * Si la venta tiene alguna participacion registrada. Una sola consulta indexada por venta_id;
+     * devuelve false (y loguea) ante cualquier error, porque corre por fila en listados.
+     */
+    public boolean tieneParticipaciones(Long ventaId) {
+        if (ventaId == null) return false;
+        try {
+            Boolean r = jdbc.queryForObject(
+                    "select exists (select 1 from operaciones.sorteo_participacion where venta_id = ?)",
+                    Boolean.class, ventaId);
+            return Boolean.TRUE.equals(r);
+        } catch (Exception ex) {
+            log.warn("No se pudo consultar si la venta {} tiene sorteo: {}", ventaId, ex.getMessage());
+            return false;
+        }
+    }
+
     /** Expande cada participacion en sus N tickets, numerados 1..N. */
     public static List<SorteoTicketDto> tickets(List<Participacion> participaciones, boolean reimpresion) {
         List<SorteoTicketDto> tickets = new ArrayList<>();

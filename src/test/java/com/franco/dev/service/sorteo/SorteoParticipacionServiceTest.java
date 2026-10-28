@@ -251,4 +251,20 @@ public class SorteoParticipacionServiceTest {
         assertEquals("NAVIDAD", r.get(0).getNombreSorteo());
         assertEquals(3, r.get(0).getCantidad());
     }
+
+    @Test
+    public void tieneParticipacionesConsultaPorVenta() {
+        when(jdbc.queryForObject(contains("sorteo_participacion"), eq(Boolean.class), eq(100L))).thenReturn(true);
+        when(jdbc.queryForObject(contains("sorteo_participacion"), eq(Boolean.class), eq(101L))).thenReturn(false);
+        assertTrue(service.tieneParticipaciones(100L));
+        assertFalse(service.tieneParticipaciones(101L));
+        assertFalse(service.tieneParticipaciones(null));
+    }
+
+    @Test
+    public void tieneParticipacionesConErrorEsFalso() {
+        when(jdbc.queryForObject(anyString(), eq(Boolean.class), any()))
+                .thenThrow(new DataIntegrityViolationException("boom"));
+        assertFalse(assertDoesNotThrow(() -> service.tieneParticipaciones(100L)));
+    }
 }
