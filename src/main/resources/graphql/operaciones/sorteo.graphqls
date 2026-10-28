@@ -9,6 +9,12 @@ type SorteoAplicable {
     premios: [String]
 }
 
+# Tickets de sorteo que salieron con una venta (Venta.sorteoTickets)
+type SorteoTicketInfo {
+    nombreSorteo: String
+    cantidad: Int
+}
+
 input SorteoEvaluacionInput {
     totalGs: Float!
     cobroDetalleList: [CobroDetalleInput]
