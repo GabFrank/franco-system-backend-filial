@@ -1,0 +1,25 @@
+type SorteoAplicable {
+    sorteoId: ID
+    nombre: String
+    descripcion: String
+    cantidadTickets: Int
+    fechaSorteo: Date
+    fechaDesde: Date
+    fechaHasta: Date
+    premios: [String]
+}
+
+input SorteoEvaluacionInput {
+    totalGs: Float!
+    cobroDetalleList: [CobroDetalleInput]
+}
+
+input SorteoClienteInput {
+    clienteId: ID
+    documento: String
+    nombre: String!
+}
+
+extend type Query {
+    sorteosAplicables(input: SorteoEvaluacionInput!): [SorteoAplicable]
+}
