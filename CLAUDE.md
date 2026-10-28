@@ -44,6 +44,11 @@ La filial pasó de Boot 2.1.15 a 2.7.18, igual que el central (commit `7d180375`
 - **Tests:** Mockito 4 no tiene `verifyZeroInteractions`; usar `verifyNoInteractions`.
 - **Librerías quitadas por no usarse:** java-jwt, spring-security-jwt, itextpdf (Jasper usa `com.lowagie` 2.1.7), zt-zip, update4j y los SDK de zkteco. Antes de volver a agregar una, confirmar que se usa.
 - **Jasper queda en 6.20.0:** la 6.21.5 cambia la diagramación de los recibos (verificado en el central).
+- **Librerías que NO se suben todavía (2026-10-28):**
+  - **jjwt queda en 0.9.1:** desde la 0.12 rechaza claves HMAC cortas, y la clave histórica `Graphql` (la que usan las filiales sin `APP_JWT_SECRET`) es de 5 bytes. Subirla corta el login. Recién cuando toda la red firme con claves propias (`app.jwt.legacy=false`).
+  - **Jasper 7:** exige Java 17 y cambia el formato de los `.jrxml`.
+  - **Hibernate, Flyway, GraphQL kickstart, spring-retry, JUnit:** sus versiones nuevas exigen Spring Boot 3/4.
+- **Bouncy Castle:** el itext 2.1.7 de Jasper trae la línea `jdk15on` (sin arreglos); el pom la excluye y agrega `bcprov`/`bcutil-jdk18on`, con los mismos paquetes.
 
 Package root: `com.franco.dev`. Layout estándar: `config/ controller/ domain/ dto/ graphql/ print/ repository/ security/ service/ sifen/ udpTest/ utilitarios/`.
 
