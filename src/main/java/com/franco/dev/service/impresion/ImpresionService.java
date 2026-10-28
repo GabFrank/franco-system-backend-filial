@@ -47,6 +47,8 @@ import static com.franco.dev.service.utils.PrintingService.resize;
 @Service
 public class ImpresionService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ImpresionService.class);
+
     public static DateTimeFormatter shortDate = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     public static DateTimeFormatter shortDateTime = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
     PrintService selectedPrintService = null;
@@ -697,6 +699,7 @@ public class ImpresionService {
      * los tickets ("REIMPRESION"), porque la tabla de caracteres de la impresora no las garantiza.
      */
     public Boolean printSorteoTickets(List<SorteoTicketDto> tickets, String printerName, String local, OutputStream destino) {
+        PrinterOutputStream propio = null;
         try {
             if (tickets == null || tickets.isEmpty()) return false;
             if (destino == null) {
@@ -704,8 +707,8 @@ public class ImpresionService {
                 if (selectedPrintService == null) return false;
             }
             OutputStream salida = destino != null ? destino
-                    : (printerOutputStream = new PrinterOutputStream(selectedPrintService));
-            DateTimeFormatter fechaCorta = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+                    : (propio = printerOutputStream = new PrinterOutputStream(selectedPrintService));
+            DateTimeFormatter fechaCorta = shortDate; // mismo formato dd-MM-yyyy
             DateTimeFormatter fechaHora = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
             // Style es mutable y se comparte: el bold se prende y se apaga explicito en cada uso.
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
@@ -789,6 +792,10 @@ public class ImpresionService {
             return true;
         } catch (Exception e) {
             // La venta ya se guardo: que el papel no salga se informa con false, no reventando.
+            log.error("No se pudo imprimir el ticket de sorteo", e);
+            if (propio != null) {
+                try { propio.close(); } catch (Exception ignorado) { }
+            }
             return false;
         }
     }

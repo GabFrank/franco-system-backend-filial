@@ -75,7 +75,7 @@ class SorteoTicketRenderTest {
         assertTrue(s.contains("Deposite este ticket firmado en la urna"));
         assertTrue(s.contains("250.000"));
         assertFalse(s.contains("REIMPRESION"));
-        assertEquals(2, contar(s, "\u001dV"));
+        assertEquals(2, contar(s, "\u001dV0"));
     }
 
     @Test
@@ -83,18 +83,29 @@ class SorteoTicketRenderTest {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         String s = render(false, Arrays.asList(ticket(1, 1, true)), out);
         assertTrue(s.contains("REIMPRESION"));
-        assertEquals(1, contar(s, "\u001dV"));
+        assertEquals(1, contar(s, "\u001dV0"));
+    }
+
+    /** Saca los comandos ESC/GS que genera Style/EscPos para dejar solo el texto imprimible. */
+    private static String soloTexto(String s) {
+        return s.replaceAll("\u001dV[\\s\\S]", "")              // GS V n (corte)
+                .replaceAll("\u001d[!B][\\s\\S]", "")           // GS ! n, GS B n
+                .replaceAll("\u001b[MEa\\-3dt][\\s\\S]", "")     // ESC M/E/a/-/3/d/t n
+                .replaceAll("\u001b2", "");                    // ESC 2
     }
 
     @Test
     void ningunaLineaPasaDe32Columnas() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        String s = render(false, Arrays.asList(ticket(1, 1, false)), out);
+        String s = soloTexto(render(false, Arrays.asList(ticket(1, 1, false)), out));
         assertTrue(s.contains("Canasta"));
+        int medidas = 0;
         for (String linea : s.split("\n")) {
-            if (linea.contains("\u001d") || linea.contains("\u001b")) continue; // comandos
-            assertTrue(linea.length() <= 32, "linea larga: " + linea);
+            int max = linea.contains("Deposite") ? 42 : 32; // el pie va en fuente B
+            assertTrue(linea.length() <= max, "linea larga (" + linea.length() + "): " + linea);
+            medidas++;
         }
+        assertTrue(medidas > 15);
     }
 
     @Test
