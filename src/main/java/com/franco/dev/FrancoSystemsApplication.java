@@ -6,6 +6,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
 import com.franco.dev.service.configuracion.UpdateService;
+import graphql.parser.ParserOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +25,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
-import javax.annotation.PostConstruct;
 import javax.servlet.Filter;
 import java.io.IOException;
 import java.util.Collections;
@@ -39,9 +39,6 @@ public class FrancoSystemsApplication {
     private Logger log = LoggerFactory.getLogger(FrancoSystemsApplication.class);
 
     @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
     private Environment env;
 
     @Autowired
@@ -49,8 +46,22 @@ public class FrancoSystemsApplication {
 
     public static void main(String[] args) throws IOException {
         System.out.println("Iniciando sistema");
+        configureGraphQLParserLimits();
         SpringApplication.run(FrancoSystemsApplication.class, args);
 
+    }
+
+    /**
+     * graphql-java 18 corta el parseo a los 15.000 tokens. El schema de la filial (127 archivos
+     * .graphqls) pasa ese limite, igual que el del central: se sube a 500.000.
+     */
+    private static void configureGraphQLParserLimits() {
+        ParserOptions.setDefaultSdlParserOptions(
+                ParserOptions.getDefaultSdlParserOptions().transform(builder -> builder.maxTokens(500_000)));
+        ParserOptions.setDefaultParserOptions(
+                ParserOptions.getDefaultParserOptions().transform(builder -> builder.maxTokens(500_000)));
+        ParserOptions.setDefaultOperationParserOptions(
+                ParserOptions.getDefaultOperationParserOptions().transform(builder -> builder.maxTokens(500_000)));
     }
 
     @Bean
@@ -79,7 +90,7 @@ public class FrancoSystemsApplication {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(Collections.singletonList("*"));
+        config.setAllowedOriginPatterns(Collections.singletonList("*"));
         config.setAllowedMethods(Collections.singletonList("*"));
         config.setAllowedHeaders(Collections.singletonList("*"));
         source.registerCorsConfiguration("/**", config);
@@ -96,19 +107,16 @@ public class FrancoSystemsApplication {
         return module;
     }
 
-    @PostConstruct
-    public void setUp() {
-        objectMapper
-                .registerModule(new JavaTimeModule())
-                .registerModule(new ParameterNamesModule())
-                .registerModule(hibernate5Module());
-    }
-
+    /**
+     * Los tres modulos se registran aca. Antes se agregaba ParameterNamesModule en un @PostConstruct
+     * que se inyectaba este mismo bean: Boot 2.6+ lo rechaza como referencia circular.
+     */
     @Bean
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(hibernate5Module());
         mapper.registerModule(new JavaTimeModule());
+        mapper.registerModule(new ParameterNamesModule());
         return mapper;
     }
 

@@ -52,7 +52,7 @@ class PersonaClienteAltaTest {
         Cliente c = new Cliente();
         c.setId(5L);
         assertThrows(IllegalStateException.class, () -> clienteService.save(c));
-        verifyZeroInteractions(central);
+        verifyNoInteractions(central);
         verify(personas, never()).save(any());
         verify(clientes, never()).save(any());
     }

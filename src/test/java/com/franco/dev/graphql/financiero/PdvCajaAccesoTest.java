@@ -142,7 +142,7 @@ class PdvCajaAccesoTest {
     @Test
     void unaCajaNuevaNoPasaPorElControl() {
         graphQL.savePdvCaja(input(null, 9L));
-        verifyZeroInteractions(rolSesionService);
+        verifyNoInteractions(rolSesionService);
         verify(service).saveAndSend(any(), eq(false));
     }
 
