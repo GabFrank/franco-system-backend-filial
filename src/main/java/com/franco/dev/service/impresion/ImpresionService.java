@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -706,7 +707,10 @@ public class ImpresionService {
                 selectedPrintService = printingService.getPrintService(printerName);
                 if (selectedPrintService == null) return false;
             }
-            OutputStream salida = destino != null ? destino
+            // Con destino (modo FRONTEND) se arma todo en un buffer y se copia al final: si algo falla a
+            // mitad de un ticket, al comprobante de la venta no se le pegan bytes a medias.
+            ByteArrayOutputStream buffer = destino != null ? new ByteArrayOutputStream() : null;
+            OutputStream salida = destino != null ? buffer
                     : (propio = printerOutputStream = new PrinterOutputStream(selectedPrintService));
             DateTimeFormatter fechaCorta = shortDate; // mismo formato dd-MM-yyyy
             DateTimeFormatter fechaHora = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
@@ -788,7 +792,8 @@ public class ImpresionService {
                 escpos.cut(EscPos.CutMode.FULL);
             }
             escpos.close();
-            if (destino == null) printerOutputStream.close();
+            if (destino != null) buffer.writeTo(destino);
+            else printerOutputStream.close();
             return true;
         } catch (Exception e) {
             // La venta ya se guardo: que el papel no salga se informa con false, no reventando.

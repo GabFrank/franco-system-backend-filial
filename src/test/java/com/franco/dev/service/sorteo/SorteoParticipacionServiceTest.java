@@ -130,7 +130,8 @@ public class SorteoParticipacionServiceTest {
 
         // Todo lo del sorteo corre en transacciones propias: nunca en la de la venta.
         ArgumentCaptor<TransactionDefinition> defs = ArgumentCaptor.forClass(TransactionDefinition.class);
-        verify(txManager, atLeastOnce()).getTransaction(defs.capture());
+        // Dos conexiones extra como mucho: una lectura (evaluacion + datos del ticket) y una escritura.
+        verify(txManager, times(2)).getTransaction(defs.capture());
         for (TransactionDefinition d : defs.getAllValues()) {
             assertEquals(TransactionDefinition.PROPAGATION_REQUIRES_NEW, d.getPropagationBehavior());
         }

@@ -70,6 +70,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
@@ -351,6 +352,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 throw rechazo;
             } catch (Exception e) {
                 e.printStackTrace();
+                // El comprobante fallo pero la venta se confirma igual: el cliente ya dio sus datos,
+                // asi que la participacion se registra igual (se puede reimprimir). La impresion aca
+                // es best-effort: en modo FRONTEND los bytes no vuelven al desktop.
+                registrarEImprimirSorteo(venta, cobroDetalleList, sorteoCliente, ventaInput.getUsuarioId(),
+                        printerName, local, ticketCliente);
                 return venta;
             }
         }
@@ -370,6 +376,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             SorteoClienteInput sorteoCliente, Long usuarioId, String printerName, String local,
             OutputStream ticketCliente) {
         if (sorteoCliente == null || venta == null || sorteoParticipacionService == null) return;
+        if (ventaVaARevertirse()) {
+            log.warn("Venta {}: la transaccion ya esta marcada para revertir; no se registra el sorteo", venta.getId());
+            return;
+        }
         try {
             List<SorteoParticipacionService.Participacion> participaciones =
                     sorteoParticipacionService.registrar(venta, cobroDetalleList, sorteoCliente, usuarioId);
@@ -383,6 +393,18 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             venta.setSorteoTickets(SorteoParticipacionService.resumen(participaciones));
         } catch (Exception e) {
             log.error("Venta {}: fallo el sorteo; la venta sigue igual: {}", venta.getId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * True si la transaccion de la venta ya quedo rollback-only: registrar o imprimir tickets seria
+     * de una venta que no se va a confirmar. Sin transaccion (tests) devuelve false.
+     */
+    boolean ventaVaARevertirse() {
+        try {
+            return TransactionAspectSupport.currentTransactionStatus().isRollbackOnly();
+        } catch (Exception sinTransaccion) {
+            return false;
         }
     }
 

@@ -17,8 +17,13 @@ import java.util.Map;
 /**
  * Lee operaciones.sorteo, sorteo_sucursal y sorteo_premio por JDBC, fuera de Hibernate.
  * Mismo motivo que PrecioEspecialFuente: una consulta JPA que falla revierte la transaccion y
- * limpia el EntityManager compartido del request (OpenEntityManagerInViewFilter) y la venta
- * revienta; JdbcTemplate toma su propia conexion y una falla aca no toca ese contexto.
+ * limpia el EntityManager compartido del request (OpenEntityManagerInViewFilter).
+ * <p>
+ * <b>Ojo:</b> JdbcTemplate NO toma una conexion propia si hay una transaccion abierta: usa la de
+ * esa transaccion. En Postgres una sentencia que falla deja abortada la transaccion entera, asi que
+ * si se llama desde adentro de saveVenta, un error aca haria fallar el commit de la venta. Quien
+ * la llame dentro de una transaccion tiene que envolverla en una propia (REQUIRES_NEW), como hace
+ * {@link SorteoParticipacionService}. La query {@code sorteosAplicables} corre sin transaccion.
  */
 @Component
 public class SorteoFuente {

@@ -100,21 +100,29 @@ public class SorteoParticipacionService {
             return Collections.emptyList();
         }
         try {
-            double total = venta.getTotalGs() != null ? venta.getTotalGs() : 0d;
-            List<SorteoAplicable> aplicables = enTransaccionPropia(lectura, () -> lector.aplicables(total, detalles));
-            if (aplicables == null || aplicables.isEmpty()) return Collections.emptyList();
-
             Long sucursalId = venta.getSucursalId() != null ? venta.getSucursalId() : sucursalIdPropia();
             if (sucursalId == null) {
                 log.warn("Sorteo: la venta {} no tiene sucursal; no se registra la participacion", venta.getId());
                 return Collections.emptyList();
             }
-            String nombre = textoONull(cliente.getNombre());
-            if (nombre == null && cliente.getClienteId() != null) {
-                nombre = primero(NOMBRE_CLIENTE, cliente.getClienteId());
-            }
+            double total = venta.getTotalGs() != null ? venta.getTotalGs() : 0d;
+            String nombreInput = textoONull(cliente.getNombre());
+            // Una sola transaccion de lectura (una conexion) para evaluar y para los datos del ticket.
+            Lecturas leido = enTransaccionPropia(lectura, () -> {
+                Lecturas l = new Lecturas();
+                l.aplicables = lector.aplicables(total, detalles);
+                if (l.aplicables == null || l.aplicables.isEmpty()) return l;
+                l.sucursal = primero(NOMBRE_SUCURSAL, sucursalId);
+                if (nombreInput == null && cliente.getClienteId() != null) {
+                    l.nombre = primero(NOMBRE_CLIENTE, cliente.getClienteId());
+                }
+                return l;
+            });
+            List<SorteoAplicable> aplicables = leido != null ? leido.aplicables : null;
+            if (aplicables == null || aplicables.isEmpty()) return Collections.emptyList();
+            String nombre = nombreInput != null ? nombreInput : leido.nombre;
             String documento = textoONull(cliente.getDocumento());
-            String sucursal = primero(NOMBRE_SUCURSAL, sucursalId);
+            String sucursal = leido.sucursal;
 
             List<Participacion> participaciones = new ArrayList<>();
             for (SorteoAplicable a : aplicables) {
@@ -209,10 +217,13 @@ public class SorteoParticipacionService {
         return tx.execute(status -> trabajo.get());
     }
 
-    /** Primer valor de una consulta de un solo texto, en su propia transaccion; null si falla. */
+    /**
+     * Primer valor de una consulta de un solo texto; null si falla. Corre dentro de la transaccion
+     * de lectura propia de {@link #registrar}, nunca en la de la venta.
+     */
     private String primero(String sql, Long id) {
         try {
-            List<String> r = enTransaccionPropia(lectura, () -> jdbc.queryForList(sql, String.class, id));
+            List<String> r = jdbc.queryForList(sql, String.class, id);
             return r == null || r.isEmpty() ? null : textoONull(r.get(0));
         } catch (Exception ex) {
             log.warn("Sorteo: no se pudo leer un dato para el ticket ({}): {}", id, ex.getMessage());
@@ -252,6 +263,13 @@ public class SorteoParticipacionService {
         p.setFecha(creado != null ? creado.toLocalDateTime() : null);
         p.setTotalGs(rs.getObject("total_gs") != null ? rs.getDouble("total_gs") : null);
         return p;
+    }
+
+    /** Lo que se lee en la transaccion de lectura de {@link #registrar}. */
+    private static final class Lecturas {
+        List<SorteoAplicable> aplicables;
+        String sucursal;
+        String nombre;
     }
 
     /** Una participacion registrada (una por venta y sorteo), con lo necesario para imprimirla. */

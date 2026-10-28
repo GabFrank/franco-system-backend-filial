@@ -113,4 +113,28 @@ class SorteoTicketRenderTest {
         MockitoAnnotations.initMocks(this);
         assertFalse(service.printSorteoTickets(null, "X", "L", new ByteArrayOutputStream()));
     }
+
+    /** Modo FRONTEND: si un ticket revienta a mitad, al comprobante no se le pega nada. */
+    @Test
+    void errorAMitadNoAgregaBytesAlComprobante() throws Exception {
+        MockitoAnnotations.initMocks(this);
+        File dir = Files.createTempDirectory("frc-sorteo").toFile();
+        dir.deleteOnExit();
+        imageService.storageDirectoryPath = dir.getAbsolutePath() + File.separator;
+        SorteoTicketDto roto = new SorteoTicketDto() {
+            @Override
+            public String getClienteNombre() {
+                throw new IllegalStateException("boom");
+            }
+        };
+        roto.setNombreSorteo("Sorteo");
+        roto.setNumero(2);
+        roto.setTotal(2);
+        ByteArrayOutputStream comprobante = new ByteArrayOutputStream();
+        comprobante.write("RECIBO".getBytes(StandardCharsets.ISO_8859_1));
+
+        assertFalse(service.printSorteoTickets(Arrays.asList(ticket(1, 2, false), roto), "X", "L", comprobante));
+
+        assertEquals("RECIBO", new String(comprobante.toByteArray(), StandardCharsets.ISO_8859_1));
+    }
 }
