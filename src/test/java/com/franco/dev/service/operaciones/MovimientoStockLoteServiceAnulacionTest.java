@@ -14,7 +14,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -71,6 +71,6 @@ class MovimientoStockLoteServiceAnulacionTest {
         assertEquals(0, s.cambiarEstadoPorMovimiento(null, 4L, false));
         assertEquals(0, s.cambiarEstadoPorMovimiento(10L, null, false));
         assertEquals(0, s.cambiarEstadoPorMovimiento(10L, 4L, null));
-        verifyZeroInteractions(repo);
+        verifyNoInteractions(repo);
     }
 }

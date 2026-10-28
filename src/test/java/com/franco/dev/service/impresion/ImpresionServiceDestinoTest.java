@@ -94,7 +94,7 @@ class ImpresionServiceDestinoTest {
 
         assertTrue(impreso.length > 0);
         assertArrayEquals(impreso, memoria.toByteArray());
-        verifyZeroInteractions(printingService);
+        verifyNoInteractions(printingService);
     }
 
     @Test
@@ -125,7 +125,7 @@ class ImpresionServiceDestinoTest {
 
         assertTrue(impreso.length > 0);
         assertArrayEquals(impreso, memoria.toByteArray());
-        verifyZeroInteractions(printingService);
+        verifyNoInteractions(printingService);
     }
 
     @Test
@@ -149,7 +149,7 @@ class ImpresionServiceDestinoTest {
 
         assertTrue(impreso.length > 0);
         assertArrayEquals(impreso, memoria.toByteArray());
-        verifyZeroInteractions(printingService);
+        verifyNoInteractions(printingService);
     }
 
     @Test
@@ -172,6 +172,6 @@ class ImpresionServiceDestinoTest {
 
         assertTrue(impreso.length > 0);
         assertArrayEquals(impreso, memoria.toByteArray());
-        verifyZeroInteractions(printingService);
+        verifyNoInteractions(printingService);
     }
 }

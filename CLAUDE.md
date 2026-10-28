@@ -27,7 +27,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `franco-dev-systems-filial` (artifactId), branch-office (sucursal) server del producto **Franco Systems 3.0.9**. Es uno de los 4 componentes que forman `frc-comercial/` dentro del workspace `frc-sistemas-informaticos/`. Vive como repo git independiente (`GabFrank/franco-system-backend-filial`) y se sincroniza con el server central vía replicación lógica de PostgreSQL.
 
-Stack: **Spring Boot 2.1.15 / Java 8 / PostgreSQL** + **GraphQL** (`graphql-java-kickstart`) + integración **SIFEN** (Paraguay) vía paquete `sifen/` propio (no comparte con `frc-efact`).
+Stack: **Spring Boot 2.7.18 / target Java 11 / PostgreSQL** + **GraphQL** (`graphql-java-kickstart` 11.1 / graphql-java 18.5) + integración **SIFEN** (Paraguay) vía paquete `sifen/` propio (no comparte con `frc-efact`).
+
+Las sucursales corren con **Java 17 o superior**. El CI compila con JDK 11.
+
+### Spring Boot 2.7: lo que hay que saber (actualizado 2026-10-28)
+
+La filial pasó de Boot 2.1.15 a 2.7.18, igual que el central (commit `7d180375` del central). Al tocar estas partes:
+
+- **2.7.18 ya no recibe arreglos gratuitos.** Los parches de seguridad se aplican pisando versiones del BOM en las `<properties>` del `pom.xml` (Tomcat, Netty, Logback, snakeyaml) y en `<dependencyManagement>` (commons-text, commons-beanutils, commons-compress, graphql-java-extended-scalars). Son las mismas versiones que el central: al subir una, subirla en los dos.
+- **Referencias circulares:** Boot 2.6+ las prohíbe por defecto. `application.properties` tiene `spring.main.allow-circular-references=true` para mantener el comportamiento de 2.1. No inyectar en una clase un bean que esa misma clase define (era el caso del `ObjectMapper` en `FrancoSystemsApplication`).
+- **Scalar `Date`:** está en `graphql/scalar/DateScalarConfiguration` como `@Bean` armado con el builder. graphql-java 18 no deja extender `GraphQLScalarType`. No declarar en un `.graphqls` un `scalar` sin implementación: puede impedir el arranque.
+- **Validación:** `javax.validation` viene de `spring-boot-starter-validation`; el starter web ya no la trae.
+- **Inputs de GraphQL:** se convierten con el mapper de `config/GraphQLInputMapperConfig`, que ignora los campos del `.graphqls` que la clase `*Input` no tiene (ej. `CobroInput.sucursalId`). Con kickstart 11 el default es el `ObjectMapper` de la app, que falla ante un campo desconocido: no sacar ese bean.
+- **Flyway 8.5** (lo maneja el BOM de Boot; antes estaba fijo en 5.2.3). Sigue con `out-of-order=true`.
+- **Tests:** Mockito 4 no tiene `verifyZeroInteractions`; usar `verifyNoInteractions`.
+- **Librerías quitadas por no usarse:** java-jwt, spring-security-jwt, itextpdf (Jasper usa `com.lowagie` 2.1.7), zt-zip, update4j y los SDK de zkteco. Antes de volver a agregar una, confirmar que se usa.
+- **Jasper queda en 6.20.0:** la 6.21.5 cambia la diagramación de los recibos (verificado en el central).
 
 Package root: `com.franco.dev`. Layout estándar: `config/ controller/ domain/ dto/ graphql/ print/ repository/ security/ service/ sifen/ udpTest/ utilitarios/`.
 

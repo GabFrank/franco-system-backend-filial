@@ -166,7 +166,7 @@ class VentaGraphQLTicketDestinoTest {
 
         assertTrue(impreso.length > 0);
         assertArrayEquals(impreso, memoria.toByteArray());
-        verifyZeroInteractions(printingService);
+        verifyNoInteractions(printingService);
     }
 
     @Test
@@ -182,7 +182,7 @@ class VentaGraphQLTicketDestinoTest {
 
         assertTrue(impreso.length > 0);
         assertArrayEquals(impreso, memoria.toByteArray());
-        verifyZeroInteractions(printingService);
+        verifyNoInteractions(printingService);
     }
 
     /** El ticket de una venta a credito lleva un pagare por cuota, numerado y con su vencimiento. */

@@ -52,7 +52,7 @@ class PdvCajaServiceAccesoTest {
         when(repository.findById(99L)).thenReturn(Optional.empty());
         service.exigirAccesoACaja(99L);
         service.exigirAccesoACaja(null);
-        verifyZeroInteractions(rolSesionService);
+        verifyNoInteractions(rolSesionService);
     }
 
     @Test
