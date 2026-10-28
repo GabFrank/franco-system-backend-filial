@@ -79,6 +79,23 @@ Vuelta atrás: en stable, pasar la release a prerelease (`check-update.sh` vuelv
 en alpha y beta, revert + release nueva. Si un cajero queda trabado, el usuario ADMIN pasa siempre
 y puede cerrar la caja.
 
+## Resultado de las pruebas (2026-10-28, filial local, sucursal 24)
+
+- Cajero con solo `VENTA TOUCH`, por pantalla (desktop de `develop` servido como web contra el
+  filial de la rama): abrir caja, venta, lista de retiros, lista de gastos, reimpresión de
+  ticket (lista de la caja), delivery, cerrar caja (apertura y cierre a la vista) y «Últimas
+  cajas». Sin rechazos.
+- El mismo cajero sobre la caja de otro usuario, por API: las consultas de la tabla responden
+  «No autorizado», `ventasPorCajaId` con una venta de otra caja también, y los campos de conteo
+  llegan `null`. `savePdvCaja` marcando su propia caja como verificada: rechazado, la caja no
+  cambia. Con `ANALISIS DE CAJA` todo pasa (incluidas las consultas por id en transacción).
+- Sesión de un usuario sobre la caja abierta de otro (por pantalla): el PDV pide el conteo de
+  apertura, `saveConteo` responde «No autorizado» y la caja no cambia; el log deja el aviso.
+- Tests: 646 sin fallas (`./mvnw clean verify`); los tests nuevos fallan sin los controles.
+- Conciliación de cupones sobre caja ajena: probado por API (la consulta del diálogo devuelve la
+  caja con conteos `null`, sin error) y por lectura (el diálogo solo mira `activo`). Por pantalla
+  no: la lista sale del central y el rol no está en la base local.
+
 ## Sin verificar
 
 - La apertura desde PWA/mobile pasando por el central se cubre por test con el input que arma el
