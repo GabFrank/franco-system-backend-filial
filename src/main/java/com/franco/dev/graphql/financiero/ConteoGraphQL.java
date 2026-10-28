@@ -66,10 +66,12 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     private DesktopPrinterConfigService desktopPrinterConfigService;
 
     public Optional<Conteo> conteo(Long id, Long sucId) {
+        pdvCajaService.exigirAccesoAConteo(id);
         return service.findById(id);
     }
 
     public List<Conteo> conteos(int page, int size, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
