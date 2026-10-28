@@ -22,6 +22,7 @@ import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.DeliveryService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.RolSesionService;
 
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
@@ -81,9 +82,37 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     @Autowired
     private DeliveryService deliveryService;
 
+    @Autowired
+    private RolSesionService rolSesionService;
+
     /** Id del usuario dueño de la caja, o null si no tiene. */
     public static Long duenioId(PdvCaja caja) {
         return caja != null && caja.getUsuario() != null ? caja.getUsuario().getId() : null;
+    }
+
+    /** Dueño de la caja o ANALISIS DE CAJA (ADMIN pasa). Una caja que no existe sigue como antes. */
+    public void exigirAccesoACaja(Long cajaId) {
+        PdvCaja caja = cajaId != null ? findById(cajaId).orElse(null) : null;
+        if (caja != null) {
+            rolSesionService.exigirDuenioORol(duenioId(caja), RolSesionService.ANALISIS_DE_CAJA);
+        }
+    }
+
+    /** Para un registro suelto (venta, retiro, gasto, movimiento): el control de su caja; sin caja, solo el rol. */
+    public void exigirAccesoARegistroDeCaja(PdvCaja caja) {
+        if (caja == null || caja.getId() == null) {
+            rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
+        } else {
+            exigirAccesoACaja(caja.getId());
+        }
+    }
+
+    /** El de la caja que tiene ese conteo (apertura o cierre); un conteo sin caja, solo el rol. */
+    public void exigirAccesoAConteo(Long conteoId) {
+        PdvCaja caja = conteoId != null
+                ? repository.findFirstByConteoAperturaIdOrConteoCierreId(conteoId, conteoId).orElse(null)
+                : null;
+        rolSesionService.exigirDuenioORol(duenioId(caja), RolSesionService.ANALISIS_DE_CAJA);
     }
 
     @Override

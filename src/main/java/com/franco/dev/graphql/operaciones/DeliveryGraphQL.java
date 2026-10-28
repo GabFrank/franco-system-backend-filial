@@ -301,7 +301,11 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         }
     }
 
+    @Autowired
+    private com.franco.dev.service.financiero.PdvCajaService pdvCajaService;
+
     public List<Delivery> deliveryPorCajaIdAndEstados(Long id, List<DeliveryEstado> estadoList, Long sucId) {
+        pdvCajaService.exigirAccesoACaja(id);
         if (sucId == null)
             sucId = service.env.getProperty("sucursalId", Long.class);
         List<Delivery> deliveryList = service.getRepository().findDeliveryByCajaEstadoAndSucId(id, estadoList, sucId);

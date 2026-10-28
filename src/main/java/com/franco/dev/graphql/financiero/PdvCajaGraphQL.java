@@ -25,6 +25,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Component
@@ -115,6 +116,10 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
             if (input.getUsuarioId() != null && !input.getUsuarioId().equals(duenio)) {
                 rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
             }
+        }
+        Long verificadoPorGuardado = existente != null ? service.getRepository().findVerificadoPorIdById(existente.getId()) : null;
+        if (cambiaLaVerificacion(input, existente, verificadoPorGuardado)) {
+            rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         }
         log.info("[FILIAL savePdvCaja] INICIO -> id={}, sucursalId={}, maletinId={}, usuarioId={}, estado={}, activo={}, fechaApertura={}",
                 input != null ? input.getId() : null,
@@ -214,11 +219,21 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         return pdvCajaPage;
     }
 
-    /** Dueño de la caja o ANALISIS DE CAJA (ADMIN pasa). Una caja que no existe sigue como antes. */
     private void exigirAccesoACaja(Long cajaId) {
-        PdvCaja caja = cajaId != null ? service.findById(cajaId).orElse(null) : null;
-        if (caja != null) {
-            rolSesionService.exigirDuenioORol(PdvCajaService.duenioId(caja), RolSesionService.ANALISIS_DE_CAJA);
-        }
+        service.exigirAccesoACaja(cajaId);
+    }
+
+    /**
+     * Verificacion, estado y conteos (apertura y cierre) distintos de lo guardado (caja nueva: de null). Se compara
+     * null incluido: el input pisa la entidad entera, asi que mandar null sobre un valor guardado lo borra.
+     */
+    static boolean cambiaLaVerificacion(PdvCajaInput in, PdvCaja guardada, Long verificadoPorGuardado) {
+        PdvCaja g = guardada != null ? guardada : new PdvCaja();
+        return !Objects.equals(in.getVerificado(), g.getVerificado())
+                || !Objects.equals(in.getVerificadoPorId(), verificadoPorGuardado)
+                || !Objects.equals(in.getEstado(), g.getEstado())
+                || !Objects.equals(in.getConteoCierreId(), g.getConteoCierre() != null ? g.getConteoCierre().getId() : null)
+                // La apertura la carga saveConteo; apuntarla a otro conteo daria acceso a ese conteo.
+                || !Objects.equals(in.getConteoAperturaId(), g.getConteoApertura() != null ? g.getConteoApertura().getId() : null);
     }
 }
