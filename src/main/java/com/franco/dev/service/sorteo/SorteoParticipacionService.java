@@ -52,7 +52,7 @@ public class SorteoParticipacionService {
     static final String NOMBRE_SUCURSAL = "select nombre from empresarial.sucursal where id = ?";
 
     static final String NOMBRE_CLIENTE =
-            "select p.nombre from personas.cliente c join personas.persona p on p.id = c.persona_id where c.id = ?";
+            "select p.nombre, p.documento from personas.cliente c join personas.persona p on p.id = c.persona_id where c.id = ?";
 
     static final String PARTICIPACIONES_DE_VENTA =
             "select sp.sorteo_id, sp.venta_id, sp.cantidad, sp.codigo, sp.nombre, sp.documento, " +
@@ -107,21 +107,23 @@ public class SorteoParticipacionService {
             }
             double total = venta.getTotalGs() != null ? venta.getTotalGs() : 0d;
             String nombreInput = textoONull(cliente.getNombre());
+            String documentoInput = textoONull(cliente.getDocumento());
             // Una sola transaccion de lectura (una conexion) para evaluar y para los datos del ticket.
             Lecturas leido = enTransaccionPropia(lectura, () -> {
                 Lecturas l = new Lecturas();
                 l.aplicables = lector.aplicables(total, detalles);
                 if (l.aplicables == null || l.aplicables.isEmpty()) return l;
                 l.sucursal = primero(NOMBRE_SUCURSAL, sucursalId);
-                if (nombreInput == null && cliente.getClienteId() != null) {
-                    l.nombre = primero(NOMBRE_CLIENTE, cliente.getClienteId());
+                // Una sola lectura de la persona para completar nombre y documento que falten
+                if ((nombreInput == null || documentoInput == null) && cliente.getClienteId() != null) {
+                    leerPersona(l, cliente.getClienteId());
                 }
                 return l;
             });
             List<SorteoAplicable> aplicables = leido != null ? leido.aplicables : null;
             if (aplicables == null || aplicables.isEmpty()) return Collections.emptyList();
             String nombre = nombreInput != null ? nombreInput : leido.nombre;
-            String documento = textoONull(cliente.getDocumento());
+            String documento = documentoInput != null ? documentoInput : leido.documento;
             String sucursal = leido.sucursal;
 
             List<Participacion> participaciones = new ArrayList<>();
@@ -248,6 +250,20 @@ public class SorteoParticipacionService {
         }
     }
 
+    /** Nombre y documento de la persona del cliente; deja null lo que no encuentre o si falla. */
+    private void leerPersona(Lecturas l, Long clienteId) {
+        try {
+            List<java.util.Map<String, Object>> r = jdbc.queryForList(NOMBRE_CLIENTE, clienteId);
+            if (r == null || r.isEmpty() || r.get(0) == null) return;
+            Object n = r.get(0).get("nombre");
+            Object d = r.get(0).get("documento");
+            l.nombre = n == null ? null : textoONull(n.toString());
+            l.documento = d == null ? null : textoONull(d.toString());
+        } catch (Exception ex) {
+            log.warn("Sorteo: no se pudo leer la persona del cliente {} para el ticket: {}", clienteId, ex.getMessage());
+        }
+    }
+
     private static String textoONull(String s) {
         return s == null || s.trim().isEmpty() ? null : s.trim();
     }
@@ -287,6 +303,7 @@ public class SorteoParticipacionService {
         List<SorteoAplicable> aplicables;
         String sucursal;
         String nombre;
+        String documento;
     }
 
     /** Una participacion registrada (una por venta y sorteo), con lo necesario para imprimirla. */

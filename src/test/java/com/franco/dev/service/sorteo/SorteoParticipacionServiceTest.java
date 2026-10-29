@@ -155,18 +155,42 @@ public class SorteoParticipacionServiceTest {
     @Test
     public void sinNombreLoBuscaPorCliente() {
         when(lector.aplicables(anyDouble(), any())).thenReturn(Collections.singletonList(aplicable(4L, "N", 1)));
-        when(jdbc.queryForList(contains("personas.persona"), eq(String.class), eq(15L)))
-                .thenReturn(Collections.singletonList("MARIA GOMEZ"));
+        when(jdbc.queryForList(contains("personas.persona"), eq(15L)))
+                .thenReturn(Collections.singletonList(persona("MARIA GOMEZ", "7654321")));
         SorteoClienteInput c = cliente();
         c.setNombre("  ");
         List<Participacion> r = service.registrar(venta(100L, 500000), detalles, c, 3L);
         assertEquals("MARIA GOMEZ", r.get(0).getClienteNombre());
+        // El documento tipeado gana sobre el de la persona
+        assertEquals("1234567", r.get(0).getClienteDocumento());
+    }
+
+    @Test
+    public void sinDocumentoLoTomaDeLaPersona() {
+        when(lector.aplicables(anyDouble(), any())).thenReturn(Collections.singletonList(aplicable(4L, "N", 1)));
+        when(jdbc.queryForList(contains("personas.persona"), eq(15L)))
+                .thenReturn(Collections.singletonList(persona("MARIA GOMEZ", "7654321")));
+        SorteoClienteInput c = cliente();
+        c.setDocumento(null);
+        List<Participacion> r = service.registrar(venta(100L, 500000), detalles, c, 3L);
+        assertEquals("JUAN PEREZ", r.get(0).getClienteNombre());
+        assertEquals("7654321", r.get(0).getClienteDocumento());
+        // Tambien viaja al central en la fila registrada
+        verify(jdbc).update(anyString(), eq(4L), eq(100L), eq(7L), eq(1), eq(15L), eq("7654321"),
+                eq("JUAN PEREZ"), eq("S4-7-100"), eq(3L));
+    }
+
+    private static java.util.Map<String, Object> persona(String nombre, String documento) {
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("nombre", nombre);
+        m.put("documento", documento);
+        return m;
     }
 
     @Test
     public void falloAlBuscarNombreNoImpideRegistrar() {
         when(lector.aplicables(anyDouble(), any())).thenReturn(Collections.singletonList(aplicable(4L, "N", 1)));
-        when(jdbc.queryForList(contains("personas.persona"), eq(String.class), eq(15L)))
+        when(jdbc.queryForList(contains("personas.persona"), eq(15L)))
                 .thenThrow(new DataIntegrityViolationException("boom"));
         SorteoClienteInput c = cliente();
         c.setNombre(null);
