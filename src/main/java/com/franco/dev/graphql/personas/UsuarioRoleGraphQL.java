@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.personas;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.personas.UsuarioRole;
 import com.franco.dev.graphql.personas.input.UsuarioRoleInput;
 import com.franco.dev.service.personas.RoleService;
@@ -18,6 +19,9 @@ import java.util.Optional;
 public class UsuarioRoleGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private UsuarioRoleService service;
 
     @Autowired
@@ -29,6 +33,7 @@ public class UsuarioRoleGraphQL implements GraphQLQueryResolver, GraphQLMutation
     public List<UsuarioRole> usuarioRolePorUsuarioId(Long id) {return service.findByUserId(id);}
 
     public UsuarioRole saveUsuarioRole(UsuarioRoleInput input){
+        rolSesionService.exigirAdmin();
         UsuarioRole e = new UsuarioRole();
         if(input.getId()!=null) e.setId(input.getId());
         e.setUser(usuarioService.findById(input.getUserId()).orElse(null));
@@ -39,6 +44,7 @@ public class UsuarioRoleGraphQL implements GraphQLQueryResolver, GraphQLMutation
     }
 
     public Boolean deleteUsuarioRole(Long id){
+        rolSesionService.exigirAdmin();
         Boolean ok = service.deleteById(id);
         return ok;
     }

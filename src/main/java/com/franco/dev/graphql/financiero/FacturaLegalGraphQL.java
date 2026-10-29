@@ -375,7 +375,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     if (entity.getDireccion() != null && !entity.getDireccion().trim().isEmpty()) {
                         String nuevaDireccion = entity.getDireccion().trim();
                         String direccionActual = persona.getDireccion() != null ? persona.getDireccion() : "";
-                        if (!nuevaDireccion.equals(direccionActual)) {
+                        if (!nuevaDireccion.equalsIgnoreCase(direccionActual)) {
                             persona.setDireccion(nuevaDireccion);
                             necesitaActualizar = true;
                         }
@@ -965,8 +965,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
         if (destino != null || printService != null) {
             OutputStream salida = destino != null ? destino
-                    : (printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream
-                            : new PrinterOutputStream(printService));
+                    : (printerOutputStream = new PrinterOutputStream(printService));
             // creating the EscPosImage, need buffered image and algorithm.
             // Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
@@ -1619,8 +1618,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
         if (destino != null || printService != null) {
             OutputStream salida = destino != null ? destino
-                    : (printerOutputStream = this.printerOutputStream != null ? this.printerOutputStream
-                            : new PrinterOutputStream(printService));
+                    : (printerOutputStream = new PrinterOutputStream(printService));
             // Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
             Style factura = new Style().setJustification(EscPosConst.Justification.Center)

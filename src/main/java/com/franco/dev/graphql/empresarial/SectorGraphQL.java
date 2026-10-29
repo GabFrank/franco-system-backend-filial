@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.empresarial;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.empresarial.Sector;
 import com.franco.dev.graphql.empresarial.input.SectorInput;
 import com.franco.dev.service.empresarial.SectorService;
@@ -17,6 +18,9 @@ import java.util.Optional;
 
 @Component
 public class SectorGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     @Autowired
     private SectorService service;
@@ -41,6 +45,7 @@ public class SectorGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     }
 
     public Sector saveSector(SectorInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Sector e = m.map(input, Sector.class);
         e.setSucursal(sucursalService.findById(input.getId()).orElse(null));
@@ -49,6 +54,7 @@ public class SectorGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     }
 
     public Boolean deleteSector(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

@@ -22,7 +22,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -80,7 +80,7 @@ class LoteFefoServiceBloqueoTest {
         service.asignar(null, SUCURSAL, 5.0);
         service.asignarConPreferencia(PRODUCTO, null, 5.0, Collections.singletonList(
                 new LoteFefoService.AsignacionLote(7L, "L-7", 10.0)));
-        verifyZeroInteractions(bloqueo, ledger);
+        verifyNoInteractions(bloqueo, ledger);
     }
 
     @Test

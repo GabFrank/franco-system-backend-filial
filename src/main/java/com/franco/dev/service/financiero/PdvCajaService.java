@@ -22,6 +22,7 @@ import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.DeliveryService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.RolSesionService;
 
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
@@ -80,6 +81,39 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
 
     @Autowired
     private DeliveryService deliveryService;
+
+    @Autowired
+    private RolSesionService rolSesionService;
+
+    /** Id del usuario dueño de la caja, o null si no tiene. */
+    public static Long duenioId(PdvCaja caja) {
+        return caja != null && caja.getUsuario() != null ? caja.getUsuario().getId() : null;
+    }
+
+    /** Dueño de la caja o ANALISIS DE CAJA (ADMIN pasa). Una caja que no existe sigue como antes. */
+    public void exigirAccesoACaja(Long cajaId) {
+        PdvCaja caja = cajaId != null ? findById(cajaId).orElse(null) : null;
+        if (caja != null) {
+            rolSesionService.exigirDuenioORol(duenioId(caja), RolSesionService.ANALISIS_DE_CAJA);
+        }
+    }
+
+    /** Para un registro suelto (venta, retiro, gasto, movimiento): el control de su caja; sin caja, solo el rol. */
+    public void exigirAccesoARegistroDeCaja(PdvCaja caja) {
+        if (caja == null || caja.getId() == null) {
+            rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
+        } else {
+            exigirAccesoACaja(caja.getId());
+        }
+    }
+
+    /** El de la caja que tiene ese conteo (apertura o cierre); un conteo sin caja, solo el rol. */
+    public void exigirAccesoAConteo(Long conteoId) {
+        PdvCaja caja = conteoId != null
+                ? repository.findFirstByConteoAperturaIdOrConteoCierreId(conteoId, conteoId).orElse(null)
+                : null;
+        rolSesionService.exigirDuenioORol(duenioId(caja), RolSesionService.ANALISIS_DE_CAJA);
+    }
 
     @Override
     public PdvCajaRepository getRepository() {
@@ -419,7 +453,11 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             }
 
             for (Venta venta : ventaList) {
-                totalGeneral += venta.getTotalGs();
+                // Como el central: solo concluidas y en verificacion, haya o no cobro.
+                if (venta.getEstado() == VentaEstado.CONCLUIDA
+                        || venta.getEstado() == VentaEstado.EN_VERIFICACION) {
+                    totalGeneral += venta.getTotalGs();
+                }
 
                 Cobro cobro = cobroService.findById(venta.getCobro().getId()).orElse(null);
                 if (cobro != null) {
@@ -484,29 +522,18 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                             }
                         }
                     } else if (venta.getEstado() == VentaEstado.CANCELADA) {
+                        // Una cancelada no toca vuelto, descuento ni aumento: nunca los sumo arriba.
+                        // Restar el vuelto (negativo) lo sumaba y la caja daba faltante (caja 7440).
                         for (CobroDetalle cobroDetalle : cobroDetalleList) {
+                            if (!Boolean.TRUE.equals(cobroDetalle.getPago())) {
+                                continue;
+                            }
                             if (cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")) {
-                                if (cobroDetalle.getPago()) {
-                                    totalCanceladasGs += cobroDetalle.getValor();
-                                } else if (cobroDetalle.getVuelto()) {
-                                    vueltoGs -= cobroDetalle.getValor();
-                                } else if (cobroDetalle.getDescuento()) {
-                                    totalDescuento -= cobroDetalle.getValor();
-                                } else if (cobroDetalle.getAumento()) {
-                                    totalAumento -= cobroDetalle.getValor();
-                                }
+                                totalCanceladasGs += cobroDetalle.getValor();
                             } else if (cobroDetalle.getMoneda().getDenominacion().contains("REAL")) {
-                                if (cobroDetalle.getPago()) {
-                                    totalCanceladasRs += cobroDetalle.getValor();
-                                } else if (cobroDetalle.getVuelto()) {
-                                    vueltoRs -= cobroDetalle.getValor();
-                                }
+                                totalCanceladasRs += cobroDetalle.getValor();
                             } else if (cobroDetalle.getMoneda().getDenominacion().contains("DOLAR")) {
-                                if (cobroDetalle.getPago()) {
-                                    totalCanceladasDs += cobroDetalle.getValor();
-                                } else if (cobroDetalle.getVuelto()) {
-                                    vueltoDs -= cobroDetalle.getValor();
-                                }
+                                totalCanceladasDs += cobroDetalle.getValor();
                             }
                         }
                     }

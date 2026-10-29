@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.impresion;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.FacturaLegalItem;
 import com.franco.dev.domain.financiero.Gasto;
@@ -59,6 +60,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
     @Autowired private FacturaLegalService facturaLegalService;
     @Autowired private FacturaLegalItemService facturaLegalItemService;
     @Autowired private PdvCajaService pdvCajaService;
+    @Autowired private RolSesionService rolSesionService;
     @Autowired private GastoService gastoService;
     @Autowired private RetiroService retiroService;
     @Autowired private RetiroDetalleService retiroDetalleService;
@@ -80,6 +82,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
                 break;
             case BALANCE:
                 PdvCaja caja = pdvCajaService.findById(id).orElseThrow(() -> noExiste("La caja", id));
+                rolSesionService.exigirDuenioORol(PdvCajaService.duenioId(caja), RolSesionService.ANALISIS_DE_CAJA);
                 impresionService.printBalance(pdvCajaService.generarBalance(caja), null, local, out);
                 break;
             case GASTO:

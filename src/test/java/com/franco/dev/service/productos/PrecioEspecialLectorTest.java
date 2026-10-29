@@ -122,7 +122,7 @@ public class PrecioEspecialLectorTest {
         when(env.getProperty("sucursalId")).thenReturn("7");
         when(env.getProperty("precio.especial.habilitado", "true")).thenReturn("false");
         assertSame(p, lector.aplicar(Collections.singletonList(p)).get(0));
-        verifyZeroInteractions(fuente);   // Boot 2.1 trae Mockito 2: no hay verifyNoInteractions
+        verifyNoInteractions(fuente);   // Boot 2.1 trae Mockito 2: no hay verifyNoInteractions
     }
 
     @Test

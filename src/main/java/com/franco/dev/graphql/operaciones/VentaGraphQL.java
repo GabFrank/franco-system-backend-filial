@@ -1189,9 +1189,12 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             Long formaPago, VentaEstado estado, Boolean isDelivery, Long monedaId, Boolean conDescuento, Boolean conAumento) {
         if (idVenta != null) {
             Venta venta = service.findById(idVenta).orElse(null);
+            // El control va por la caja de la venta: idVenta no tiene por que ser de idCaja.
+            if (venta != null) pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
             return new PageImpl<>(Arrays.asList(venta), PageRequest.of(0, 1), 1);
         }
         // TODO: Implementar filtro por conAumento cuando sea necesario
+        pdvCajaService.exigirAccesoACaja(idCaja);
         return service.findByCajaId(new EmbebedPrimaryKey(idCaja, sucId), page, size, asc, formaPago, estado,
                 isDelivery, monedaId);
     }

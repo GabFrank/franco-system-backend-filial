@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.personas;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.personas.Proveedor;
 import com.franco.dev.graphql.personas.input.ClienteInput;
@@ -24,6 +25,9 @@ import java.util.Optional;
 public class ProveedorGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private ProveedorService service;
 
     @Autowired
@@ -44,6 +48,7 @@ public class ProveedorGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
     }
 
     public Proveedor saveProveedor(ProveedorInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Proveedor e = m.map(input, Proveedor.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -52,6 +57,7 @@ public class ProveedorGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
     }
 
     public Boolean deleteProveedor(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

@@ -5,6 +5,7 @@ import com.franco.dev.graphql.financiero.input.RetiroDetalleInput;
 import com.franco.dev.graphql.financiero.input.RetiroInput;
 import com.franco.dev.service.financiero.MovimientoCajaService;
 import com.franco.dev.service.financiero.PdvCajaService;
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.service.financiero.RetiroDetalleService;
 import com.franco.dev.service.financiero.RetiroService;
 import com.franco.dev.service.general.PaisService;
@@ -45,6 +46,9 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     private PdvCajaService pdvCajaService;
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private MovimientoCajaService movimientoCajaService;
 
     @Autowired
@@ -59,16 +63,22 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     @Autowired
     private RetiroDetalleService retiroDetalleService;
 
+    /** Transaccional para leer la caja (LAZY) del retiro. */
+    @Transactional(readOnly = true)
     public Optional<Retiro> retiro(Long id, Long sucId) {
-        return service.findById(id);
+        Optional<Retiro> retiro = service.findById(id);
+        retiro.ifPresent(r -> pdvCajaService.exigirAccesoARegistroDeCaja(r.getCajaSalida()));
+        return retiro;
     }
 
     public List<Retiro> retiros(int page, int size, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
     public List<Retiro> retiroListPorCajaSalidaId(Long id, Long sucId) {
+        pdvCajaService.exigirAccesoACaja(id);
         return service.findByCajaSalidaId(id);
     }
 
