@@ -66,6 +66,7 @@ class TicketEscposGraphQLTest {
     @Mock private FacturaLegalGraphQL facturaLegalGraphQL;
     @Mock private ImpresionService impresionService;
     @Mock private com.franco.dev.service.seguridad.RolSesionService rolSesionService;
+    @Mock private com.franco.dev.service.sorteo.SorteoParticipacionService sorteoParticipacionService;
     @InjectMocks private TicketEscposGraphQL resolver;
 
     private static final byte[] TICKET = {0x1b, 0x40, 'O', 'K', 0x0a};
@@ -251,5 +252,48 @@ class TicketEscposGraphQLTest {
                 () -> resolver.ticketEscpos(TicketEscposTipo.BALANCE, 662L, null, "CAJA 1"));
         verify(pdvCajaService, never()).generarBalance(any());
         verify(impresionService, never()).printBalance(any(), any(), any(), any(OutputStream.class));
+    }
+
+    @Test
+    void sorteoReimprimeConLeyenda() throws Exception {
+        com.franco.dev.service.impresion.dto.SorteoTicketDto t = new com.franco.dev.service.impresion.dto.SorteoTicketDto();
+        t.setNombreSorteo("Sorteo de Navidad");
+        t.setPremios(java.util.Arrays.asList("Una moto"));
+        t.setSucursal("CENTRO");
+        t.setVentaId(77L);
+        t.setFecha(java.time.LocalDateTime.of(2026, 12, 5, 10, 30));
+        t.setTotalGs(250000.0);
+        t.setCodigo("S1-7-77");
+        t.setNumero(1);
+        t.setTotal(1);
+        t.setReimpresion(true);
+        java.util.List<com.franco.dev.service.impresion.dto.SorteoTicketDto> tickets = Collections.singletonList(t);
+        when(sorteoParticipacionService.ticketsDeVenta(77L, true)).thenReturn(tickets);
+        // el renderer real, para comprobar que la leyenda sale en los bytes
+        com.franco.dev.service.utils.ImageService imageService = mock(com.franco.dev.service.utils.ImageService.class);
+        imageService.storageDirectoryPath = java.nio.file.Files.createTempDirectory("frc-sorteo-re").toFile()
+                .getAbsolutePath() + java.io.File.separator;
+        ImpresionService real = new ImpresionService();
+        org.springframework.test.util.ReflectionTestUtils.setField(real, "imageService", imageService);
+        org.springframework.test.util.ReflectionTestUtils.setField(real, "printingService",
+                mock(com.franco.dev.service.utils.PrintingService.class));
+        when(impresionService.printSorteoTickets(anyList(), isNull(), eq("CAJA 1"), any(OutputStream.class)))
+                .thenAnswer(inv -> real.printSorteoTickets(inv.getArgument(0), "X", inv.getArgument(2),
+                        (OutputStream) inv.getArgument(3)));
+
+        String b64 = resolver.ticketEscpos(TicketEscposTipo.SORTEO, 77L, null, "CAJA 1");
+
+        assertNotNull(b64);
+        String bytes = new String(Base64.getDecoder().decode(b64), java.nio.charset.StandardCharsets.ISO_8859_1);
+        assertTrue(bytes.contains("REIMPRESION"), bytes);
+    }
+
+    @Test
+    void sorteoSinParticipacionesLanza() {
+        when(sorteoParticipacionService.ticketsDeVenta(78L, true)).thenReturn(Collections.emptyList());
+        GraphQLException e = assertThrows(GraphQLException.class,
+                () -> resolver.ticketEscpos(TicketEscposTipo.SORTEO, 78L, null, null));
+        assertEquals("La venta 78 no tiene tickets de sorteo", e.getMessage());
+        verify(impresionService, never()).printSorteoTickets(any(), any(), any(), any());
     }
 }

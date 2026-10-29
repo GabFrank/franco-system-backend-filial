@@ -28,6 +28,8 @@ import com.franco.dev.service.impresion.dto.RetiroDto;
 import com.franco.dev.service.impresion.dto.SenaCuponDto;
 import com.franco.dev.service.operaciones.DeliveryService;
 import com.franco.dev.service.operaciones.VentaService;
+import com.franco.dev.service.sorteo.SorteoParticipacionService;
+import com.franco.dev.service.impresion.dto.SorteoTicketDto;
 import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import lombok.extern.slf4j.Slf4j;
@@ -70,6 +72,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
     @Autowired private VentaGraphQL ventaGraphQL;
     @Autowired private FacturaLegalGraphQL facturaLegalGraphQL;
     @Autowired private ImpresionService impresionService;
+    @Autowired private SorteoParticipacionService sorteoParticipacionService;
 
     public String ticketEscpos(TicketEscposTipo tipo, Long id, Boolean reimpresion, String local) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -93,6 +96,13 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
                 break;
             case DELIVERY:
                 delivery(id, local, out);
+                break;
+            case SORTEO:
+                List<SorteoTicketDto> tickets = sorteoParticipacionService.ticketsDeVenta(id, true);
+                if (tickets == null || tickets.isEmpty()) {
+                    throw new GraphQLException("La venta " + id + " no tiene tickets de sorteo");
+                }
+                impresionService.printSorteoTickets(tickets, null, local, out);
                 break;
         }
         return base64(out);

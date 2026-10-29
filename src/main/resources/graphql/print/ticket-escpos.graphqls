@@ -8,10 +8,11 @@ enum TicketEscposTipo {
     GASTO
     RETIRO
     DELIVERY
+    SORTEO
 }
 
 extend type Query {
-    # id es el de la venta, factura, caja (BALANCE), gasto, retiro o delivery segun el tipo.
+    # id es el de la venta (VENTA y SORTEO), factura, caja (BALANCE), gasto, retiro o delivery segun el tipo.
     # reimpresion solo cambia GASTO y RETIRO (VENTA y DELIVERY siempre salen como reimpresion).
     ticketEscpos(tipo: TicketEscposTipo!, id: ID!, reimpresion: Boolean, local: String): String
     senaCuponEscpos(input: SenaCuponInput!, local: String): String

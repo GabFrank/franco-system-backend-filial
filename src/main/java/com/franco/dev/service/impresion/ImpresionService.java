@@ -9,6 +9,7 @@ import com.franco.dev.service.financiero.TimbradoDetalleService;
 import com.franco.dev.service.impresion.dto.GastoDto;
 import com.franco.dev.service.impresion.dto.RetiroDto;
 import com.franco.dev.service.impresion.dto.SenaCuponDto;
+import com.franco.dev.service.impresion.dto.SorteoTicketDto;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
@@ -30,12 +31,14 @@ import org.springframework.stereotype.Service;
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.NumberFormat;
+import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -44,6 +47,8 @@ import static com.franco.dev.service.utils.PrintingService.resize;
 
 @Service
 public class ImpresionService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ImpresionService.class);
 
     public static DateTimeFormatter shortDate = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     public static DateTimeFormatter shortDateTime = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
@@ -681,6 +686,158 @@ public class ImpresionService {
         int d = decimales != null ? decimales : 0;
         if (d <= 0) return NumberFormat.getNumberInstance(Locale.GERMAN).format(monto.longValue());
         return String.format("%." + d + "f", monto);
+    }
+
+    private static final int COLUMNAS_SORTEO = 32;
+
+    /**
+     * Tickets de participacion de un sorteo: uno por participacion, todos en el mismo trabajo y con
+     * corte completo entre uno y otro. Mismo contrato que {@code printSenaCupon}: con
+     * {@code destino != null} escribe ahi y no busca impresora; nunca lanza, devuelve false.
+     *
+     * Papel de 58 mm (32 columnas): todo lo que viene de datos --nombre, descripcion, premios-- se
+     * parte en renglones de hasta 32 caracteres. Los textos fijos van sin tildes, como el resto de
+     * los tickets ("REIMPRESION"), porque la tabla de caracteres de la impresora no las garantiza.
+     */
+    public Boolean printSorteoTickets(List<SorteoTicketDto> tickets, String printerName, String local, OutputStream destino) {
+        PrinterOutputStream propio = null;
+        try {
+            if (tickets == null || tickets.isEmpty()) return false;
+            if (destino == null) {
+                selectedPrintService = printingService.getPrintService(printerName);
+                if (selectedPrintService == null) return false;
+            }
+            // Con destino (modo FRONTEND) se arma todo en un buffer y se copia al final: si algo falla a
+            // mitad de un ticket, al comprobante de la venta no se le pegan bytes a medias.
+            ByteArrayOutputStream buffer = destino != null ? new ByteArrayOutputStream() : null;
+            OutputStream salida = destino != null ? buffer
+                    : (propio = printerOutputStream = new PrinterOutputStream(selectedPrintService));
+            DateTimeFormatter fechaCorta = shortDate; // mismo formato dd-MM-yyyy
+            DateTimeFormatter fechaHora = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+            // Style es mutable y se comparte: el bold se prende y se apaga explicito en cada uso.
+            Style center = new Style().setJustification(EscPosConst.Justification.Center);
+            EscPos escpos = new EscPos(salida);
+
+            // El logo se carga una vez; si falta o falla, los tickets salen sin el.
+            EscPosImage escposImage = null;
+            try {
+                BufferedImage logo = ImageIO.read(new File(imageService.storageDirectoryPath + "logo.png"));
+                if (logo != null) {
+                    escposImage = new EscPosImage(new CoffeeImageImpl(resize(logo, 200, 100)), new BitonalThreshold());
+                }
+            } catch (Exception ignorado) {
+                escposImage = null;
+            }
+
+            // Mismo feed de sacrificio que printSenaCupon: viene de un corte y la impresora se come
+            // los primeros bytes del trabajo. Basta uno al inicio; los siguientes vienen tras el cut.
+            escpos.feed(1);
+
+            for (int i = 0; i < tickets.size(); i++) {
+                SorteoTicketDto t = tickets.get(i);
+                if (i > 0) escpos.feed(1);
+                if (escposImage != null) {
+                    BitImageWrapper imageWrapper = new BitImageWrapper();
+                    imageWrapper.setJustification(EscPosConst.Justification.Center);
+                    escpos.write(imageWrapper, escposImage);
+                }
+                if (t.isReimpresion()) escpos.writeLF(center.setBold(false), "REIMPRESION");
+                escpos.writeLF(center.setBold(true), "SORTEO");
+                for (String l : partirSorteo(t.getNombreSorteo(), COLUMNAS_SORTEO)) escpos.writeLF(center.setBold(true), l);
+                escpos.writeLF(center.setBold(false), "");
+                for (String l : partirSorteo(t.getDescripcion(), COLUMNAS_SORTEO)) escpos.writeLF(center, l);
+
+                if (t.getPremios() != null && !t.getPremios().isEmpty()) {
+                    escpos.writeLF("--------------------------------");
+                    escpos.writeLF(center.setBold(true), "PREMIOS");
+                    escpos.setStyle(new Style());
+                    for (String p : t.getPremios()) {
+                        List<String> ls = partirSorteo(p, COLUMNAS_SORTEO - 2);
+                        for (int k = 0; k < ls.size(); k++) escpos.writeLF((k == 0 ? "- " : "  ") + ls.get(k));
+                    }
+                }
+
+                escpos.writeLF("--------------------------------");
+                if (t.getFechaSorteo() != null) escpos.writeLF("Sorteo: " + t.getFechaSorteo().format(fechaCorta));
+                if (t.getSucursal() != null) for (String l : partirSorteo("Suc: " + t.getSucursal(), COLUMNAS_SORTEO)) escpos.writeLF(l);
+                if (t.getVentaId() != null) escpos.writeLF("Venta: " + t.getVentaId());
+                if (t.getFecha() != null) escpos.writeLF("Fecha: " + t.getFecha().format(fechaHora));
+                if (t.getTotalGs() != null) {
+                    escpos.writeLF("Total: " + NumberFormat.getNumberInstance(Locale.GERMAN).format(t.getTotalGs().longValue()) + " Gs");
+                }
+
+                // Sin «Ticket i de N» ni el código: el cliente no los necesita. El ganador se valida por
+                // el número de venta impreso arriba.
+                escpos.writeLF("--------------------------------");
+                escpos.writeLF(center.setBold(false), "");
+
+                // Sin datos («Imprimir normal» en el POS): el cliente completa nombre y CI/RUC a mano.
+                boolean sinNombre = t.getClienteNombre() == null || t.getClienteNombre().trim().isEmpty();
+                boolean sinDocumento = t.getClienteDocumento() == null || t.getClienteDocumento().trim().isEmpty();
+                if (sinNombre) {
+                    escpos.feed(1);
+                    escpos.writeLF("Nombre: ______________");
+                } else {
+                    for (String l : partirSorteo(t.getClienteNombre(), COLUMNAS_SORTEO)) escpos.writeLF(l);
+                }
+                if (sinDocumento) {
+                    escpos.feed(1);
+                    escpos.writeLF("CI/RUC: ______________");
+                } else {
+                    escpos.writeLF("CI/RUC: " + sinTildes(t.getClienteDocumento()));
+                }
+                escpos.feed(1);
+                escpos.writeLF("Telefono: ____________");
+                escpos.feed(1);
+                escpos.writeLF("Firma: ______________");
+                escpos.feed(1);
+                // Literal (39 caracteres) en fuente B, que entra entera en los 58 mm (42 columnas);
+                // en la A se partiria a mitad de palabra. Despues se vuelve al estilo base.
+                escpos.writeLF(new Style().setJustification(EscPosConst.Justification.Center)
+                        .setFontName(Style.FontName.Font_B), "Deposite este ticket firmado en la urna");
+                escpos.setStyle(new Style());
+                escpos.feed(2);
+                escpos.cut(EscPos.CutMode.FULL);
+            }
+            escpos.close();
+            if (destino != null) buffer.writeTo(destino);
+            else printerOutputStream.close();
+            return true;
+        } catch (Exception e) {
+            // La venta ya se guardo: que el papel no salga se informa con false, no reventando.
+            log.error("No se pudo imprimir el ticket de sorteo", e);
+            if (propio != null) {
+                try { propio.close(); } catch (Exception ignorado) { }
+            }
+            return false;
+        }
+    }
+
+    private static String sinTildes(String s) {
+        if (s == null) return "";
+        return Normalizer.normalize(s, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+    }
+
+    /** Parte por palabras en renglones de hasta {@code ancho}; una palabra mas larga se corta. Sin tildes. */
+    private static List<String> partirSorteo(String texto, int ancho) {
+        List<String> res = new ArrayList<>();
+        if (texto == null || texto.trim().isEmpty()) return res;
+        StringBuilder linea = new StringBuilder();
+        for (String palabra : sinTildes(texto).trim().split("\\s+")) {
+            while (palabra.length() > ancho) {
+                if (linea.length() > 0) { res.add(linea.toString()); linea.setLength(0); }
+                res.add(palabra.substring(0, ancho));
+                palabra = palabra.substring(ancho);
+            }
+            if (linea.length() > 0 && linea.length() + 1 + palabra.length() > ancho) {
+                res.add(linea.toString());
+                linea.setLength(0);
+            }
+            if (linea.length() > 0) linea.append(' ');
+            linea.append(palabra);
+        }
+        if (linea.length() > 0) res.add(linea.toString());
+        return res;
     }
 
 //    public void printVueltoGasto(GastoDto gastoDto){

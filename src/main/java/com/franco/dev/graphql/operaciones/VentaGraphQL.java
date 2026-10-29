@@ -23,6 +23,7 @@ import com.franco.dev.graphql.financiero.input.VentaCreditoInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
 import com.franco.dev.graphql.operaciones.input.CobroInput;
 import com.franco.dev.graphql.operaciones.input.DeliveryInput;
+import com.franco.dev.graphql.operaciones.input.SorteoClienteInput;
 import com.franco.dev.graphql.operaciones.input.VentaInput;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
 import com.franco.dev.service.empresarial.SucursalService;
@@ -44,6 +45,8 @@ import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.reports.TicketReportService;
+import com.franco.dev.service.impresion.dto.SorteoTicketDto;
+import com.franco.dev.service.sorteo.SorteoParticipacionService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
 import com.franco.dev.utilitarios.print.PagareTicket;
@@ -68,6 +71,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
@@ -163,6 +167,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     private MonedaService monedaService;
     @Autowired
     private VentaDuplicadaCacheService ventaDuplicadaCacheService;
+    @Autowired
+    private SorteoParticipacionService sorteoParticipacionService;
     private Sucursal sucursal;
 
     public Optional<Venta> venta(Long id, Long sucId) {
@@ -202,7 +208,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     public Venta saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput,
             List<CobroDetalleInput> cobroDetalleList, Boolean ticket, Boolean facturar, String printerName,
             String local, Long pdvId, VentaCreditoInput ventaCreditoInput,
-            List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList, Boolean imprimirEnCliente)
+            List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList, Boolean imprimirEnCliente,
+            SorteoClienteInput sorteoCliente)
             throws Exception, GraphQLException {
         auditorUsuarioId.verificar("VentaGraphQL.saveVenta", ventaInput.getUsuarioId());
         if (ventaItemList == null && cobroDetalleList == null && cobroDetalleList == null) {
@@ -330,6 +337,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         break;
                     }
                 }
+                // Despues del comprobante y antes de armar el base64: en modo FRONTEND los tickets
+                // del sorteo quedan al final del mismo stream. Nunca lanza.
+                registrarEImprimirSorteo(venta, cobroDetalleList, sorteoCliente, ventaInput.getUsuarioId(),
+                        printerName, local, ticketCliente);
                 if (ticketCliente != null && ticketCliente.size() > 0) {
                     venta.setTicketEscpos(Base64.getEncoder().encodeToString(ticketCliente.toByteArray()));
                 }
@@ -342,10 +353,60 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 throw rechazo;
             } catch (Exception e) {
                 e.printStackTrace();
+                // El comprobante fallo pero la venta se confirma igual: el cliente ya dio sus datos,
+                // asi que la participacion se registra igual (se puede reimprimir). La impresion aca
+                // es best-effort: en modo FRONTEND los bytes no vuelven al desktop.
+                registrarEImprimirSorteo(venta, cobroDetalleList, sorteoCliente, ventaInput.getUsuarioId(),
+                        printerName, local, ticketCliente);
                 return venta;
             }
         }
         return venta;
+    }
+
+    /**
+     * Registra la participacion del cliente en los sorteos que califican (con el total real de la
+     * venta) e imprime sus tickets: por la impresora del filial, o al final de {@code ticketCliente}
+     * en modo FRONTEND. En las rutas sin comprobante los tickets salen solos.
+     * <p>
+     * <b>Nunca lanza:</b> el registro corre en transacciones propias (ver
+     * {@link SorteoParticipacionService}) y cualquier error se loguea; la venta se guarda igual.
+     * Sin {@code sorteoCliente} (no participa, o desktop viejo) no hace nada.
+     */
+    void registrarEImprimirSorteo(Venta venta, List<CobroDetalleInput> cobroDetalleList,
+            SorteoClienteInput sorteoCliente, Long usuarioId, String printerName, String local,
+            OutputStream ticketCliente) {
+        if (sorteoCliente == null || venta == null || sorteoParticipacionService == null) return;
+        if (ventaVaARevertirse()) {
+            log.warn("Venta {}: la transaccion ya esta marcada para revertir; no se registra el sorteo", venta.getId());
+            return;
+        }
+        try {
+            List<SorteoParticipacionService.Participacion> participaciones =
+                    sorteoParticipacionService.registrar(venta, cobroDetalleList, sorteoCliente, usuarioId);
+            if (participaciones == null || participaciones.isEmpty()) return;
+            Boolean impreso = impresionService.printSorteoTickets(
+                    SorteoParticipacionService.tickets(participaciones, false), printerName, local, ticketCliente);
+            if (!Boolean.TRUE.equals(impreso)) {
+                log.warn("Venta {}: la participacion en sorteos quedo registrada pero los tickets no se imprimieron; "
+                        + "se pueden reimprimir", venta.getId());
+            }
+            venta.setSorteoTickets(SorteoParticipacionService.resumen(participaciones));
+        } catch (Exception e) {
+            log.error("Venta {}: fallo el sorteo; la venta sigue igual: {}", venta.getId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * True si la transaccion de la venta ya quedo rollback-only: registrar o imprimir tickets seria
+     * de una venta que no se va a confirmar. Sin transaccion (tests) devuelve false.
+     */
+    boolean ventaVaARevertirse() {
+        try {
+            return TransactionAspectSupport.currentTransactionStatus().isRollbackOnly();
+        } catch (Exception sinTransaccion) {
+            return false;
+        }
     }
 
     /**
@@ -1227,6 +1288,18 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
         }
         return false;
+    }
+
+    /**
+     * Reimprime por la impresora del filial los tickets de sorteo de una venta, marcados REIMPRESION.
+     * No crea participaciones: solo vuelve a imprimir las ya registradas.
+     */
+    public Boolean reimprimirSorteo(Long ventaId, String printerName, String local) {
+        List<SorteoTicketDto> tickets = sorteoParticipacionService.ticketsDeVenta(ventaId, true);
+        if (tickets == null || tickets.isEmpty()) {
+            throw new GraphQLException("La venta " + ventaId + " no tiene tickets de sorteo");
+        }
+        return impresionService.printSorteoTickets(tickets, printerName, local, null);
     }
 
     public List<VentaPorPeriodoV1Dto> ventaPorPeriodo(String inicio, String fin, Long sucId) {

@@ -7,6 +7,7 @@ import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.personas.Usuario;
+import com.franco.dev.service.sorteo.SorteoTicketInfo;
 import com.franco.dev.utilitarios.JsonIdView;
 import com.franco.dev.utilitarios.PostgreSQLEnumType;
 import lombok.AllArgsConstructor;
@@ -91,4 +92,12 @@ public class Venta implements Serializable {
     @Transient
     @JsonIgnore
     private String ticketEscpos;
+
+    /**
+     * Tickets de sorteo que salieron con esta venta, para el aviso del desktop. Solo respuesta de
+     * saveVenta: no se persiste ni viaja en la replicacion.
+     */
+    @Transient
+    @JsonIgnore
+    private List<SorteoTicketInfo> sorteoTickets;
 }
