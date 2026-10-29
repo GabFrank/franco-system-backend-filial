@@ -10,7 +10,7 @@
 --
 -- ORDEN DE DESPLIEGUE --- ⚠️ ESTA VA ANTES QUE LA DEL CENTRAL
 --
--- costo_por_producto es MAIN_TO_ALL (central_pub). Cuando el central escriba una fila con las
+-- costo_por_producto y configuracion_moneda_modulo son MAIN_TO_ALL (central_pub). Cuando el central escriba una fila con las
 -- columnas nuevas, una filial sin ellas deja al apply worker en crash-loop ("missing replicated
 -- column"). Por eso se despliega, y se verifica en flyway_schema_history de cada filial, antes
 -- que el central.
@@ -33,3 +33,9 @@ COMMENT ON COLUMN productos.costo_por_producto.ultimo_precio_compra_costeo IS
     'Ultimo precio de compra en la moneda de costeo. ultimo_precio_compra sigue en la moneda de la empresa.';
 COMMENT ON COLUMN productos.costo_por_producto.cotizacion_costeo IS
     'Guaranies por unidad de la moneda de costeo con que se calculo la fila (1 si es el guarani).';
+
+-- Espejo de configuracion_moneda_modulo.cotizacion_partida (central V259.5). El filial no la lee.
+ALTER TABLE financiero.configuracion_moneda_modulo ADD COLUMN IF NOT EXISTS cotizacion_partida NUMERIC;
+
+COMMENT ON COLUMN financiero.configuracion_moneda_modulo.cotizacion_partida IS
+    'COSTOS: guaranies por unidad de la moneda al guardar la fila. La escribe el central.';
