@@ -94,6 +94,41 @@ Filial de la rama en el 8082 contra `general` local, SIFEN apagado, colas CUPS d
 - por pantalla, «Últimas ventas» → Reimprimir con las dos colas;
 - con las clases de la rama y CUPS real: ticket de 300 bytes a la cola que rechaza, con y sin `esperarEnvio()`.
 
+### Resultado (29/10)
+
+- Tests: batería `./mvnw clean verify -B` verde (749). Con la lógica anterior (stubs mínimos) fallan los 6 de
+  `reimprimirVenta`, 3 de `lineaCliente` y los 5 «con espera»; pasan los que protegen el cierre sin espera.
+- CUPS real con las clases del filial, ticket de 300 bytes a `zz_rechaza`, 20 veces: sin espera (la venta) 17 se
+  informan como impresos, como hoy; con `esperarEnvio()` (reimpresión) 20 con error, cierre en ≤ 3 ms.
+- Filial de la rama en el 8082 contra `general` local (sin perfil: SIFEN y backup apagados; Flyway apagado):
+  `reimprimirVenta` de la 79270 (con factura) y la 79314 (sin factura) devuelve `true` con `zz_ok` y error con
+  `zz_rechaza` (en el log: «No se pudo reimprimir la factura» / «Printer is not accepting job.»).
+- Pantalla, desktop web contra el filial (PDV 25, caja 1185 de MR): PDV → Utilitarios → Reimpresión de ticket → venta
+  79270: con `zz_rechaza`, «Ups! Algo salió mal: Internal Server Error(s) while executing query» (antes «Reimpreso con
+  éxito»); con `zz_ok`, «Reimpreso con éxito».
+- Venta del PDV con `zz_rechaza` (CR + Ticket, agua 20 L): la venta 79315 se guardó CONCLUIDA en 546 ms; la falla del
+  ticket quedó en el log, como antes.
+
+Encontrado en la prueba, fuera de alcance:
+- El filial no activa los manejadores de excepciones de GraphQL (`graphql.servlet.exception-handlers-enabled`): todo
+  error llega al cliente como «Internal Server Error(s) while executing query», sin motivo.
+- `reimprimirFacturaLegal` no está publicado en el esquema del filial: la lista de facturas del desktop reimprime
+  contra el central.
+- La factura 33137 de la base local tiene el timbrado con `is_electronico` nulo y no se puede imprimir (NPE en
+  `printTicket58mmFactura`). Antes «Últimas ventas» lo mostraba como «Reimpreso con éxito».
+
+## Auditoría del diff (paso 8)
+
+| Hallazgo | Eje | Qué se hizo |
+|---|---|---|
+| Solo las dos reimpresiones esperan; el resto cierra como antes; sin referencias al campo borrado | Fijo 3 | verificado |
+| Pagaré: el cierre que ahora avisa puede tapar el error del `write` (el llamador loguea y la venta sigue) | Fijo 3 | bajo, queda |
+| Impresora no encontrada en `reimprimirVenta` da el mensaje genérico | Fijo 3 | bajo, etapa 4b |
+| `printService` sigue siendo un campo compartido en `FacturaLegalGraphQL` | Fijo 3 | bajo, previo, etapa 4b |
+| Una reimpresión contra una impresora colgada retiene un hilo hasta 10 s | Fijo 1 | bajo: requiere sesión, tope fijo, la venta no espera |
+| Sin cambios de permisos ni de datos devueltos; los mensajes no llegan al cliente (manejadores apagados) | Fijo 1 | verificado |
+| Fijo 2 (esquema y migraciones) | — | N/A para filial: el diff no toca `.graphqls` ni migraciones |
+
 ## Auditoría del plan (paso 5)
 
 | Hallazgo | Eje | Qué se hizo |
