@@ -766,10 +766,9 @@ public class ImpresionService {
                     escpos.writeLF("Total: " + NumberFormat.getNumberInstance(Locale.GERMAN).format(t.getTotalGs().longValue()) + " Gs");
                 }
 
+                // Sin «Ticket i de N» ni el código: el cliente no los necesita. El ganador se valida por
+                // el número de venta impreso arriba.
                 escpos.writeLF("--------------------------------");
-                escpos.writeLF(center.setBold(true), "Ticket " + t.getNumero() + " de " + t.getTotal());
-                String codigo = (t.getCodigo() != null ? t.getCodigo() : "") + "-" + t.getNumero() + "/" + t.getTotal();
-                for (String l : partirSorteo(codigo, COLUMNAS_SORTEO)) escpos.writeLF(center.setBold(true), l);
                 escpos.writeLF(center.setBold(false), "");
 
                 // Sin datos («Imprimir normal» en el POS): el cliente completa nombre y CI/RUC a mano.

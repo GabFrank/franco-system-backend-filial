@@ -67,9 +67,10 @@ class SorteoTicketRenderTest {
     void dosTicketsConCortesYContenido() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         String s = render(true, Arrays.asList(ticket(1, 2, false), ticket(2, 2, false)), out);
-        assertTrue(s.contains("Ticket 1 de 2"));
-        assertTrue(s.contains("Ticket 2 de 2"));
-        assertTrue(s.contains("NAV-ABC123-1/2"));
+        // El cliente no ve el número de ticket ni el código; sí la venta, que sirve para validar.
+        assertFalse(s.contains("Ticket 1 de 2"));
+        assertFalse(s.contains("NAV-ABC123"));
+        assertTrue(s.contains("Venta: 1234"));
         assertTrue(s.contains("Firma:"));
         assertTrue(s.contains("Juan Perez"));
         assertTrue(s.contains("Deposite este ticket firmado en la urna"));
