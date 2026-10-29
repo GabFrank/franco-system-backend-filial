@@ -24,6 +24,10 @@ public class VentaItemInput {
     private Long usuarioId;
     private Boolean activo;
     private Long sucursalId;
+    /** Rastro de la conversion del precio de lista (V110.5); null = sin conversion. */
+    private Long precioMonedaId;
+    private Double precioLista;
+    private Double precioCotizacion;
     /** Lotes elegidos a mano por el cajero. Null o vacío = FEFO puro. */
     private List<VentaItemLoteInput> lotes;
 }

@@ -7,6 +7,12 @@ import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.domain.operaciones.dto.LotePreferidoDto;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
+import com.franco.dev.domain.financiero.Moneda;
+import com.franco.dev.service.financiero.MonedaService;
+import com.franco.dev.service.operaciones.RastroPrecio;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.math.BigDecimal;
 import com.franco.dev.graphql.operaciones.input.VentaItemLoteInput;
 import com.franco.dev.service.financiero.CambioService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
@@ -34,6 +40,11 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
 
     @Autowired
     private VentaItemService service;
+
+    private static final Logger log = LoggerFactory.getLogger(VentaItemGraphQL.class);
+
+    @Autowired
+    private MonedaService monedaService;
 
     @Autowired
     private UsuarioService usuarioService;
@@ -93,8 +104,44 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         // Se setea explicitamente y no via ModelMapper: son tipos distintos (input -> dto) y el
         // campo es transiente, solo viaja hasta VentaLoteService.
         e.setLotesPreferidos(mapearLotesPreferidos(input));
+        aplicarRastroPrecio(e, input);
         e = service.saveAndSend(e, false);
         return e;
+    }
+
+    /**
+     * El rastro de la conversion del precio de lista (V110.5): se guarda tal cual lo manda el PDV, y si
+     * el precio cobrado no da con el rastro queda RASTRO_PRECIO_DISTINTO en el log. No se rechaza: es
+     * una venta ya cobrada. Sin rastro, el item es como siempre.
+     */
+    void aplicarRastroPrecio(VentaItem e, VentaItemInput input) {
+        e.setPrecioMoneda(null);
+        e.setPrecioLista(null);
+        e.setPrecioCotizacion(null);
+        if (input.getPrecioMonedaId() == null || input.getPrecioLista() == null || input.getPrecioCotizacion() == null) {
+            return;
+        }
+        e.setPrecioMoneda(monedaService.findById(input.getPrecioMonedaId()).orElse(null));
+        e.setPrecioLista(BigDecimal.valueOf(input.getPrecioLista()));
+        e.setPrecioCotizacion(BigDecimal.valueOf(input.getPrecioCotizacion()));
+        int decimales = decimalesDeCobro();
+        BigDecimal esperado = RastroPrecio.esperado(input.getPrecioLista(), input.getPrecioCotizacion(), decimales);
+        if (!RastroPrecio.coincide(input.getPrecio(), esperado, decimales)) {
+            log.warn("RASTRO_PRECIO_DISTINTO venta={} producto={} precio={} lista={} cotizacion={} esperado={}",
+                    input.getVentaId(), input.getProductoId(), input.getPrecio(), input.getPrecioLista(),
+                    input.getPrecioCotizacion(), esperado);
+        }
+    }
+
+    /** Decimales de la moneda en que se cobra: hoy la de la empresa. */
+    private int decimalesDeCobro() {
+        try {
+            Moneda principal = monedaService.principal();
+            return principal != null && principal.getDecimales() != null && principal.getDecimales() >= 0
+                    ? principal.getDecimales() : 0;
+        } catch (RuntimeException ex) {
+            return 0;
+        }
     }
 
     /**

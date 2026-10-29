@@ -3,6 +3,7 @@ package com.franco.dev.domain.operaciones;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.franco.dev.domain.empresarial.Sucursal;
+import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.PrecioPorSucursal;
 import com.franco.dev.domain.productos.Presentacion;
@@ -19,6 +20,7 @@ import com.franco.dev.domain.operaciones.dto.LotePreferidoDto;
 
 import javax.persistence.*;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -84,6 +86,18 @@ public class VentaItem implements Serializable {
     private Usuario usuario;
 
     private Boolean activo;
+
+    // Rastro de la conversion del precio de lista (V110.5). precio sigue en la moneda en que se cobro.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "precio_moneda_id", nullable = true)
+    private Moneda precioMoneda;
+
+    @Column(name = "precio_lista")
+    private BigDecimal precioLista;
+
+    /** Unidades de la moneda de cobro por unidad de precioMoneda. */
+    @Column(name = "precio_cotizacion")
+    private BigDecimal precioCotizacion;
 
     /**
      * Lotes que el cajero eligió a mano en el POS. NO se persiste: viaja desde el resolver hasta

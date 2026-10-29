@@ -1,5 +1,6 @@
 package com.franco.dev.domain.productos;
 
+import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.personas.Usuario;
 import lombok.AllArgsConstructor;
@@ -48,7 +49,8 @@ public class PrecioPorSucursal implements Serializable {
 
     private Boolean activo;
 
+    /** Moneda del precio (V110.5, llega del central). NULL = la moneda de la empresa (principal). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "moneda_id", nullable = true)
+    private Moneda moneda;
 }
-
-
-

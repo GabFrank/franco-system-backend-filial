@@ -1,5 +1,8 @@
 package com.franco.dev.graphql.productos;
 
+import com.franco.dev.domain.financiero.Moneda;
+import com.franco.dev.domain.productos.dto.PrecioEnOtraMoneda;
+import com.franco.dev.service.financiero.MonedaService;
 import com.franco.dev.domain.productos.Codigo;
 import com.franco.dev.domain.productos.PrecioPorSucursal;
 import com.franco.dev.domain.productos.TipoPrecio;
@@ -42,7 +45,23 @@ public class PrecioPorSucursalGraphQL implements GraphQLQueryResolver, GraphQLMu
     @Autowired
     private Environment env;
 
+    @Autowired
+    private MonedaService monedaService;
+
     public Optional<PrecioPorSucursal> precioPorSucursal(Long id) {return service.findById(id);}
+
+    /**
+     * Los precios en otra moneda que la de la empresa (V110.5). El PDV la pide aparte y la cachea;
+     * los que no estan en la lista son de la moneda de la empresa. La de la empresa no se lista aunque
+     * algun precio la tenga explicita.
+     */
+    public List<PrecioEnOtraMoneda> preciosEnOtraMoneda() {
+        Moneda principal = monedaService.principal();
+        return service.getRepository().findConMoneda().stream()
+                .filter(p -> principal == null || !principal.getId().equals(p.getMoneda().getId()))
+                .map(p -> new PrecioEnOtraMoneda(p.getId(), p.getMoneda()))
+                .collect(java.util.stream.Collectors.toList());
+    }
 
     public List<PrecioPorSucursal> precioPorSucursalPorPresentacionId(Long id) {return service.findByPresentacionId(id);}
 
