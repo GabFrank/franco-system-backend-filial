@@ -22,6 +22,9 @@ public interface FacturaLegalRepository extends HelperRepository<FacturaLegal, L
 
     public FacturaLegal findByVentaId(Long id);
 
+    /** Todas las facturas de una venta, la mas nueva primero: por el bug de #207 hay ventas con mas de una. */
+    public List<FacturaLegal> findByVentaIdAndSucursalIdOrderByIdDesc(Long ventaId, Long sucursalId);
+
     /**
      * Candidatas para el aviso de posible factura duplicada: facturas del mismo cajero,
      * al mismo cliente, emitidas desde {@code desde} (el arranque del día). El filtro
