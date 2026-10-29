@@ -9,6 +9,8 @@ import javax.print.PrintService;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -111,5 +113,117 @@ class PrinterOutputStreamTest {
             }
             salida.close();
         });
+    }
+
+    /** Un job que lee todo el ticket y despues falla: el ticket chico entra en el buffer sin que write se entere (#213). */
+    private static DocPrintJob jobQueLeeYFalla() throws PrintException {
+        DocPrintJob job = mock(DocPrintJob.class);
+        doAnswer(inv -> {
+            InputStream in = ((Doc) inv.getArgument(0)).getStreamForBytes();
+            while (in.read() != -1) {
+                // consume hasta el cierre
+            }
+            throw new PrintException("Printer is not accepting job.");
+        }).when(job).print(any(), any());
+        return job;
+    }
+
+    @Test
+    void sinEsperarEnvioUnTicketChicoFalladoCierraComoSiempre() throws Exception {
+        // Es lo que usa la venta del PDV: imprime dentro de su transaccion y no espera.
+        PrinterOutputStream salida = new PrinterOutputStream(impresoraCon(jobQueLeeYFalla()));
+        salida.setUncaughtException((t, e) -> { });
+
+        assertTimeoutPreemptively(LIMITE, () -> {
+            salida.write(new byte[100]);
+            salida.close();
+        });
+    }
+
+    @Test
+    void conEsperarEnvioUnTicketChicoFalladoAvisaAlCerrar() throws Exception {
+        PrinterOutputStream salida = new PrinterOutputStream(impresoraCon(jobQueLeeYFalla()));
+        salida.setUncaughtException((t, e) -> { });
+        salida.esperarEnvio();
+
+        IOException e = assertTimeoutPreemptively(LIMITE, () -> {
+            salida.write(new byte[100]);
+            return assertThrows(IOException.class, salida::close);
+        });
+
+        assertEquals("No se pudo imprimir: Printer is not accepting job.", e.getMessage());
+    }
+
+    @Test
+    void conEsperarEnvioElSegundoCierreNoRepiteLaFalla() throws Exception {
+        PrinterOutputStream salida = new PrinterOutputStream(impresoraCon(jobQueLeeYFalla()));
+        salida.setUncaughtException((t, e) -> { });
+        salida.esperarEnvio();
+
+        assertTimeoutPreemptively(LIMITE, () -> {
+            salida.write(new byte[100]);
+            assertThrows(IOException.class, salida::close);
+            salida.close();
+        });
+    }
+
+    @Test
+    void conEsperarEnvioSiElEnvioNoTerminaAvisaAlVencerLaEspera() throws Exception {
+        CountDownLatch liberar = new CountDownLatch(1);
+        DocPrintJob job = mock(DocPrintJob.class);
+        doAnswer(inv -> {
+            liberar.await();
+            return null;
+        }).when(job).print(any(), any());
+        PrinterOutputStream salida = new PrinterOutputStream(impresoraCon(job));
+        salida.esperarEnvio();
+        salida.esperaEnvioMillis = 300;
+        try {
+            IOException e = assertTimeoutPreemptively(LIMITE, () -> {
+                salida.write(new byte[100]);
+                return assertThrows(IOException.class, salida::close);
+            });
+
+            assertTrue(e.getMessage().startsWith("No se pudo confirmar la impresion"), e.getMessage());
+        } finally {
+            liberar.countDown();
+        }
+    }
+
+    @Test
+    void conEsperarEnvioUnEnvioNormalTerminaAntesDeQueVuelvaElCierre() throws Exception {
+        AtomicBoolean enviado = new AtomicBoolean();
+        DocPrintJob job = mock(DocPrintJob.class);
+        doAnswer(inv -> {
+            InputStream in = ((Doc) inv.getArgument(0)).getStreamForBytes();
+            while (in.read() != -1) {
+                // consume hasta el cierre
+            }
+            Thread.sleep(200);
+            enviado.set(true);
+            return null;
+        }).when(job).print(any(), any());
+        PrinterOutputStream salida = new PrinterOutputStream(impresoraCon(job));
+        salida.esperarEnvio();
+
+        assertTimeoutPreemptively(LIMITE, () -> {
+            salida.write(new byte[100]);
+            salida.close();
+        });
+
+        assertTrue(enviado.get());
+    }
+
+    @Test
+    void closeYEsperarEnvioAvisaLaFalla() throws Exception {
+        PrinterOutputStream salida = new PrinterOutputStream(impresoraCon(jobQueLeeYFalla()));
+        salida.setUncaughtException((t, e) -> { });
+
+        IOException e = assertTimeoutPreemptively(LIMITE, () -> {
+            salida.write(new byte[100]);
+            return assertThrows(IOException.class, () -> salida.closeYEsperarEnvio(LIMITE.toMillis()));
+        });
+
+        assertEquals("No se pudo imprimir: Printer is not accepting job.", e.getMessage());
     }
 }

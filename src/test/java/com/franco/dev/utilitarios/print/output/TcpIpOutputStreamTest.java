@@ -55,4 +55,23 @@ class TcpIpOutputStreamTest {
         }
         assertEquals(TICKET.length, recibidos.get());
     }
+
+    @Test
+    void conEsperarEnvioUnTicketChicoAUnaImpresoraDeRedQueNoAtiendeAvisa() throws Exception {
+        int puertoCerrado;
+        try (ServerSocket s = new ServerSocket(0)) {
+            puertoCerrado = s.getLocalPort();
+        }
+        TcpIpOutputStream salida = new TcpIpOutputStream("127.0.0.1", puertoCerrado);
+        salida.setUncaughtException((t, e) -> { });
+        salida.esperarEnvio();
+
+        // Segun quien gane la carrera, avisa el write (el hilo ya cerro el pipe) o el close (#213).
+        IOException e = assertTimeoutPreemptively(LIMITE, () -> assertThrows(IOException.class, () -> {
+            salida.write(new byte[100]);
+            salida.close();
+        }));
+
+        assertTrue(e.getMessage().startsWith("No se pudo imprimir"), e.getMessage());
+    }
 }

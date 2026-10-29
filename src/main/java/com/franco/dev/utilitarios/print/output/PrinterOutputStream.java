@@ -82,10 +82,11 @@ public class PrinterOutputStream extends SalidaConEnvioEnHilo {
      * Cierra y espera, hasta {@code millis}, a que el trabajo quede enviado a la impresora. El
      * envio corre en otro hilo y {@link #close()} no lo espera: dos trabajos seguidos pueden
      * llegar a la cola en el orden inverso. Usar cuando otro papel tiene que salir despues de este.
+     *
+     * @exception IOException si el envio fallo o no termino en {@code millis}.
      */
     public void closeYEsperarEnvio(long millis) throws IOException, InterruptedException {
-        close();
-        threadPrint.join(millis);
+        cerrar(millis);
     }
 
     /**
