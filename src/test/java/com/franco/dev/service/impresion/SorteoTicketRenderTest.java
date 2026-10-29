@@ -74,6 +74,8 @@ class SorteoTicketRenderTest {
         assertTrue(s.contains("Juan Perez"));
         assertTrue(s.contains("Deposite este ticket firmado en la urna"));
         assertTrue(s.contains("250.000"));
+        assertTrue(s.contains("Sorteo: 26-12-2026"));
+        assertFalse(s.contains("Vigencia"));
         assertFalse(s.contains("REIMPRESION"));
         assertEquals(2, contar(s, "\u001dV0"));
     }
@@ -84,6 +86,27 @@ class SorteoTicketRenderTest {
         String s = render(false, Arrays.asList(ticket(1, 1, true)), out);
         assertTrue(s.contains("REIMPRESION"));
         assertEquals(1, contar(s, "\u001dV0"));
+    }
+
+    @Test
+    void sinDatosDelClienteSaleConLineasParaCompletarAMano() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        SorteoTicketDto t = ticket(1, 1, false);
+        t.setClienteNombre(null);
+        t.setClienteDocumento(null);
+        String s = render(false, Arrays.asList(t), out);
+        assertTrue(s.contains("Nombre: ______________"));
+        assertTrue(s.contains("CI/RUC: ______________"));
+        assertTrue(s.contains("Firma: ______________"));
+    }
+
+    @Test
+    void conDatosDelClienteNoImprimeLineasEnBlanco() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        String s = render(false, Arrays.asList(ticket(1, 1, false)), out);
+        assertFalse(s.contains("Nombre: ______________"));
+        assertFalse(s.contains("CI/RUC: ______________"));
+        assertTrue(s.contains("CI/RUC: 1234567-8"));
     }
 
     /** Saca los comandos ESC/GS que genera Style/EscPos para dejar solo el texto imprimible. */

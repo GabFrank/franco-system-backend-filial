@@ -758,10 +758,6 @@ public class ImpresionService {
                 }
 
                 escpos.writeLF("--------------------------------");
-                if (t.getFechaDesde() != null && t.getFechaHasta() != null) {
-                    escpos.writeLF("Vigencia: " + t.getFechaDesde().format(fechaCorta));
-                    escpos.writeLF("      al: " + t.getFechaHasta().format(fechaCorta));
-                }
                 if (t.getFechaSorteo() != null) escpos.writeLF("Sorteo: " + t.getFechaSorteo().format(fechaCorta));
                 if (t.getSucursal() != null) for (String l : partirSorteo("Suc: " + t.getSucursal(), COLUMNAS_SORTEO)) escpos.writeLF(l);
                 if (t.getVentaId() != null) escpos.writeLF("Venta: " + t.getVentaId());
@@ -776,8 +772,21 @@ public class ImpresionService {
                 for (String l : partirSorteo(codigo, COLUMNAS_SORTEO)) escpos.writeLF(center.setBold(true), l);
                 escpos.writeLF(center.setBold(false), "");
 
-                for (String l : partirSorteo(t.getClienteNombre(), COLUMNAS_SORTEO)) escpos.writeLF(l);
-                if (t.getClienteDocumento() != null) escpos.writeLF("CI/RUC: " + sinTildes(t.getClienteDocumento()));
+                // Sin datos («Imprimir normal» en el POS): el cliente completa nombre y CI/RUC a mano.
+                boolean sinNombre = t.getClienteNombre() == null || t.getClienteNombre().trim().isEmpty();
+                boolean sinDocumento = t.getClienteDocumento() == null || t.getClienteDocumento().trim().isEmpty();
+                if (sinNombre) {
+                    escpos.feed(1);
+                    escpos.writeLF("Nombre: ______________");
+                } else {
+                    for (String l : partirSorteo(t.getClienteNombre(), COLUMNAS_SORTEO)) escpos.writeLF(l);
+                }
+                if (sinDocumento) {
+                    escpos.feed(1);
+                    escpos.writeLF("CI/RUC: ______________");
+                } else {
+                    escpos.writeLF("CI/RUC: " + sinTildes(t.getClienteDocumento()));
+                }
                 escpos.feed(1);
                 escpos.writeLF("Telefono: ____________");
                 escpos.feed(1);
