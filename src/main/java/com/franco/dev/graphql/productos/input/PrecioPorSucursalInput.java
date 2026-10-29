@@ -10,7 +10,7 @@ public class PrecioPorSucursalInput {
     private Long presentacionId;
     private Long tipoPrecioId;
     private Long sucursalId;
-    private Float precio;
+    private Double precio;
     private LocalDateTime creadoEn;
     private Long usuarioId;
     private Boolean activo;
