@@ -2,6 +2,7 @@ package com.franco.dev.graphql.financiero.resolver;
 
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.CajaBalance;
+import com.franco.dev.domain.financiero.Conteo;
 import com.franco.dev.domain.financiero.Gasto;
 import com.franco.dev.domain.financiero.GastoDetalle;
 import com.franco.dev.domain.financiero.PdvCaja;
@@ -59,6 +60,21 @@ public class PdvCajaResolver implements GraphQLResolver<PdvCaja> {
             return null;
         }
         return pdvCajaService.getBalance(e.getId());
+    }
+
+    /** Mismo criterio que balance: null a quien no es dueño ni tiene el rol. Idem en CajaResolver. */
+    public Conteo conteoApertura(PdvCaja e) {
+        return puedeVerDetalle(e) ? e.getConteoApertura() : null;
+    }
+
+    public Conteo conteoCierre(PdvCaja e) {
+        return puedeVerDetalle(e) ? e.getConteoCierre() : null;
+    }
+
+    private boolean puedeVerDetalle(PdvCaja e) {
+        if (rolSesionService.esDuenioOTieneRol(PdvCajaService.duenioId(e), RolSesionService.ANALISIS_DE_CAJA)) return true;
+        log.warn("[PdvCaja] conteos de la caja {} ocultos: la sesion no es del dueño ni tiene el rol", e.getId());
+        return false;
     }
 
     public Sucursal sucursal(PdvCaja e) { return sucursalService.findById(e.getSucursalId()).orElse(null);}

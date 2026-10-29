@@ -52,6 +52,13 @@ public class FacturaLegalService extends CrudService<FacturaLegal, FacturaLegalR
         return repository.findByVentaId(id);
     }
 
+    /** La factura vigente de una venta: la activa mas nueva. No falla si la venta quedo con mas de una (#207). */
+    public FacturaLegal findVigenteDeVenta(Long ventaId, Long sucursalId) {
+        return repository.findByVentaIdAndSucursalIdOrderByIdDesc(ventaId, sucursalId).stream()
+                .filter(f -> !Boolean.FALSE.equals(f.getActivo()))
+                .findFirst().orElse(null);
+    }
+
     // /**
     //  * Genera un documento electrónico completo para una factura legal.
     //  * Este método utiliza la librería SIFEN para generar el CDC, URL QR y XML firmado.

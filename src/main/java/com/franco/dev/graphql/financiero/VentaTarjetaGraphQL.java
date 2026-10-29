@@ -66,7 +66,11 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.findByVentaIdAndSucursalId(ventaId, sucId);
     }
 
+    @Autowired
+    private com.franco.dev.service.financiero.PdvCajaService pdvCajaService;
+
     public List<VentaTarjeta> ventasTarjetaPorCaja(Long cajaId, Long sucId) {
+        pdvCajaService.exigirAccesoACaja(cajaId);
         return service.findByCajaIdAndSucursalId(cajaId, sucId);
     }
 

@@ -5,8 +5,6 @@ package com.franco.dev.utilitarios.print.output;/*
 
 import java.awt.print.PrinterJob;
 import java.io.IOException;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -25,9 +23,8 @@ import javax.print.SimpleDoc;
  * be reused and the last command should be <code>close()</code>, after that,
  * you need to create another instance to send data to the printer.
  */
-public class PrinterOutputStream extends PipedOutputStream {
+public class PrinterOutputStream extends SalidaConEnvioEnHilo {
 
-    protected final PipedInputStream pipedInputStream;
     protected final Thread threadPrint;
 
     /**
@@ -47,9 +44,6 @@ public class PrinterOutputStream extends PipedOutputStream {
             Logger.getLogger(this.getClass().getName()).log(Level.SEVERE, e.getMessage(),e);
         };
 
-        pipedInputStream = new PipedInputStream();
-        super.connect(pipedInputStream);
-
         Runnable runnablePrint = () -> {
             try {
                 DocFlavor df = DocFlavor.INPUT_STREAM.AUTOSENSE;
@@ -58,7 +52,13 @@ public class PrinterOutputStream extends PipedOutputStream {
                 DocPrintJob job = printService.createPrintJob();
                 job.print(d, null);
             } catch (PrintException ex) {
+                registrarFalla(ex);
                 throw new RuntimeException(ex);
+            } catch (RuntimeException | Error ex) {
+                registrarFalla(ex);
+                throw ex;
+            } finally {
+                terminarEnvio();
             }
         };
 

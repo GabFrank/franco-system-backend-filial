@@ -8,6 +8,9 @@ import com.franco.dev.security.Unsecured;
 import com.franco.dev.service.financiero.ConteoMonedaService;
 import com.franco.dev.service.financiero.ConteoService;
 import com.franco.dev.service.financiero.MonedaBilleteService;
+import com.franco.dev.service.financiero.PdvCajaService;
+import com.franco.dev.service.seguridad.RolSesionService;
+import org.springframework.transaction.annotation.Transactional;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
@@ -39,11 +42,22 @@ public class ConteoMonedaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private ConteoService conteoService;
 
+    @Autowired
+    private PdvCajaService pdvCajaService;
+
+    @Autowired
+    private RolSesionService rolSesionService;
+
+    /** Transaccional para leer el conteo (LAZY). */
+    @Transactional(readOnly = true)
     public Optional<ConteoMoneda> conteoMoneda(Long id, Long sucId) {
-        return service.findById(id);
+        Optional<ConteoMoneda> cm = service.findById(id);
+        cm.ifPresent(c -> pdvCajaService.exigirAccesoAConteo(c.getConteo() != null ? c.getConteo().getId() : null));
+        return cm;
     }
 
     public List<ConteoMoneda> conteoMonedas(int page, int size, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
@@ -70,6 +84,7 @@ public class ConteoMonedaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     }
 
     public List<ConteoMoneda> conteoMonedasPorConteoId(Long id, Long sucId) {
+        pdvCajaService.exigirAccesoAConteo(id);
         return service.findByConteoId(id);
     }
 

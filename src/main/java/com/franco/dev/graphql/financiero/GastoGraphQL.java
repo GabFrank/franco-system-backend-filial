@@ -5,6 +5,7 @@ import com.franco.dev.graphql.financiero.input.GastoInput;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.GastoService;
 import com.franco.dev.service.financiero.PdvCajaService;
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.service.financiero.TipoGastoService;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.dto.GastoDto;
@@ -45,6 +46,9 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     private PdvCajaService pdvCajaService;
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private ImpresionService impresionService;
 
     @Autowired
@@ -54,19 +58,24 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     private SucursalService sucursalService;
 
     public Optional<Gasto> gasto(Long id, Long sucId) {
-        return service.findById(id);
+        Optional<Gasto> gasto = service.findById(id);
+        gasto.ifPresent(g -> pdvCajaService.exigirAccesoARegistroDeCaja(g.getCaja()));
+        return gasto;
     }
 
     public List<Gasto> gastos(int page, int size, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
     public List<Gasto> gastosPorCajaId(Long id, Long sucId) {
+        pdvCajaService.exigirAccesoACaja(id);
         return service.findByCajaId(id);
     }
 
     public List<Gasto> gastosPorFecha(String inicio, String fin, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.findByDate(inicio, fin);
     }
 
