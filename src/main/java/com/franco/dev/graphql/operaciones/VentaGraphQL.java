@@ -1302,8 +1302,15 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
         List<CobroDetalleInput> cobroDetalleList = new ArrayList<>();
         Delivery delivery = venta.getDelivery();
-        if (!Boolean.TRUE.equals(printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, true, printerName, local,
-                null, null, delivery, null, true))) {
+        Boolean impreso;
+        try {
+            impreso = printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, true, printerName, local,
+                    null, null, delivery, null, true);
+        } catch (IOException e) {
+            // Un ticket grande avisa ya en el write; sin esto llegaba como UndeclaredThrowableException sin motivo.
+            throw new GraphQLException("No se pudo reimprimir el ticket: " + e.getMessage());
+        }
+        if (!Boolean.TRUE.equals(impreso)) {
             throw new GraphQLException("No se pudo reimprimir el ticket");
         }
         return true;

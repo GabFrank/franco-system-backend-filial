@@ -89,6 +89,14 @@ class VentaGraphQLReimprimirVentaTest {
     }
 
     @Test
+    void sinFacturaUnaFallaAlEscribirAvisaConElMotivo() throws Exception {
+        doThrow(new java.io.IOException("No se pudo imprimir: Printer is not accepting job.")).when(spy)
+                .printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), isNull(), anyBoolean());
+        GraphQLException e = assertThrows(GraphQLException.class, () -> spy.reimprimirVenta(770L, "ticket", "Caja 1", 1L));
+        assertEquals("No se pudo reimprimir el ticket: No se pudo imprimir: Printer is not accepting job.", e.getMessage());
+    }
+
+    @Test
     void ventaInexistenteAvisa() {
         GraphQLException e = assertThrows(GraphQLException.class, () -> spy.reimprimirVenta(1L, "ticket", "Caja 1", 1L));
         assertEquals("Venta no encontrada", e.getMessage());
