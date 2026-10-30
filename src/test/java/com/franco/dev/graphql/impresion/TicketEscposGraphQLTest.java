@@ -205,6 +205,43 @@ class TicketEscposGraphQLTest {
                 eq("CAJA 1"), eq(false), isNull(), eq(delivery), any(OutputStream.class));
     }
 
+    /** #211: la factura de la venta del delivery sale antes del ticket; si no se puede armar, sale solo el ticket. */
+    @Test
+    void deliveryConFacturaDevuelveFacturaYTicket() throws Exception {
+        Delivery delivery = new Delivery();
+        delivery.setId(33L);
+        delivery.setSucursalId(1L);
+        Venta venta = new Venta();
+        venta.setId(80078L);
+        FacturaLegal factura = new FacturaLegal();
+        factura.setId(30044L);
+        factura.setVenta(venta);
+        when(deliveryService.findById(33L)).thenReturn(Optional.of(delivery));
+        when(ventaRepository.findByDeliveryIdAndSucursalId(33L, 1L)).thenReturn(venta);
+        when(facturaLegalService.findVigenteDeVenta(80078L, 1L)).thenReturn(factura);
+        when(facturaLegalService.findById(30044L)).thenReturn(Optional.of(factura));
+        byte[] bytesFactura = {'F', 'A', 'C', 0x0a};
+        doAnswer(inv -> {
+            ((OutputStream) inv.getArgument(4)).write(bytesFactura);
+            return null;
+        }).when(facturaLegalGraphQL).printTicket58mmFactura(any(), any(), any(), any(), any(OutputStream.class));
+        doAnswer(escribeEnArgumento(10)).when(ventaGraphQL).printTicket58mm(any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(OutputStream.class));
+
+        byte[] esperado = new byte[bytesFactura.length + TICKET.length];
+        System.arraycopy(bytesFactura, 0, esperado, 0, bytesFactura.length);
+        System.arraycopy(TICKET, 0, esperado, bytesFactura.length, TICKET.length);
+        assertEquals(Base64.getEncoder().encodeToString(esperado),
+                resolver.ticketEscpos(TicketEscposTipo.DELIVERY, 33L, null, "CAJA 1"));
+
+        // La factura falla a medias: no quedan sus bytes cortados y el ticket sale igual.
+        doAnswer(inv -> {
+            ((OutputStream) inv.getArgument(4)).write(bytesFactura);
+            throw new NullPointerException("sin DE");
+        }).when(facturaLegalGraphQL).printTicket58mmFactura(any(), any(), any(), any(), any(OutputStream.class));
+        assertEquals(TICKET_B64, resolver.ticketEscpos(TicketEscposTipo.DELIVERY, 33L, null, "CAJA 1"));
+    }
+
     @Test
     void senaCuponArmaElMismoDtoQueImprimirSenaCupon() throws Exception {
         SenaCuponInput input = new SenaCuponInput();

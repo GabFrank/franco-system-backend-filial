@@ -174,6 +174,19 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
             throw new GraphQLException("El delivery " + id + " no tiene venta");
         }
         pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
+        // La factura de la venta, si tiene, antes del ticket (#211). Aparte: si falla a medias no deja bytes
+        // cortados, y el ticket sale igual.
+        FacturaLegal facturaLegal = facturaLegalService.findVigenteDeVenta(venta.getId(), delivery.getSucursalId());
+        if (facturaLegal != null) {
+            ByteArrayOutputStream bytesFactura = new ByteArrayOutputStream();
+            try {
+                factura(facturaLegal.getId(), bytesFactura);
+                bytesFactura.writeTo(out);
+            } catch (Exception e) {
+                log.warn("No se pudo armar la factura {} del delivery {}: {}", facturaLegal.getId(), id,
+                        e.getMessage(), e);
+            }
+        }
         List<VentaItem> items = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
         ventaGraphQL.printTicket58mm(venta, null, items, null, true, null, local, false, null, delivery, out);
     }

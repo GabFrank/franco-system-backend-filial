@@ -423,14 +423,28 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
             throw new GraphQLException("Delivery no encontrado");
         }
         pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
+        // Como PARA ENTREGA: la factura de la venta, si tiene, y despues el ticket (#211).
+        // Una factura que no sale no frena el ticket: se avisa al final.
+        FacturaLegal factura = facturaLegalService.findVigenteDeVenta(venta.getId(), delivery.getSucursalId());
+        boolean facturaFallo = factura != null && !Boolean.TRUE.equals(
+                facturaLegalGraphQL.reimprimirFacturaLegal(factura.getId(), delivery.getSucursalId(), printerName));
         try {
             List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
-            return Boolean.TRUE.equals(ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true,
-                    printerName, local, false, null, delivery, null, true));
+            Boolean impreso = ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true,
+                    printerName, local, false, null, delivery, null, true);
+            if (facturaFallo) {
+                throw new GraphQLException(Boolean.TRUE.equals(impreso)
+                        ? "No se pudo reimprimir la factura del delivery"
+                        : "No se pudo reimprimir la factura ni el delivery");
+            }
+            return Boolean.TRUE.equals(impreso);
+        } catch (GraphQLException e) {
+            throw e;
         } catch (Exception e) {
             e.printStackTrace();
             // El motivo solo si es de la impresora (textos propios); el resto queda en el log.
-            throw new GraphQLException("No se pudo reimprimir el delivery"
+            throw new GraphQLException((facturaFallo ? "No se pudo reimprimir la factura ni el delivery"
+                    : "No se pudo reimprimir el delivery")
                     + (e instanceof IOException && e.getMessage() != null ? ": " + e.getMessage() : ""));
         }
     }
