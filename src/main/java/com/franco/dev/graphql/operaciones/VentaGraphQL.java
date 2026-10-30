@@ -125,6 +125,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     @Autowired
     private PdvCajaService pdvCajaService;
     @Autowired
+    private com.franco.dev.service.seguridad.RolSesionService rolSesionService;
+    @Autowired
     private TicketReportService ticketReportService;
     @Autowired
     private ImageService imageService;
@@ -171,7 +173,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     private Sucursal sucursal;
 
     public Optional<Venta> venta(Long id, Long sucId) {
-        return service.findById(id);
+        Optional<Venta> venta = service.findById(id);
+        // Los deliverys los atienden varios cajeros: esos pasan como siempre.
+        venta.filter(v -> v.getDelivery() == null)
+                .ifPresent(v -> pdvCajaService.exigirAccesoARegistroDeCaja(v.getCaja()));
+        return venta;
     }
 
     public List<Venta> ventas(int page, int size, Long sucId) {
@@ -628,6 +634,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     public Boolean imprimirPagare(Long ventaId, List<VentaCreditoCuotaInput> itens, String printerName, String local,
             Long sucId) {
+        rolSesionService.exigirAdmin();
         Venta venta = service.findById(ventaId).orElse(null);
         try {
             if (venta != null) {
