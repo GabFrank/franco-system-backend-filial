@@ -52,12 +52,10 @@ public class ImpresionService {
 
     public static DateTimeFormatter shortDate = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     public static DateTimeFormatter shortDateTime = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
-    PrintService selectedPrintService = null;
     @Autowired
     private ImageService imageService;
     @Autowired
     private PrintingService printingService;
-    private PrinterOutputStream printerOutputStream;
     @Autowired
     private SucursalService sucursalService;
     @Autowired
@@ -78,17 +76,20 @@ public class ImpresionService {
      * {@code destino == null} hace exactamente lo de siempre.
      */
     public Boolean printBalance(PdvCajaBalanceDto balanceDto, String printerName, String local, OutputStream destino) {
+        return printBalance(balanceDto, printerName, local, destino, false);
+    }
+
+    /** {@code esperarEnvio}: el cierre confirma que el ticket salio y si no devuelve false (reimpresion). */
+    public Boolean printBalance(PdvCajaBalanceDto balanceDto, String printerName, String local, OutputStream destino,
+            boolean esperarEnvio) {
         try {
+            PrintService impresora = null;
             if (destino == null) {
-                if (printerName == null) {
-                    selectedPrintService = printingService.getLasUsedPrinter();
-                } else {
-                    selectedPrintService = printingService.getPrintService(printerName);
-                }
+                impresora = printerName == null ? printingService.getLasUsedPrinter()
+                        : printingService.getPrintService(printerName);
             }
-            if (destino != null || selectedPrintService != null) {
-                OutputStream salida = destino != null ? destino
-                        : (printerOutputStream = new PrinterOutputStream(selectedPrintService));
+            if (destino != null || impresora != null) {
+                OutputStream salida = destino != null ? destino : salidaA(impresora, esperarEnvio);
                 // creating the EscPosImage, need buffered image and algorithm.
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
                 //Styles
@@ -301,19 +302,27 @@ public class ImpresionService {
                 escpos.feed(5);
                 escpos.cut(EscPos.CutMode.FULL);
                 escpos.close();
-                if (destino == null) printerOutputStream.close();
                 return true;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            log.warn("No se pudo imprimir el balance: {}", e.getMessage());
             return false;
         }
         return false;
     }
 
+    /** Salida propia de esta impresion; con {@code esperarEnvio}, su cierre confirma que el ticket salio. */
+    private static PrinterOutputStream salidaA(PrintService impresora, boolean esperarEnvio) throws IOException {
+        PrinterOutputStream salida = new PrinterOutputStream(impresora);
+        if (esperarEnvio) {
+            salida.esperarEnvio();
+        }
+        return salida;
+    }
 
-    public void printGasto(GastoDto gastoDto, String printerName, String local) {
-        printGasto(gastoDto, printerName, local, null);
+
+    public Boolean printGasto(GastoDto gastoDto, String printerName, String local) {
+        return printGasto(gastoDto, printerName, local, null);
     }
 
     /**
@@ -321,14 +330,20 @@ public class ImpresionService {
      * desde el cliente (el desktop recibe los bytes y los imprime en su impresora local). Con
      * {@code destino == null} hace exactamente lo de siempre.
      */
-    public void printGasto(GastoDto gastoDto, String printerName, String local, OutputStream destino) {
+    public Boolean printGasto(GastoDto gastoDto, String printerName, String local, OutputStream destino) {
+        return printGasto(gastoDto, printerName, local, destino, false);
+    }
+
+    /**
+     * {@code false} si no hay impresora o no se pudo imprimir (antes se tragaba en silencio). Con
+     * {@code esperarEnvio} el cierre confirma que el ticket salio (reimpresion).
+     */
+    public Boolean printGasto(GastoDto gastoDto, String printerName, String local, OutputStream destino,
+            boolean esperarEnvio) {
         try {
-            if (destino == null) {
-                selectedPrintService = printingService.getPrintService(printerName);
-            }
-            if (destino != null || selectedPrintService != null) {
-                OutputStream salida = destino != null ? destino
-                        : (printerOutputStream = new PrinterOutputStream(selectedPrintService));
+            PrintService impresora = destino == null ? printingService.getPrintService(printerName) : null;
+            if (destino != null || impresora != null) {
+                OutputStream salida = destino != null ? destino : salidaA(impresora, esperarEnvio);
                 // creating the EscPosImage, need buffered image and algorithm.
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
                 //Styles
@@ -415,11 +430,14 @@ public class ImpresionService {
                 escpos.feed(5);
                 escpos.cut(EscPos.CutMode.FULL);
                 escpos.close();
-                if (destino == null) printerOutputStream.close();
+                return true;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            log.warn("No se pudo imprimir el gasto: {}", e.getMessage());
+            return false;
         }
+        log.warn("No se pudo imprimir el gasto: no se encontro la impresora {}", printerName);
+        return false;
     }
 
     public void printVueltoGasto(GastoDto gastoDto) {
@@ -505,8 +523,8 @@ public class ImpresionService {
 //        }
     }
 
-    public void printRetiro(RetiroDto retiroDto, String printerName, String local, Boolean reimpresion) {
-        printRetiro(retiroDto, printerName, local, reimpresion, null);
+    public Boolean printRetiro(RetiroDto retiroDto, String printerName, String local, Boolean reimpresion) {
+        return printRetiro(retiroDto, printerName, local, reimpresion, null);
     }
 
     /**
@@ -514,14 +532,21 @@ public class ImpresionService {
      * desde el cliente (el desktop recibe los bytes y los imprime en su impresora local). Con
      * {@code destino == null} hace exactamente lo de siempre.
      */
-    public void printRetiro(RetiroDto retiroDto, String printerName, String local, Boolean reimpresion, OutputStream destino) {
+    public Boolean printRetiro(RetiroDto retiroDto, String printerName, String local, Boolean reimpresion, OutputStream destino) {
+        return printRetiro(retiroDto, printerName, local, reimpresion, destino, false);
+    }
+
+    /**
+     * {@code false} si no hay impresora o no se pudo imprimir (antes se tragaba en silencio). Con
+     * {@code esperarEnvio} el cierre confirma que el ticket salio (reimpresion). Sigue atrapando solo
+     * {@link IOException}: no cambia que revierte {@code saveRetiro}.
+     */
+    public Boolean printRetiro(RetiroDto retiroDto, String printerName, String local, Boolean reimpresion,
+            OutputStream destino, boolean esperarEnvio) {
         try {
-            if (destino == null) {
-                selectedPrintService = printingService.getPrintService(printerName);
-            }
-            if (destino != null || selectedPrintService != null) {
-                OutputStream salida = destino != null ? destino
-                        : (printerOutputStream = new PrinterOutputStream(selectedPrintService));
+            PrintService impresora = destino == null ? printingService.getPrintService(printerName) : null;
+            if (destino != null || impresora != null) {
+                OutputStream salida = destino != null ? destino : salidaA(impresora, esperarEnvio);
                 // creating the EscPosImage, need buffered image and algorithm.
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
                 //Styles
@@ -587,11 +612,14 @@ public class ImpresionService {
                 escpos.feed(5);
                 escpos.cut(EscPos.CutMode.FULL);
                 escpos.close();
-                if (destino == null) printerOutputStream.close();
+                return true;
             }
         } catch (IOException e) {
-
+            log.warn("No se pudo imprimir el retiro: {}", e.getMessage());
+            return false;
         }
+        log.warn("No se pudo imprimir el retiro: no se encontro la impresora {}", printerName);
+        return false;
     }
 
     /**
@@ -615,13 +643,19 @@ public class ImpresionService {
      * {@code destino == null} hace exactamente lo de siempre.
      */
     public Boolean printSenaCupon(SenaCuponDto dto, String printerName, String local, OutputStream destino) {
+        return printSenaCupon(dto, printerName, local, destino, false);
+    }
+
+    /** {@code esperarEnvio}: un comprobante chico que no sale devuelve false en vez de true. */
+    public Boolean printSenaCupon(SenaCuponDto dto, String printerName, String local, OutputStream destino,
+            boolean esperarEnvio) {
         try {
+            PrintService impresora = null;
             if (destino == null) {
-                selectedPrintService = printingService.getPrintService(printerName);
-                if (selectedPrintService == null) return false;
+                impresora = printingService.getPrintService(printerName);
+                if (impresora == null) return false;
             }
-            OutputStream salida = destino != null ? destino
-                    : (printerOutputStream = new PrinterOutputStream(selectedPrintService));
+            OutputStream salida = destino != null ? destino : salidaA(impresora, esperarEnvio);
             // Sin el anho: el papel se concilia el mismo dia o el siguiente, y cada caracter que
             // sobra acerca el renglon a los 32 que entran.
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM HH:mm");
@@ -671,7 +705,6 @@ public class ImpresionService {
             escpos.feed(2);
             escpos.cut(EscPos.CutMode.FULL);
             escpos.close();
-            if (destino == null) printerOutputStream.close();
             return true;
         } catch (Exception e) {
             // Se traga la excepcion a proposito: la venta YA se guardo y el cobro YA se cobro. Que
@@ -703,15 +736,15 @@ public class ImpresionService {
         PrinterOutputStream propio = null;
         try {
             if (tickets == null || tickets.isEmpty()) return false;
+            PrintService impresora = null;
             if (destino == null) {
-                selectedPrintService = printingService.getPrintService(printerName);
-                if (selectedPrintService == null) return false;
+                impresora = printingService.getPrintService(printerName);
+                if (impresora == null) return false;
             }
             // Con destino (modo FRONTEND) se arma todo en un buffer y se copia al final: si algo falla a
             // mitad de un ticket, al comprobante de la venta no se le pegan bytes a medias.
             ByteArrayOutputStream buffer = destino != null ? new ByteArrayOutputStream() : null;
-            OutputStream salida = destino != null ? buffer
-                    : (propio = printerOutputStream = new PrinterOutputStream(selectedPrintService));
+            OutputStream salida = destino != null ? buffer : (propio = new PrinterOutputStream(impresora));
             DateTimeFormatter fechaCorta = shortDate; // mismo formato dd-MM-yyyy
             DateTimeFormatter fechaHora = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
             // Style es mutable y se comparte: el bold se prende y se apaga explicito en cada uso.
@@ -801,7 +834,7 @@ public class ImpresionService {
             }
             escpos.close();
             if (destino != null) buffer.writeTo(destino);
-            else printerOutputStream.close();
+            else propio.close();
             return true;
         } catch (Exception e) {
             // La venta ya se guardo: que el papel no salga se informa con false, no reventando.

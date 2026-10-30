@@ -207,7 +207,11 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
             }
             return service.findById(id).orElse(null);
         }
-        return service.imprimirBalance(id, resolvedPrinter, resolvedLocal);
+        // El desktop espera al envio: un balance chico que no sale se avisa en vez de darlo por impreso.
+        if (!service.imprimirBalanceEsperando(id, resolvedPrinter, resolvedLocal)) {
+            throw new GraphQLException("No se pudo imprimir el balance");
+        }
+        return service.findById(id).orElse(null);
     }
 
     public Page<PdvCaja> cajasWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId,

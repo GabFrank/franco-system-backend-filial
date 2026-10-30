@@ -303,16 +303,18 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
     public Boolean reimprimirDelivery(Long id, String printerName, String local) {
         Delivery delivery = service.findById(id).orElse(null);
-        Venta venta = ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(),
-                delivery.getSucursalId());
+        Venta venta = delivery == null ? null
+                : ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(), delivery.getSucursalId());
+        if (venta == null) {
+            throw new GraphQLException("Delivery no encontrado");
+        }
         try {
             List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
-            ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true, printerName, local, false, null,
-                    delivery);
-            return true;
+            return Boolean.TRUE.equals(ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true,
+                    printerName, local, false, null, delivery, null, true));
         } catch (Exception e) {
             e.printStackTrace();
-            throw new GraphQLException("Delivery no encontrado");
+            throw new GraphQLException("No se pudo reimprimir el delivery: " + e.getMessage());
         }
     }
 

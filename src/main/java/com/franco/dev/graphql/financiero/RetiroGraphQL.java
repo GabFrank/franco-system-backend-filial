@@ -146,8 +146,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             retiroDto.setRetiroRs(retiroDetalleService.findByRetiroIdAndMonedaId(retiro.getId(), Long.valueOf(2)));
             retiroDto.setRetiroDs(retiroDetalleService.findByRetiroIdAndMonedaId(retiro.getId(), Long.valueOf(3)));
             retiroDto.setUsuario(retiro.getUsuario());
-            impresionService.printRetiro(retiroDto, printerName, local, true);
-            return true;
+            return impresionService.printRetiro(retiroDto, printerName, local, true, null, true);
         } catch (Exception e) {
             return false;
         }

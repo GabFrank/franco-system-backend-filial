@@ -235,7 +235,22 @@ class TicketEscposGraphQLTest {
         PdvCaja caja = new PdvCaja();
         when(pdvCajaService.findById(662L)).thenReturn(Optional.of(caja));
         when(pdvCajaService.generarBalance(caja)).thenReturn(new PdvCajaBalanceDto());
+        when(impresionService.printBalance(any(), any(), any(), any(OutputStream.class))).thenReturn(true);
         assertNull(resolver.ticketEscpos(TicketEscposTipo.BALANCE, 662L, null, null));
+    }
+
+    @Test
+    void siElArmadoFallaAvisaEnVezDeDevolverUnTicketAMedias() throws Exception {
+        PdvCaja caja = new PdvCaja();
+        when(pdvCajaService.findById(662L)).thenReturn(Optional.of(caja));
+        when(pdvCajaService.generarBalance(caja)).thenReturn(new PdvCajaBalanceDto());
+        doAnswer(inv -> {
+            ((OutputStream) inv.getArgument(3)).write(TICKET);
+            return false;
+        }).when(impresionService).printBalance(any(), any(), any(), any(OutputStream.class));
+        GraphQLException e = assertThrows(GraphQLException.class,
+                () -> resolver.ticketEscpos(TicketEscposTipo.BALANCE, 662L, null, null));
+        assertEquals("No se pudo armar el ticket", e.getMessage());
     }
 
     @Test
