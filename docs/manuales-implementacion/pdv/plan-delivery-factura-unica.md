@@ -103,6 +103,20 @@ y timbrado no electrónico en el PDV, cola CUPS `zz_ok` de prueba; se restaura t
 4. **Espera vencida:** tomar el lock a mano desde `psql` (`select pg_advisory_lock(hashtext('factura-venta:24:<id>'))`)
    y marcar PARA ENTREGA → a los 15 s, el mensaje de reintentar; soltar el lock y reintentar → factura.
 
+### Resultado (30/10)
+
+Jars en el 8092 contra `general` local (sucursal 24, SIFEN apagado). Temporal y restaurado: política de la 24 en
+TODAS, timbrado no electrónico 4 (detalle 114) en el PDV 25 con `is_electronico=false`, deliveries 8040/8042/8043 a
+ABIERTO. Impresión con `imprimirEnCliente: true` (sin colas CUPS). Las facturas creadas se borraron al terminar.
+
+| Paso | Resultado |
+|---|---|
+| 1. `develop`, dos llamadas juntas (delivery 8043) | **dos facturas** para la venta 79283, 33138 y 33139, a 15 ms, y las dos con el **mismo número** (9) |
+| 2. fix, lock previo 8 s desde `psql` (delivery 8042) | `pg_locks` con 2 esperando; las dos responden OK a los 8,4 s; **una factura** (33140) |
+| 4. fix, lock previo 20 s | las dos a los 15,1 s: «La factura de este delivery se está generando en otra operación…»; sin factura nueva |
+| reintento sin lock | reimprime la 33140 en 0,2 s; sin factura nueva |
+| 3. pantalla (desktop `ng serve -c web` → filial 8092, PDV 25, MR) | PARA ENTREGA del 8040 crea la 33141; reabierto y marcado otra vez, la reimprime sin otra factura |
+
 ## Fuera de alcance
 
 - **«Finalizar con factura» de un delivery** (`saveFacturaLegal` + `vincularFacturaLegalAVenta`,
