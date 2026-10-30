@@ -6,6 +6,10 @@ import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.graphql.financiero.VentaCreditoGraphQL;
 import com.franco.dev.service.financiero.PdvCajaService;
 import com.franco.dev.service.financiero.VentaCreditoService;
+import com.franco.dev.graphql.operaciones.input.DeliveryInput;
+import com.franco.dev.graphql.operaciones.input.VentaInput;
+import com.franco.dev.service.operaciones.CobroDetalleService;
+import com.franco.dev.service.operaciones.DeliveryService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.seguridad.RolSesionService;
 import graphql.GraphQLException;
@@ -21,13 +25,15 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** La venta por id pide la caja (salvo deliverys); el crédito y el pagaré, ADMIN. */
+/** La venta por id pide la caja (también las de delivery); el crédito y el pagaré, ADMIN. */
 class VentaGraphQLAccesoTest {
 
     @Mock private VentaService service;
     @Mock private PdvCajaService pdvCajaService;
     @Mock private RolSesionService rolSesionService;
     @Mock private VentaCreditoService ventaCreditoService;
+    @Mock private DeliveryService deliveryService;
+    @Mock private CobroDetalleService cobroDetalleService;
     @InjectMocks private VentaGraphQL ventaGraphQL;
     @InjectMocks private VentaCreditoGraphQL ventaCreditoGraphQL;
 
@@ -64,10 +70,58 @@ class VentaGraphQLAccesoTest {
     }
 
     @Test
-    void laVentaDeUnDeliveryPasaSinPedirLaCaja() {
-        Venta v = venta(3L, new Delivery());
-        assertSame(v, ventaGraphQL.venta(3L, null).orElse(null));
-        verify(pdvCajaService, never()).exigirAccesoARegistroDeCaja(any());
+    void laVentaDeUnDeliveryDeOtraCajaTambienSeRechaza() {
+        venta(3L, new Delivery());
+        doThrow(new GraphQLException("No autorizado")).when(pdvCajaService).exigirAccesoARegistroDeCaja(same(caja));
+        assertThrows(GraphQLException.class, () -> ventaGraphQL.venta(3L, null));
+    }
+
+    private VentaInput ventaInput(Long id) {
+        VentaInput v = new VentaInput();
+        v.setId(id);
+        return v;
+    }
+
+    private DeliveryInput deliveryInput(Long id) {
+        DeliveryInput d = new DeliveryInput();
+        d.setId(id);
+        return d;
+    }
+
+    private Delivery delivery(long id) {
+        Delivery d = new Delivery();
+        d.setId(id);
+        when(deliveryService.findById(id)).thenReturn(Optional.of(d));
+        return d;
+    }
+
+    @Test
+    void finalizarUnDeliveryDeOtraCajaNoEscribe() {
+        venta(5L, delivery(10L));
+        doThrow(new GraphQLException("No autorizado")).when(pdvCajaService).exigirAccesoARegistroDeCaja(same(caja));
+        GraphQLException e = assertThrows(GraphQLException.class, () -> ventaGraphQL
+                .saveVentaDelivery(ventaInput(5L), deliveryInput(10L), null, null, null));
+        assertEquals("No autorizado", e.getMessage());
+        verify(deliveryService, never()).save(any());
+        verify(service, never()).save(any());
+        verifyNoInteractions(cobroDetalleService);
+    }
+
+    @Test
+    void finalizarConUnDeliveryQueNoEsElDeLaVentaSeRechaza() {
+        venta(5L, delivery(10L));
+        delivery(11L);
+        GraphQLException e = assertThrows(GraphQLException.class, () -> ventaGraphQL
+                .saveVentaDelivery(ventaInput(5L), deliveryInput(11L), null, null, null));
+        assertEquals("La venta no corresponde a este delivery", e.getMessage());
+        verify(deliveryService, never()).save(any());
+        verify(service, never()).save(any());
+    }
+
+    @Test
+    void finalizarSinIdsAvisaSinRomper() {
+        assertThrows(GraphQLException.class, () -> ventaGraphQL
+                .saveVentaDelivery(ventaInput(null), deliveryInput(null), null, null, null));
     }
 
     @Test

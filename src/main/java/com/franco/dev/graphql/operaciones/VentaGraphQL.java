@@ -174,9 +174,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     public Optional<Venta> venta(Long id, Long sucId) {
         Optional<Venta> venta = service.findById(id);
-        // Los deliverys los atienden varios cajeros: esos pasan como siempre.
-        venta.filter(v -> v.getDelivery() == null)
-                .ifPresent(v -> pdvCajaService.exigirAccesoARegistroDeCaja(v.getCaja()));
+        // Tambien las de delivery: cada cajero opera solo los suyos (Franco, 30/10).
+        venta.ifPresent(v -> pdvCajaService.exigirAccesoARegistroDeCaja(v.getCaja()));
         return venta;
     }
 
@@ -1224,10 +1223,17 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     @Transactional
      public Venta saveVentaDelivery(VentaInput ventaInput, DeliveryInput deliveryInput, List<CobroDetalleInput> cobroDetalleList, VentaCreditoInput ventaCreditoInput, List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) {
+         // Fuera del try, que se come el mensaje: la venta tiene que ser la del delivery, y de la caja del que cobra.
+         Venta venta = ventaInput != null && ventaInput.getId() != null
+                 ? service.findById(ventaInput.getId()).orElse(null) : null;
+         Delivery delivery = deliveryInput != null && deliveryInput.getId() != null
+                 ? deliveryService.findById(deliveryInput.getId()).orElse(null) : null;
+         if (venta == null || delivery == null) throw new GraphQLException("Ocurrio un problema.");
+         if (venta.getDelivery() == null || !delivery.getId().equals(venta.getDelivery().getId())) {
+             throw new GraphQLException("La venta no corresponde a este delivery");
+         }
+         pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
          try {
-             Venta venta = service.findById(ventaInput.getId()).orElse(null);
-             Delivery delivery = deliveryService.findById(deliveryInput.getId()).orElse(null);
-             if (venta == null || delivery == null) throw new GraphQLException("Ocurrio un problema.");
              venta.setEstado(VentaEstado.CONCLUIDA);
              venta.setSucursalId(delivery.getSucursalId());
              venta.setUsuario(delivery.getUsuario());
