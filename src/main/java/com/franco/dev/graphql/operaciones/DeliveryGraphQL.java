@@ -433,7 +433,9 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
             Boolean impreso = ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true,
                     printerName, local, false, null, delivery, null, true);
             if (facturaFallo) {
-                throw new GraphQLException("No se pudo reimprimir la factura del delivery");
+                throw new GraphQLException(Boolean.TRUE.equals(impreso)
+                        ? "No se pudo reimprimir la factura del delivery"
+                        : "No se pudo reimprimir la factura ni el delivery");
             }
             return Boolean.TRUE.equals(impreso);
         } catch (GraphQLException e) {

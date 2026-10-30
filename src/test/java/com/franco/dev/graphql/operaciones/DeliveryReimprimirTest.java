@@ -128,6 +128,12 @@ class DeliveryReimprimirTest {
                 () -> deliveryGraphQL.reimprimirDelivery(10L, "ticket", "CAJA 1"));
         assertEquals("No se pudo reimprimir la factura ni el delivery: No se pudo imprimir: Printer is not accepting job.",
                 e.getMessage());
+
+        // La cola que rechaza no tira: el ticket vuelve false (visto en runtime con cupsreject).
+        when(ventaGraphQL.printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                isNull(), eq(true))).thenReturn(false);
+        e = assertThrows(GraphQLException.class, () -> deliveryGraphQL.reimprimirDelivery(10L, "ticket", "CAJA 1"));
+        assertEquals("No se pudo reimprimir la factura ni el delivery", e.getMessage());
     }
 
     @Test
