@@ -281,6 +281,11 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                 || !cobroId.equals(ventaGuardada.getCobro().getId()))) {
             throw new GraphQLException("El cobro no corresponde a esta venta");
         }
+        // Sin cobroInput, el cobroId del cliente quedaria en la venta: sale de la venta guardada (o se crea despues).
+        if (ventaInput != null) {
+            ventaInput.setCobroId(ventaGuardada != null && ventaGuardada.getCobro() != null
+                    ? ventaGuardada.getCobro().getId() : null);
+        }
         if (ventaGuardada != null) {
             pdvCajaService.exigirAccesoARegistroDeCaja(ventaGuardada.getCaja());
             if (ventaGuardada.getCaja() != null) {

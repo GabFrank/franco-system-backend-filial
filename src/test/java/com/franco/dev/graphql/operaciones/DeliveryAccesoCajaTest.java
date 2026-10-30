@@ -183,6 +183,23 @@ class DeliveryAccesoCajaTest {
         verify(cobroGraphQL).saveCobro(any(), isNull(), eq(1185L));
     }
 
+    /** Sin cobroInput, un cobroId ajeno en la venta no se respeta: queda el de la venta guardada. */
+    @Test
+    void elCobroIdQueMandaElClienteNoSeRespeta() {
+        VentaInput v = ventaInput(20L, 5L);
+        v.setCobroId(999L);
+        assertThrows(GraphQLException.class, () -> deliveryGraphQL.saveDeliveryAndVenta(deliveryInput(10L), v,
+                null, null, null, null, null));
+        assertEquals(30L, v.getCobroId());
+
+        VentaInput nueva = ventaInput(null, 1185L);
+        nueva.setCobroId(999L);
+        when(pdvCajaService.findById(1185L)).thenReturn(Optional.of(cajaAjena));
+        assertThrows(GraphQLException.class, () -> deliveryGraphQL.saveDeliveryAndVenta(deliveryInput(null), nueva,
+                null, null, null, null, null));
+        assertNull(nueva.getCobroId());
+    }
+
     @Test
     void lasOperacionesSinLlamadoresPidenAnalisisDeCaja() {
         doThrow(new GraphQLException("No autorizado")).when(rolSesionService).exigirRol(RolSesionService.ANALISIS_DE_CAJA);
