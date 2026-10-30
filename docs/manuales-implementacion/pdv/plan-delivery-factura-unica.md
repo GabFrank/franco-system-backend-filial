@@ -135,6 +135,20 @@ y timbrado no electrónico en el PDV, cola CUPS `zz_ok` de prueba; se restaura t
 Sin hallazgos en: contrato GraphQL y desktop (igual), migración/variables/central (no hacen falta), choque con
 `lote-saldo` (sin ciclo), `REQUIRES_NEW` en la creación (no hay), vuelta atrás (no deja nada).
 
+## Auditoría del diff (paso 8)
+
+- Fijo 2 (esquema y migración): N/A, el diff no trae migración, `.graphqls`, entidad ni enum.
+- Fijo 1 (autorización): N/A para el diff, que no agrega ni cambia resolvers ni firmas.
+- Fijo 3 (contrato) y corrección, con un revisor: sin bloqueantes. Contrato igual (el desktop no interpreta el texto
+  del error; PWA y mobile no llaman a la mutation) y cada camino de error conserva su mensaje y su manejo de turno.
+  - **Mayor:** ningún test cubría el turno (todos en modo TODAS) → tres tests en modo INTERVALO: la validación del
+    builder devuelve el turno; la espera vencida y la falla del DE en el commit no.
+  - **Declarado, previo:** `findVigenteDeVenta` busca con la sucursal del delivery y el builder guarda la factura con
+    la del timbrado. Si un PDV de delivery facturara con timbrado de otra sucursal, el reintento no la encontraría
+    (lock o no). Viene de #208; no se cambia acá.
+  - **Declarado:** si además falla el rollback, la excepción que sale es la del rollback; ya pasaba en el proxy de
+    `crearFacturaLegalDesdeVenta`.
+
 ## Riesgo, despliegue y vuelta atrás
 
 - **Riesgo:** bajo. Un método del filial; sin migración ni cambio de API. Lo nuevo que puede pasar: una espera de

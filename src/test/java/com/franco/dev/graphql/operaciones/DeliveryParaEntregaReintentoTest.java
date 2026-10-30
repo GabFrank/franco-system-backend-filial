@@ -35,7 +35,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** Reintentar PARA ENTREGA despues de una falla de impresion no crea otra factura (issue #207). */
+/**
+ * Reintentar PARA ENTREGA despues de una falla de impresion no crea otra factura (issue #207), ni dos pedidos juntos
+ * (issue #210: lock por venta y transaccion; la carrera real la cubre la prueba de runtime del plan).
+ */
 class DeliveryParaEntregaReintentoTest {
 
     private static final long PDV = 5L;
@@ -148,5 +151,48 @@ class DeliveryParaEntregaReintentoTest {
 
         assertTrue(e.getMessage().startsWith("Problema al generar factura electrónica"), e.getMessage());
         verify(facturaLegalGraphQL, never()).printTicket58mmFactura(any(), any(), any(), any(), any());
+    }
+
+    /** Turno del modo intervalo: se devuelve solo si la factura fallo en una validacion previa a escribir. */
+    private void politicaIntervaloQueRespeta() {
+        when(configuracionFacturacionLector.resolver()).thenReturn(new PoliticaFacturacion(
+                ConfiguracionFacturacion.MODO_INTERVALO, 3, true, PoliticaFacturacion.Origen.GLOBAL));
+    }
+
+    @Test
+    void siElBuilderRechazaAntesDeEscribirDevuelveElTurno() {
+        politicaIntervaloQueRespeta();
+        when(facturaService.crearFacturaLegalDesdeVenta(eq(venta), any(), eq(PDV), isNull())).thenReturn(null);
+
+        GraphQLException e = assertThrows(GraphQLException.class, () -> deliveryGraphQL
+                .saveDeliveryEstado(10L, DeliveryEstado.PARA_ENTREGA, "ticket", null, PDV, false));
+
+        assertEquals("Problema al generar factura electrónica: Problema al crear factura legal", e.getMessage());
+        verify(politicaFacturacionService).devolverTurno();
+    }
+
+    @Test
+    void siVenceLaEsperaNoDevuelveUnTurnoQueNoTomo() {
+        politicaIntervaloQueRespeta();
+        doThrow(new RuntimeException(new SQLException("canceling statement due to lock timeout", "55P03")))
+                .when(bloqueo).tomar(anyString(), anyString());
+
+        assertThrows(GraphQLException.class, () -> deliveryGraphQL
+                .saveDeliveryEstado(10L, DeliveryEstado.PARA_ENTREGA, "ticket", null, PDV, false));
+
+        verify(politicaFacturacionService, never()).devolverTurno();
+    }
+
+    @Test
+    void siFallaElDeEnElCommitNoDevuelveElTurno() {
+        politicaIntervaloQueRespeta();
+        when(facturaService.crearFacturaLegalDesdeVenta(eq(venta), any(), eq(PDV), isNull()))
+                .thenReturn(new FacturaLegal());
+        doThrow(new UnexpectedRollbackException("rollback-only")).when(transactionManager).commit(any());
+
+        assertThrows(GraphQLException.class, () -> deliveryGraphQL
+                .saveDeliveryEstado(10L, DeliveryEstado.PARA_ENTREGA, "ticket", null, PDV, false));
+
+        verify(politicaFacturacionService, never()).devolverTurno();
     }
 }
