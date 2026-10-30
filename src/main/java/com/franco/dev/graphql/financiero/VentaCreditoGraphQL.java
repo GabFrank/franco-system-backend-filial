@@ -70,6 +70,9 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     private VentaCreditoService service;
 
     @Autowired
+    private com.franco.dev.service.seguridad.RolSesionService rolSesionService;
+
+    @Autowired
     private UsuarioService usuarioService;
 
     @Autowired
@@ -174,10 +177,11 @@ public class VentaCreditoGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     }
 
     public Boolean imprimirVentaCredito(Long id, Long sucId, String printerName) throws GraphQLException {
+        rolSesionService.exigirAdmin();
         VentaCredito ventaCredito = service.findById(id).orElse(null);
+        if (ventaCredito == null) throw new GraphQLException("Venta credito no encontrada");
         List<VentaCreditoCuota> ventaCreditoCuotaList = ventaCreditoCuotaService.findByVentaCreditoId(ventaCredito.getId());
         Delivery delivery = ventaCredito.getVenta().getDelivery();
-        if (ventaCredito == null) throw new GraphQLException("Venta credito no encontrada");
         try {
             printTicket58mm(ventaCredito, ventaCredito.getVenta(), null, printerName, ventaCreditoCuotaList, delivery);
             return true;

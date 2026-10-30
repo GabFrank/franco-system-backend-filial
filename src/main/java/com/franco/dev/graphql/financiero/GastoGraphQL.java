@@ -92,6 +92,10 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         ModelMapper m = new ModelMapper();
         Gasto e = m.map(input, Gasto.class);
 
+        // Sin moneda, el retiro va en 0: saveAndSend compara los montos antes de guardar.
+        e.setRetiroGs(PdvCajaService.cero(input.getRetiroGs()));
+        e.setRetiroRs(PdvCajaService.cero(input.getRetiroRs()));
+        e.setRetiroDs(PdvCajaService.cero(input.getRetiroDs()));
         if (input.getVueltoGs() != null) {
             e.setVueltoGs(input.getVueltoGs());
         } else {

@@ -184,4 +184,31 @@ class ImpresionServiceEsperaTest {
         assertFalse(service.printRetiro(retiro(), "no-existe", "CAJA 1", true, null, true));
         assertFalse(service.printGasto(gasto(), "no-existe", "CAJA 1", null, true));
     }
+
+    @Test
+    void elBalanceDeUnaCajaAbiertaSaleConCierreAbierta() throws Exception {
+        PdvCajaBalanceDto abierta = balance();
+        abierta.setFechaCierre(null);
+        abierta.setTotalTarjeta(null);
+        abierta.setTotalRetiroRs(null);
+        java.io.ByteArrayOutputStream memoria = new java.io.ByteArrayOutputStream();
+
+        assertTrue(service.printBalance(abierta, "zz", "CAJA 1", memoria));
+        assertTrue(new String(memoria.toByteArray(), java.nio.charset.StandardCharsets.ISO_8859_1).contains("ABIERTA"));
+    }
+
+    @Test
+    void unGastoYUnRetiroConMontosNulosSeImprimenConCero() throws Exception {
+        GastoDto gasto = gasto();
+        gasto.setRetiroGs(null);
+        gasto.setRetiroRs(null);
+        RetiroDto retiro = retiro();
+        retiro.setRetiroGs(null);
+        retiro.setRetiroDs(null);
+        java.io.ByteArrayOutputStream memoria = new java.io.ByteArrayOutputStream();
+
+        assertTrue(service.printGasto(gasto, "zz", "CAJA 1", memoria));
+        assertTrue(service.printRetiro(retiro, "zz", "CAJA 1", false, memoria));
+        assertFalse(new String(memoria.toByteArray(), java.nio.charset.StandardCharsets.ISO_8859_1).contains("null"));
+    }
 }

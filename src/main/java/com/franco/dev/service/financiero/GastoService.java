@@ -56,8 +56,8 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
         // guarani
 
         if (e.getFinalizado() == true) {
-            if (e.getRetiroGs() > 0) {
-                movimientoCaja.setCantidad(e.getRetiroGs() * -1);
+            if (PdvCajaService.cero(e.getRetiroGs()) > 0) {
+                movimientoCaja.setCantidad(PdvCajaService.cero(e.getRetiroGs()) * -1);
                 movimientoCaja.setUsuario(e.getUsuario());
                 movimientoCaja.setMoneda(monedaService.findByDescripcion("GUARANI"));
                 movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -68,8 +68,8 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
             }
 
             //real
-            if (e.getRetiroRs() > 0) {
-                movimientoCaja.setCantidad(e.getRetiroRs() * -1);
+            if (PdvCajaService.cero(e.getRetiroRs()) > 0) {
+                movimientoCaja.setCantidad(PdvCajaService.cero(e.getRetiroRs()) * -1);
                 movimientoCaja.setUsuario(e.getUsuario());
                 movimientoCaja.setMoneda(monedaService.findByDescripcion("REAL"));
                 movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -79,8 +79,8 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
                 movimientoCajaService.save(movimientoCaja);
             }
             // dolar
-            if (e.getRetiroDs() > 0) {
-                movimientoCaja.setCantidad(e.getRetiroDs() * -1);
+            if (PdvCajaService.cero(e.getRetiroDs()) > 0) {
+                movimientoCaja.setCantidad(PdvCajaService.cero(e.getRetiroDs()) * -1);
                 movimientoCaja.setUsuario(e.getUsuario());
                 movimientoCaja.setMoneda(monedaService.findByDescripcion("DOLAR"));
                 movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -89,8 +89,8 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
                 movimientoCaja.setCreadoEn(e.getCreadoEn());
                 movimientoCajaService.save(movimientoCaja);
             }
-            if (e.getVueltoGs() > 0) {
-                movimientoCaja.setCantidad(e.getVueltoGs());
+            if (PdvCajaService.cero(e.getVueltoGs()) > 0) {
+                movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoGs()));
                 movimientoCaja.setUsuario(e.getUsuario());
                 movimientoCaja.setMoneda(monedaService.findByDescripcion("GUARANI"));
                 movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -101,8 +101,8 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
             }
 
             //real
-            if (e.getVueltoRs() > 0) {
-                movimientoCaja.setCantidad(e.getVueltoRs());
+            if (PdvCajaService.cero(e.getVueltoRs()) > 0) {
+                movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoRs()));
                 movimientoCaja.setUsuario(e.getUsuario());
                 movimientoCaja.setMoneda(monedaService.findByDescripcion("REAL"));
                 movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -112,8 +112,8 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
                 movimientoCajaService.save(movimientoCaja);
             }
             // dolar
-            if (e.getVueltoDs() > 0) {
-                movimientoCaja.setCantidad(e.getVueltoDs());
+            if (PdvCajaService.cero(e.getVueltoDs()) > 0) {
+                movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoDs()));
                 movimientoCaja.setUsuario(e.getUsuario());
                 movimientoCaja.setMoneda(monedaService.findByDescripcion("DOLAR"));
                 movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -133,21 +133,21 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Boolean isNew = entity.getId() == null;
         if (isNew) {
-            if (entity.getRetiroGs() > 0) {
+            if (PdvCajaService.cero(entity.getRetiroGs()) > 0) {
                 Double totalEnCajaGs = movimientoCajaService.totalEnCajaPorCajaIdAndMonedaId(entity.getCaja().getId(), Long.valueOf(1));
-                if (entity.getRetiroGs() > totalEnCajaGs) {
+                if (PdvCajaService.cero(entity.getRetiroGs()) > totalEnCajaGs) {
                     throw new GraphQLException("El valor de gasto es mayor al total en caja: Guaraiens");
                 }
             }
-            if (entity.getRetiroRs() > 0) {
+            if (PdvCajaService.cero(entity.getRetiroRs()) > 0) {
                 Double totalEnCajaRs = movimientoCajaService.totalEnCajaPorCajaIdAndMonedaId(entity.getCaja().getId(), Long.valueOf(2));
-                if (entity.getRetiroRs() > totalEnCajaRs) {
+                if (PdvCajaService.cero(entity.getRetiroRs()) > totalEnCajaRs) {
                     throw new GraphQLException("El valor de gasto es mayor al total en caja: Reales");
                 }
             }
-            if (entity.getRetiroDs() > 0) {
+            if (PdvCajaService.cero(entity.getRetiroDs()) > 0) {
                 Double totalEnCajaDs = movimientoCajaService.totalEnCajaPorCajaIdAndMonedaId(entity.getCaja().getId(), Long.valueOf(3));
-                if (entity.getRetiroDs() > totalEnCajaDs) {
+                if (PdvCajaService.cero(entity.getRetiroDs()) > totalEnCajaDs) {
                     throw new GraphQLException("El valor de gasto es mayor al total en caja: Dolares");
                 }
             }
@@ -162,7 +162,7 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
         // guarani
 
         if (isNew == true) {
-            movimientoCaja.setCantidad((e.getRetiroGs() > 0 ? e.getRetiroGs() : 0.0) * -1);
+            movimientoCaja.setCantidad((PdvCajaService.cero(e.getRetiroGs()) > 0 ? PdvCajaService.cero(e.getRetiroGs()) : 0.0) * -1);
             movimientoCaja.setUsuario(e.getUsuario());
             movimientoCaja.setMoneda(monedaService.findByDescripcion("GUARANI"));
             movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -173,7 +173,7 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
 
 
             //real
-            movimientoCaja.setCantidad((e.getRetiroRs() > 0 ? e.getRetiroRs() : 0.0) * -1);
+            movimientoCaja.setCantidad((PdvCajaService.cero(e.getRetiroRs()) > 0 ? PdvCajaService.cero(e.getRetiroRs()) : 0.0) * -1);
             movimientoCaja.setUsuario(e.getUsuario());
             movimientoCaja.setMoneda(monedaService.findByDescripcion("REAL"));
             movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -183,7 +183,7 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
             if (movimientoCaja.getCantidad() != 0.0) movimientoCajaService.saveAndSend(movimientoCaja, false);
 
             // dolar
-            movimientoCaja.setCantidad((e.getRetiroDs() > 0 ? e.getRetiroDs() : 0.0) * -1);
+            movimientoCaja.setCantidad((PdvCajaService.cero(e.getRetiroDs()) > 0 ? PdvCajaService.cero(e.getRetiroDs()) : 0.0) * -1);
             movimientoCaja.setUsuario(e.getUsuario());
             movimientoCaja.setMoneda(monedaService.findByDescripcion("DOLAR"));
             movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -192,7 +192,7 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
             movimientoCaja.setCreadoEn(e.getCreadoEn());
             if (movimientoCaja.getCantidad() != 0.0) movimientoCajaService.saveAndSend(movimientoCaja, false);
 
-            movimientoCaja.setCantidad(e.getVueltoGs());
+            movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoGs()));
             movimientoCaja.setUsuario(e.getUsuario());
             movimientoCaja.setMoneda(monedaService.findByDescripcion("GUARANI"));
             movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -203,7 +203,7 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
 
 
             //real
-            movimientoCaja.setCantidad(e.getVueltoRs());
+            movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoRs()));
             movimientoCaja.setUsuario(e.getUsuario());
             movimientoCaja.setMoneda(monedaService.findByDescripcion("REAL"));
             movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -213,7 +213,7 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
             if (movimientoCaja.getCantidad() != 0.0) movimientoCajaService.saveAndSend(movimientoCaja, false);
 
             // dolar
-            movimientoCaja.setCantidad(e.getVueltoDs());
+            movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoDs()));
             movimientoCaja.setUsuario(e.getUsuario());
             movimientoCaja.setMoneda(monedaService.findByDescripcion("DOLAR"));
             movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
@@ -227,11 +227,11 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
             for (MovimientoCaja mc : movimientoCajaList) {
 
                 if (mc.getMoneda().getDenominacion().contains("GUARANI")) {
-                    mc.setCantidad(e.getRetiroGs() + e.getVueltoGs());
+                    mc.setCantidad(PdvCajaService.cero(e.getRetiroGs()) + PdvCajaService.cero(e.getVueltoGs()));
                 } else if (mc.getMoneda().getDenominacion().contains("REAL")) {
-                    mc.setCantidad(e.getRetiroRs() + e.getVueltoRs());
+                    mc.setCantidad(PdvCajaService.cero(e.getRetiroRs()) + PdvCajaService.cero(e.getVueltoRs()));
                 } else if (mc.getMoneda().getDenominacion().contains("DOLAR")) {
-                    mc.setCantidad(e.getRetiroDs() + e.getVueltoRs());
+                    mc.setCantidad(PdvCajaService.cero(e.getRetiroDs()) + PdvCajaService.cero(e.getVueltoDs()));
                 }
 
                 movimientoCajaService.saveAndSend(mc, false);
