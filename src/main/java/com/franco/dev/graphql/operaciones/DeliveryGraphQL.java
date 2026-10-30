@@ -264,7 +264,8 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                                     && PoliticaFacturacionService.fallaAntesDeEscribir(e)) {
                                 politicaFacturacionService.devolverTurno();
                             }
-                            throw new GraphQLException("Problema al generar factura electrónica: " + e.getMessage());
+                            throw new GraphQLException("Problema al generar factura electrónica"
+                                    + (e instanceof GraphQLException ? ": " + e.getMessage() : ""));
                         }
                         // Fuera del try: una falla de la impresora no es una falla de la factura, que ya existe.
                         facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
@@ -315,8 +316,9 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                     printerName, local, false, null, delivery, null, true));
         } catch (Exception e) {
             e.printStackTrace();
-            throw new GraphQLException("No se pudo reimprimir el delivery: "
-                    + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+            // El motivo solo si es de la impresora (textos propios); el resto queda en el log.
+            throw new GraphQLException("No se pudo reimprimir el delivery"
+                    + (e instanceof IOException && e.getMessage() != null ? ": " + e.getMessage() : ""));
         }
     }
 

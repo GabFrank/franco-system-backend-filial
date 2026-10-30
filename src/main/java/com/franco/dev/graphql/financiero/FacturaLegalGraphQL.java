@@ -440,7 +440,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
         } catch (Exception e) {
             log.error("Error al guardar factura legal: {}", e.getMessage(), e);
-            throw new GraphQLException("Error al guardar factura legal: " + e.getMessage(), e);
+            // Solo el motivo de una validación propia llega al cliente; el resto queda en el log.
+            throw new GraphQLException("Error al guardar factura legal"
+                    + (e instanceof GraphQLException ? ": " + e.getMessage() : ""), e);
         }
     }
 

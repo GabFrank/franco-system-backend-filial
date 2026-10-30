@@ -121,7 +121,9 @@ public class ImpresionService {
                     escpos.writeLF("Cajero: " + balanceDto.getUsuario().getPersona().getNombre());
                 }
                 escpos.writeLF("Fecha Apertura: " + balanceDto.getFechaApertura().format(formatter));
-                escpos.writeLF("Fecha Cierre: " + balanceDto.getFechaCierre().format(formatter));
+                // Una caja abierta todavía no tiene cierre.
+                escpos.writeLF("Fecha Cierre: " + (balanceDto.getFechaCierre() != null
+                        ? balanceDto.getFechaCierre().format(formatter) : "ABIERTA"));
                 escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "VALORES DE APERTURA");
                 escpos.write("Guaranies G$: ");
@@ -165,19 +167,19 @@ public class ImpresionService {
                 escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "VALORES DE TARJETA");
                 escpos.write("Guaranies G$: ");
-                String valorTarjeta = NumberFormat.getNumberInstance(Locale.GERMAN).format(balanceDto.getTotalTarjeta().intValue());
+                String valorTarjeta = NumberFormat.getNumberInstance(Locale.GERMAN).format((int) safeDouble(balanceDto.getTotalTarjeta()));
                 for (int i = 18; i > valorTarjeta.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorTarjeta);
                 escpos.write("Reales R$: ");
-                String valorTarjetaRs = String.format("%.2f", balanceDto.getTotalTarjetaRs());
+                String valorTarjetaRs = String.format("%.2f", safeDouble(balanceDto.getTotalTarjetaRs()));
                 for (int i = 21; i > valorTarjetaRs.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorTarjetaRs);
                 escpos.write("Dolares D$: ");
-                String valorTarjetaDs = String.format("%.2f", balanceDto.getTotalTarjetaDs());
+                String valorTarjetaDs = String.format("%.2f", safeDouble(balanceDto.getTotalTarjetaDs()));
                 for (int i = 20; i > valorTarjetaDs.length(); i--) {
                     escpos.write(" ");
                 }
@@ -185,19 +187,19 @@ public class ImpresionService {
                 escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "VALORES DE TRANSFERENCIA");
                 escpos.write("Guaranies G$: ");
-                String valorTransferencia = NumberFormat.getNumberInstance(Locale.GERMAN).format(balanceDto.getTotalTransferencia().intValue());
+                String valorTransferencia = NumberFormat.getNumberInstance(Locale.GERMAN).format((int) safeDouble(balanceDto.getTotalTransferencia()));
                 for (int i = 18; i > valorTransferencia.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorTransferencia);
                 escpos.write("Reales R$: ");
-                String valorTransferenciaRs = String.format("%.2f", balanceDto.getTotalTransferenciaRs());
+                String valorTransferenciaRs = String.format("%.2f", safeDouble(balanceDto.getTotalTransferenciaRs()));
                 for (int i = 21; i > valorTransferenciaRs.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorTransferenciaRs);
                 escpos.write("Dolares D$: ");
-                String valorTransferenciaDs = String.format("%.2f", balanceDto.getTotalTransferenciaDs());
+                String valorTransferenciaDs = String.format("%.2f", safeDouble(balanceDto.getTotalTransferenciaDs()));
                 for (int i = 20; i > valorTransferenciaDs.length(); i--) {
                     escpos.write(" ");
                 }
@@ -205,26 +207,26 @@ public class ImpresionService {
                 escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "VALORES DE CREDITO");
                 escpos.write("Guaranies G$: ");
-                String valorCredito = NumberFormat.getNumberInstance(Locale.GERMAN).format(balanceDto.getTotalCredito().intValue());
+                String valorCredito = NumberFormat.getNumberInstance(Locale.GERMAN).format((int) safeDouble(balanceDto.getTotalCredito()));
                 for (int i = 18; i > valorCredito.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorCredito);
                 escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "VALORES DE RETIRO");
-                String valorGsRetiro = NumberFormat.getNumberInstance(Locale.GERMAN).format(balanceDto.getTotalRetiroGs().intValue());
+                String valorGsRetiro = NumberFormat.getNumberInstance(Locale.GERMAN).format((int) safeDouble(balanceDto.getTotalRetiroGs()));
                 escpos.write("Guaranies G$: ");
                 for (int i = 18; i > valorGsRetiro.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorGsRetiro);
-                String valorRsRetiro = String.format("%.2f", balanceDto.getTotalRetiroRs());
+                String valorRsRetiro = String.format("%.2f", safeDouble(balanceDto.getTotalRetiroRs()));
                 escpos.write("Reales R$: ");
                 for (int i = 21; i > valorRsRetiro.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorRsRetiro);
-                String valorDsRetiro = String.format("%.2f", balanceDto.getTotalRetiroDs());
+                String valorDsRetiro = String.format("%.2f", safeDouble(balanceDto.getTotalRetiroDs()));
                 escpos.write("Dolares D$: ");
                 for (int i = 20; i > valorDsRetiro.length(); i--) {
                     escpos.write(" ");
@@ -232,19 +234,19 @@ public class ImpresionService {
                 escpos.writeLF(valorDsRetiro);
                 escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "VALORES DE GASTO");
-                String valorGsGasto = NumberFormat.getNumberInstance(Locale.GERMAN).format(balanceDto.getTotalGastoGs().intValue());
+                String valorGsGasto = NumberFormat.getNumberInstance(Locale.GERMAN).format((int) safeDouble(balanceDto.getTotalGastoGs()));
                 escpos.write("Guaranies G$: ");
                 for (int i = 18; i > valorGsGasto.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorGsGasto);
-                String valorRsGasto = String.format("%.2f", balanceDto.getTotalGastoRs());
+                String valorRsGasto = String.format("%.2f", safeDouble(balanceDto.getTotalGastoRs()));
                 escpos.write("Reales R$: ");
                 for (int i = 21; i > valorRsGasto.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorRsGasto);
-                String valorDsGasto = String.format("%.2f", balanceDto.getTotalGastoDs());
+                String valorDsGasto = String.format("%.2f", safeDouble(balanceDto.getTotalGastoDs()));
                 escpos.write("Dolares D$: ");
                 for (int i = 20; i > valorDsGasto.length(); i--) {
                     escpos.write(" ");
@@ -252,19 +254,19 @@ public class ImpresionService {
                 escpos.writeLF(valorDsGasto);
                 escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "DIFERENCIA");
-                String valorGsDiferencia = NumberFormat.getNumberInstance(Locale.GERMAN).format(balanceDto.getDiferenciaGs().intValue());
+                String valorGsDiferencia = NumberFormat.getNumberInstance(Locale.GERMAN).format((int) safeDouble(balanceDto.getDiferenciaGs()));
                 escpos.write("Guaranies G$: ");
                 for (int i = 18; i > valorGsDiferencia.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorGsDiferencia);
-                String valorRsDiferencia = String.format("%.2f", balanceDto.getDiferenciaRs());
+                String valorRsDiferencia = String.format("%.2f", safeDouble(balanceDto.getDiferenciaRs()));
                 escpos.write("Reales R$: ");
                 for (int i = 21; i > valorRsDiferencia.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorRsDiferencia);
-                String valorDsDiferencia = String.format("%.2f", balanceDto.getDiferenciaDs());
+                String valorDsDiferencia = String.format("%.2f", safeDouble(balanceDto.getDiferenciaDs()));
                 escpos.write("Dolares D$: ");
                 for (int i = 20; i > valorDsDiferencia.length(); i--) {
                     escpos.write(" ");
@@ -272,19 +274,19 @@ public class ImpresionService {
                 escpos.writeLF(valorDsDiferencia);
 //                escpos.writeLF("--------------------------------");
 //                escpos.writeLF(center, "VENTA TOTAL");
-//                String valorGsVenta = NumberFormat.getNumberInstance(Locale.GERMAN).format(balanceDto.getTotalVentaGs().intValue());
+//                String valorGsVenta = NumberFormat.getNumberInstance(Locale.GERMAN).format((int) safeDouble(balanceDto.getTotalVentaGs()));
 //                escpos.write("Guaranies G$: ");
 //                for (int i = 18; i > valorGsVenta.length(); i--) {
 //                    escpos.write(" ");
 //                }
 //                escpos.writeLF(valorGsVenta);
-//                String valorRsVenta = String.format("%.2f", balanceDto.getTotalVentaRs());
+//                String valorRsVenta = String.format("%.2f", safeDouble(balanceDto.getTotalVentaRs()));
 //                escpos.write("Reales R$: ");
 //                for (int i = 21; i > valorRsVenta.length(); i--) {
 //                    escpos.write(" ");
 //                }
 //                escpos.writeLF(valorRsVenta);
-//                String valorDsVenta = String.format("%.2f", balanceDto.getTotalVentaDs());
+//                String valorDsVenta = String.format("%.2f", safeDouble(balanceDto.getTotalVentaDs()));
 //                escpos.write("Dolares D$: ");
 //                for (int i = 20; i > valorDsVenta.length(); i--) {
 //                    escpos.write(" ");
@@ -390,19 +392,19 @@ public class ImpresionService {
                 escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "VALORES DE GASTO");
                 escpos.write("Guaranies G$: ");
-                String valorGsAper = NumberFormat.getNumberInstance(Locale.GERMAN).format(gastoDto.getRetiroGs().intValue());
+                String valorGsAper = NumberFormat.getNumberInstance(Locale.GERMAN).format((int) safeDouble(gastoDto.getRetiroGs()));
                 for (int i = 18; i > valorGsAper.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorGsAper);
                 escpos.write("Reales R$: ");
-                String valorRsAper = String.format("%.2f", gastoDto.getRetiroRs());
+                String valorRsAper = String.format("%.2f", safeDouble(gastoDto.getRetiroRs()));
                 for (int i = 21; i > valorRsAper.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorRsAper);
                 escpos.write("Dolares D$: ");
-                String valorDsAper = String.format("%.2f", gastoDto.getRetiroDs());
+                String valorDsAper = String.format("%.2f", safeDouble(gastoDto.getRetiroDs()));
                 for (int i = 20; i > valorDsAper.length(); i--) {
                     escpos.write(" ");
                 }
@@ -477,19 +479,19 @@ public class ImpresionService {
 //                escpos.writeLF("--------------------------------");
 //                escpos.writeLF(center, "VALORES DE GASTO");
 //                escpos.write("Guaranies G$: ");
-//                String valorGsAper = NumberFormat.getNumberInstance(Locale.GERMAN).format(gastoDto.getRetiroGs().intValue());
+//                String valorGsAper = NumberFormat.getNumberInstance(Locale.GERMAN).format((int) safeDouble(gastoDto.getRetiroGs()));
 //                for (int i = 18; i > valorGsAper.length(); i--) {
 //                    escpos.write(" ");
 //                }
 //                escpos.writeLF(valorGsAper);
 //                escpos.write("Reales R$: ");
-//                String valorRsAper = String.format("%.2f", gastoDto.getRetiroRs());
+//                String valorRsAper = String.format("%.2f", safeDouble(gastoDto.getRetiroRs()));
 //                for (int i = 21; i > valorRsAper.length(); i--) {
 //                    escpos.write(" ");
 //                }
 //                escpos.writeLF(valorRsAper);
 //                escpos.write("Dolares D$: ");
-//                String valorDsAper = String.format("%.2f", gastoDto.getRetiroDs());
+//                String valorDsAper = String.format("%.2f", safeDouble(gastoDto.getRetiroDs()));
 //                for (int i = 20; i > valorDsAper.length(); i--) {
 //                    escpos.write(" ");
 //                }
@@ -583,19 +585,19 @@ public class ImpresionService {
                 escpos.writeLF("--------------------------------");
                 escpos.writeLF(center, "VALORES DE RETIRO");
                 escpos.write("Guaranies G$: ");
-                String valorGsAper = NumberFormat.getNumberInstance(Locale.GERMAN).format(retiroDto.getRetiroGs().intValue());
+                String valorGsAper = NumberFormat.getNumberInstance(Locale.GERMAN).format((int) safeDouble(retiroDto.getRetiroGs()));
                 for (int i = 18; i > valorGsAper.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorGsAper);
                 escpos.write("Reales R$: ");
-                String valorRsAper = String.format("%.2f", retiroDto.getRetiroRs());
+                String valorRsAper = String.format("%.2f", safeDouble(retiroDto.getRetiroRs()));
                 for (int i = 21; i > valorRsAper.length(); i--) {
                     escpos.write(" ");
                 }
                 escpos.writeLF(valorRsAper);
                 escpos.write("Dolares D$: ");
-                String valorDsAper = String.format("%.2f", retiroDto.getRetiroDs());
+                String valorDsAper = String.format("%.2f", safeDouble(retiroDto.getRetiroDs()));
                 for (int i = 20; i > valorDsAper.length(); i--) {
                     escpos.write(" ");
                 }
@@ -907,19 +909,19 @@ public class ImpresionService {
 //                escpos.writeLF("--------------------------------");
 //                escpos.writeLF(center, "VALORES DE GASTO");
 //                escpos.write("Guaranies G$: ");
-//                String valorGsAper = NumberFormat.getNumberInstance(Locale.GERMAN).format(gastoDto.getRetiroGs().intValue());
+//                String valorGsAper = NumberFormat.getNumberInstance(Locale.GERMAN).format((int) safeDouble(gastoDto.getRetiroGs()));
 //                for (int i = 18; i > valorGsAper.length(); i--) {
 //                    escpos.write(" ");
 //                }
 //                escpos.writeLF(valorGsAper);
 //                escpos.write("Reales R$: ");
-//                String valorRsAper = String.format("%.2f", gastoDto.getRetiroRs());
+//                String valorRsAper = String.format("%.2f", safeDouble(gastoDto.getRetiroRs()));
 //                for (int i = 21; i > valorRsAper.length(); i--) {
 //                    escpos.write(" ");
 //                }
 //                escpos.writeLF(valorRsAper);
 //                escpos.write("Dolares D$: ");
-//                String valorDsAper = String.format("%.2f", gastoDto.getRetiroDs());
+//                String valorDsAper = String.format("%.2f", safeDouble(gastoDto.getRetiroDs()));
 //                for (int i = 20; i > valorDsAper.length(); i--) {
 //                    escpos.write(" ");
 //                }
