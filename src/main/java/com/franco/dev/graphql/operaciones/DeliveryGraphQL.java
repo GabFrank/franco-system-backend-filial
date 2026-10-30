@@ -314,7 +314,8 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                     printerName, local, false, null, delivery, null, true));
         } catch (Exception e) {
             e.printStackTrace();
-            throw new GraphQLException("No se pudo reimprimir el delivery: " + e.getMessage());
+            throw new GraphQLException("No se pudo reimprimir el delivery: "
+                    + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
         }
     }
 

@@ -409,19 +409,22 @@ class PrinterOutputStreamTest {
 
     @Test
     void alTerminarLosEnviosElVigiaNoQuedaConTareas() throws Exception {
+        // Se mira la revision de cada salida y no la cola del vigia, que comparten todos los tests de la JVM.
+        java.lang.reflect.Field campo = SalidaConEnvioEnHilo.class.getDeclaredField("revision");
+        campo.setAccessible(true);
         for (int i = 0; i < 20; i++) {
             PrinterOutputStream salida = salida(jobQueLee(new AtomicInteger(), new AtomicBoolean(), 0), 30_000, false);
             salida.write(new byte[100]);
             salida.close();
             salida.threadPrint.join(LIMITE.toMillis());
+            // Una revision que el vigia reprogramo justo al terminar el envio corre una vez mas y no vuelve.
+            long limite = System.currentTimeMillis() + 3000;
+            java.util.concurrent.ScheduledFuture<?> revision = (java.util.concurrent.ScheduledFuture<?>) campo.get(salida);
+            while (!revision.isDone() && System.currentTimeMillis() < limite) {
+                Thread.sleep(20);
+                revision = (java.util.concurrent.ScheduledFuture<?>) campo.get(salida);
+            }
+            assertTrue(revision.isDone(), "la revision sigue programada");
         }
-        java.lang.reflect.Field campo = SalidaConEnvioEnHilo.class.getDeclaredField("VIGIA");
-        campo.setAccessible(true);
-        java.util.concurrent.ScheduledThreadPoolExecutor vigia = (java.util.concurrent.ScheduledThreadPoolExecutor) campo.get(null);
-        long limite = System.currentTimeMillis() + 3000;
-        while (!vigia.getQueue().isEmpty() && System.currentTimeMillis() < limite) {
-            Thread.sleep(50);
-        }
-        assertTrue(vigia.getQueue().isEmpty(), "tareas pendientes: " + vigia.getQueue().size());
     }
 }

@@ -839,9 +839,7 @@ public class ImpresionService {
         } catch (Exception e) {
             // La venta ya se guardo: que el papel no salga se informa con false, no reventando.
             log.error("No se pudo imprimir el ticket de sorteo", e);
-            if (propio != null) {
-                try { propio.close(); } catch (Exception ignorado) { }
-            }
+            // La salida propia no se cierra: cerrarla imprimiria medio ticket. El vigia cancela el envio.
             return false;
         }
     }

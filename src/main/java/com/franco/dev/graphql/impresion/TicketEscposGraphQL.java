@@ -124,7 +124,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
         dto.setDecimales(input.getDecimales());
         dto.setQr(input.getQr());
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        impresionService.printSenaCupon(dto, null, local, out);
+        armado(impresionService.printSenaCupon(dto, null, local, out));
         return base64(out);
     }
 
