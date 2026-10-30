@@ -14,9 +14,9 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 
 @Service
@@ -24,8 +24,8 @@ public class PrintingService {
 
 
     private Logger log = LoggerFactory.getLogger(PrintingService.class);
-    private List<PrintService> printServiceList = new ArrayList<>();
-    private PrinterOutputStream printerOutputStream;
+    // Bean compartido entre cajas: la caché se escribe desde varios hilos
+    private List<PrintService> printServiceList = new CopyOnWriteArrayList<>();
     private PrintService selectedPrintService;
 
     PrintingService() {
@@ -113,6 +113,7 @@ public class PrintingService {
     //    tamanho de papel 58mm entran 32 caracteres
     public Boolean printTicketCaja58mm(String image, String printerName) {
         PrintService selectedPrintService = null;
+        PrinterOutputStream printerOutputStream;
 //        LocalDateTime date = data.getVenta().getCreadoEn();
 //        String fecha = date.getDayOfMonth()+"/"+date.getMonthValue()+"/"+date.getYear();
 //        StringBuilder stringBuilder = new StringBuilder();

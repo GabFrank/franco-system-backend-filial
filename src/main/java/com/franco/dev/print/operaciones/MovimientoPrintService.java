@@ -30,8 +30,6 @@ import java.util.List;
 public class MovimientoPrintService {
 
     private Logger log = LoggerFactory.getLogger(MovimientoPrintService.class);
-    private PrintService printService;
-    private PrinterOutputStream printerOutputStream;
 
     public Boolean entrada58mm(Entrada entrada, List<EntradaItem> entradaItemList , String printerName){
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
@@ -42,8 +40,8 @@ public class MovimientoPrintService {
 //                .append("-").append(fechaActual.getYear()).append("  ").append(fechaActual.getHour())
 //                .append(":").append(fechaActual)
         try {
-            printService = PrinterOutputStream.getPrintServiceByName(printerName);
-            printerOutputStream  = new PrinterOutputStream(printService);
+            PrintService printService = PrinterOutputStream.getPrintServiceByName(printerName);
+            PrinterOutputStream printerOutputStream = new PrinterOutputStream(printService);
             // creating the EscPosImage, need buffered image and algorithm.
 
 //            BufferedImage imageBufferedImage = ImageIO.read(new File("/Users/gabfranck/workspace/franco-systems/backend-spring/images/empresarial/logos/logo_ticket1.png"));

@@ -110,8 +110,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private FacturaLegalItemGraphQL facturaLegalItemGraphQL;
 
-    private PrintService printService;
-
 
     @Autowired
     private ImageService imageService;
@@ -667,7 +665,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
         exporter.setConfiguration(configuration);
 
-        printService = PrinterOutputStream.getPrintServiceByName(printerName);
+        PrintService printService = PrinterOutputStream.getPrintServiceByName(printerName);
 
         if (printService != null) {
             try {
@@ -941,9 +939,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
         }
 
-        if (destino == null) {
-            printService = PrinterOutputStream.getPrintServiceByName(printerName);
-        }
+        PrintService printService = destino == null ? PrinterOutputStream.getPrintServiceByName(printerName) : null;
         Sucursal sucursal = sucursalService.findById(facturaLegal.getSucursalId()).orElse(null);
         Delivery delivery = null;
         if (venta != null)
@@ -1577,9 +1573,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
         }
 
-        if (destino == null) {
-            printService = PrinterOutputStream.getPrintServiceByName(printerName);
-        }
+        PrintService printService = destino == null ? PrinterOutputStream.getPrintServiceByName(printerName) : null;
         Sucursal sucursal = sucursalService.findById(facturaLegal.getSucursalId()).orElse(null);
         Delivery delivery = null;
         if (venta != null)

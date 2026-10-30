@@ -64,9 +64,6 @@ import org.slf4j.LoggerFactory;
 @Service
 public class FacturaService {
 
-    private PrintService printService;
-    private PrinterOutputStream printerOutputStream;
-    private EscPos escPos;
     @Autowired
     private ImageService imageService;
     @Autowired
@@ -127,8 +124,8 @@ public class FacturaService {
         List<FacturaLegalItem> facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
 
         if (selectedPrintService != null) {
-            printerOutputStream = new PrinterOutputStream(selectedPrintService);
-            
+            PrinterOutputStream printerOutputStream = new PrinterOutputStream(selectedPrintService);
+
             // Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
             Style factura = new Style().setJustification(EscPosConst.Justification.Center)
