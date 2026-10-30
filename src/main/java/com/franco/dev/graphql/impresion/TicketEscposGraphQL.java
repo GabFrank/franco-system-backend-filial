@@ -86,13 +86,13 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
             case BALANCE:
                 PdvCaja caja = pdvCajaService.findById(id).orElseThrow(() -> noExiste("La caja", id));
                 rolSesionService.exigirDuenioORol(PdvCajaService.duenioId(caja), RolSesionService.ANALISIS_DE_CAJA);
-                impresionService.printBalance(pdvCajaService.generarBalance(caja), null, local, out);
+                armado(impresionService.printBalance(pdvCajaService.generarBalance(caja), null, local, out));
                 break;
             case GASTO:
-                impresionService.printGasto(gastoDto(id, Boolean.TRUE.equals(reimpresion)), null, local, out);
+                armado(impresionService.printGasto(gastoDto(id, Boolean.TRUE.equals(reimpresion)), null, local, out));
                 break;
             case RETIRO:
-                impresionService.printRetiro(retiroDto(id), null, local, Boolean.TRUE.equals(reimpresion), out);
+                armado(impresionService.printRetiro(retiroDto(id), null, local, Boolean.TRUE.equals(reimpresion), out));
                 break;
             case DELIVERY:
                 delivery(id, local, out);
@@ -124,7 +124,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
         dto.setDecimales(input.getDecimales());
         dto.setQr(input.getQr());
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        impresionService.printSenaCupon(dto, null, local, out);
+        armado(impresionService.printSenaCupon(dto, null, local, out));
         return base64(out);
     }
 
@@ -208,6 +208,13 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
         dto.setRetiroDs(retiroDetalleService.findByRetiroIdAndMonedaId(retiro.getId(), Long.valueOf(3)));
         dto.setUsuario(retiro.getUsuario());
         return dto;
+    }
+
+    /** El armado en memoria devuelve false si fallo: mejor el error que un ticket vacio o a medias. */
+    private static void armado(Boolean ok) {
+        if (!Boolean.TRUE.equals(ok)) {
+            throw new GraphQLException("No se pudo armar el ticket");
+        }
     }
 
     private static GraphQLException noExiste(String que, Long id) {

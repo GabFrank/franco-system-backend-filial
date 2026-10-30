@@ -67,6 +67,7 @@ public class TcpIpOutputStream  extends SalidaConEnvioEnHilo {
 
         threadPrint = new Thread(runnablePrint);
         threadPrint.setUncaughtExceptionHandler(uncaughtException);
+        vigilarEnvio(threadPrint);
         threadPrint.start();
 
 

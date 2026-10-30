@@ -74,4 +74,27 @@ class TcpIpOutputStreamTest {
 
         assertTrue(e.getMessage().startsWith("No se pudo imprimir"), e.getMessage());
     }
+
+    @Test
+    void unTicketAMediasSinCerrarPorRedCancelaElEnvio() throws Exception {
+        try (ServerSocket server = new ServerSocket(0)) {
+            Thread lector = new Thread(() -> {
+                try (Socket s = server.accept(); InputStream in = s.getInputStream()) {
+                    while (in.read() != -1) { }
+                } catch (IOException ignorada) {
+                }
+            });
+            lector.start();
+            TcpIpOutputStream salida = new TcpIpOutputStream("127.0.0.1", server.getLocalPort());
+            salida.setUncaughtException((t, e) -> { });
+            salida.abandonoMillis = 300;
+
+            salida.write(new byte[100]); // el armado falla aca y nadie cierra
+            salida.threadPrint.join(LIMITE.toMillis());
+
+            assertFalse(salida.threadPrint.isAlive());
+            IOException e = assertThrows(IOException.class, salida::close);
+            assertTrue(e.getMessage().startsWith("No se pudo imprimir: el ticket quedo a medio armar"), e.getMessage());
+        }
+    }
 }

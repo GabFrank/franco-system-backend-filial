@@ -182,8 +182,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             gastoDto.setVueltoDs(gasto.getVueltoDs());
             gastoDto.setCajaId(gasto.getCaja().getId());
             gastoDto.setReimpresion(true);
-            impresionService.printGasto(gastoDto, printerName, null);
-            return true;
+            return impresionService.printGasto(gastoDto, printerName, null, null, true);
         } catch (Exception e) {
             return false;
         }

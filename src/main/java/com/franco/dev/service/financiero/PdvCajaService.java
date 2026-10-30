@@ -599,6 +599,15 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         return Boolean.TRUE.equals(impresionService.printBalance(generarBalance(pdvCaja), printerName, local));
     }
 
+    /** Como {@link #imprimirBalanceVerificando}, pero espera a que la impresora tome el trabajo (desktop). */
+    public boolean imprimirBalanceEsperando(Long id, String printerName, String local) {
+        PdvCaja pdvCaja = findById(id).orElse(null);
+        if (pdvCaja == null) {
+            return false;
+        }
+        return Boolean.TRUE.equals(impresionService.printBalance(generarBalance(pdvCaja), printerName, local, null, true));
+    }
+
     public Page<PdvCaja> findAllWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId,
             String fechaInicio, String fechaFin, Long sucId, Boolean verificado, Pageable pageable) {
         return repository.findAllWithFilters(cajaId, estado, maletinId, cajeroId,
