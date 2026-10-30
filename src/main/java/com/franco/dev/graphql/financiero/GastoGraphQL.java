@@ -145,7 +145,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             gastoDto.setVueltoGs(input.getVueltoGs());
             gastoDto.setVueltoRs(input.getVueltoRs());
             gastoDto.setVueltoDs(input.getVueltoDs());
-            gastoDto.setCajaId(gasto.getCaja().getId());
+            gastoDto.setCajaId(gasto.getCaja() != null ? gasto.getCaja().getId() : null);
             impresionService.printGasto(gastoDto, printerName, local);
         }
         return gasto;
@@ -182,7 +182,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             gastoDto.setVueltoGs(gasto.getVueltoGs());
             gastoDto.setVueltoRs(gasto.getVueltoRs());
             gastoDto.setVueltoDs(gasto.getVueltoDs());
-            gastoDto.setCajaId(gasto.getCaja().getId());
+            gastoDto.setCajaId(gasto.getCaja() != null ? gasto.getCaja().getId() : null);
             gastoDto.setReimpresion(true);
             return impresionService.printGasto(gastoDto, printerName, null, null, true);
         } catch (Exception e) {

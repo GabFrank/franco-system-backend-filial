@@ -196,7 +196,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
         dto.setVueltoGs(gasto.getVueltoGs());
         dto.setVueltoRs(gasto.getVueltoRs());
         dto.setVueltoDs(gasto.getVueltoDs());
-        dto.setCajaId(gasto.getCaja().getId());
+        dto.setCajaId(gasto.getCaja() != null ? gasto.getCaja().getId() : null);
         dto.setReimpresion(reimpresion);
         return dto;
     }
@@ -207,7 +207,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
         pdvCajaService.exigirAccesoARegistroDeCaja(retiro.getCajaSalida());
         RetiroDto dto = new RetiroDto();
         dto.setId(retiro.getId());
-        dto.setCajaId(retiro.getCajaSalida().getId());
+        dto.setCajaId(retiro.getCajaSalida() != null ? retiro.getCajaSalida().getId() : null);
         dto.setFecha(retiro.getCreadoEn());
         dto.setResponsable(retiro.getResponsable());
         dto.setRetiroGs(retiroDetalleService.findByRetiroIdAndMonedaId(retiro.getId(), Long.valueOf(1)));
