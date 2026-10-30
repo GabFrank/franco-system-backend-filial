@@ -24,6 +24,7 @@ import com.franco.dev.service.financiero.BloqueoTransaccionalService;
 import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.service.operaciones.LoteFefoService;
 import com.franco.dev.service.seguridad.AuditorUsuarioId;
+import com.franco.dev.service.seguridad.RolSesionService;
 import graphql.GraphQLException;
 import graphql.GraphqlErrorException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
@@ -120,32 +121,50 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     static final String MENSAJE_FACTURA_EN_CURSO =
             "La factura de este delivery se está generando en otra operación. Reintentá en unos segundos.";
 
+    @Autowired
+    private RolSesionService rolSesionService;
+
+    /** Un delivery lo opera el cajero de la caja de su venta, o ANALISIS DE CAJA. Sin venta todavia, pasa. */
     public Optional<Delivery> delivery(Long id, Long sucId) {
-        return service.findById(id);
+        Optional<Delivery> delivery = service.findById(id);
+        delivery.map(this::ventaDe).ifPresent(v -> pdvCajaService.exigirAccesoARegistroDeCaja(v.getCaja()));
+        return delivery;
     }
 
+    // Las listas de toda la sucursal no las usa ningun cliente (el PDV lista por caja): solo ANALISIS DE CAJA.
     public List<Delivery> deliverys(int page, int size, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
     public List<Delivery> deliverysByEstado(DeliveryEstado estado, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.findByEstado(estado);
     }
 
     public List<Delivery> deliverysByEstadoList(List<DeliveryEstado> estadoList, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.getRepository().findDeliveryByEstadoAndSucId(estadoList, sucId);
     }
 
     public List<Delivery> deliverysByEstadoNotIn(DeliveryEstado estado, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.findByEstadoNotIn(estado);
     }
 
     public List<Delivery> deliverysUltimos10(Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.findTop10();
     }
 
+    /** Sin llamadores en los clientes; el PDV guarda con saveDeliveryAndVenta. */
     public Delivery saveDelivery(DeliveryInput input) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
+        return guardarDelivery(input);
+    }
+
+    private Delivery guardarDelivery(DeliveryInput input) {
         auditorUsuarioId.verificar("DeliveryGraphQL.saveDelivery", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         Delivery e = m.map(input, Delivery.class);
@@ -176,6 +195,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
             List<VentaItemInput> ventaItemInputList, VueltoInput vueltoInput, List<VueltoItemInput> vueltoItemInputList,
             CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleInputList) throws GraphqlErrorException {
         auditorUsuarioId.verificar("DeliveryGraphQL.saveDeliveryAndVenta", deliveryInput.getUsuarioId());
+        exigirAccesoAlGuardar(deliveryInput, ventaInput, cobroInput);
         Delivery delivery = null;
         try {
             if (cobroInput == null && cobroDetalleInputList != null) {
@@ -191,7 +211,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                 ventaInput.setCobroId(cobro.getId());
             }
 
-            delivery = saveDelivery(deliveryInput);
+            delivery = guardarDelivery(deliveryInput);
             if (delivery != null) {
                 ventaInput.setDeliveryId(delivery.getId());
             }
@@ -237,7 +257,50 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
     }
 
+    /**
+     * Antes de cualquier escritura: los ids del input se cruzan contra lo guardado (la venta tiene que ser la del
+     * delivery y el cobro el de la venta) y se exige la caja. Al editar manda la caja de la venta guardada, tambien
+     * para el movimiento que hace saveCobro; al crear, la caja que llega tiene que existir.
+     */
+    private void exigirAccesoAlGuardar(DeliveryInput deliveryInput, VentaInput ventaInput, CobroInput cobroInput) {
+        Delivery guardado = null;
+        if (deliveryInput.getId() != null) {
+            guardado = service.findById(deliveryInput.getId()).orElse(null);
+            if (guardado == null) {
+                throw new GraphQLException("Delivery no encontrado");
+            }
+        }
+        Venta ventaGuardada = guardado != null ? ventaDe(guardado) : null;
+        Long ventaId = ventaInput != null ? ventaInput.getId() : null;
+        boolean mismaVenta = ventaGuardada == null ? ventaId == null : ventaGuardada.getId().equals(ventaId);
+        if (!mismaVenta) {
+            throw new GraphQLException("La venta no corresponde a este delivery");
+        }
+        Long cobroId = cobroInput != null ? cobroInput.getId() : null;
+        if (cobroId != null && (ventaGuardada == null || ventaGuardada.getCobro() == null
+                || !cobroId.equals(ventaGuardada.getCobro().getId()))) {
+            throw new GraphQLException("El cobro no corresponde a esta venta");
+        }
+        if (ventaGuardada != null) {
+            pdvCajaService.exigirAccesoARegistroDeCaja(ventaGuardada.getCaja());
+            if (ventaGuardada.getCaja() != null) {
+                ventaInput.setCajaId(ventaGuardada.getCaja().getId());
+            }
+        } else {
+            Long cajaId = ventaInput != null ? ventaInput.getCajaId() : null;
+            if (cajaId == null || !pdvCajaService.findById(cajaId).isPresent()) {
+                throw new GraphQLException("Caja no encontrada");
+            }
+            pdvCajaService.exigirAccesoACaja(cajaId);
+        }
+    }
+
+    private Venta ventaDe(Delivery delivery) {
+        return ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(), delivery.getSucursalId());
+    }
+
     public Boolean deleteDelivery(Long id, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.deleteById(id);
     }
 
@@ -248,8 +311,11 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         ByteArrayOutputStream ticketCliente = Boolean.TRUE.equals(imprimirEnCliente)
                 ? new ByteArrayOutputStream() : null;
         Delivery delivery = service.findById(deliveryId).orElse(null);
-        Venta venta = ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(),
-                delivery.getSucursalId());
+        Venta venta = delivery != null ? ventaDe(delivery) : null;
+        if (venta == null) {
+            throw new GraphQLException("Delivery no encontrado");
+        }
+        pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
         try {
             delivery.setEstado(deliveryEstado);
             delivery = service.saveAndSend(delivery, false);
@@ -376,6 +442,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     }
 
     public Long countDelivery() {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.count();
     }
 }

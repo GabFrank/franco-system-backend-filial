@@ -55,6 +55,7 @@ class DeliveryParaEntregaReintentoTest {
     @Mock private PoliticaFacturacionService politicaFacturacionService;
     @Mock private BloqueoTransaccionalService bloqueo;
     @Mock private PlatformTransactionManager transactionManager;
+    @Mock private com.franco.dev.service.financiero.PdvCajaService pdvCajaService;
 
     @InjectMocks private DeliveryGraphQL deliveryGraphQL;
 
