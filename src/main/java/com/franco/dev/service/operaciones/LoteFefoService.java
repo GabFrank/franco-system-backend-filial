@@ -88,7 +88,7 @@ public class LoteFefoService {
         }
     }
 
-    static boolean esEsperaVencida(Throwable error) {
+    public static boolean esEsperaVencida(Throwable error) {
         for (Throwable t = error; t != null; t = t.getCause()) {
             if (t instanceof SQLException && SQLSTATE_ESPERA_VENCIDA.equals(((SQLException) t).getSQLState())) {
                 return true;

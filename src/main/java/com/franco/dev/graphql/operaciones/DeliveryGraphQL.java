@@ -20,6 +20,9 @@ import com.franco.dev.service.financiero.FacturaService;
 import com.franco.dev.service.financiero.PoliticaFacturacion;
 import com.franco.dev.service.financiero.PoliticaFacturacionService;
 import com.franco.dev.service.financiero.FacturaLegalService;
+import com.franco.dev.service.financiero.BloqueoTransaccionalService;
+import com.franco.dev.domain.financiero.FacturaLegal;
+import com.franco.dev.service.operaciones.LoteFefoService;
 import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.GraphQLException;
 import graphql.GraphqlErrorException;
@@ -30,7 +33,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static com.franco.dev.utilitarios.DateUtils.stringToDate;
 
@@ -99,6 +104,21 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
     @Autowired
     private FacturaLegalService facturaLegalService;
+
+    @Autowired
+    private BloqueoTransaccionalService bloqueo;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
+    /** Prefijo del lock que serializa la factura de una venta (#210). */
+    static final String CLAVE_FACTURA_VENTA = "factura-venta:";
+
+    /** Por debajo de los 60 s con que el desktop corta la mutation. */
+    private static final String ESPERA_FACTURA = "15s";
+
+    static final String MENSAJE_FACTURA_EN_CURSO =
+            "La factura de este delivery se está generando en otra operación. Reintentá en unos segundos.";
 
     public Optional<Delivery> delivery(Long id, Long sucId) {
         return service.findById(id);
@@ -240,36 +260,13 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                     // sucursal diga que se respete (issue #127). Si no factura, sale el ticket simple.
                     // Un reintento despues de que fallo la impresion reimprime la factura que ya se creo,
                     // sin otra factura ni otro turno de la politica (issue #207).
-                    com.franco.dev.domain.financiero.FacturaLegal facturaExistente = facturaLegalService
-                            .findVigenteDeVenta(venta.getId(), delivery.getSucursalId());
+                    // Afuera de la transaccion: resolver() es NOT_SUPPORTED y adentro pediria otra conexion.
                     PoliticaFacturacion politica = configuracionFacturacionLector.resolver();
-                    if (facturaExistente != null) {
-                        facturaLegalGraphQL.printTicket58mmFactura(venta, facturaExistente, null, printerName,
-                                ticketCliente);
-                    } else if (politicaFacturacionService.facturarDelivery(pdvId, politica)) {
-                        com.franco.dev.domain.financiero.FacturaLegal facturaLegalConDE;
-                        try {
-                            // Crear factura legal con documento electrónico integrado
-                            // Sin input del PDV (null): el descuento lo lee del cobro guardado del delivery
-                            facturaLegalConDE = facturaService
-                                    .crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, null);
-
-                            if (facturaLegalConDE == null) {
-                                throw new GraphQLException("Problema al crear factura legal");
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            if (PoliticaFacturacionService.salioDeUnTurno(
-                                    PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION, politica)
-                                    && PoliticaFacturacionService.fallaAntesDeEscribir(e)) {
-                                politicaFacturacionService.devolverTurno();
-                            }
-                            throw new GraphQLException("Problema al generar factura electrónica"
-                                    + (e instanceof GraphQLException ? ": " + e.getMessage() : ""));
-                        }
-                        // Fuera del try: una falla de la impresora no es una falla de la factura, que ya existe.
-                        facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
-                                ticketCliente);
+                    FacturaLegal factura = facturaDeEntrega(venta, ventaItemList, delivery.getSucursalId(), pdvId,
+                            politica);
+                    if (factura != null) {
+                        // Despues del commit: una falla de la impresora no es una falla de la factura, que ya existe.
+                        facturaLegalGraphQL.printTicket58mmFactura(venta, factura, null, printerName, ticketCliente);
                     } else {
                         ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, false, printerName, local, false,
                                 null, delivery, ticketCliente);
@@ -299,6 +296,51 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         } catch (Exception e) {
             e.printStackTrace();
             throw new GraphQLException("Algo salió mal. Comuniquese con el soporte");
+        }
+    }
+
+    /**
+     * La factura vigente de la venta o, si la politica lo pide, una nueva; null si sale el ticket simple. Buscar y
+     * crear van en una transaccion con un lock por venta: dos PARA ENTREGA juntos (el reintento de la misma caja
+     * despues del corte de 60 s del desktop) creaban dos facturas (#210). El segundo espera al commit del primero
+     * y reimprime su factura.
+     */
+    private FacturaLegal facturaDeEntrega(Venta venta, List<VentaItem> items, Long sucursalId, Long pdvId,
+            PoliticaFacturacion politica) {
+        boolean[] tomoTurno = {false};
+        try {
+            // Envuelve tambien el commit: una falla del DE deja la transaccion rollback-only y sale recien ahi.
+            return new TransactionTemplate(transactionManager).execute(status -> {
+                bloqueo.tomar(CLAVE_FACTURA_VENTA + sucursalId + ":" + venta.getId(), ESPERA_FACTURA);
+                FacturaLegal existente = facturaLegalService.findVigenteDeVenta(venta.getId(), sucursalId);
+                if (existente != null) {
+                    return existente;
+                }
+                if (!politicaFacturacionService.facturarDelivery(pdvId, politica)) {
+                    return null;
+                }
+                tomoTurno[0] = true;
+                // Sin input del PDV (null): el descuento lo lee del cobro guardado del delivery
+                FacturaLegal nueva = facturaService.crearFacturaLegalDesdeVenta(venta, items, pdvId, null);
+                if (nueva == null) {
+                    throw new GraphQLException("Problema al crear factura legal");
+                }
+                return nueva;
+            });
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            if (!tomoTurno[0]) {
+                if (LoteFefoService.esEsperaVencida(e)) {
+                    throw new GraphQLException(MENSAJE_FACTURA_EN_CURSO);
+                }
+                throw e;
+            }
+            if (PoliticaFacturacionService.salioDeUnTurno(PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION,
+                    politica) && PoliticaFacturacionService.fallaAntesDeEscribir(e)) {
+                politicaFacturacionService.devolverTurno();
+            }
+            throw new GraphQLException("Problema al generar factura electrónica"
+                    + (e instanceof GraphQLException ? ": " + e.getMessage() : ""));
         }
     }
 

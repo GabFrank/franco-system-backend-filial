@@ -37,8 +37,9 @@ atajo de teclado.
    factura electrónica»; tiene que seguir igual, con el mismo `devolverTurno` (auditoría B, R1).
 5. **La impresión queda afuera**, después del commit. Si se envolviera todo el método, una falla de impresora haría
    rollback de la factura (rompe #207) y el lock quedaría tomado mientras imprime.
-6. **Espera vencida:** si en 15 s no se obtiene el lock (SQLSTATE `55P03`), el cajero recibe «Otra caja está marcando
-   este delivery. Reintentá en unos segundos.» en vez de «Algo salió mal». Para eso
+6. **Espera vencida:** si en 15 s no se obtiene el lock (SQLSTATE `55P03`), el cajero recibe «La factura de este
+   delivery se está generando en otra operación. Reintentá en unos segundos.» en vez de «Algo salió mal» (no dice
+   «otra caja»: el caso realista es la misma caja reintentando). Para eso
    `LoteFefoService.esEsperaVencida` pasa de package-private a `public`. Se descartó moverlo a
    `BloqueoTransaccionalService` (sugerencia de A): obliga a tocar `LoteFefoService` y su test por una dependencia
    estática.
