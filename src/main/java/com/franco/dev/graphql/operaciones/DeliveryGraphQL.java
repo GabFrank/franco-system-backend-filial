@@ -308,6 +308,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         if (venta == null) {
             throw new GraphQLException("Delivery no encontrado");
         }
+        pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
         try {
             List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
             return Boolean.TRUE.equals(ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true,

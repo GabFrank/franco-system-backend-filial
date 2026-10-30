@@ -284,6 +284,7 @@ class TicketEscposGraphQLTest {
         t.setReimpresion(true);
         java.util.List<com.franco.dev.service.impresion.dto.SorteoTicketDto> tickets = Collections.singletonList(t);
         when(sorteoParticipacionService.ticketsDeVenta(77L, true)).thenReturn(tickets);
+        when(ventaService.findById(77L)).thenReturn(Optional.of(new Venta()));
         // el renderer real, para comprobar que la leyenda sale en los bytes
         com.franco.dev.service.utils.ImageService imageService = mock(com.franco.dev.service.utils.ImageService.class);
         imageService.storageDirectoryPath = java.nio.file.Files.createTempDirectory("frc-sorteo-re").toFile()
@@ -306,9 +307,69 @@ class TicketEscposGraphQLTest {
     @Test
     void sorteoSinParticipacionesLanza() {
         when(sorteoParticipacionService.ticketsDeVenta(78L, true)).thenReturn(Collections.emptyList());
+        when(ventaService.findById(78L)).thenReturn(Optional.of(new Venta()));
         GraphQLException e = assertThrows(GraphQLException.class,
                 () -> resolver.ticketEscpos(TicketEscposTipo.SORTEO, 78L, null, null));
         assertEquals("La venta 78 no tiene tickets de sorteo", e.getMessage());
         verify(impresionService, never()).printSorteoTickets(any(), any(), any(), any());
+    }
+
+    /** Una caja con id: el control se pide por la caja del registro. */
+    private static PdvCaja cajaCon(long id) {
+        PdvCaja c = new PdvCaja();
+        c.setId(id);
+        return c;
+    }
+
+    @Test
+    void cadaTicketDeUnaCajaAjenaSeRechazaSinArmarlo() throws Exception {
+        PdvCaja ajena = cajaCon(99L);
+        Venta venta = new Venta();
+        venta.setId(1L);
+        venta.setCaja(ajena);
+        when(ventaService.findById(1L)).thenReturn(Optional.of(venta));
+        FacturaLegal factura = new FacturaLegal();
+        factura.setId(2L);
+        factura.setCaja(ajena);
+        when(facturaLegalService.findById(2L)).thenReturn(Optional.of(factura));
+        Gasto gasto = new Gasto();
+        gasto.setId(3L);
+        gasto.setCaja(ajena);
+        when(gastoService.findById(3L)).thenReturn(Optional.of(gasto));
+        Retiro retiro = new Retiro();
+        retiro.setId(4L);
+        retiro.setCajaSalida(ajena);
+        when(retiroService.findById(4L)).thenReturn(Optional.of(retiro));
+        Delivery delivery = new Delivery();
+        delivery.setId(5L);
+        delivery.setSucursalId(24L);
+        when(deliveryService.findById(5L)).thenReturn(Optional.of(delivery));
+        when(ventaRepository.findByDeliveryIdAndSucursalId(5L, 24L)).thenReturn(venta);
+        doThrow(new GraphQLException("No autorizado")).when(pdvCajaService).exigirAccesoARegistroDeCaja(same(ajena));
+
+        Object[][] casos = {{TicketEscposTipo.VENTA, 1L}, {TicketEscposTipo.FACTURA, 2L}, {TicketEscposTipo.GASTO, 3L},
+                {TicketEscposTipo.RETIRO, 4L}, {TicketEscposTipo.DELIVERY, 5L}, {TicketEscposTipo.SORTEO, 1L}};
+        for (Object[] caso : casos) {
+            GraphQLException e = assertThrows(GraphQLException.class,
+                    () -> resolver.ticketEscpos((TicketEscposTipo) caso[0], (Long) caso[1], true, null), caso[0].toString());
+            assertEquals("No autorizado", e.getMessage());
+        }
+        verifyNoInteractions(impresionService, ventaGraphQL, facturaLegalGraphQL, cobroGraphQL, sorteoParticipacionService);
+    }
+
+    @Test
+    void unaFacturaSinCajaUsaLaCajaDeSuVenta() throws Exception {
+        PdvCaja cajaVenta = cajaCon(7L);
+        Venta venta = new Venta();
+        venta.setCaja(cajaVenta);
+        FacturaLegal factura = new FacturaLegal();
+        factura.setId(2L);
+        factura.setVenta(venta);
+        when(facturaLegalService.findById(2L)).thenReturn(Optional.of(factura));
+        doAnswer(escribeEnArgumento(4)).when(facturaLegalGraphQL).printTicket58mmFactura(any(), any(), any(), any(),
+                any(OutputStream.class));
+
+        assertEquals(TICKET_B64, resolver.ticketEscpos(TicketEscposTipo.FACTURA, 2L, null, null));
+        verify(pdvCajaService).exigirAccesoARegistroDeCaja(same(cajaVenta));
     }
 }

@@ -164,8 +164,10 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     public Boolean reimprimirGasto(Long id, String printerName, Long sucId) {
+        Gasto gasto = service.findById(id).orElseThrow(() -> new GraphQLException("El gasto " + id + " no existe"));
+        // Fuera del try: un rechazo es un error, no un "intente de nuevo".
+        pdvCajaService.exigirAccesoARegistroDeCaja(gasto.getCaja());
         try {
-            Gasto gasto = service.findById(id).orElse(null);
             GastoDto gastoDto = new GastoDto();
             gastoDto.setId(gasto.getId());
             gastoDto.setFecha(gasto.getCreadoEn());

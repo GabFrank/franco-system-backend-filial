@@ -28,6 +28,7 @@ class DeliveryReimprimirTest {
     @Mock private VentaRepository ventaRepository;
     @Mock private VentaItemGraphQL ventaItemGraphQL;
     @Mock private VentaGraphQL ventaGraphQL;
+    @Mock private com.franco.dev.service.financiero.PdvCajaService pdvCajaService;
     @InjectMocks private DeliveryGraphQL deliveryGraphQL;
 
     @BeforeEach
@@ -63,6 +64,15 @@ class DeliveryReimprimirTest {
                 () -> deliveryGraphQL.reimprimirDelivery(10L, "ticket", "CAJA 1"));
         assertEquals("No se pudo reimprimir el delivery: No se pudo imprimir: Printer is not accepting job.",
                 e.getMessage());
+    }
+
+    @Test
+    void unDeliveryDeOtraCajaSeRechazaSinImprimir() throws Exception {
+        doThrow(new GraphQLException("No autorizado")).when(pdvCajaService).exigirAccesoARegistroDeCaja(any());
+        GraphQLException e = assertThrows(GraphQLException.class,
+                () -> deliveryGraphQL.reimprimirDelivery(10L, "ticket", "CAJA 1"));
+        assertEquals("No autorizado", e.getMessage());
+        verifyNoInteractions(ventaGraphQL);
     }
 
     @Test

@@ -34,6 +34,8 @@ class ReimpresionEsperaTest {
     @InjectMocks private GastoGraphQL gastoGraphQL;
     @InjectMocks private PdvCajaGraphQL pdvCajaGraphQL;
     @InjectMocks private VentaTarjetaGraphQL ventaTarjetaGraphQL;
+    @Mock private com.franco.dev.service.financiero.FacturaLegalService facturaLegalService;
+    @InjectMocks private FacturaLegalGraphQL facturaLegalGraphQL;
 
     @BeforeEach
     void setUp() {
@@ -88,5 +90,39 @@ class ReimpresionEsperaTest {
         input.setQr("FRC-SENA|80078|12");
         when(impresionService.printSenaCupon(any(), any(), any(), isNull(), eq(true))).thenReturn(false);
         assertFalse(ventaTarjetaGraphQL.imprimirSenaCupon(input, "ticket", "CAJA 1"));
+    }
+
+    @Test
+    void retiroYGastoDeUnaCajaAjenaSeRechazanConErrorSinImprimir() {
+        doThrow(new GraphQLException("No autorizado")).when(pdvCajaService).exigirAccesoARegistroDeCaja(any());
+        // Un error y no false: el desktop muestra el motivo en vez de "intente de nuevo".
+        assertThrows(GraphQLException.class, () -> retiroGraphQL.reimprimirRetiro(9L, "ticket", "CAJA 1", 24L));
+        assertThrows(GraphQLException.class, () -> gastoGraphQL.reimprimirGasto(15L, "ticket", 24L));
+        verifyNoInteractions(impresionService);
+    }
+
+    @Test
+    void retiroYGastoInexistentesDicenQueNoExisten() {
+        GraphQLException r = assertThrows(GraphQLException.class,
+                () -> retiroGraphQL.reimprimirRetiro(404L, "ticket", "CAJA 1", 24L));
+        assertEquals("El retiro 404 no existe", r.getMessage());
+        GraphQLException g = assertThrows(GraphQLException.class, () -> gastoGraphQL.reimprimirGasto(404L, "ticket", 24L));
+        assertEquals("El gasto 404 no existe", g.getMessage());
+    }
+
+    @Test
+    void reimprimirRetiroYGastoPidenElAccesoPorSuCaja() {
+        when(impresionService.printRetiro(any(), any(), any(), any(), isNull(), eq(true))).thenReturn(true);
+        when(impresionService.printGasto(any(), any(), any(), isNull(), eq(true))).thenReturn(true);
+        retiroGraphQL.reimprimirRetiro(9L, "ticket", "CAJA 1", 24L);
+        gastoGraphQL.reimprimirGasto(15L, "ticket", 24L);
+        verify(pdvCajaService, times(2)).exigirAccesoARegistroDeCaja(argThat(c -> c != null && c.getId() == 662L));
+    }
+
+    @Test
+    void imprimirFacturasDeUnaCajaAjenaSeRechazaSinBuscarlas() {
+        doThrow(new GraphQLException("No autorizado")).when(pdvCajaService).exigirAccesoACaja(662L);
+        assertThrows(GraphQLException.class, () -> facturaLegalGraphQL.imprimirFacturasPorCaja(662L, "ticket", 24L));
+        verifyNoInteractions(facturaLegalService);
     }
 }

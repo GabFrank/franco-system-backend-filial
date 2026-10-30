@@ -1288,6 +1288,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         if (venta == null) {
             throw new GraphQLException("Venta no encontrada");
         }
+        pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
         FacturaLegal facturaLegal = facturaLegalService.findByVentaId(venta.getId());
         if (facturaLegal != null) {
             if (!Boolean.TRUE.equals(facturaLegalGraphQL.reimprimirFacturaLegal(facturaLegal.getId(), sucId, printerName))) {
@@ -1330,6 +1331,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
      * No crea participaciones: solo vuelve a imprimir las ya registradas.
      */
     public Boolean reimprimirSorteo(Long ventaId, String printerName, String local) {
+        Venta venta = service.findById(ventaId)
+                .orElseThrow(() -> new GraphQLException("La venta " + ventaId + " no existe"));
+        pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
         List<SorteoTicketDto> tickets = sorteoParticipacionService.ticketsDeVenta(ventaId, true);
         if (tickets == null || tickets.isEmpty()) {
             throw new GraphQLException("La venta " + ventaId + " no tiene tickets de sorteo");

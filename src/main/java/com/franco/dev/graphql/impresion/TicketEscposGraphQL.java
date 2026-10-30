@@ -98,6 +98,8 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
                 delivery(id, local, out);
                 break;
             case SORTEO:
+                Venta ventaSorteo = ventaService.findById(id).orElseThrow(() -> noExiste("La venta", id));
+                pdvCajaService.exigirAccesoARegistroDeCaja(ventaSorteo.getCaja());
                 List<SorteoTicketDto> tickets = sorteoParticipacionService.ticketsDeVenta(id, true);
                 if (tickets == null || tickets.isEmpty()) {
                     throw new GraphQLException("La venta " + id + " no tiene tickets de sorteo");
@@ -131,6 +133,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
     /** Como reimprimirVenta: la factura si la venta tiene, si no el ticket marcado REIMPRESION. */
     private void venta(Long id, String local, ByteArrayOutputStream out) throws Exception {
         Venta venta = ventaService.findById(id).orElseThrow(() -> noExiste("La venta", id));
+        pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
         FacturaLegal facturaLegal = facturaLegalService.findByVentaId(venta.getId());
         if (facturaLegal != null) {
             factura(facturaLegal.getId(), out);
@@ -149,6 +152,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
     /** Como reimprimirFacturaLegal. */
     private void factura(Long id, ByteArrayOutputStream out) throws Exception {
         FacturaLegal facturaLegal = facturaLegalService.findById(id).orElseThrow(() -> noExiste("La factura", id));
+        pdvCajaService.exigirAccesoARegistroDeCaja(cajaDe(facturaLegal));
         List<FacturaLegalItem> items = facturaLegalItemService.findByFacturaLegalId(id);
         boolean esMonedaExtranjera = facturaLegal.getMonedaExtranjera() != null
                 && !facturaLegal.getMonedaExtranjera().trim().isEmpty()
@@ -169,6 +173,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
         if (venta == null) {
             throw new GraphQLException("El delivery " + id + " no tiene venta");
         }
+        pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
         List<VentaItem> items = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
         ventaGraphQL.printTicket58mm(venta, null, items, null, true, null, local, false, null, delivery, out);
     }
@@ -176,6 +181,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
     /** Como reimprimirGasto, pero la marca de REIMPRESION la decide el cliente. */
     private GastoDto gastoDto(Long id, boolean reimpresion) {
         Gasto gasto = gastoService.findById(id).orElseThrow(() -> noExiste("El gasto", id));
+        pdvCajaService.exigirAccesoARegistroDeCaja(gasto.getCaja());
         GastoDto dto = new GastoDto();
         dto.setId(gasto.getId());
         dto.setFecha(gasto.getCreadoEn());
@@ -198,6 +204,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
     /** Como reimprimirRetiro: los montos salen de los detalles guardados. */
     private RetiroDto retiroDto(Long id) {
         Retiro retiro = retiroService.findById(id).orElseThrow(() -> noExiste("El retiro", id));
+        pdvCajaService.exigirAccesoARegistroDeCaja(retiro.getCajaSalida());
         RetiroDto dto = new RetiroDto();
         dto.setId(retiro.getId());
         dto.setCajaId(retiro.getCajaSalida().getId());
@@ -208,6 +215,12 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
         dto.setRetiroDs(retiroDetalleService.findByRetiroIdAndMonedaId(retiro.getId(), Long.valueOf(3)));
         dto.setUsuario(retiro.getUsuario());
         return dto;
+    }
+
+    /** La caja de la factura o, si no la tiene (el alta del PDV no la copia), la de su venta. */
+    static PdvCaja cajaDe(FacturaLegal facturaLegal) {
+        if (facturaLegal.getCaja() != null) return facturaLegal.getCaja();
+        return facturaLegal.getVenta() != null ? facturaLegal.getVenta().getCaja() : null;
     }
 
     /** El armado en memoria devuelve false si fallo: mejor el error que un ticket vacio o a medias. */

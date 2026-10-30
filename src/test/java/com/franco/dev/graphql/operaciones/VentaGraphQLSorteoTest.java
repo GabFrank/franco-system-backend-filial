@@ -27,6 +27,8 @@ class VentaGraphQLSorteoTest {
 
     @Mock private SorteoParticipacionService sorteoParticipacionService;
     @Mock private ImpresionService impresionService;
+    @Mock private com.franco.dev.service.operaciones.VentaService service;
+    @Mock private com.franco.dev.service.financiero.PdvCajaService pdvCajaService;
     @InjectMocks private VentaGraphQL ventaGraphQL;
 
     private final List<CobroDetalleInput> detalles = Collections.emptyList();
@@ -34,6 +36,7 @@ class VentaGraphQLSorteoTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        when(service.findById(100L)).thenReturn(java.util.Optional.of(venta()));
     }
 
     private static Venta venta() {
@@ -111,6 +114,13 @@ class VentaGraphQLSorteoTest {
 
         assertTrue(ventaGraphQL.reimprimirSorteo(100L, "impresora", "caja 1"));
         verify(sorteoParticipacionService, never()).registrar(any(), any(), any(), any());
+    }
+
+    @Test
+    void reimprimirSorteoDeUnaCajaAjenaSeRechazaSinImprimir() {
+        doThrow(new graphql.GraphQLException("No autorizado")).when(pdvCajaService).exigirAccesoARegistroDeCaja(any());
+        assertThrows(graphql.GraphQLException.class, () -> ventaGraphQL.reimprimirSorteo(100L, "impresora", "caja 1"));
+        verifyNoInteractions(impresionService, sorteoParticipacionService);
     }
 
     @Test
