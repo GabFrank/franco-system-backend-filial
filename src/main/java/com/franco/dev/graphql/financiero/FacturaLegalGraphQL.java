@@ -112,7 +112,6 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     private PrintService printService;
 
-    private PrinterOutputStream printerOutputStream;
 
     @Autowired
     private ImageService imageService;
@@ -723,8 +722,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
         }
 
-        if (selectedPrintService != null)
-            printerOutputStream = new PrinterOutputStream(selectedPrintService);
+        if (selectedPrintService == null) {
+            // Antes escribia en el campo compartido: la salida de otra impresion, o ninguna.
+            throw new GraphQLException("No se encontro la impresora " + printerName);
+        }
+        PrinterOutputStream salida = new PrinterOutputStream(selectedPrintService);
 
         // creating the EscPosImage, need buffered image and algorithm.
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
@@ -735,7 +737,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         imageBufferedImage = resize(imageBufferedImage, 200, 100);
         BitImageWrapper imageWrapper = new BitImageWrapper();
         EscPos escpos = null;
-        escpos = new EscPos(printerOutputStream);
+        escpos = new EscPos(salida);
         Bitonal algorithm = new BitonalThreshold();
         EscPosImage escposImage = new EscPosImage(new CoffeeImageImpl(imageBufferedImage), algorithm);
         imageWrapper.setJustification(EscPosConst.Justification.Center);
@@ -764,8 +766,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         escpos.writeLF("Fecha: " + venta.getCreadoEn().format(formatter));
         escpos.writeLF("--------------------------------");
 
-        if (venta.getCliente() != null) {
-            escpos.writeLF("Cliente: " + venta.getCliente().getPersona().getNombre().substring(0, 22));
+        String lineaCliente = lineaCliente(venta.getCliente());
+        if (lineaCliente != null) {
+            escpos.writeLF(lineaCliente);
         }
         escpos.writeLF("Producto");
         escpos.writeLF("Cant    P.U                 P.T");
@@ -822,13 +825,20 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         escpos.feed(1);
         escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
         escpos.feed(5);
+        // Cierra su propia salida (no el campo, que puede ser de otra impresion). Sin esperarEnvio no espera ni tira.
+        escpos.close();
+    }
 
-        try {
-            escpos.close();
-            printerOutputStream.close();
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
+    /**
+     * Linea "Cliente: " del ticket de 58 mm (32 columnas): el nombre recortado a 22 caracteres solo si es mas largo.
+     * {@code null} si no hay cliente o no tiene nombre: el ticket sale sin esa linea.
+     */
+    static String lineaCliente(Cliente cliente) {
+        if (cliente == null || cliente.getPersona() == null || cliente.getPersona().getNombre() == null) {
+            return null;
         }
+        String nombre = cliente.getPersona().getNombre();
+        return "Cliente: " + (nombre.length() > 22 ? nombre.substring(0, 22) : nombre);
     }
 
     public Boolean imprimirFacturasPorCaja(Long id, String printerName, Long sucId) {
@@ -886,15 +896,17 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     && !facturaLegal.getMonedaExtranjera().trim().isEmpty()
                     && facturaLegal.getTipoCambio() != null;
             
+            // Reimpresion: espera a que el ticket salga para poder avisar si no (#213).
             if (esMonedaExtranjera) {
-                printTicket58mmFacturaMonedaExtranjera(facturaLegal.getVenta(), facturaLegal, 
-                        facturaLegalItemList, printerName, facturaLegal.getMonedaExtranjera(), facturaLegal.getTipoCambio());
+                printTicket58mmFacturaMonedaExtranjera(facturaLegal.getVenta(), facturaLegal,
+                        facturaLegalItemList, printerName, facturaLegal.getMonedaExtranjera(), facturaLegal.getTipoCambio(),
+                        null, true);
             } else {
-                printTicket58mmFactura(facturaLegal.getVenta(), facturaLegal, facturaLegalItemList, printerName);
+                printTicket58mmFactura(facturaLegal.getVenta(), facturaLegal, facturaLegalItemList, printerName, null, true);
             }
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.warn("No se pudo reimprimir la factura legal {}: {}", id, e.getMessage(), e);
         }
         return false;
     }
@@ -911,6 +923,16 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     public void printTicket58mmFactura(Venta venta, FacturaLegal facturaLegal,
             List<FacturaLegalItem> facturaLegalItemList, String printerName, OutputStream destino) throws Exception {
+        printTicket58mmFactura(venta, facturaLegal, facturaLegalItemList, printerName, destino, false);
+    }
+
+    /**
+     * Con {@code esperarEnvio} el cierre espera a que CUPS tome el trabajo y tira {@link IOException} si
+     * no salio (reimpresion). Sin el, cierra como siempre: la venta imprime dentro de su transaccion (#213).
+     */
+    public void printTicket58mmFactura(Venta venta, FacturaLegal facturaLegal,
+            List<FacturaLegalItem> facturaLegalItemList, String printerName, OutputStream destino,
+            boolean esperarEnvio) throws Exception {
 
         if (facturaLegalItemList == null) {
             facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
@@ -964,8 +986,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
 
         if (destino != null || printService != null) {
-            OutputStream salida = destino != null ? destino
-                    : (printerOutputStream = new PrinterOutputStream(printService));
+            OutputStream salida = destino != null ? destino : salidaA(printService, esperarEnvio);
             // creating the EscPosImage, need buffered image and algorithm.
             // Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
@@ -1501,40 +1522,18 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             // escpos.writeLF("--------------------------------");
             // escpos.write( "Conservar este papel ");
             escpos.feed(5);
-
-            try {
-                if (true) {
-                    escpos.close();
-                    if (destino == null) {
-                        printerOutputStream.close();
-                        this.printerOutputStream = null;
-                    }
-                } else {
-                    this.printerOutputStream = printerOutputStream;
-                }
-                // if (facturaLegal.getId() == null) {
-                // Long numero = timbradoDetalleService.aumentarNumeroFactura(timbradoDetalle);
-                // facturaLegal.setTimbradoDetalleId(timbradoDetalle.getId());
-                // if(venta!=null){
-                // facturaLegal.setVentaId(venta.getId());
-                // facturaLegal.setFecha(venta.getCreadoEn());
-                // facturaLegal.setClienteId(venta.getCliente().getId());
-                // facturaLegal.setCajaId(venta.getCaja().getId());
-                // }
-                // facturaLegal.setTotalFinal(totalFinal);
-                // facturaLegal.setIvaParcial5(totalIva5);
-                // facturaLegal.setIvaParcial10(totalIva10);
-                // facturaLegal.setViaTributaria(false);
-                // facturaLegal.setAutoimpreso(true);
-                // facturaLegal.setNumeroFactura(numero.intValue());
-                // facturaLegal.setTotalParcial5(ventaIva5);
-                // facturaLegal.setTotalParcial10(ventaIva10);
-                // facturaLegal.setTotalParcial0(ventaIva0);
-                // }
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
+            // Cierra la salida de este request (no el campo, que puede ser de otro). Con esperarEnvio avisa si no salio.
+            escpos.close();
         }
+    }
+
+    /** Salida propia de esta impresion; con {@code esperarEnvio}, su cierre confirma que el ticket salio. */
+    private static PrinterOutputStream salidaA(PrintService impresora, boolean esperarEnvio) throws IOException {
+        PrinterOutputStream salida = new PrinterOutputStream(impresora);
+        if (esperarEnvio) {
+            salida.esperarEnvio();
+        }
+        return salida;
     }
 
     /**
@@ -1562,6 +1561,14 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     public void printTicket58mmFacturaMonedaExtranjera(Venta venta, FacturaLegal facturaLegal,
             List<FacturaLegalItem> facturaLegalItemList, String printerName, String monedaExtranjera, Double tipoCambio,
             OutputStream destino) throws Exception {
+        printTicket58mmFacturaMonedaExtranjera(venta, facturaLegal, facturaLegalItemList, printerName, monedaExtranjera,
+                tipoCambio, destino, false);
+    }
+
+    /** Igual que la anterior; {@code esperarEnvio} como en {@link #printTicket58mmFactura}. */
+    public void printTicket58mmFacturaMonedaExtranjera(Venta venta, FacturaLegal facturaLegal,
+            List<FacturaLegalItem> facturaLegalItemList, String printerName, String monedaExtranjera, Double tipoCambio,
+            OutputStream destino, boolean esperarEnvio) throws Exception {
 
         if (facturaLegalItemList == null) {
             facturaLegalItemList = facturaLegalItemService.findByFacturaLegalId(facturaLegal.getId());
@@ -1617,8 +1624,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         Double totalParcial0Extranjera = (facturaLegal.getTotalParcial0() != null ? facturaLegal.getTotalParcial0() : 0.0) / tipoCambio;
 
         if (destino != null || printService != null) {
-            OutputStream salida = destino != null ? destino
-                    : (printerOutputStream = new PrinterOutputStream(printService));
+            OutputStream salida = destino != null ? destino : salidaA(printService, esperarEnvio);
             // Styles
             Style center = new Style().setJustification(EscPosConst.Justification.Center);
             Style factura = new Style().setJustification(EscPosConst.Justification.Center)
@@ -1880,20 +1886,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.feed(1);
             escpos.writeLF(center.setBold(true), "GRACIAS POR LA PREFERENCIA");
             escpos.feed(5);
-
-            try {
-                if (true) {
-                    escpos.close();
-                    if (destino == null) {
-                        printerOutputStream.close();
-                        this.printerOutputStream = null;
-                    }
-                } else {
-                    this.printerOutputStream = printerOutputStream;
-                }
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
+            // Cierra la salida de este request (no el campo, que puede ser de otro). Con esperarEnvio avisa si no salio.
+            escpos.close();
         }
     }
 

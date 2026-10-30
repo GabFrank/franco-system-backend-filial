@@ -56,6 +56,9 @@ public class TcpIpOutputStream  extends SalidaConEnvioEnHilo {
             } catch (Exception ex) {
                 registrarFalla(ex);
                 throw new RuntimeException(ex);
+            } catch (Error ex) {
+                registrarFalla(ex);
+                throw ex;
             } finally {
                 terminarEnvio();
             }
