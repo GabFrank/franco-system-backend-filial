@@ -28,6 +28,7 @@ class VentaGraphQLReimprimirVentaTest {
     @Mock private FacturaLegalGraphQL facturaLegalGraphQL;
     @Mock private CobroGraphQL cobroGraphQL;
     @Mock private VentaItemGraphQL ventaItemGraphQL;
+    @Mock private com.franco.dev.service.financiero.PdvCajaService pdvCajaService;
     @InjectMocks private VentaGraphQL ventaGraphQL;
 
     private VentaGraphQL spy;
@@ -107,5 +108,12 @@ class VentaGraphQLReimprimirVentaTest {
         venta.setCobro(null);
         GraphQLException e = assertThrows(GraphQLException.class, () -> spy.reimprimirVenta(770L, "ticket", "Caja 1", 1L));
         assertEquals("La venta no tiene cobro", e.getMessage());
+    }
+
+    @Test
+    void unaVentaDeOtraCajaSeRechazaSinImprimir() throws Exception {
+        doThrow(new GraphQLException("No autorizado")).when(pdvCajaService).exigirAccesoARegistroDeCaja(any());
+        assertThrows(GraphQLException.class, () -> ventaGraphQL.reimprimirVenta(770L, "ticket", "CAJA 1", null));
+        verifyNoInteractions(facturaLegalService, facturaLegalGraphQL, cobroGraphQL);
     }
 }

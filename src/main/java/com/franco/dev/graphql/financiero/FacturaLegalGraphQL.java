@@ -842,6 +842,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     }
 
     public Boolean imprimirFacturasPorCaja(Long id, String printerName, Long sucId) {
+        pdvCajaService.exigirAccesoACaja(id);
         Boolean ok = false;
         List<FacturaLegal> facturaLegalList = service.findByCajaId(id);
         Integer count = 0;

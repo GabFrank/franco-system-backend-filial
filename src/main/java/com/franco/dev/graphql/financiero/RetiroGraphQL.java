@@ -106,7 +106,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             }
             RetiroDto retiroDto = new RetiroDto();
             retiroDto.setId(retiro.getId());
-            retiroDto.setCajaId(retiro.getCajaSalida().getId());
+            retiroDto.setCajaId(retiro.getCajaSalida() != null ? retiro.getCajaSalida().getId() : null);
             retiroDto.setFecha(retiro.getCreadoEn());
             retiroDto.setResponsable(retiro.getResponsable());
             retiroDto.setRetiroGs(input.getRetiroGs());
@@ -135,11 +135,13 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     }
 
     public Boolean reimprimirRetiro(Long id, String printerName, String local, Long sucId) {
+        Retiro retiro = service.findById(id).orElseThrow(() -> new GraphQLException("El retiro " + id + " no existe"));
+        // Fuera del try: un rechazo es un error, no un "intente de nuevo".
+        pdvCajaService.exigirAccesoARegistroDeCaja(retiro.getCajaSalida());
         try {
-            Retiro retiro = service.findById(id).orElse(null);
             RetiroDto retiroDto = new RetiroDto();
             retiroDto.setId(retiro.getId());
-            retiroDto.setCajaId(retiro.getCajaSalida().getId());
+            retiroDto.setCajaId(retiro.getCajaSalida() != null ? retiro.getCajaSalida().getId() : null);
             retiroDto.setFecha(retiro.getCreadoEn());
             retiroDto.setResponsable(retiro.getResponsable());
             retiroDto.setRetiroGs(retiroDetalleService.findByRetiroIdAndMonedaId(retiro.getId(), Long.valueOf(1)));

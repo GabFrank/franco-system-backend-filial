@@ -145,7 +145,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             gastoDto.setVueltoGs(input.getVueltoGs());
             gastoDto.setVueltoRs(input.getVueltoRs());
             gastoDto.setVueltoDs(input.getVueltoDs());
-            gastoDto.setCajaId(gasto.getCaja().getId());
+            gastoDto.setCajaId(gasto.getCaja() != null ? gasto.getCaja().getId() : null);
             impresionService.printGasto(gastoDto, printerName, local);
         }
         return gasto;
@@ -164,8 +164,10 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     public Boolean reimprimirGasto(Long id, String printerName, Long sucId) {
+        Gasto gasto = service.findById(id).orElseThrow(() -> new GraphQLException("El gasto " + id + " no existe"));
+        // Fuera del try: un rechazo es un error, no un "intente de nuevo".
+        pdvCajaService.exigirAccesoARegistroDeCaja(gasto.getCaja());
         try {
-            Gasto gasto = service.findById(id).orElse(null);
             GastoDto gastoDto = new GastoDto();
             gastoDto.setId(gasto.getId());
             gastoDto.setFecha(gasto.getCreadoEn());
@@ -180,7 +182,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             gastoDto.setVueltoGs(gasto.getVueltoGs());
             gastoDto.setVueltoRs(gasto.getVueltoRs());
             gastoDto.setVueltoDs(gasto.getVueltoDs());
-            gastoDto.setCajaId(gasto.getCaja().getId());
+            gastoDto.setCajaId(gasto.getCaja() != null ? gasto.getCaja().getId() : null);
             gastoDto.setReimpresion(true);
             return impresionService.printGasto(gastoDto, printerName, null, null, true);
         } catch (Exception e) {
