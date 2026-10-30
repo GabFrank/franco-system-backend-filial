@@ -509,18 +509,33 @@ class FacturaLegalBuilderTest {
         verify(sifenService, times(6)).validarGeneracionDE(any(FacturaLegal.class), any());
     }
 
-    /** Un NullPointerException del armado no tiene mensaje: el motivo no puede salir como "null". */
+    /** Una falla tecnica del armado no muestra su texto (puede llegar al cliente): queda en el log. */
     @Test
-    void elEnsayoFallaSinMensaje_elMotivoEsElTipoDeError() throws Exception {
+    void elEnsayoFallaPorUnErrorTecnico_elMotivoEsGenerico() throws Exception {
         timbradoElectronicoConSifen("021123456", null);
-        doThrow(new NullPointerException()).when(sifenService).validarGeneracionDE(any(FacturaLegal.class), any());
+        doThrow(new NullPointerException("campo interno")).when(sifenService).validarGeneracionDE(any(FacturaLegal.class), any());
         FacturaLegal fl = new FacturaLegal();
         fl.setDescuento(0.0);
 
         GraphQLException e = assertThrows(GraphQLException.class,
                 () -> builder.build(requestDeUnItem(fl, true)));
 
-        assertEquals("FACTURA_NO_EMITIBLE: NullPointerException", e.getMessage());
+        assertEquals("FACTURA_NO_EMITIBLE: no se pudo armar el documento electronico", e.getMessage());
+    }
+
+    /** Una regla del armado (IllegalArgumentException) conserva su texto para el cajero y la API. */
+    @Test
+    void elEnsayoFallaPorUnaRegla_elMotivoEsElDeLaRegla() throws Exception {
+        timbradoElectronicoConSifen("021123456", null);
+        doThrow(new IllegalArgumentException("El precio unitario del item 'X' debe ser mayor a cero."))
+                .when(sifenService).validarGeneracionDE(any(FacturaLegal.class), any());
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+
+        GraphQLException e = assertThrows(GraphQLException.class,
+                () -> builder.build(requestDeUnItem(fl, true)));
+
+        assertEquals("FACTURA_NO_EMITIBLE: El precio unitario del item 'X' debe ser mayor a cero.", e.getMessage());
     }
 
     /** Lo que el cajero puede corregir rechaza la venta, en vez de dejarla sin factura. */

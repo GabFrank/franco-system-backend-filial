@@ -259,8 +259,11 @@ public class FacturaLegalBuilder {
         } catch (Exception e) {
             log.error("FACTURA_NO_EMITIBLE: timbrado detalle {}: {}",
                     facturaLegal.getTimbradoDetalle().getId(), e.getMessage(), e);
+            // Las reglas del armado avisan con IllegalArgumentException y un texto para el cajero; cualquier otra
+            // falla (firma, XML, base) queda solo en el log, porque este mensaje puede llegar al cliente.
             throw new GraphQLException("FACTURA_NO_EMITIBLE: "
-                    + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+                    + (e instanceof IllegalArgumentException && e.getMessage() != null ? e.getMessage()
+                    : "no se pudo armar el documento electronico"));
         } finally {
             facturaLegal.setTotalFinal(totalFinalOriginal);
         }
