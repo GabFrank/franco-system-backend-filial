@@ -130,3 +130,45 @@ guarda igual).
 - **Riesgo:** medio-bajo. Sale automático a las filiales del canal. Los guardados (retiro, gasto, venta, cierre) no
   esperan ni fallan por imprimir. El vigía solo interrumpe salidas sin actividad ni cierre durante 30 s.
 - **Vuelta atrás:** revertir los commits; sin base de datos.
+
+## Resultado de la prueba (30/10)
+
+Filial de la rama en el 8082 contra `general`, colas CUPS `zz_ok` (acepta) y `zz_rechaza` (rechaza):
+
+| Llamada | `zz_ok` | `zz_rechaza` |
+|---|---|---|
+| `reimprimirRetiro` 1007 | `true` | `false` |
+| `reimprimirGasto` 700 | `true` | `false` («No se pudo imprimir el gasto: …» en el log) |
+| `reimprimirDelivery` 8044 | `true` | error «No se pudo reimprimir el delivery: No se pudo imprimir: Printer is not accepting job.» |
+| `imprimirBalance` 1170 / 1168 (cerradas) | la caja | error «No se pudo imprimir el balance» |
+| `imprimirSenaCupon` | `true` | `false` |
+| `ticketEscpos` RETIRO 1007 | bytes | bytes (no usa impresora) |
+
+Por pantalla (desktop web contra el filial de la rama, MR, PDV 25):
+
+- Retiro nuevo de 1.000 Gs con `zz_rechaza`: «Retiro guardado con éxito» (el guardado no espera).
+- «Reimprimir» ese retiro: «Ups! intente de nuevo» con `zz_rechaza` (antes, «Reimpresión con éxito») y «Reimpresión con
+  éxito» con `zz_ok`.
+- «Imprimir balance» en Últimas cajas y «Reimprimir» en la lista de deliverys con `zz_rechaza`: ahora avisa «Ups! Algo
+  salió mal» (antes, nada). El texto es genérico porque el filial no expone el mensaje de la excepción.
+- Reimprimir gasto y la seña no muestran el resultado en el desktop: quedaron probados por API.
+
+Abandono con CUPS real: el gasto 704 (montos nulos en la base local) revienta a mitad del armado; el vigía interrumpió el
+envío a los 30 s (`InterruptedIOException` en el log del hilo de envío). Antes ese hilo quedaba leyendo para siempre.
+
+Encontrado de paso, fuera de alcance: imprimir el balance de una caja **abierta** revienta (`fechaCierre` nula) y un
+gasto con `retiro_gs`/`retiro_rs` nulos rompe su ticket y el balance de su caja. Las ventas 79306/79308/79309 de la base
+local apuntan a clientes que no existen.
+
+## Auditoría del diff (paso 8)
+
+| Hallazgo | Eje | Qué se hizo |
+|---|---|---|
+| `ticketEscpos` de la seña ignoraba el `false` del armado | Fijo 3 | `armado(...)` como balance/gasto/retiro |
+| El error del sorteo cerraba la salida y CUPS imprimía medio ticket | Fijo 3 | no se cierra; el vigía cancela |
+| `reimprimirDelivery` decía «…: null» con una excepción sin mensaje | Fijo 3 | nombre de la excepción |
+| El test de la cola del vigía miraba una cola compartida por toda la JVM | Fijo 3 | mira la revisión de cada salida |
+| El motivo del delivery llega al cliente | Fijo 1 | se mantiene, igual que `saveDeliveryEstado` y `reimprimirVenta`; hoy el filial no expone mensajes |
+| Espera de 10 s ocupa un hilo por reimpresión | Fijo 1 / 3 | aceptado (decisión de la 4a: acotada; antes no esperaba o colgaba) |
+| La interrupción no se probó contra `UnixPrintJob` | Fijo 3 | runtime: el vigía cortó el envío del gasto 704 con CUPS real |
+| Sin cambios de rol ni de esquema GraphQL | Fijo 1 | — |
