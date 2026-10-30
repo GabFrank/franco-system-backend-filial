@@ -67,3 +67,37 @@ pantalla: reimprimir con la impresora que rechaza → «Ups! Algo salió mal: No
 | Los nulos llegan por réplica desde el central (sin JPA) | A | la lectura tolerante es el arreglo real; `@PrePersist` + `@PreUpdate` solo en el `Gasto` del central |
 | `GastoRepository` del central suma `retiro_gs - vuelto_gs` sin `COALESCE` en dos consultas: una fila con nulo se excluye | A | `COALESCE` en esas consultas, así histórico y nuevo dan lo mismo |
 | `GastoService` filial l.234 usa `getVueltoRs()` para la moneda US$ | B | bug previo: se corrige (`getVueltoDs`), declarado |
+
+## Resultado de la prueba (30/10)
+
+Baterías: filial 796 tests, central 3140 (2 omitidos de siempre). Los tests nuevos fallan contra `develop`.
+
+Filial de la rama (8082) y central de la rama (8094) contra las bases locales:
+
+| Caso | Antes | Ahora |
+|---|---|---|
+| `reimprimirVenta` de una venta inexistente | «Internal Server Error(s)…» | «Venta no encontrada» |
+| `imprimirBalance` con la cola que rechaza | «Internal Server Error(s)…» | «No se pudo imprimir el balance» |
+| Error técnico (cliente inexistente en la base local) | genérico | sigue genérico |
+| Consulta con un campo inexistente | error de validación | igual |
+| Balance de la caja abierta 1185 (`imprimirBalance`, `ticketEscpos`), filial y central | NPE | sale, con «Fecha Cierre: ABIERTA» |
+| Reimprimir el gasto 704 (montos nulos) | NPE | `true` |
+
+Por pantalla (desktop web contra el filial de la rama): «Imprimir balance» en Últimas cajas con la cola que rechaza →
+«Ups! Algo salió mal: No se pudo imprimir el balance» (antes «… Internal Server Error(s) while executing query»).
+
+Datos locales tocados para la prueba y restaurados: responsable del gasto 704 y clientes inexistentes de las ventas
+79306/79308/79309 (sin ellos el balance de la 1185 y el ticket del 704 cortan por otra causa, ya genérica).
+El desktop no ofrece «Imprimir balance» para una caja abierta; el arreglo cubre el mobile/PWA y `ticketEscpos`.
+
+## Auditoría del diff (paso 8)
+
+| Hallazgo | Qué se hizo |
+|---|---|
+| `FacturaLegalBuilder` armaba «FACTURA_NO_EMITIBLE: » con el texto de cualquier excepción del ensayo del DE (firma, XML, ruta del certificado), que ahora puede llegar al cliente | solo conserva el texto de las reglas del armado (`IllegalArgumentException`, como «El precio unitario del item … debe ser mayor a cero»), así siguen llegando al cajero y a la API; el resto dice «no se pudo armar el documento electronico» y queda en el log. Test actualizado y uno nuevo |
+| Nada probaba que Spring use el handler nuevo | probado en runtime: el filial de la rama devolvió los avisos con su texto |
+| `GastoRepository` del central: `ORDER BY SUM(g.retiro_gs)` sin `COALESCE` (en `DESC` los nulos van primero) | con `COALESCE` |
+| Falta test de la edición de un gasto en US$ | `GastoServiceEdicionTest` (vuelto en US$ y nulos en 0) |
+| Mensajes con el motivo de la impresora (`reimprimirVenta`, `saveDeliveryEstado`) | se mantienen: son textos propios de la impresión y ayudan al cajero |
+| Sin `RenderableNonNullableFieldWasNullError` del default | aceptado (menor) |
+| COALESCE: una fila con retiro nulo y vuelto ahora resta el vuelto en el reporte por mes | coherente con el balance (nulo = 0) |
