@@ -215,6 +215,31 @@ class PdvCajaAccesoTest {
     }
 
     @Test
+    void savePdvCajaNoReabreUnaCajaCerrada() {
+        caja.setActivo(false);
+        PdvCajaInput in = input(CAJA, DUENIO);
+        in.setActivo(true);
+        GraphQLException ex = assertThrows(GraphQLException.class, () -> graphQL.savePdvCaja(in));
+        assertTrue(ex.getMessage().contains("Reabrir caja"));
+        verify(service, never()).saveAndSend(any(), any());
+    }
+
+    @Test
+    void savePdvCajaDeUnaCajaAbiertaSigueIgual() {
+        caja.setActivo(true);
+        PdvCajaInput in = input(CAJA, DUENIO);
+        in.setActivo(true);
+        graphQL.savePdvCaja(in);
+        verify(service).saveAndSend(any(), eq(false));
+    }
+
+    @Test
+    void reabrirCajaDelegaEnElServicio() {
+        when(service.reabrirCaja(CAJA, "motivo")).thenReturn(caja);
+        assertSame(caja, graphQL.reabrirCaja(CAJA, "motivo"));
+    }
+
+    @Test
     void unaCajaNuevaVerificadaExigeElRol() {
         doThrow(new GraphQLException("No autorizado")).when(rolSesionService).exigirRol(ROL);
         PdvCajaInput in = input(null, 9L);

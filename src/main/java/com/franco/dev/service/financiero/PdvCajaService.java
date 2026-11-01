@@ -13,6 +13,7 @@ import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto;
+import com.franco.dev.repository.financiero.PdvCajaReaperturaRepository;
 import com.franco.dev.repository.financiero.PdvCajaRepository;
 import com.franco.dev.service.CrudService;
 import com.franco.dev.service.empresarial.SucursalService;
@@ -23,6 +24,7 @@ import com.franco.dev.service.operaciones.DeliveryService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.seguridad.RolSesionService;
+import com.franco.dev.service.seguridad.UsuarioSesionService;
 
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
@@ -797,6 +799,100 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         return repository.save(caja);
     }
 
+
+    @Autowired
+    private PdvCajaReaperturaRepository reaperturaRepository;
+
+    @Autowired
+    private UsuarioSesionService usuarioSesionService;
+
+    /**
+     * Vuelve a abrir una caja cerrada por equivocacion (issue desktop #662). Solo ADMIN, con motivo.
+     * La caja queda como recien abierta: sin conteo de cierre (la venta y saveConteo miran ese campo),
+     * activa y con el maletin abierto. El conteo de cierre anterior no se borra: queda en
+     * pdv_caja_reapertura y sus movimientos CAJA_FINAL se desactivan, igual que al editar un conteo.
+     * Al volver a cerrar, saveConteo genera el cierre nuevo como siempre.
+     */
+    @Transactional
+    public PdvCaja reabrirCaja(Long cajaId, String motivo) throws GraphQLException {
+        rolSesionService.exigirAdmin();
+        String motivoLimpio = motivo != null ? motivo.trim() : "";
+        if (motivoLimpio.isEmpty()) {
+            throw new GraphQLException("Indique el motivo para reabrir la caja");
+        }
+        PdvCaja caja = cajaId != null ? findByIdForUpdate(cajaId).orElse(null) : null;
+        if (caja == null) {
+            throw new GraphQLException("No se encontro la caja id=" + cajaId + " en esta sucursal");
+        }
+        String motivoRechazo = motivoNoSePuedeReabrir(caja, LocalDateTime.now());
+        if (motivoRechazo != null) {
+            throw new GraphQLException(motivoRechazo);
+        }
+
+        Conteo conteoAnterior = caja.getConteoCierre();
+        PdvCajaReapertura registro = new PdvCajaReapertura();
+        registro.setPdvCajaId(caja.getId());
+        registro.setSucursalId(caja.getSucursalId() != null ? caja.getSucursalId() : Long.valueOf(env.getProperty("sucursalId")));
+        registro.setConteoCierreAnteriorId(conteoAnterior != null ? conteoAnterior.getId() : null);
+        registro.setFechaCierreAnterior(caja.getFechaCierre());
+        registro.setMotivo(motivoLimpio.toUpperCase());
+        registro.setUsuarioId(usuarioSesionService.idDelUsuarioAutenticado().orElse(null));
+        reaperturaRepository.save(registro);
+
+        if (conteoAnterior != null) {
+            List<MovimientoCaja> movimientos = movimientoCajaService
+                    .findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.CAJA_FINAL, conteoAnterior.getId());
+            if (movimientos != null) {
+                for (MovimientoCaja mov : movimientos) {
+                    mov.setActivo(false);
+                    movimientoCajaService.saveAndSend(mov, false);
+                }
+            }
+        }
+
+        caja.setConteoCierre(null);
+        caja.setFechaCierre(null);
+        caja.setActivo(true);
+        // saveAndSend vuelve a marcar el maletin como abierto.
+        return saveAndSend(caja, false);
+    }
+
+    /**
+     * Por que no se puede reabrir la caja, o null si se puede. Las reglas del issue #662: cerrada,
+     * sin verificar, cerrada el mismo dia, maletin sin una caja posterior y libre, cajero sin otra
+     * caja abierta. No mira {@code estado}: esta NULL en todas las cajas (ver CLAUDE.md).
+     */
+    String motivoNoSePuedeReabrir(PdvCaja caja, LocalDateTime ahora) {
+        if (caja.getConteoCierre() == null) {
+            return Boolean.TRUE.equals(caja.getActivo())
+                    ? "La caja ya esta abierta"
+                    : "La caja no tiene conteo de cierre para deshacer";
+        }
+        if (Boolean.TRUE.equals(caja.getVerificado())) {
+            return "La caja ya fue verificada, no se puede reabrir";
+        }
+        LocalDateTime cierre = caja.getFechaCierre();
+        if (cierre == null || !cierre.toLocalDate().equals(ahora.toLocalDate())) {
+            return "Solo se puede reabrir una caja el mismo dia de su cierre";
+        }
+        if (caja.getMaletin() != null) {
+            Long maletinId = caja.getMaletin().getId();
+            if (repository.existsByMaletinIdAndIdGreaterThan(maletinId, caja.getId())) {
+                return "Ya se abrio otra caja con el maletin " + caja.getMaletin().getDescripcion()
+                        + " despues de esta: no se puede reabrir";
+            }
+            if (repository.existsByMaletinIdAndActivoTrueAndIdNot(maletinId, caja.getId())) {
+                return "El maletin " + caja.getMaletin().getDescripcion() + " esta en uso en otra caja abierta";
+            }
+        }
+        if (caja.getUsuario() != null) {
+            List<PdvCaja> abiertas = repository.findByUsuarioIdAndActivo(caja.getUsuario().getId(), true);
+            if (abiertas.stream().anyMatch(c -> !c.getId().equals(caja.getId()))) {
+                return "El cajero ya tiene otra caja abierta";
+            }
+        }
+        return null;
+    }
 
     /** Un monto nulo cuenta como 0. */
     public static double cero(Double valor) {

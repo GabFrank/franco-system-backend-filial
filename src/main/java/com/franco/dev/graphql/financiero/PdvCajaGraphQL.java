@@ -121,6 +121,10 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         if (cambiaLaVerificacion(input, existente, verificadoPorGuardado)) {
             rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         }
+        if (reabre(input, existente)) {
+            // Reabrir deja la caja a medias (activa con conteo de cierre): se hace solo con reabrirCaja.
+            throw new GraphQLException("Una caja cerrada solo se reabre con «Reabrir caja» (ADMIN, con motivo)");
+        }
         log.info("[FILIAL savePdvCaja] INICIO -> id={}, sucursalId={}, maletinId={}, usuarioId={}, estado={}, activo={}, fechaApertura={}",
                 input != null ? input.getId() : null,
                 input != null ? input.getSucursalId() : null,
@@ -163,6 +167,19 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
                     ex.getMessage(), ex);
             throw ex;
         }
+    }
+
+    /** Solo ADMIN, con motivo. Las reglas viven en {@link PdvCajaService#reabrirCaja}. */
+    public PdvCaja reabrirCaja(Long cajaId, String motivo) {
+        log.info("[FILIAL reabrirCaja] cajaId={}, motivo={}", cajaId, motivo);
+        return service.reabrirCaja(cajaId, motivo);
+    }
+
+    /** El input pasa a activo una caja guardada como cerrada. */
+    static boolean reabre(PdvCajaInput in, PdvCaja guardada) {
+        return guardada != null
+                && Boolean.TRUE.equals(in.getActivo())
+                && (guardada.getConteoCierre() != null || Boolean.FALSE.equals(guardada.getActivo()));
     }
 
     public PdvCaja transferirCaja(Long cajaId, Long usuarioId) {
