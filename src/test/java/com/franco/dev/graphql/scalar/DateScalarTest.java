@@ -1,6 +1,7 @@
 package com.franco.dev.graphql.scalar;
 
 import graphql.schema.CoercingSerializeException;
+import graphql.schema.GraphQLScalarType;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -15,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 class DateScalarTest {
 
-    private final DateScalar scalar = new DateScalar();
+    private final GraphQLScalarType scalar = new DateScalarConfiguration().dateScalar();
 
     @Test
     void serializaLocalDateTime() {

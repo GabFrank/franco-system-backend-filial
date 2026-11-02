@@ -3,6 +3,9 @@ name: CI
 on:
   pull_request:
     branches: [develop, release/*, main, master]
+  # Lo dispara auto-update-prs.yml despues de hacer 'Update branch' en una PR
+  # (un push con GITHUB_TOKEN no dispara pull_request).
+  workflow_dispatch:
 
 jobs:
   build:

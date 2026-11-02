@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.financiero;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.financiero.TipoGasto;
 import com.franco.dev.domain.financiero.enums.TipoPadreGastoModulo;
 import com.franco.dev.graphql.financiero.dto.ModuloGastoInfo;
@@ -22,6 +23,9 @@ import java.util.Optional;
 
 @Component
 public class TipoGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     @Autowired
     private TipoGastoService service;
@@ -54,6 +58,7 @@ public class TipoGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
 
 
     public TipoGasto saveTipoGasto(TipoGastoInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         TipoGasto e = m.map(input, TipoGasto.class);
         if(input.getUsuarioId()!=null){
@@ -68,6 +73,7 @@ public class TipoGastoGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
     }
 
     public Boolean deleteTipoGasto(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

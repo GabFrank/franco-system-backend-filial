@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.productos;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.productos.TipoPrecio;
 import com.franco.dev.domain.productos.TipoPresentacion;
 import com.franco.dev.graphql.productos.input.TipoPrecioInput;
@@ -21,6 +22,9 @@ import java.util.Optional;
 public class TipoPresentacionGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private TipoPresentacionService service;
 
     public Optional<TipoPresentacion> tipoPresentacion(Long id) {return service.findById(id);}
@@ -33,6 +37,7 @@ public class TipoPresentacionGraphQL implements GraphQLQueryResolver, GraphQLMut
     }
 
     public TipoPresentacion saveTipoPresentacion(TipoPresentacionInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         TipoPresentacion e = m.map(input, TipoPresentacion.class);
         return service.save(e);
@@ -46,6 +51,7 @@ public class TipoPresentacionGraphQL implements GraphQLQueryResolver, GraphQLMut
     }
 
     public Boolean deleteTipoPresentacion(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

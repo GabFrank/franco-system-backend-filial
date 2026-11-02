@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.configuraciones;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.configuracion.Local;
 import com.franco.dev.graphql.configuraciones.input.LocalInput;
 import com.franco.dev.service.configuracion.LocalService;
@@ -16,6 +17,9 @@ import java.util.Optional;
 
 @Component
 public class LocalGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     @Autowired
     private LocalService service;
@@ -36,6 +40,7 @@ public class LocalGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
 
     public Local saveLocal(LocalInput input) {
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Local e = m.map(input, Local.class);
         if (input.getUsuarioId() != null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -44,6 +49,7 @@ public class LocalGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     public Boolean deleteLocal(Long id) {
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

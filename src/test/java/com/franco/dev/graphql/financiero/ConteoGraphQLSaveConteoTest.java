@@ -10,6 +10,8 @@ import com.franco.dev.service.financiero.MonedaService;
 import com.franco.dev.service.financiero.PdvCajaService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.seguridad.AuditorUsuarioId;
+import com.franco.dev.service.seguridad.RolSesionService;
+import com.franco.dev.domain.personas.Usuario;
 import graphql.GraphQLException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +38,7 @@ class ConteoGraphQLSaveConteoTest {
     private ConteoService service;
     private PdvCajaService pdvCajaService;
     private ConteoGraphQL resolver;
+    private RolSesionService rolSesionService;
 
     @BeforeEach
     void setUp() {
@@ -52,6 +55,8 @@ class ConteoGraphQLSaveConteoTest {
         ReflectionTestUtils.setField(resolver, "usuarioService", mock(UsuarioService.class));
         ReflectionTestUtils.setField(resolver, "auditorUsuarioId", mock(AuditorUsuarioId.class));
         ReflectionTestUtils.setField(resolver, "conteoMonedaGraphQL", mock(ConteoMonedaGraphQL.class));
+        rolSesionService = mock(RolSesionService.class);
+        ReflectionTestUtils.setField(resolver, "rolSesionService", rolSesionService);
 
         Sucursal sucursal = new Sucursal();
         sucursal.setId(SUCURSAL);
@@ -125,5 +130,34 @@ class ConteoGraphQLSaveConteoTest {
 
         verify(pdvCajaService).findByIdForUpdate(CAJA);
         verify(pdvCajaService, never()).findById(anyLong());
+    }
+
+    @Test
+    void elConteoDeUnaCajaAjenaSinRolSeRechazaSinPersistir() {
+        PdvCaja caja = caja();
+        Usuario duenio = new Usuario();
+        duenio.setId(5L);
+        caja.setUsuario(duenio);
+        when(pdvCajaService.findByIdForUpdate(CAJA)).thenReturn(Optional.of(caja));
+        doThrow(new GraphQLException("No autorizado")).when(rolSesionService)
+                .exigirDuenioORol(5L, RolSesionService.ANALISIS_DE_CAJA);
+
+        assertThrows(GraphQLException.class, () -> resolver.saveConteo(input(), null, CAJA, false, true));
+        verify(service, never()).saveAndSend(any(Conteo.class), anyBoolean());
+        verify(pdvCajaService, never()).saveAndSend(any(PdvCaja.class), anyBoolean());
+        verify(pdvCajaService, never()).imprimirBalance(anyLong(), any(), any());
+    }
+
+    @Test
+    void editarConteoCajaExigeAdminDeLaSesionNoDelUsuarioIdQueManda() {
+        // El cliente manda el id de un ADMIN, pero la sesion no lo es.
+        UsuarioService usuarios = (UsuarioService) ReflectionTestUtils.getField(resolver, "usuarioService");
+        when(usuarios.tieneRol(410L, "ADMIN")).thenReturn(true);
+        doThrow(new GraphQLException("No autorizado: se requiere el rol ADMIN.")).when(rolSesionService).exigirAdmin();
+
+        GraphQLException e = assertThrows(GraphQLException.class,
+                () -> resolver.editarConteoCaja(input(), Collections.emptyList(), CAJA, 10L, false, 410L));
+        assertTrue(e.getMessage().startsWith("No autorizado"), e.getMessage());
+        verify(service, never()).saveAndSend(any(Conteo.class), anyBoolean());
     }
 }

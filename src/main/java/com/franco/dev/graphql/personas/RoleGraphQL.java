@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.personas;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.personas.Role;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.graphql.personas.input.RoleInput;
@@ -22,6 +23,9 @@ import java.util.Optional;
 public class RoleGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private UsuarioService usuarioService;
 
     @Autowired
@@ -38,6 +42,7 @@ public class RoleGraphQL implements GraphQLQueryResolver, GraphQLMutationResolve
     }
 
     public Role saveRole(RoleInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Role e = m.map(input, Role.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -45,6 +50,7 @@ public class RoleGraphQL implements GraphQLQueryResolver, GraphQLMutationResolve
     }
 
     public Boolean deleteRole(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

@@ -65,6 +65,7 @@ class TicketEscposGraphQLTest {
     @Mock private VentaGraphQL ventaGraphQL;
     @Mock private FacturaLegalGraphQL facturaLegalGraphQL;
     @Mock private ImpresionService impresionService;
+    @Mock private com.franco.dev.service.seguridad.RolSesionService rolSesionService;
     @InjectMocks private TicketEscposGraphQL resolver;
 
     private static final byte[] TICKET = {0x1b, 0x40, 'O', 'K', 0x0a};
@@ -234,5 +235,21 @@ class TicketEscposGraphQLTest {
         when(pdvCajaService.findById(662L)).thenReturn(Optional.of(caja));
         when(pdvCajaService.generarBalance(caja)).thenReturn(new PdvCajaBalanceDto());
         assertNull(resolver.ticketEscpos(TicketEscposTipo.BALANCE, 662L, null, null));
+    }
+
+    @Test
+    void elBalanceDeUnaCajaAjenaSinRolSeRechazaSinImprimir() throws Exception {
+        PdvCaja caja = new PdvCaja();
+        com.franco.dev.domain.personas.Usuario duenio = new com.franco.dev.domain.personas.Usuario();
+        duenio.setId(5L);
+        caja.setUsuario(duenio);
+        when(pdvCajaService.findById(662L)).thenReturn(Optional.of(caja));
+        doThrow(new graphql.GraphQLException("No autorizado: solo el dueño o el rol ANALISIS DE CAJA."))
+                .when(rolSesionService).exigirDuenioORol(5L, "ANALISIS DE CAJA");
+
+        assertThrows(graphql.GraphQLException.class,
+                () -> resolver.ticketEscpos(TicketEscposTipo.BALANCE, 662L, null, "CAJA 1"));
+        verify(pdvCajaService, never()).generarBalance(any());
+        verify(impresionService, never()).printBalance(any(), any(), any(), any(OutputStream.class));
     }
 }

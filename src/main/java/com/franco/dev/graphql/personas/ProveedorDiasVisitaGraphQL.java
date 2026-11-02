@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.personas;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.general.Contacto;
 import com.franco.dev.domain.general.enums.DiasSemana;
 import com.franco.dev.domain.personas.Cliente;
@@ -23,6 +24,9 @@ import java.util.Optional;
 
 @Component
 public class ProveedorDiasVisitaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     @Autowired
     private ProveedorDiasVisitaService service;
@@ -52,6 +56,7 @@ public class ProveedorDiasVisitaGraphQL implements GraphQLQueryResolver, GraphQL
     }
 
     public ProveedorDiasVisita saveProveedorDiasVisita(ProveedorDiasVisitaInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         ProveedorDiasVisita e = m.map(input, ProveedorDiasVisita.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -60,6 +65,7 @@ public class ProveedorDiasVisitaGraphQL implements GraphQLQueryResolver, GraphQL
     }
 
     public Boolean deleteProveedorDiasVisita(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

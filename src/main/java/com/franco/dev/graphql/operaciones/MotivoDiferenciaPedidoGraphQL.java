@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.operaciones.MotivoDiferenciaPedido;
 import com.franco.dev.domain.operaciones.MotivoDiferenciaPedido;
 import com.franco.dev.graphql.operaciones.input.MotivoDiferenciaPedidoInput;
@@ -22,6 +23,9 @@ import java.util.Optional;
 public class MotivoDiferenciaPedidoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private MotivoDiferenciaPedidoService service;
 
     @Autowired
@@ -42,6 +46,7 @@ public class MotivoDiferenciaPedidoGraphQL implements GraphQLQueryResolver, Grap
 //    }
 
     public MotivoDiferenciaPedido saveMotivoDiferenciaPedido(MotivoDiferenciaPedidoInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         MotivoDiferenciaPedido e = m.map(input, MotivoDiferenciaPedido.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -49,6 +54,7 @@ public class MotivoDiferenciaPedidoGraphQL implements GraphQLQueryResolver, Grap
     }
 
     public Boolean deleteMotivoDiferenciaPedido(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

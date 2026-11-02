@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.general;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.general.Ciudad;
 import com.franco.dev.domain.general.Pais;
 import com.franco.dev.graphql.general.input.CiudadInput;
@@ -20,6 +21,9 @@ import java.util.Optional;
 
 @Component
 public class CiudadGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     @Autowired
     private CiudadService service;
@@ -43,6 +47,7 @@ public class CiudadGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
 
 
     public Ciudad saveCiudad(CiudadInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Ciudad e = m.map(input, Ciudad.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -51,6 +56,7 @@ public class CiudadGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     }
 
     public Boolean deleteCiudad(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

@@ -196,12 +196,19 @@ public class UsuarioService extends CrudService<Usuario, UsuarioRepository> {
         return null;
     }
 
+    static boolean esNombreDeArchivo(String nombre) {
+        return !nombre.contains("/") && !nombre.contains("\\") && !nombre.contains("..");
+    }
+
     public List<String> getUserImages(Long id, String type) {
         List<String> images = new java.util.ArrayList<>();
         Usuario usuario = repository.findById(id).orElse(null);
         if (usuario != null && usuario.getPersona() != null && usuario.getPersona().getImagenes() != null) {
             String[] imgs = usuario.getPersona().getImagenes().split(",");
             for (String img : imgs) {
+                // `imagenes` llega del central por réplica: solo un nombre de archivo, nunca una ruta (se lee y se
+                // escribe dentro de la carpeta de fotos de perfil).
+                if (!esNombreDeArchivo(img.trim())) continue;
                 if (!img.trim().isEmpty()) {
                     String path = imageService.storageDirectoryPath + java.io.File.separator + "personas"
                             + java.io.File.separator + "perfil" + java.io.File.separator;

@@ -28,6 +28,11 @@ public interface PdvCajaRepository extends HelperRepository<PdvCaja, Long> {
 
     Optional<PdvCaja> findById(Long id);
 
+    Optional<PdvCaja> findFirstByConteoAperturaIdOrConteoCierreId(Long conteoAperturaId, Long conteoCierreId);
+
+    @Query("SELECT v.id FROM PdvCaja c LEFT JOIN c.verificadoPor v WHERE c.id = :id")
+    Long findVerificadoPorIdById(@Param("id") Long id);
+
     /**
      * Toma la caja con lock pesimista antes de cargarle un conteo.
      *

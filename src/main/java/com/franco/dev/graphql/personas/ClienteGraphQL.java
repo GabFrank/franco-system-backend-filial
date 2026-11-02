@@ -176,6 +176,7 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
     public Cliente saveCliente(ClienteInput input) {
         Boolean modifPersona = false;
+        boolean personaNueva = false;
         ModelMapper m = new ModelMapper();
         Cliente e = m.map(input, Cliente.class);
         if (input.getActivo() == null) {
@@ -196,13 +197,15 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
             newPersona.setCreadoEn(LocalDateTime.now());
             newPersona = personaService.save(newPersona);
             e.setPersona(newPersona);
+            personaNueva = true;
         }
 
-        if (input.getDireccion() != null && !input.getDireccion().equals(e.getPersona().getDireccion())) {
+        // la persona recien creada ya lleva nombre y direccion (en mayusculas): no es una edicion
+        if (!personaNueva && input.getDireccion() != null && !input.getDireccion().equals(e.getPersona().getDireccion())) {
             e.getPersona().setDireccion(input.getDireccion());
             modifPersona = true;
         }
-        if (input.getNombre() != null && !input.getNombre().equals(e.getPersona().getNombre())) {
+        if (!personaNueva && input.getNombre() != null && !input.getNombre().equals(e.getPersona().getNombre())) {
             e.getPersona().setNombre(input.getNombre());
             modifPersona = true;
         }
@@ -390,9 +393,6 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         Cliente nuevoCliente = null;
         try {
             nuevoCliente = new Cliente();
-            if (persona.getId() != null) {
-                nuevoCliente.setId(persona.getId());
-            }
             nuevoCliente.setPersona(persona);
             nuevoCliente.setVerificadoSet(true);
             nuevoCliente.setTributa(estadoContribuyenteActivo(respuesta));
@@ -708,9 +708,6 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
         // Crear cliente con la información de SIFEN
         Cliente nuevoCliente = new Cliente();
-        if (persona.getId() != null) {
-            nuevoCliente.setId(persona.getId());
-        }
         nuevoCliente.setPersona(persona);
         nuevoCliente.setVerificadoSet(true);
         nuevoCliente.setTributa(estadoContribuyenteActivo(respuesta));

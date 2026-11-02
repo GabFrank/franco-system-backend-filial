@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.general;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.general.Barrio;
 import com.franco.dev.domain.general.Ciudad;
 import com.franco.dev.graphql.general.input.BarrioInput;
@@ -22,6 +23,9 @@ import java.util.Optional;
 
 @Component
 public class BarrioGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    @Autowired
+    private RolSesionService rolSesionService;
 
     @Autowired
     private BarrioService service;
@@ -50,6 +54,7 @@ public class BarrioGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
 
 
     public Barrio saveBarrio(BarrioInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Barrio e = m.map(input, Barrio.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -59,6 +64,7 @@ public class BarrioGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     }
 
     public Boolean deleteBarrio(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

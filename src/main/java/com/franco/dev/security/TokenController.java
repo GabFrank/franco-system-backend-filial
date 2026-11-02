@@ -10,9 +10,11 @@ import com.franco.dev.service.personas.UsuarioService;
 import graphql.GraphQLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -44,27 +46,11 @@ public class TokenController {
         this.jwtGenerator = jwtGenerator;
     }
 
+    /** Los usuarios nacen en el central y llegan por replicacion: el filial no da altas. */
     @PostMapping(path = "/new")
     @ResponseBody
     public ResponseEntity<LoginResponse> newUser(@RequestBody final Usuario usuario) {
-        if (!service.existsByNickname(usuario.getNickname())) {
-            if (!service.existsByEmail(usuario.getEmail())) {
-                if (usuario.getNickname() != null && usuario.getPassword() != null) {
-                    Usuario newUser = service.save(usuario);
-                    JwtUser jwtUser = new JwtUser();
-                    jwtUser.setId(newUser.getId());
-                    jwtUser.setNickname(newUser.getNickname().trim().toUpperCase());
-                    jwtUser.setPassword(usuario.getPassword().toUpperCase());
-                    return generate(jwtUser);
-                } else {
-                    throw new GraphQLException("Datos incompletos");
-                }
-            } else {
-                throw new GraphQLException("Ya existe un usuario con utilizando este email.");
-            }
-        } else {
-            throw new GraphQLException("Nombre de usuario ya existe, intente con otro");
-        }
+        throw new ResponseStatusException(HttpStatus.GONE, "El alta de usuarios se hace desde el central");
     }
 
     @PostMapping

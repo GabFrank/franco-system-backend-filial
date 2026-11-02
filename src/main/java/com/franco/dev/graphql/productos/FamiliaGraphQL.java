@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.productos;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.productos.Familia;
 import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.graphql.productos.input.FamiliaInput;
@@ -21,6 +22,9 @@ import java.util.Optional;
 public class FamiliaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private FamiliaService service;
 
     public Optional<Familia> familia(Long id) {return service.findById(id);}
@@ -33,6 +37,7 @@ public class FamiliaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public Familia saveFamilia(FamiliaInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Familia e = m.map(input, Familia.class);
         return service.save(e);
@@ -46,6 +51,7 @@ public class FamiliaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
     }
 
     public Boolean deleteFamilia(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

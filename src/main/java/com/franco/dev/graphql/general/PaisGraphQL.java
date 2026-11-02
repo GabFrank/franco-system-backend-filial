@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.general;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.general.Pais;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.graphql.general.input.PaisInput;
@@ -24,6 +25,9 @@ import java.util.Optional;
 public class PaisGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private PaisService service;
 
     @Autowired
@@ -42,6 +46,7 @@ public class PaisGraphQL implements GraphQLQueryResolver, GraphQLMutationResolve
 
 
     public Pais savePais(PaisInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         Pais e = m.map(input, Pais.class);
         e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
@@ -49,6 +54,7 @@ public class PaisGraphQL implements GraphQLQueryResolver, GraphQLMutationResolve
     }
 
     public Boolean deletePais(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 

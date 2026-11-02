@@ -6,6 +6,9 @@ import com.franco.dev.graphql.financiero.input.MovimientoCajaInput;
 import com.franco.dev.service.financiero.CambioService;
 import com.franco.dev.service.financiero.MonedaService;
 import com.franco.dev.service.financiero.MovimientoCajaService;
+import com.franco.dev.service.financiero.PdvCajaService;
+import com.franco.dev.service.seguridad.RolSesionService;
+import org.springframework.transaction.annotation.Transactional;
 import com.franco.dev.service.personas.UsuarioService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
@@ -33,11 +36,22 @@ public class MovimientoCajaGraphQL implements GraphQLQueryResolver, GraphQLMutat
     @Autowired
     private MonedaService monedaService;
 
+    @Autowired
+    private PdvCajaService pdvCajaService;
+
+    @Autowired
+    private RolSesionService rolSesionService;
+
+    /** Transaccional para leer la caja (LAZY) del movimiento. */
+    @Transactional(readOnly = true)
     public Optional<MovimientoCaja> movimientoCaja(Long id, Long sucId) {
-        return service.findById(id);
+        Optional<MovimientoCaja> mov = service.findById(id);
+        mov.ifPresent(m -> pdvCajaService.exigirAccesoARegistroDeCaja(m.getPdvCaja()));
+        return mov;
     }
 
     public List<MovimientoCaja> movimientoCajas(int page, int size, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }

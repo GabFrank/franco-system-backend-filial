@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.financiero;
 
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.financiero.Banco;
 import com.franco.dev.domain.financiero.MonedaBilletes;
 import com.franco.dev.graphql.financiero.input.BancoInput;
@@ -24,6 +25,9 @@ import java.util.Optional;
 public class MonedaBilletesGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
     @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
     private MonedaBilleteService service;
 
     @Autowired
@@ -41,6 +45,7 @@ public class MonedaBilletesGraphQL implements GraphQLQueryResolver, GraphQLMutat
 
 
     public MonedaBilletes saveMonedaBillete(MonedaBilletesInput input){
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         MonedaBilletes e = m.map(input, MonedaBilletes.class);
         if(input.getUsuarioId()!=null){
@@ -55,6 +60,7 @@ public class MonedaBilletesGraphQL implements GraphQLQueryResolver, GraphQLMutat
     }
 
     public Boolean deleteMonedaBillete(Long id){
+        rolSesionService.exigirAdmin();
         return service.deleteById(id);
     }
 
