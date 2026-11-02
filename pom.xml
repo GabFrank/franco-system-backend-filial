@@ -342,6 +342,13 @@
             <artifactId>jsifenlib</artifactId>
             <version>0.2.4-frc.13</version>
         </dependency>
+        <!-- Fija la de jsifenlib: la 1.5.3 del BOM de Boot 2.7 tira NOT_FOUND_ERR en
+             setIdAttributeNode al generar el XML del DE (5.5.1). Misma version que el central. -->
+        <dependency>
+            <groupId>com.sun.xml.messaging.saaj</groupId>
+            <artifactId>saaj-impl</artifactId>
+            <version>1.5.1</version>
+        </dependency>
 
         <!-- OCR del cupon de tarjeta: PP-OCRv4 sobre ONNX Runtime.
              Es el artefacto oficial de Microsoft con los nativos de las plataformas

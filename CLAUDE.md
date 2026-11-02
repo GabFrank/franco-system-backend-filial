@@ -43,6 +43,7 @@ La filial pasó de Boot 2.1.15 a 2.7.18, igual que el central (commit `7d180375`
 - **Flyway 8.5** (lo maneja el BOM de Boot; antes estaba fijo en 5.2.3). Sigue con `out-of-order=true`.
 - **Tests:** Mockito 4 no tiene `verifyZeroInteractions`; usar `verifyNoInteractions`.
 - **Librerías quitadas por no usarse:** java-jwt, spring-security-jwt, itextpdf (Jasper usa `com.lowagie` 2.1.7), zt-zip, update4j y los SDK de zkteco. Antes de volver a agregar una, confirmar que se usa.
+- **saaj-impl fijo en 1.5.1** (como el central): la 1.5.3 que pide jsifenlib, y que Boot 2.7 ya no baja, rompe `generarXml` del DE y los eventos con `NOT_FOUND_ERR` (5.5.1, 2026-11-02). `SifenGenerarXmlTest` lo cubre.
 - **Jasper queda en 6.20.0:** la 6.21.5 cambia la diagramación de los recibos (verificado en el central).
 - **Librerías que NO se suben todavía (2026-10-28):**
   - **jjwt queda en 0.9.1:** desde la 0.12 rechaza claves HMAC cortas, y la clave histórica `Graphql` (la que usan las filiales sin `APP_JWT_SECRET`) es de 5 bytes. Subirla corta el login. Recién cuando toda la red firme con claves propias (`app.jwt.legacy=false`).
