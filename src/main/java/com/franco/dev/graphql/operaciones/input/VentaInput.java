@@ -20,4 +20,8 @@ public class VentaInput {
     private Double totalDs;
     private Long sucursalId;
     private Long deliveryId;
+    /** Venta en la moneda del PDV (V111.5); omitir = la moneda de la empresa. totalGs va siempre en la de la empresa. */
+    private Long monedaId;
+    private Double cotizacion;
+    private Double totalMoneda;
 }

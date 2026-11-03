@@ -14,6 +14,8 @@ input CobroInput {
     usuarioId: Int,
     totalGs: Float
     sucursalId: Int
+    # Total en la moneda de la venta (V111.5).
+    totalMoneda: Float
 }
 
 extend type Query {

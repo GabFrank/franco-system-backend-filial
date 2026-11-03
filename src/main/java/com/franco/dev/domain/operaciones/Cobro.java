@@ -44,4 +44,8 @@ public class Cobro implements Serializable {
     @Column(name = "total_gs")
     private Double totalGs;
 
+    /** Total del cobro en la moneda de la venta (V111.5); total_gs es su equivalente en la de la empresa. */
+    @Column(name = "total_moneda")
+    private java.math.BigDecimal totalMoneda;
+
 }

@@ -25,5 +25,7 @@ public class CobroDetalleInput {
     private LocalDateTime creadoEn;
     private Long usuarioId;
     private String identificadorTransaccion;
+    /** Moneda de la empresa por unidad de monedaId, con decimales (V111.5). cambio sigue como siempre. */
+    private Double cotizacion;
     private Long sucursalId;
 }

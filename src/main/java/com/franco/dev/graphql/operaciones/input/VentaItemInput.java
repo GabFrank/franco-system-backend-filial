@@ -28,6 +28,8 @@ public class VentaItemInput {
     private Long precioMonedaId;
     private Double precioLista;
     private Double precioCotizacion;
+    /** Precio unitario en la moneda de la venta (V111.5); precio va siempre en la de la empresa. */
+    private Double precioEnMoneda;
     /** Lotes elegidos a mano por el cajero. Null o vacío = FEFO puro. */
     private List<VentaItemLoteInput> lotes;
 }

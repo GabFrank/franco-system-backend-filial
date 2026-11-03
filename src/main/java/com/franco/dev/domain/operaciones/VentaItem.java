@@ -99,6 +99,10 @@ public class VentaItem implements Serializable {
     @Column(name = "precio_cotizacion")
     private BigDecimal precioCotizacion;
 
+    /** Precio unitario cobrado en la moneda de la venta (V111.5); precio es su equivalente en la de la empresa. */
+    @Column(name = "precio_en_moneda")
+    private BigDecimal precioEnMoneda;
+
     /**
      * Lotes que el cajero eligió a mano en el POS. NO se persiste: viaja desde el resolver hasta
      * {@code VentaLoteService}, que lo usa para sesgar FEFO y después lo descarta. El registro de

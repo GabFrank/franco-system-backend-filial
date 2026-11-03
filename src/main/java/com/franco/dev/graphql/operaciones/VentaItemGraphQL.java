@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.service.operaciones.MonedaVenta;
 import com.franco.dev.domain.financiero.Cambio;
 import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.Venta;
@@ -118,29 +119,47 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         e.setPrecioMoneda(null);
         e.setPrecioLista(null);
         e.setPrecioCotizacion(null);
+        // Venta en otra moneda que la de la empresa (V111.5): el precio cobrado en esa moneda, y precio
+        // como su equivalente. Sin moneda en la venta, el item es como siempre.
+        Moneda monedaVenta = e.getVenta() != null ? e.getVenta().getMoneda() : null;
+        e.setPrecioEnMoneda(monedaVenta != null ? MonedaVenta.aBigDecimal(input.getPrecioEnMoneda()) : null);
+        if (monedaVenta != null) {
+            controlarEquivalente(e, input);
+        }
         if (input.getPrecioMonedaId() == null || input.getPrecioLista() == null || input.getPrecioCotizacion() == null) {
             return;
         }
         e.setPrecioMoneda(monedaService.findById(input.getPrecioMonedaId()).orElse(null));
         e.setPrecioLista(BigDecimal.valueOf(input.getPrecioLista()));
         e.setPrecioCotizacion(BigDecimal.valueOf(input.getPrecioCotizacion()));
-        int decimales = decimalesDeCobro();
+        // El rastro convierte a la moneda en que se cobra: la de la venta si la tiene, si no la de la empresa.
+        Double cobrado = e.getPrecioEnMoneda() != null ? input.getPrecioEnMoneda() : input.getPrecio();
+        int decimales = monedaVenta != null && e.getPrecioEnMoneda() != null
+                ? MonedaVenta.decimales(monedaVenta) : MonedaVenta.decimales(principal());
         BigDecimal esperado = RastroPrecio.esperado(input.getPrecioLista(), input.getPrecioCotizacion(), decimales);
-        if (!RastroPrecio.coincide(input.getPrecio(), esperado, decimales)) {
+        if (!RastroPrecio.coincide(cobrado, esperado, decimales)) {
             log.warn("RASTRO_PRECIO_DISTINTO venta={} producto={} precio={} lista={} cotizacion={} esperado={}",
-                    input.getVentaId(), input.getProductoId(), input.getPrecio(), input.getPrecioLista(),
+                    input.getVentaId(), input.getProductoId(), cobrado, input.getPrecioLista(),
                     input.getPrecioCotizacion(), esperado);
         }
     }
 
-    /** Decimales de la moneda en que se cobra: hoy la de la empresa. */
-    private int decimalesDeCobro() {
+    /** precio (moneda de la empresa) tiene que ser precio_en_moneda por la cotizacion de la venta. */
+    private void controlarEquivalente(VentaItem e, VentaItemInput input) {
+        int decimales = MonedaVenta.decimales(principal());
+        BigDecimal calculado = MonedaVenta.equivalente(e.getPrecioEnMoneda(), e.getVenta().getCotizacion(), decimales);
+        if (calculado == null || !MonedaVenta.coincide(input.getPrecio(), calculado, decimales, 1)) {
+            log.warn("PRECIO_EQUIVALENTE_DISTINTO venta={} producto={} precio={} precioEnMoneda={} cotizacion={} calculado={}",
+                    input.getVentaId(), input.getProductoId(), input.getPrecio(), input.getPrecioEnMoneda(),
+                    e.getVenta().getCotizacion(), calculado);
+        }
+    }
+
+    private Moneda principal() {
         try {
-            Moneda principal = monedaService.principal();
-            return principal != null && principal.getDecimales() != null && principal.getDecimales() >= 0
-                    ? principal.getDecimales() : 0;
+            return monedaService.principal();
         } catch (RuntimeException ex) {
-            return 0;
+            return null;
         }
     }
 

@@ -30,6 +30,8 @@ input CobroDetalleInput {
     usuarioId: Int
     sucursalId: Int
     identificadorTransaccion: String
+    # Moneda de la empresa por unidad de monedaId, con decimales (V111.5).
+    cotizacion: Float
 }
 
 extend type Query {
