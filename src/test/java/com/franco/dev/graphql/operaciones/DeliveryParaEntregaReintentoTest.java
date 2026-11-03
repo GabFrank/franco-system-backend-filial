@@ -75,7 +75,7 @@ class DeliveryParaEntregaReintentoTest {
 
         deliveryGraphQL.saveDeliveryEstado(10L, DeliveryEstado.PARA_ENTREGA, "ticket", null, PDV, false);
 
-        verify(facturaLegalGraphQL).printTicket58mmFactura(eq(venta), same(existente), isNull(), eq("ticket"), isNull());
+        verify(facturaLegalGraphQL).imprimirTicketFactura(eq(venta), same(existente), isNull(), eq("ticket"), isNull());
         verify(facturaService, never()).crearFacturaLegalDesdeVenta(any(), any(), any(), any());
         verify(politicaFacturacionService, never()).facturarDelivery(any(), any());
     }
@@ -85,7 +85,7 @@ class DeliveryParaEntregaReintentoTest {
         FacturaLegal nueva = new FacturaLegal();
         when(facturaService.crearFacturaLegalDesdeVenta(eq(venta), any(), eq(PDV), isNull())).thenReturn(nueva);
         doThrow(new IOException("No se pudo imprimir: Printer is not accepting job."))
-                .when(facturaLegalGraphQL).printTicket58mmFactura(any(), any(), any(), any(), any());
+                .when(facturaLegalGraphQL).imprimirTicketFactura(any(), any(), any(), any(), any());
 
         GraphQLException e = assertThrows(GraphQLException.class, () -> deliveryGraphQL
                 .saveDeliveryEstado(10L, DeliveryEstado.PARA_ENTREGA, "ticket", null, PDV, false));

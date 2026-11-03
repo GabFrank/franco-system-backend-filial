@@ -67,7 +67,7 @@ class VentaGraphQLFacturaEImpresionTest {
         MockitoAnnotations.initMocks(this);
         // En produccion la impresion del ticket-factura revienta con la factura nula.
         doThrow(new NullPointerException("factura nula")).when(facturaLegalGraphQL)
-                .printTicket58mmFactura(any(), isNull(), any(), any(), any());
+                .imprimirTicketFactura(any(), isNull(), any(), any(), any());
         doReturn(true).when(ventaGraphQL).printTicket58mm(any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any(), any());
         doNothing().when(ventaGraphQL).imprimirPagareSuelto(any(), any(), any(), any(), any());
@@ -110,7 +110,7 @@ class VentaGraphQLFacturaEImpresionTest {
     private void verificarTicketSimple() throws Exception {
         verify(ventaGraphQL, times(1)).printTicket58mm(eq(venta), eq(cobro), eq(items), isNull(), eq(false),
                 eq("CAJA"), eq("local"), eq(false), isNull(), isNull(), eq(ticketCliente));
-        verify(facturaLegalGraphQL, never()).printTicket58mmFactura(any(), any(), any(), any(), any());
+        verify(facturaLegalGraphQL, never()).imprimirTicketFactura(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -151,7 +151,7 @@ class VentaGraphQLFacturaEImpresionTest {
         verify(ventaCreditoGraphQL, times(1)).saveVentaCredito(ventaCreditoInput, cuotas);
         verify(politicaFacturacionService, never()).devolverTurno();
         verificarTicketConPagare();
-        verify(facturaLegalGraphQL, never()).printTicket58mmFactura(any(), any(), any(), any(), any());
+        verify(facturaLegalGraphQL, never()).imprimirTicketFactura(any(), any(), any(), any(), any());
         verify(ventaGraphQL, never()).imprimirPagareSuelto(any(), any(), any(), any(), any());
     }
 
@@ -173,7 +173,7 @@ class VentaGraphQLFacturaEImpresionTest {
         // El pagare primero: es el trabajo chico y, si saliera despues, podia adelantarse en la cola.
         orden.verify(ventaGraphQL).imprimirPagareSuelto(eq(venta), eq("CAJA"), eq("local"), eq(cuotas),
                 eq(ticketCliente));
-        orden.verify(facturaLegalGraphQL).printTicket58mmFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
+        orden.verify(facturaLegalGraphQL).imprimirTicketFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
                 eq(ticketCliente));
         // El pagare va solo: no se repite el ticket de la venta.
         verify(ventaGraphQL, never()).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(),
@@ -189,7 +189,7 @@ class VentaGraphQLFacturaEImpresionTest {
 
         facturar(true, todas());
 
-        verify(facturaLegalGraphQL, times(1)).printTicket58mmFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
+        verify(facturaLegalGraphQL, times(1)).imprimirTicketFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
                 eq(ticketCliente));
         verify(ventaGraphQL, times(1)).imprimirPagareSuelto(any(), any(), any(), any(), any());
     }
@@ -201,7 +201,7 @@ class VentaGraphQLFacturaEImpresionTest {
 
         facturar(false, todas());
 
-        verify(facturaLegalGraphQL, times(1)).printTicket58mmFactura(any(), any(), any(), any(), any());
+        verify(facturaLegalGraphQL, times(1)).imprimirTicketFactura(any(), any(), any(), any(), any());
         verify(ventaGraphQL, never()).imprimirPagareSuelto(any(), any(), any(), any(), any());
     }
 
@@ -213,7 +213,7 @@ class VentaGraphQLFacturaEImpresionTest {
 
         facturar(true, todas());
 
-        verify(facturaLegalGraphQL, times(1)).printTicket58mmFactura(any(), any(), any(), any(), any());
+        verify(facturaLegalGraphQL, times(1)).imprimirTicketFactura(any(), any(), any(), any(), any());
         verify(ventaGraphQL, never()).imprimirPagareSuelto(any(), any(), any(), any(), any());
     }
 
@@ -271,7 +271,7 @@ class VentaGraphQLFacturaEImpresionTest {
 
         facturar(false, intervaloQueRespeta());
 
-        verify(facturaLegalGraphQL, times(1)).printTicket58mmFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
+        verify(facturaLegalGraphQL, times(1)).imprimirTicketFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
                 eq(ticketCliente));
         verify(ventaGraphQL, never()).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any());
@@ -308,7 +308,7 @@ class VentaGraphQLFacturaEImpresionTest {
         FacturaLegal factura = new FacturaLegal();
         when(facturaService.crearFacturaLegalDesdeVenta(any(), any(), any(), any())).thenReturn(factura);
         doThrow(new IllegalStateException("sin papel")).when(facturaLegalGraphQL)
-                .printTicket58mmFactura(any(), eq(factura), any(), any(), any());
+                .imprimirTicketFactura(any(), eq(factura), any(), any(), any());
 
         assertThrows(IllegalStateException.class, () -> facturar(false, intervaloQueRespeta()));
 

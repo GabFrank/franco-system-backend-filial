@@ -251,7 +251,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                             .findVigenteDeVenta(venta.getId(), delivery.getSucursalId());
                     PoliticaFacturacion politica = configuracionFacturacionLector.resolver();
                     if (facturaExistente != null) {
-                        facturaLegalGraphQL.printTicket58mmFactura(venta, facturaExistente, null, printerName,
+                        facturaLegalGraphQL.imprimirTicketFactura(venta, facturaExistente, null, printerName,
                                 ticketCliente);
                     } else if (politicaFacturacionService.facturarDelivery(pdvId, politica)) {
                         com.franco.dev.domain.financiero.FacturaLegal facturaLegalConDE;
@@ -274,7 +274,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                             throw new GraphQLException("Problema al generar factura electrónica: " + e.getMessage());
                         }
                         // Fuera del try: una falla de la impresora no es una falla de la factura, que ya existe.
-                        facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
+                        facturaLegalGraphQL.imprimirTicketFactura(venta, facturaLegalConDE, null, printerName,
                                 ticketCliente);
                     } else {
                         ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, false, printerName, local, false,

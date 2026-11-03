@@ -382,12 +382,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         });
     }
 
-    static boolean esFacturaEnMonedaExtranjera(FacturaLegal f) {
-        // MonedaFacturaResolver nunca pone la moneda de la empresa como extranjera.
-        return f != null && f.getMonedaExtranjera() != null && !f.getMonedaExtranjera().trim().isEmpty()
-                && f.getTipoCambio() != null && f.getTipoCambio() > 0;
-    }
-
     /**
      * La venta en la moneda del PDV (V111.5): moneda, cotizacion y total en esa moneda, tal como los
      * manda el escritorio. total_gs sigue siendo el equivalente en la moneda de la empresa. Sin
@@ -604,13 +598,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         }
         try {
             // Imprimir el ticket/factura con los datos del DE (en su moneda si es otra que la de la empresa)
-            if (esFacturaEnMonedaExtranjera(facturaLegalConDE)) {
-                facturaLegalGraphQL.printTicket58mmFacturaMonedaExtranjera(venta, facturaLegalConDE, null, printerName,
-                        facturaLegalConDE.getMonedaExtranjera(), facturaLegalConDE.getTipoCambio(), ticketCliente);
-            } else {
-                facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
-                        ticketCliente);
-            }
+            facturaLegalGraphQL.imprimirTicketFactura(venta, facturaLegalConDE, null, printerName, ticketCliente);
         } catch (Exception fe) {
             devolverTurnoSiCorresponde(ruta, politica, fe);
             throw fe;
