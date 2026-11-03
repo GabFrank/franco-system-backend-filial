@@ -168,6 +168,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     private CobroDetalleService cobroDetalleService;
     @Autowired
     private MonedaService monedaService;
+    @Autowired(required = false)
+    private com.franco.dev.service.financiero.MonedaFacturaResolver monedaFacturaResolver;
     @Autowired
     private VentaDuplicadaCacheService ventaDuplicadaCacheService;
     @Autowired
@@ -329,6 +331,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                             facturaLegalInput = inputFacturaSilenciosa(venta, facturaLegalItemInputList,
                                     ventaInput.getUsuarioId(), ventaCreditoInput != null,
                                     cobroDetalleService.ajusteDe(cobro, cobroDetalleList));
+                            aplicarMonedaDeFactura(facturaLegalInput, venta);
                         } catch (RuntimeException armado) {
                             if (PoliticaFacturacionService.salioDeUnTurno(ruta, politicaFacturacion)) {
                                 politicaFacturacionService.devolverTurno();
@@ -366,6 +369,21 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
         }
         return venta;
+    }
+
+    /** Factura silenciosa en otra moneda (modulo FACTURACION, o la de la venta). Sin eso, como siempre. */
+    void aplicarMonedaDeFactura(FacturaLegalInput input, Venta venta) {
+        if (monedaFacturaResolver == null || input == null) return;
+        monedaFacturaResolver.para(venta).ifPresent(mf -> {
+            input.setMonedaExtranjera(mf.getCodigoIso());
+            input.setTipoCambio(mf.getTipoCambio());
+        });
+    }
+
+    static boolean esFacturaEnMonedaExtranjera(FacturaLegal f) {
+        // MonedaFacturaResolver nunca pone la moneda de la empresa como extranjera.
+        return f != null && f.getMonedaExtranjera() != null && !f.getMonedaExtranjera().trim().isEmpty()
+                && f.getTipoCambio() != null && f.getTipoCambio() > 0;
     }
 
     /**
@@ -583,9 +601,14 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
         }
         try {
-            // Imprimir el ticket/factura con los datos del DE
-            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
-                    ticketCliente);
+            // Imprimir el ticket/factura con los datos del DE (en su moneda si es otra que la de la empresa)
+            if (esFacturaEnMonedaExtranjera(facturaLegalConDE)) {
+                facturaLegalGraphQL.printTicket58mmFacturaMonedaExtranjera(venta, facturaLegalConDE, null, printerName,
+                        facturaLegalConDE.getMonedaExtranjera(), facturaLegalConDE.getTipoCambio(), ticketCliente);
+            } else {
+                facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
+                        ticketCliente);
+            }
         } catch (Exception fe) {
             devolverTurnoSiCorresponde(ruta, politica, fe);
             throw fe;

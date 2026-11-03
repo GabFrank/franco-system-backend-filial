@@ -108,6 +108,9 @@ public class FacturaService {
     @Autowired
     private DocumentoElectronicoService documentoElectronicoService;
 
+    @Autowired(required = false)
+    private MonedaFacturaResolver monedaFacturaResolver;
+
     public DecimalFormat df = new DecimalFormat("#,###.##");
 
     public void printTicket58mmFactura(FacturaLegal facturaLegal, String printerName) throws Exception {
@@ -354,6 +357,14 @@ public class FacturaService {
         facturaLegal.setUsuario(venta.getUsuario());
         facturaLegal.setSucursalId(venta.getSucursalId());
         facturaLegal.setCredito(false);
+        // Factura en otra moneda (modulo FACTURACION, o la de la venta): los montos siguen en la moneda
+        // de la empresa y la moneda va como monedaExtranjera + tipoCambio. Sin eso, como siempre.
+        if (monedaFacturaResolver != null) {
+            monedaFacturaResolver.para(venta).ifPresent(mf -> {
+                facturaLegal.setMonedaExtranjera(mf.getCodigoIso());
+                facturaLegal.setTipoCambio(mf.getTipoCambio());
+            });
+        }
 
         // Construir descriptores desde VentaItem.
         // El builder se encarga de:
