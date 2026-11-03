@@ -206,6 +206,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         if (ventaInput.getCajaId() != null)
             e.setCaja(pdvCajaService.findById(ventaInput.getCajaId()).orElse(null));
         e.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        // Delivery en la moneda del PDV (fase 4): la venta del delivery nace y se actualiza por aca.
+        aplicarMonedaDeLaVenta(e, ventaInput, 0);
         return service.saveAndSend(e, false);
     }
 

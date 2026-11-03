@@ -186,6 +186,13 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                     ventaInput.setTotalRs(venta.getTotalRs());
                     ventaInput.setTotalDs(venta.getTotalDs());
                     ventaInput.setDeliveryId(venta.getDelivery().getId());
+                    // La moneda de la venta (fase 4) se conserva igual que los totales: saveVenta2 la
+                    // pisaria en NULL.
+                    if (venta.getMoneda() != null) {
+                        ventaInput.setMonedaId(venta.getMoneda().getId());
+                        ventaInput.setCotizacion(venta.getCotizacion() != null ? venta.getCotizacion().doubleValue() : null);
+                        ventaInput.setTotalMoneda(venta.getTotalMoneda() != null ? venta.getTotalMoneda().doubleValue() : null);
+                    }
                 }
             }
             venta = ventaGraphQL.saveVenta2(ventaInput);
