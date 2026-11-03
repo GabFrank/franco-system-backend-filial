@@ -74,7 +74,13 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             boolean discountApplied = false;
             for(CobroDetalleInput c : cobroDetalleList){
                 if (c.getDescuento() != null && c.getDescuento()) {
-                    if (discountApplied) continue;
+                    // El escritorio no deja cargar un segundo descuento; si llega igual, se descarta como
+                    // siempre, pero queda en el log en vez de perderse en silencio.
+                    if (discountApplied) {
+                        log.warn("SEGUNDO_DESCUENTO_DESCARTADO cobro={} usuario={} moneda={} valor={}",
+                                cobro.getId(), input.getUsuarioId(), c.getMonedaId(), c.getValor());
+                        continue;
+                    }
                     discountApplied = true;
                 }
                 c.setCobroId(cobro.getId());
