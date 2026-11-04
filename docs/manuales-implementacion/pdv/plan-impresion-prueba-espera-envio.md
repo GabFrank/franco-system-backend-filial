@@ -70,6 +70,31 @@ una factura de la 24, en ticket y en PDF. Las colas `zz_` se borran al final.
 | «Imprimir en la sucursal» de facturas (ticket y PDF) también llega a `imprimirEnDestino` y no figuraba | A | Agregado al alcance y a la prueba de runtime. El riesgo de factura doble ya lo cubre el desktop: con `false` avisa que pudo salir y no deja repetir (#501) |
 | Timeouts: central→filial 30 s, desktop 60 s, filial→filial sin tope; la espera corta a 10 s | A | Sin cambios: todos ≥ 10 s o sin tope |
 
+## Auditoría del diff (paso 8)
+
+| Hallazgo | Eje | Qué se hizo |
+|---|---|---|
+| Sin cambios de roles ni de datos expuestos; el motivo de la falla queda en el log del servidor | Fijo 1 | Nada |
+| Sin esquema, entidades, enums ni migraciones. El registro de colas del test es global; la búsqueda por «contiene» de `getPrintServiceByName` podría encontrarlas desde otro test | Fijo 2 | Nombres `zz_…_213` y comentario en el test |
+| Central (develop, beta, master) y desktop (develop, master) toman `false` como fallo y no reintentan. «Probar» dice «verificá que la sucursal esté online y la cola exista» también cuando la cola rechaza | Fijo 3 | Texto del desktop: pendiente, otro repo |
+
+## Resultados
+
+- `ImpresoraPrintServiceEsperaTest`: 2/2 con el fix; con el código anterior el caso de la cola que rechaza da `true`.
+- `./mvnw clean verify -B`: 852 tests, 0 fallas; `frc-filial-server.jar` generado.
+- Runtime (04/11), filial de la rama en el 8082 (SIFEN apagado), central de `develop` en el 8081, desktop web de
+  `develop`, colas `zz_acepta_213` / `zz_rechaza_213` e impresoras 990213/990214 de la 24 sembradas y borradas al final:
+  - por API: `imprimirPruebaEnImpresora` al filial y por el central, `imprimirTicketFacturaEnImpresora` e
+    `imprimirPdfFacturaEnImpresora` (factura 29604) por el central: `false` con la que rechaza, `true` con la que acepta.
+    El filial contesta en ≤ 1 s (PDF incluido); la demora es del central armando el documento;
+  - por pantalla: «Probar» avisa «No se pudo imprimir en ZZ RECHAZA 213…» y «Ticket de prueba enviado a ZZ ACEPTA 213»;
+    «Imprimir ticket/PDF en sucursal» avisa «No se pudo confirmar la impresión…» con la que rechaza e «Impresión enviada
+    a la sucursal.» con la que acepta;
+  - CUPS: 7 trabajos en `zz_acepta_213` (los 7 `true`), ninguno en `zz_rechaza_213`;
+  - RED, por API al filial: impresora a un puerto local que escucha → `true` (llegaron los 465 bytes del ticket);
+    a un puerto cerrado → `false`.
+
 ## Sin verificar
 
 - El central tiene la misma copia de `imprimirLocal` para sus propias impresoras: queda para su repo (central#534).
+- La espera vencida (impresora colgada 10 s) no se reprodujo en runtime; la cubren los tests de `SalidaConEnvioEnHilo`.
