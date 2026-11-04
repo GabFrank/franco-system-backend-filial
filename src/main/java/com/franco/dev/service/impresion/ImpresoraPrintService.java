@@ -33,6 +33,10 @@ public class ImpresoraPrintService {
     private static final Logger log = LoggerFactory.getLogger(ImpresoraPrintService.class);
     private static final int PUERTO_RAW_POR_DEFECTO = 9100;
 
+    /**
+     * El cierre espera a que la impresora tome el trabajo y tira {@link IOException} si no salio: un ticket
+     * chico entra entero en el pipe y sin esperar la falla se informaba como impresa (#213).
+     */
     public OutputStream abrirOutput(Impresora impresora) throws IOException {
         if (impresora == null) {
             throw new IllegalArgumentException("Impresora nula");
@@ -40,11 +44,15 @@ public class ImpresoraPrintService {
         if (impresora.getConexion() == TipoConexion.RED) {
             int puerto = impresora.getPuerto() != null ? impresora.getPuerto() : PUERTO_RAW_POR_DEFECTO;
             log.info("Imprimiendo por RED a {}:{}", impresora.getIp(), puerto);
-            return new TcpIpOutputStream(impresora.getIp(), puerto);
+            TcpIpOutputStream salida = new TcpIpOutputStream(impresora.getIp(), puerto);
+            salida.esperarEnvio();
+            return salida;
         }
         PrintService ps = PrinterOutputStream.getPrintServiceByName(impresora.getColaCups());
         log.info("Imprimiendo por cola local '{}'", impresora.getColaCups());
-        return new PrinterOutputStream(ps);
+        PrinterOutputStream salida = new PrinterOutputStream(ps);
+        salida.esperarEnvio();
+        return salida;
     }
 
     public EscPos abrirEscPos(Impresora impresora) throws IOException {
