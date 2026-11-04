@@ -96,5 +96,6 @@ una factura de la 24, en ticket y en PDF. Las colas `zz_` se borran al final.
 
 ## Sin verificar
 
-- El central tiene la misma copia de `imprimirLocal` para sus propias impresoras: queda para su repo (central#534).
+- El central no lo necesita: su `SalidaConEnvioEnHilo.close()` espera siempre al envío (central#544, issue central#534
+  cerrada), así que su `imprimirLocal` ya devuelve `false` (verificado en `develop` el 04/11).
 - La espera vencida (impresora colgada 10 s) no se reprodujo en runtime; la cubren los tests de `SalidaConEnvioEnHilo`.
