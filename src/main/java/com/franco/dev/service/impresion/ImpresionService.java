@@ -12,6 +12,7 @@ import com.franco.dev.service.impresion.dto.SenaCuponDto;
 import com.franco.dev.service.impresion.dto.SorteoTicketDto;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
+import com.franco.dev.utilitarios.print.QrTicket;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
 import com.franco.dev.utilitarios.print.escpos.Style;
@@ -293,6 +294,8 @@ public class ImpresionService {
 //                }
 //                escpos.writeLF(valorDsVenta);
                 escpos.writeLF("--------------------------------");
+                escribirQr(escpos, QrTicket.caja(
+                        balanceDto.getSucursal() != null ? balanceDto.getSucursal().getId() : null, balanceDto.getIdCaja()));
                 escpos.feed(4);
                 escpos.writeLF(center, ".......................");
                 escpos.writeLF(center, "FIRMA");
@@ -311,6 +314,21 @@ public class ImpresionService {
             return false;
         }
         return false;
+    }
+
+    /**
+     * QR para el lector de caja mayor (ver {@link QrTicket}). Es un extra del ticket: si falla, el ticket
+     * sale sin QR. Nunca debe cortar la impresion, porque saveRetiro imprime dentro de su transaccion y
+     * una excepcion aca desharia el retiro.
+     */
+    static void escribirQr(EscPos escpos, String codigo) {
+        if (codigo == null) return;
+        try {
+            escpos.feed(1);
+            escpos.write(new QRCode().setSize(6).setJustification(EscPosConst.Justification.Center), codigo);
+        } catch (Exception e) {
+            log.warn("No se pudo imprimir el QR {}: {}", codigo, e.getMessage());
+        }
     }
 
     /** Salida propia de esta impresion; con {@code esperarEnvio}, su cierre confirma que el ticket salio. */
@@ -603,6 +621,7 @@ public class ImpresionService {
                 }
                 escpos.writeLF(valorDsAper);
                 escpos.writeLF("--------------------------------");
+                escribirQr(escpos, QrTicket.retiro(retiroDto.getSucursalId(), retiroDto.getId(), retiroDto.getCajaId()));
                 escpos.feed(4);
                 escpos.writeLF(center, ".......................");
                 escpos.writeLF(center, "FIRMA RESPONSABLE");

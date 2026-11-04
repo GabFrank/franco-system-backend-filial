@@ -221,6 +221,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
         RetiroDto dto = new RetiroDto();
         dto.setId(retiro.getId());
         dto.setCajaId(retiro.getCajaSalida() != null ? retiro.getCajaSalida().getId() : null);
+        dto.setSucursalId(retiro.getSucursalId());
         dto.setFecha(retiro.getCreadoEn());
         dto.setResponsable(retiro.getResponsable());
         dto.setRetiroGs(retiroDetalleService.findByRetiroIdAndMonedaId(retiro.getId(), Long.valueOf(1)));

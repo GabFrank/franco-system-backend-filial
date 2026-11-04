@@ -107,6 +107,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             RetiroDto retiroDto = new RetiroDto();
             retiroDto.setId(retiro.getId());
             retiroDto.setCajaId(retiro.getCajaSalida() != null ? retiro.getCajaSalida().getId() : null);
+            retiroDto.setSucursalId(retiro.getSucursalId());
             retiroDto.setFecha(retiro.getCreadoEn());
             retiroDto.setResponsable(retiro.getResponsable());
             retiroDto.setRetiroGs(input.getRetiroGs());
@@ -142,6 +143,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             RetiroDto retiroDto = new RetiroDto();
             retiroDto.setId(retiro.getId());
             retiroDto.setCajaId(retiro.getCajaSalida() != null ? retiro.getCajaSalida().getId() : null);
+            retiroDto.setSucursalId(retiro.getSucursalId());
             retiroDto.setFecha(retiro.getCreadoEn());
             retiroDto.setResponsable(retiro.getResponsable());
             retiroDto.setRetiroGs(retiroDetalleService.findByRetiroIdAndMonedaId(retiro.getId(), Long.valueOf(1)));
