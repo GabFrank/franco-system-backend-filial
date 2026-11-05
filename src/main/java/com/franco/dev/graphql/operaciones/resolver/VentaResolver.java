@@ -5,6 +5,7 @@ import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.enums.UnidadMedida;
 import com.franco.dev.service.operaciones.*;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.sorteo.SorteoParticipacionService;
 import graphql.kickstart.tools.GraphQLResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,15 @@ public class VentaResolver implements GraphQLResolver<Venta> {
 
     @Autowired
     private DeliveryService deliveryService;
+
+    @Autowired
+    private SorteoParticipacionService sorteoParticipacionService;
+
+    /** Una sola consulta por venta; false ante cualquier error (nunca rompe el listado). */
+    public Boolean tieneSorteo(Venta v) {
+        if (v == null || v.getId() == null) return false;
+        return sorteoParticipacionService.tieneParticipaciones(v.getId());
+    }
 
     public List<VentaItem> ventaItemList(Venta v){
         return ventaItemService.findByVentaId(v.getId());

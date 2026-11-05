@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 public class RetiroDto {
     Long id;
     Long cajaId;
+    Long sucursalId;
     LocalDateTime fecha;
     Usuario usuario;
     Funcionario responsable;

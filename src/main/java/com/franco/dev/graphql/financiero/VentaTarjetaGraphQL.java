@@ -290,6 +290,6 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         dto.setMonedaSimbolo(input.getMonedaSimbolo());
         dto.setDecimales(input.getDecimales());
         dto.setQr(input.getQr());
-        return impresionService.printSenaCupon(dto, printerName, local);
+        return impresionService.printSenaCupon(dto, printerName, local, null, true);
     }
 }

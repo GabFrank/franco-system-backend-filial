@@ -66,6 +66,7 @@ class TicketEscposGraphQLTest {
     @Mock private FacturaLegalGraphQL facturaLegalGraphQL;
     @Mock private ImpresionService impresionService;
     @Mock private com.franco.dev.service.seguridad.RolSesionService rolSesionService;
+    @Mock private com.franco.dev.service.sorteo.SorteoParticipacionService sorteoParticipacionService;
     @InjectMocks private TicketEscposGraphQL resolver;
 
     private static final byte[] TICKET = {0x1b, 0x40, 'O', 'K', 0x0a};
@@ -204,6 +205,43 @@ class TicketEscposGraphQLTest {
                 eq("CAJA 1"), eq(false), isNull(), eq(delivery), any(OutputStream.class));
     }
 
+    /** #211: la factura de la venta del delivery sale antes del ticket; si no se puede armar, sale solo el ticket. */
+    @Test
+    void deliveryConFacturaDevuelveFacturaYTicket() throws Exception {
+        Delivery delivery = new Delivery();
+        delivery.setId(33L);
+        delivery.setSucursalId(1L);
+        Venta venta = new Venta();
+        venta.setId(80078L);
+        FacturaLegal factura = new FacturaLegal();
+        factura.setId(30044L);
+        factura.setVenta(venta);
+        when(deliveryService.findById(33L)).thenReturn(Optional.of(delivery));
+        when(ventaRepository.findByDeliveryIdAndSucursalId(33L, 1L)).thenReturn(venta);
+        when(facturaLegalService.findVigenteDeVenta(80078L, 1L)).thenReturn(factura);
+        when(facturaLegalService.findById(30044L)).thenReturn(Optional.of(factura));
+        byte[] bytesFactura = {'F', 'A', 'C', 0x0a};
+        doAnswer(inv -> {
+            ((OutputStream) inv.getArgument(4)).write(bytesFactura);
+            return null;
+        }).when(facturaLegalGraphQL).printTicket58mmFactura(any(), any(), any(), any(), any(OutputStream.class));
+        doAnswer(escribeEnArgumento(10)).when(ventaGraphQL).printTicket58mm(any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(OutputStream.class));
+
+        byte[] esperado = new byte[bytesFactura.length + TICKET.length];
+        System.arraycopy(bytesFactura, 0, esperado, 0, bytesFactura.length);
+        System.arraycopy(TICKET, 0, esperado, bytesFactura.length, TICKET.length);
+        assertEquals(Base64.getEncoder().encodeToString(esperado),
+                resolver.ticketEscpos(TicketEscposTipo.DELIVERY, 33L, null, "CAJA 1"));
+
+        // La factura falla a medias: no quedan sus bytes cortados y el ticket sale igual.
+        doAnswer(inv -> {
+            ((OutputStream) inv.getArgument(4)).write(bytesFactura);
+            throw new NullPointerException("sin DE");
+        }).when(facturaLegalGraphQL).printTicket58mmFactura(any(), any(), any(), any(), any(OutputStream.class));
+        assertEquals(TICKET_B64, resolver.ticketEscpos(TicketEscposTipo.DELIVERY, 33L, null, "CAJA 1"));
+    }
+
     @Test
     void senaCuponArmaElMismoDtoQueImprimirSenaCupon() throws Exception {
         SenaCuponInput input = new SenaCuponInput();
@@ -234,7 +272,22 @@ class TicketEscposGraphQLTest {
         PdvCaja caja = new PdvCaja();
         when(pdvCajaService.findById(662L)).thenReturn(Optional.of(caja));
         when(pdvCajaService.generarBalance(caja)).thenReturn(new PdvCajaBalanceDto());
+        when(impresionService.printBalance(any(), any(), any(), any(OutputStream.class))).thenReturn(true);
         assertNull(resolver.ticketEscpos(TicketEscposTipo.BALANCE, 662L, null, null));
+    }
+
+    @Test
+    void siElArmadoFallaAvisaEnVezDeDevolverUnTicketAMedias() throws Exception {
+        PdvCaja caja = new PdvCaja();
+        when(pdvCajaService.findById(662L)).thenReturn(Optional.of(caja));
+        when(pdvCajaService.generarBalance(caja)).thenReturn(new PdvCajaBalanceDto());
+        doAnswer(inv -> {
+            ((OutputStream) inv.getArgument(3)).write(TICKET);
+            return false;
+        }).when(impresionService).printBalance(any(), any(), any(), any(OutputStream.class));
+        GraphQLException e = assertThrows(GraphQLException.class,
+                () -> resolver.ticketEscpos(TicketEscposTipo.BALANCE, 662L, null, null));
+        assertEquals("No se pudo armar el ticket", e.getMessage());
     }
 
     @Test
@@ -251,5 +304,109 @@ class TicketEscposGraphQLTest {
                 () -> resolver.ticketEscpos(TicketEscposTipo.BALANCE, 662L, null, "CAJA 1"));
         verify(pdvCajaService, never()).generarBalance(any());
         verify(impresionService, never()).printBalance(any(), any(), any(), any(OutputStream.class));
+    }
+
+    @Test
+    void sorteoReimprimeConLeyenda() throws Exception {
+        com.franco.dev.service.impresion.dto.SorteoTicketDto t = new com.franco.dev.service.impresion.dto.SorteoTicketDto();
+        t.setNombreSorteo("Sorteo de Navidad");
+        t.setPremios(java.util.Arrays.asList("Una moto"));
+        t.setSucursal("CENTRO");
+        t.setVentaId(77L);
+        t.setFecha(java.time.LocalDateTime.of(2026, 12, 5, 10, 30));
+        t.setTotalGs(250000.0);
+        t.setCodigo("S1-7-77");
+        t.setNumero(1);
+        t.setTotal(1);
+        t.setReimpresion(true);
+        java.util.List<com.franco.dev.service.impresion.dto.SorteoTicketDto> tickets = Collections.singletonList(t);
+        when(sorteoParticipacionService.ticketsDeVenta(77L, true)).thenReturn(tickets);
+        when(ventaService.findById(77L)).thenReturn(Optional.of(new Venta()));
+        // el renderer real, para comprobar que la leyenda sale en los bytes
+        com.franco.dev.service.utils.ImageService imageService = mock(com.franco.dev.service.utils.ImageService.class);
+        imageService.storageDirectoryPath = java.nio.file.Files.createTempDirectory("frc-sorteo-re").toFile()
+                .getAbsolutePath() + java.io.File.separator;
+        ImpresionService real = new ImpresionService();
+        org.springframework.test.util.ReflectionTestUtils.setField(real, "imageService", imageService);
+        org.springframework.test.util.ReflectionTestUtils.setField(real, "printingService",
+                mock(com.franco.dev.service.utils.PrintingService.class));
+        when(impresionService.printSorteoTickets(anyList(), isNull(), eq("CAJA 1"), any(OutputStream.class)))
+                .thenAnswer(inv -> real.printSorteoTickets(inv.getArgument(0), "X", inv.getArgument(2),
+                        (OutputStream) inv.getArgument(3)));
+
+        String b64 = resolver.ticketEscpos(TicketEscposTipo.SORTEO, 77L, null, "CAJA 1");
+
+        assertNotNull(b64);
+        String bytes = new String(Base64.getDecoder().decode(b64), java.nio.charset.StandardCharsets.ISO_8859_1);
+        assertTrue(bytes.contains("REIMPRESION"), bytes);
+    }
+
+    @Test
+    void sorteoSinParticipacionesLanza() {
+        when(sorteoParticipacionService.ticketsDeVenta(78L, true)).thenReturn(Collections.emptyList());
+        when(ventaService.findById(78L)).thenReturn(Optional.of(new Venta()));
+        GraphQLException e = assertThrows(GraphQLException.class,
+                () -> resolver.ticketEscpos(TicketEscposTipo.SORTEO, 78L, null, null));
+        assertEquals("La venta 78 no tiene tickets de sorteo", e.getMessage());
+        verify(impresionService, never()).printSorteoTickets(any(), any(), any(), any());
+    }
+
+    /** Una caja con id: el control se pide por la caja del registro. */
+    private static PdvCaja cajaCon(long id) {
+        PdvCaja c = new PdvCaja();
+        c.setId(id);
+        return c;
+    }
+
+    @Test
+    void cadaTicketDeUnaCajaAjenaSeRechazaSinArmarlo() throws Exception {
+        PdvCaja ajena = cajaCon(99L);
+        Venta venta = new Venta();
+        venta.setId(1L);
+        venta.setCaja(ajena);
+        when(ventaService.findById(1L)).thenReturn(Optional.of(venta));
+        FacturaLegal factura = new FacturaLegal();
+        factura.setId(2L);
+        factura.setCaja(ajena);
+        when(facturaLegalService.findById(2L)).thenReturn(Optional.of(factura));
+        Gasto gasto = new Gasto();
+        gasto.setId(3L);
+        gasto.setCaja(ajena);
+        when(gastoService.findById(3L)).thenReturn(Optional.of(gasto));
+        Retiro retiro = new Retiro();
+        retiro.setId(4L);
+        retiro.setCajaSalida(ajena);
+        when(retiroService.findById(4L)).thenReturn(Optional.of(retiro));
+        Delivery delivery = new Delivery();
+        delivery.setId(5L);
+        delivery.setSucursalId(24L);
+        when(deliveryService.findById(5L)).thenReturn(Optional.of(delivery));
+        when(ventaRepository.findByDeliveryIdAndSucursalId(5L, 24L)).thenReturn(venta);
+        doThrow(new GraphQLException("No autorizado")).when(pdvCajaService).exigirAccesoARegistroDeCaja(same(ajena));
+
+        Object[][] casos = {{TicketEscposTipo.VENTA, 1L}, {TicketEscposTipo.FACTURA, 2L}, {TicketEscposTipo.GASTO, 3L},
+                {TicketEscposTipo.RETIRO, 4L}, {TicketEscposTipo.DELIVERY, 5L}, {TicketEscposTipo.SORTEO, 1L}};
+        for (Object[] caso : casos) {
+            GraphQLException e = assertThrows(GraphQLException.class,
+                    () -> resolver.ticketEscpos((TicketEscposTipo) caso[0], (Long) caso[1], true, null), caso[0].toString());
+            assertEquals("No autorizado", e.getMessage());
+        }
+        verifyNoInteractions(impresionService, ventaGraphQL, facturaLegalGraphQL, cobroGraphQL, sorteoParticipacionService);
+    }
+
+    @Test
+    void unaFacturaSinCajaUsaLaCajaDeSuVenta() throws Exception {
+        PdvCaja cajaVenta = cajaCon(7L);
+        Venta venta = new Venta();
+        venta.setCaja(cajaVenta);
+        FacturaLegal factura = new FacturaLegal();
+        factura.setId(2L);
+        factura.setVenta(venta);
+        when(facturaLegalService.findById(2L)).thenReturn(Optional.of(factura));
+        doAnswer(escribeEnArgumento(4)).when(facturaLegalGraphQL).printTicket58mmFactura(any(), any(), any(), any(),
+                any(OutputStream.class));
+
+        assertEquals(TICKET_B64, resolver.ticketEscpos(TicketEscposTipo.FACTURA, 2L, null, null));
+        verify(pdvCajaService).exigirAccesoARegistroDeCaja(same(cajaVenta));
     }
 }

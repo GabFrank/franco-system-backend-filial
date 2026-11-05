@@ -23,6 +23,7 @@ import com.franco.dev.graphql.financiero.input.VentaCreditoInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
 import com.franco.dev.graphql.operaciones.input.CobroInput;
 import com.franco.dev.graphql.operaciones.input.DeliveryInput;
+import com.franco.dev.graphql.operaciones.input.SorteoClienteInput;
 import com.franco.dev.graphql.operaciones.input.VentaInput;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
 import com.franco.dev.service.empresarial.SucursalService;
@@ -44,6 +45,8 @@ import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.productos.PresentacionService;
 import com.franco.dev.service.productos.ProductoService;
 import com.franco.dev.service.reports.TicketReportService;
+import com.franco.dev.service.impresion.dto.SorteoTicketDto;
+import com.franco.dev.service.sorteo.SorteoParticipacionService;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
 import com.franco.dev.utilitarios.print.PagareTicket;
@@ -68,6 +71,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
@@ -121,6 +125,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     @Autowired
     private PdvCajaService pdvCajaService;
     @Autowired
+    private com.franco.dev.service.seguridad.RolSesionService rolSesionService;
+    @Autowired
     private TicketReportService ticketReportService;
     @Autowired
     private ImageService imageService;
@@ -128,7 +134,6 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     private SucursalService sucursalService;
     @Autowired
     private MovimientoCajaService movimientoCajaService;
-    private PrinterOutputStream printerOutputStream;
     @Autowired
     private ProductoService productoService;
     @Autowired
@@ -163,10 +168,15 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     private MonedaService monedaService;
     @Autowired
     private VentaDuplicadaCacheService ventaDuplicadaCacheService;
+    @Autowired
+    private SorteoParticipacionService sorteoParticipacionService;
     private Sucursal sucursal;
 
     public Optional<Venta> venta(Long id, Long sucId) {
-        return service.findById(id);
+        Optional<Venta> venta = service.findById(id);
+        // Tambien las de delivery: cada cajero opera solo los suyos (Franco, 30/10).
+        venta.ifPresent(v -> pdvCajaService.exigirAccesoARegistroDeCaja(v.getCaja()));
+        return venta;
     }
 
     public List<Venta> ventas(int page, int size, Long sucId) {
@@ -202,7 +212,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     public Venta saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput,
             List<CobroDetalleInput> cobroDetalleList, Boolean ticket, Boolean facturar, String printerName,
             String local, Long pdvId, VentaCreditoInput ventaCreditoInput,
-            List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList, Boolean imprimirEnCliente)
+            List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList, Boolean imprimirEnCliente,
+            SorteoClienteInput sorteoCliente)
             throws Exception, GraphQLException {
         auditorUsuarioId.verificar("VentaGraphQL.saveVenta", ventaInput.getUsuarioId());
         if (ventaItemList == null && cobroDetalleList == null && cobroDetalleList == null) {
@@ -330,6 +341,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         break;
                     }
                 }
+                // Despues del comprobante y antes de armar el base64: en modo FRONTEND los tickets
+                // del sorteo quedan al final del mismo stream. Nunca lanza.
+                registrarEImprimirSorteo(venta, cobroDetalleList, sorteoCliente, ventaInput.getUsuarioId(),
+                        printerName, local, ticketCliente);
                 if (ticketCliente != null && ticketCliente.size() > 0) {
                     venta.setTicketEscpos(Base64.getEncoder().encodeToString(ticketCliente.toByteArray()));
                 }
@@ -342,10 +357,60 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 throw rechazo;
             } catch (Exception e) {
                 e.printStackTrace();
+                // El comprobante fallo pero la venta se confirma igual: el cliente ya dio sus datos,
+                // asi que la participacion se registra igual (se puede reimprimir). La impresion aca
+                // es best-effort: en modo FRONTEND los bytes no vuelven al desktop.
+                registrarEImprimirSorteo(venta, cobroDetalleList, sorteoCliente, ventaInput.getUsuarioId(),
+                        printerName, local, ticketCliente);
                 return venta;
             }
         }
         return venta;
+    }
+
+    /**
+     * Registra la participacion del cliente en los sorteos que califican (con el total real de la
+     * venta) e imprime sus tickets: por la impresora del filial, o al final de {@code ticketCliente}
+     * en modo FRONTEND. En las rutas sin comprobante los tickets salen solos.
+     * <p>
+     * <b>Nunca lanza:</b> el registro corre en transacciones propias (ver
+     * {@link SorteoParticipacionService}) y cualquier error se loguea; la venta se guarda igual.
+     * Sin {@code sorteoCliente} (no participa, o desktop viejo) no hace nada.
+     */
+    void registrarEImprimirSorteo(Venta venta, List<CobroDetalleInput> cobroDetalleList,
+            SorteoClienteInput sorteoCliente, Long usuarioId, String printerName, String local,
+            OutputStream ticketCliente) {
+        if (sorteoCliente == null || venta == null || sorteoParticipacionService == null) return;
+        if (ventaVaARevertirse()) {
+            log.warn("Venta {}: la transaccion ya esta marcada para revertir; no se registra el sorteo", venta.getId());
+            return;
+        }
+        try {
+            List<SorteoParticipacionService.Participacion> participaciones =
+                    sorteoParticipacionService.registrar(venta, cobroDetalleList, sorteoCliente, usuarioId);
+            if (participaciones == null || participaciones.isEmpty()) return;
+            Boolean impreso = impresionService.printSorteoTickets(
+                    SorteoParticipacionService.tickets(participaciones, false), printerName, local, ticketCliente);
+            if (!Boolean.TRUE.equals(impreso)) {
+                log.warn("Venta {}: la participacion en sorteos quedo registrada pero los tickets no se imprimieron; "
+                        + "se pueden reimprimir", venta.getId());
+            }
+            venta.setSorteoTickets(SorteoParticipacionService.resumen(participaciones));
+        } catch (Exception e) {
+            log.error("Venta {}: fallo el sorteo; la venta sigue igual: {}", venta.getId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * True si la transaccion de la venta ya quedo rollback-only: registrar o imprimir tickets seria
+     * de una venta que no se va a confirmar. Sin transaccion (tests) devuelve false.
+     */
+    boolean ventaVaARevertirse() {
+        try {
+            return TransactionAspectSupport.currentTransactionStatus().isRollbackOnly();
+        } catch (Exception sinTransaccion) {
+            return false;
+        }
     }
 
     /**
@@ -568,6 +633,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     public Boolean imprimirPagare(Long ventaId, List<VentaCreditoCuotaInput> itens, String printerName, String local,
             Long sucId) {
+        rolSesionService.exigirAdmin();
         Venta venta = service.findById(ventaId).orElse(null);
         try {
             if (venta != null) {
@@ -681,6 +747,18 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local,
             Boolean pagare, List<VentaCreditoCuotaInput> itens, Delivery delivery, OutputStream destino)
             throws Exception {
+        return printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, reimpresion, printerName, local,
+                pagare, itens, delivery, destino, false);
+    }
+
+    /**
+     * Con {@code esperarEnvio} el cierre espera a que CUPS tome el trabajo y devuelve {@code false} si no
+     * salio (reimpresion). Sin el, cierra como siempre: la venta imprime dentro de su transaccion (#213).
+     */
+    public Boolean printTicket58mm(Venta venta, Cobro cobro, List<VentaItem> ventaItemList,
+            List<CobroDetalleInput> cobroDetalleList, Boolean reimpresion, String printerName, String local,
+            Boolean pagare, List<VentaCreditoCuotaInput> itens, Delivery delivery, OutputStream destino,
+            boolean esperarEnvio) throws Exception {
         Boolean ok = null;
         PrintService selectedPrintService = destino == null ? printingService.getPrintService(printerName) : null;
 
@@ -741,7 +819,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
         if (destino != null || selectedPrintService != null) {
             OutputStream salida = destino != null ? destino
-                    : (printerOutputStream = new PrinterOutputStream(selectedPrintService));
+                    : salidaA(selectedPrintService, esperarEnvio);
             // creating the EscPosImage, need buffered image and algorithm.
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
             // Styles
@@ -1132,11 +1210,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             escpos.feed(5);
             escpos.cut(EscPos.CutMode.FULL);
             try {
+                // Cierra la salida de este request (no un campo compartido). Con esperarEnvio confirma que salio.
                 escpos.close();
-                if (destino == null) printerOutputStream.close();
                 ok = true;
             } catch (IOException ioe) {
-                ioe.printStackTrace();
+                log.warn("No se pudo imprimir el ticket de la venta {}: {}", venta.getId(), ioe.getMessage());
                 ok = false;
             }
         }
@@ -1145,10 +1223,17 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     @Transactional
      public Venta saveVentaDelivery(VentaInput ventaInput, DeliveryInput deliveryInput, List<CobroDetalleInput> cobroDetalleList, VentaCreditoInput ventaCreditoInput, List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList) {
+         // Fuera del try, que se come el mensaje: la venta tiene que ser la del delivery, y de la caja del que cobra.
+         Venta venta = ventaInput != null && ventaInput.getId() != null
+                 ? service.findById(ventaInput.getId()).orElse(null) : null;
+         Delivery delivery = deliveryInput != null && deliveryInput.getId() != null
+                 ? deliveryService.findById(deliveryInput.getId()).orElse(null) : null;
+         if (venta == null || delivery == null) throw new GraphQLException("Ocurrio un problema.");
+         if (venta.getDelivery() == null || !delivery.getId().equals(venta.getDelivery().getId())) {
+             throw new GraphQLException("La venta no corresponde a este delivery");
+         }
+         pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
          try {
-             Venta venta = service.findById(ventaInput.getId()).orElse(null);
-             Delivery delivery = deliveryService.findById(deliveryInput.getId()).orElse(null);
-             if (venta == null || delivery == null) throw new GraphQLException("Ocurrio un problema.");
              venta.setEstado(VentaEstado.CONCLUIDA);
              venta.setSucursalId(delivery.getSucursalId());
              venta.setUsuario(delivery.getUsuario());
@@ -1207,26 +1292,66 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return false;
     }
 
+    /**
+     * Devuelve {@code true} solo si el papel salio; si no, el motivo como error (#213). Antes, con factura
+     * devolvia false aunque imprimiera y sin factura true aunque fallara.
+     */
     public Boolean reimprimirVenta(Long id, String printerName, String local, Long sucId) throws Exception {
         Venta venta = service.findById(id).orElse(null);
-        if (venta != null) {
-            FacturaLegal facturaLegal = facturaLegalService.findByVentaId(venta.getId());
-            if (facturaLegal != null) {
-                facturaLegalGraphQL.reimprimirFacturaLegal(facturaLegal.getId(), sucId, printerName);
-            } else {
-                Cobro cobro = cobroGraphQL.cobro(venta.getCobro().getId(), null).orElse(null);
-                List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
-                if (cobro != null) {
-                    List<CobroDetalleInput> cobroDetalleList = new ArrayList<>();
-                    Delivery delivery = venta.getDelivery();
-                    printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, true, printerName, local, null, null,
-                            delivery);
-                    return true;
-                }
-            }
-
+        if (venta == null) {
+            throw new GraphQLException("Venta no encontrada");
         }
-        return false;
+        pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
+        FacturaLegal facturaLegal = facturaLegalService.findByVentaId(venta.getId());
+        if (facturaLegal != null) {
+            if (!Boolean.TRUE.equals(facturaLegalGraphQL.reimprimirFacturaLegal(facturaLegal.getId(), sucId, printerName))) {
+                throw new GraphQLException("No se pudo reimprimir la factura");
+            }
+            return true;
+        }
+        Cobro cobro = venta.getCobro() != null ? cobroGraphQL.cobro(venta.getCobro().getId(), null).orElse(null) : null;
+        if (cobro == null) {
+            throw new GraphQLException("La venta no tiene cobro");
+        }
+        List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
+        List<CobroDetalleInput> cobroDetalleList = new ArrayList<>();
+        Delivery delivery = venta.getDelivery();
+        Boolean impreso;
+        try {
+            impreso = printTicket58mm(venta, cobro, ventaItemList, cobroDetalleList, true, printerName, local,
+                    null, null, delivery, null, true);
+        } catch (IOException e) {
+            // Un ticket grande avisa ya en el write; sin esto llegaba como UndeclaredThrowableException sin motivo.
+            throw new GraphQLException("No se pudo reimprimir el ticket: " + e.getMessage());
+        }
+        if (!Boolean.TRUE.equals(impreso)) {
+            throw new GraphQLException("No se pudo reimprimir el ticket");
+        }
+        return true;
+    }
+
+    /** Salida propia de esta impresion; con {@code esperarEnvio}, su cierre confirma que el ticket salio. */
+    private static PrinterOutputStream salidaA(PrintService impresora, boolean esperarEnvio) throws IOException {
+        PrinterOutputStream salida = new PrinterOutputStream(impresora);
+        if (esperarEnvio) {
+            salida.esperarEnvio();
+        }
+        return salida;
+    }
+
+    /**
+     * Reimprime por la impresora del filial los tickets de sorteo de una venta, marcados REIMPRESION.
+     * No crea participaciones: solo vuelve a imprimir las ya registradas.
+     */
+    public Boolean reimprimirSorteo(Long ventaId, String printerName, String local) {
+        Venta venta = service.findById(ventaId)
+                .orElseThrow(() -> new GraphQLException("La venta " + ventaId + " no existe"));
+        pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
+        List<SorteoTicketDto> tickets = sorteoParticipacionService.ticketsDeVenta(ventaId, true);
+        if (tickets == null || tickets.isEmpty()) {
+            throw new GraphQLException("La venta " + ventaId + " no tiene tickets de sorteo");
+        }
+        return impresionService.printSorteoTickets(tickets, printerName, local, null);
     }
 
     public List<VentaPorPeriodoV1Dto> ventaPorPeriodo(String inicio, String fin, Long sucId) {

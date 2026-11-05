@@ -139,6 +139,22 @@ class PdvCajaServiceBalanceTest {
         igual(-100_000.0, b.getDiferenciaGs(), "caja abierta: saldo = apertura");
     }
 
+    @Test
+    void gastoConMontosNulosYRetiroSinMonedaCuentanComoCero() {
+        com.franco.dev.domain.financiero.Gasto nulo = new com.franco.dev.domain.financiero.Gasto(); // llega asi por replica
+        com.franco.dev.domain.financiero.Gasto conMonto = new com.franco.dev.domain.financiero.Gasto();
+        conMonto.setRetiroGs(30_000.0);
+        when(gastoService.findByCajaId(CAJA_ID)).thenReturn(java.util.Arrays.asList(nulo, conMonto));
+        com.franco.dev.domain.financiero.RetiroDetalle sinMoneda = new com.franco.dev.domain.financiero.RetiroDetalle();
+        when(retiroDetalleService.findByCajId(CAJA_ID)).thenReturn(java.util.Collections.singletonList(sinMoneda));
+
+        PdvCajaBalanceDto b = service.generarBalance(caja());
+
+        igual(30_000.0, b.getTotalGastoGs());
+        igual(0.0, b.getTotalGastoRs());
+        igual(0.0, b.getTotalRetiroGs());
+    }
+
     private static void igual(double esperado, Double real) {
         igual(esperado, real, null);
     }

@@ -26,6 +26,9 @@ public interface PdvCajaRepository extends HelperRepository<PdvCaja, Long> {
 
     boolean existsByMaletinIdAndActivoTrueAndIdNot(Long maletinId, Long id);
 
+    /** Hay una caja abierta despues de esta con el mismo maletin (los ids de caja son MAX+1, crecen). */
+    boolean existsByMaletinIdAndIdGreaterThan(Long maletinId, Long id);
+
     Optional<PdvCaja> findById(Long id);
 
     Optional<PdvCaja> findFirstByConteoAperturaIdOrConteoCierreId(Long conteoAperturaId, Long conteoCierreId);

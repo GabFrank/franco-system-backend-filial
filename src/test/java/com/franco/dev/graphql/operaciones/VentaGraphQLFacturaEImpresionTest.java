@@ -175,6 +175,8 @@ class VentaGraphQLFacturaEImpresionTest {
                 eq(ticketCliente));
         orden.verify(facturaLegalGraphQL).printTicket58mmFactura(eq(venta), eq(factura), isNull(), eq("CAJA"),
                 eq(ticketCliente));
+        // Dentro de la venta no se espera el envio: alargaria la transaccion de saveVenta (#213).
+        verify(facturaLegalGraphQL, never()).printTicket58mmFactura(any(), any(), any(), any(), any(), eq(true));
         // El pagare va solo: no se repite el ticket de la venta.
         verify(ventaGraphQL, never()).printTicket58mm(any(), any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any());

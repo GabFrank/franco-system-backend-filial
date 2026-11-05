@@ -13,5 +13,7 @@ public enum TicketEscposTipo {
     /** Un retiro. Igual que reimprimirRetiro, con el flag de reimpresion que pida el cliente. */
     RETIRO,
     /** El ticket de la venta de un delivery (id = delivery). Igual que reimprimirDelivery. */
-    DELIVERY
+    DELIVERY,
+    /** Los tickets de sorteo de una venta (id = venta), marcados REIMPRESION. No crea participaciones. */
+    SORTEO
 }
