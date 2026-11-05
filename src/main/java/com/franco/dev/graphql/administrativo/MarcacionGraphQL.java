@@ -22,6 +22,9 @@ import java.util.Optional;
 @Component
 public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarcacionGraphQL.class);
+
+
     @Autowired
     private AuditorUsuarioId auditorUsuarioId;
 
@@ -86,8 +89,10 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
 
                         double similarity = cosineSimilarity(input.getEmbedding(), storedEmbedding);
                         if (similarity < 0.6) {
-                            throw new graphql.GraphQLException("Verificación facial fallida: El rostro no coincide ("
-                                    + String.format("%.2f", similarity * 100) + "% similitud)");
+                            // El porcentaje va solo al log.
+                            log.warn("Verificacion facial fallida: usuario {}, similitud {}", input.getUsuarioId(),
+                                    String.format("%.2f", similarity * 100));
+                            throw new graphql.GraphQLException("Verificación facial fallida: el rostro no coincide");
                         }
                     } catch (java.io.IOException e) {
                         e.printStackTrace();
