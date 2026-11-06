@@ -71,7 +71,6 @@ class ImpresionServiceEsperaTest {
         PrintService ps = mock(PrintService.class);
         when(ps.createPrintJob()).thenReturn(job);
         when(printingService.getPrintService(any())).thenReturn(ps);
-        when(printingService.getLasUsedPrinter()).thenReturn(ps);
     }
 
     private CapturaPrintService impresoraQueAcepta() {
@@ -183,6 +182,14 @@ class ImpresionServiceEsperaTest {
         when(printingService.getPrintService(any())).thenReturn(null);
         assertFalse(service.printRetiro(retiro(), "no-existe", "CAJA 1", true, null, true));
         assertFalse(service.printGasto(gasto(), "no-existe", "CAJA 1", null, true));
+    }
+
+    /** #226: sin impresora no se usa la ultima de otra caja; ni siquiera se le pregunta a PrintingService. */
+    @Test
+    void balanceSinImpresoraNoImprimeEnLaDeOtraCaja() {
+        assertFalse(service.printBalance(balance(), null, "CAJA 1"));
+        assertFalse(service.printBalance(balance(), null, "CAJA 1", null, true));
+        verifyNoInteractions(printingService);
     }
 
     @Test

@@ -86,8 +86,12 @@ public class ImpresionService {
         try {
             PrintService impresora = null;
             if (destino == null) {
-                impresora = printerName == null ? printingService.getLasUsedPrinter()
-                        : printingService.getPrintService(printerName);
+                // Sin impresora no se usa la de otra caja (#226): no se imprime y se avisa
+                if (printerName == null) {
+                    log.warn("Balance sin impresora de tickets, no se imprime. cajaId={}", balanceDto.getIdCaja());
+                    return false;
+                }
+                impresora = printingService.getPrintService(printerName);
             }
             if (destino != null || impresora != null) {
                 OutputStream salida = destino != null ? destino : salidaA(impresora, esperarEnvio);
