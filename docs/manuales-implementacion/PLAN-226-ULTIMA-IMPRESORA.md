@@ -1,0 +1,80 @@
+# Plan #226 — sacar la «última impresora usada» compartida
+
+## Problema
+
+`PrintingService` (singleton) guarda en `selectedPrintService` la última impresora usada por
+cualquier caja. `ImpresionService.printBalance` la usa cuando llega `printerName == null` y no hay
+`destino`, así que un balance puede salir por la impresora de otra caja.
+
+## Quién llega con `printerName` nulo (verificado en `develop`)
+
+| Llamador | Cuándo es nulo | Qué pasa después del fix |
+|---|---|---|
+| `PdvCajaGraphQL.imprimirBalance` (mobile vía central, sin impresora en el pedido) | el filial no encuentra `config-backup.json` con `printers.ticket` | `imprimirBalanceVerificando` da false → GraphQLException ya existente «revisar la impresora de tickets de la sucursal» |
+| `ConteoGraphQL` cierre con `imprimirBalance=true` | idem, pero hoy nadie lo llama así (el central reenvía `false`, el desktop no manda la variable) | no imprime; el cierre sigue OK (try/catch post-commit); queda un `log.warn` con la caja |
+| desktop sin `printers.ticket` configurada | manda `""`/`undefined` y el filial lo trata como el mobile | mismo error que el mobile |
+| `TicketEscposGraphQL` (impresión desde cliente) | siempre, pero con `destino` | sin cambio: no busca impresora |
+| desktop (`imprimirBalance` con impresora) | nunca | sin cambio |
+
+## Decisión
+
+Opción 1 de la issue: sin impresora resuelta, `printBalance` devuelve `false` y avisa en el log. No
+se elige impresora por caja/PDV (opción 2): no hay hoy un dato caja → impresora que lo permita, y
+sería una feature.
+
+## Fase 1 (única) — `fix(impresion)`
+
+- `PrintingService`: borrar el campo `selectedPrintService` y `getLasUsedPrinter()`;
+  `getPrintService`/`setPrintService` dejan de escribirlo (la caché `printServiceList` queda).
+- `ImpresionService.printBalance`: con `printerName == null` y sin destino, `log.warn` (con `idCaja`) y `false`.
+- `DesktopPrinterConfigService`: agregar **primero** las rutas donde escribe el desktop actual
+  (`app.getPath('userData')/config/config-backup.json`, `name: "FRC"`):
+  `~/.config/FRC/config/` (Linux) y `~/AppData/Roaming/FRC/config/` (Windows). Hoy busca solo
+  `~/.config/frc-sistemas/...` y otras que el desktop ya no escribe, así que en las filiales el balance
+  del mobile sale solo gracias a la «última impresora». Sin esto el fix lo dejaría sin balance.
+  Van antes de las viejas porque una copia vieja (en esta PC, `frc-sistemas` es de mayo) puede traer
+  otra impresora.
+- `PrintingService.searchPrinter`: con `printerName == null` devolver `null`. Hoy hace
+  `printerName.equals` y tira NPE en cuanto la caché tiene una impresora; `printRetiro`/`printGasto`
+  solo atajan `IOException`, así que un `saveRetiro` sin impresora se revertiría entero.
+- Tests:
+  - `ImpresionSinStreamCompartidoTest`: quitar la excepción de `selectedPrintService` (con el código
+    viejo falla: es el test de regresión).
+  - `ImpresionServiceEsperaTest`: nuevo caso, balance sin impresora ni destino → `false` y
+    `verifyNoInteractions(printingService)` (con un `never().getPrintService` pasaría con el código
+    viejo, porque el mock de `getLasUsedPrinter` da null). Con y sin `esperarEnvio`.
+  - `DesktopPrinterConfigServiceTest`: lee `~/.config/FRC/config/config-backup.json` (home temporal)
+    y lo prefiere a una copia en `~/.config/frc-sistemas/config/`.
+  - `PrintingServiceTest`: `searchPrinter(null)` con caché no vacía → `null`, sin NPE.
+  - Quitar los stubs de `getLasUsedPrinter()` en `ImpresionServiceDestinoTest` y
+    `ImpresionServiceEsperaTest`.
+
+Sin migraciones, sin cambios de esquema GraphQL, sin datos nuevos. Un solo repo (filial).
+
+## Riesgo aceptado
+
+Una filial sin `config-backup.json` en ninguna ruta deja de imprimir el balance del mobile y el
+teléfono ve «No se pudo imprimir el balance» (el central se come el texto del filial). Es lo pedido:
+mejor avisar que imprimir en otra caja. Con las rutas nuevas, eso queda para filiales sin desktop
+configurado en la misma PC/usuario del servicio.
+
+Sin verificar: qué ruta tiene cada filial real (no se entró por SSH). Se ve después del deploy con
+`[DesktopConfig] Config leida desde` / `No se encontro config` en el log.
+
+## Auditoría del plan (paso 5)
+
+- Eje A: MAJOR rutas del desktop → incorporado. MINOR cierre de `saveConteo` no tiene llamador vivo
+  → anotado en la tabla. MINOR el mobile ve un error genérico → anotado en el riesgo.
+- Eje B: MAJOR el test nuevo pasaba con el código viejo → `verifyNoInteractions`. MINOR caso
+  desktop sin ticketera → en la tabla. NPE de `searchPrinter` en retiro/gasto → incorporado.
+
+## Verificación
+
+- `./mvnw clean verify -B` del filial; revertir el fix y ver fallar los dos tests.
+- Runtime: filial local 8082 (sucursal 24, SIFEN apagado), mutation `imprimirBalance` sin
+  `printerName` con y sin `config-backup.json` (vía `FRC_DESKTOP_CONFIG_PATH`), antes y después de
+  imprimir otro ticket con impresora explícita; cola CUPS propia `zz_` para no tocar las reales.
+
+## Fuera de alcance
+
+El central tiene el mismo patrón en su `PrintingService`: issue aparte.
