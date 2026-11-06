@@ -76,6 +76,32 @@ executor + timeout + guard por tarea (~100 líneas cada una) para cubrir lo mism
    confirmar con `jstack` en loop que `limpiarCache` sigue corriendo en otro `scheduling-N`.
    Contraprueba: lo mismo con el JAR de `develop` muestra la limpieza parada detrás de la purga.
 
+### Resultados (2026-11-06)
+
+1. `./mvnw clean verify -B` en copia fuera del workspace (jdtls): **869 tests, 0 fallas, BUILD
+   SUCCESS**.
+2. Sin la property: `SchedulerPoolTest` **falla** con `spring.task.scheduling.pool.size=1 < 5
+   tareas @Scheduled`.
+3. Runtime, mismo JAR de la rama en 8082 (perfil `dev`, SIFEN apagado, purga en simulación a los
+   30 s), purga frenada con `stop thread in PurgaImagenesCuponService.purgar`, 4 `jstack` en 75 s:
+   - **con la rama**: hilos `scheduling-1..5`; solo `scheduling-4` queda en `purgar()`, los otros
+     siguen tomando tareas (cpu de `scheduling-2` 0.60 → 0.76 → 0.90 ms, al ritmo de
+     `limpiarCache` cada 60 s).
+   - **con `--spring.task.scheduling.pool.size=1`** (lo de hoy): un solo `scheduling-1`, parado en
+     `purgar()` con cpu fija en 11.81 ms durante los 75 s: la limpieza del cache no corre.
+
+## Auditoría del diff (paso 8)
+
+`git diff --name-only origin/develop`: `application.properties`, `SchedulerPoolTest.java` y este
+plan.
+
+- Fijo 1 (autorización y fuga por el resolver): N/A, el diff no toca resolvers, `.graphqls` ni
+  seguridad.
+- Fijo 2 (esquema, migración y espejo): N/A, sin migración ni entidad.
+- Fijo 3 (contrato con los clientes): N/A, sin cambios de GraphQL; los clientes no ven el
+  scheduler.
+- Condicionales A y B: N/A, no toca release ni lo que viaja entre nodos.
+
 ## Qué queda fuera
 
 - `UpdateService` muerto: el `@Scheduled` no-op y el código comentado se podrían borrar, pero es
