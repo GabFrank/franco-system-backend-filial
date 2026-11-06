@@ -121,8 +121,18 @@ plan.
 | Canal | Rama | Máquinas | Qué prueba |
 |---|---|---|---|
 | alpha | `develop` | 1 filial de laboratorio (mauro :8080), ≤15 min sin gate humano | que arranca y abre `scheduling-1..5` |
-| beta | `release/beta` | 6 filiales de farmacia, facturan | la concurrencia real (SIFEN con carga) |
-| stable | `master` | 18 filiales de bodega, la 4 en Windows (`check-update.ps1`) | — |
+| beta | `release/beta` | 6 filiales de farmacia, **sin SIFEN** | arranque y hilos en producción, sin SIFEN |
+| stable | `master` | 18 filiales de bodega, **con SIFEN**, la 4 en Windows (`check-update.ps1`) | el primer canal donde SIFEN corre al lado de otra tarea |
+
+**SIFEN en bodega (pregunta de Franco, 2026-11-06).** Farmacia no usa SIFEN, así que beta no
+lo ejercita. Lo que cambia para SIFEN en bodega es solo con qué otra tarea puede correr a la vez:
+backup y purga vienen apagados (`BACKUP_ENABLED=false` en los runbooks de migración,
+`frc.purga-imagenes.enabled` sin `matchIfMissing`), así que al lado de SIFEN quedan la limpieza
+del cache (un `ConcurrentHashMap` en memoria) y el no-op de `UpdateService`. Ninguna de las dos
+toca tablas, objetos ni la config de jsifenlib. SIFEN ya hoy corre en paralelo con los hilos HTTP
+que crean las ventas y los DE, y con `ejecutarManualmente`; el pool no le agrega concurrencia
+sobre sus datos, y SIFEN sigue sin solaparse consigo mismo (`fixedDelay`). No se probó con SIFEN
+encendido en local porque `application-dev` apunta a SIFEN PROD.
 
 Después de cada salto: `jstack <pid> | grep '"scheduling-'` tiene que mostrar más de un hilo
 (incluida la filial 4 al llegar a bodega); detecta además un host con config manual que pise la
