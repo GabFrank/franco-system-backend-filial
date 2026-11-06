@@ -227,4 +227,32 @@ class FacturaLegalTicketDestinoTest {
         assertTrue(totales.get(1).contains("1,29"), totales.get(1));
         assertFalse(totales.get(1).contains("-"), totales.get(1));
     }
+
+    // ── #224: timbrado con is_electronico en null ───────────────────────────────────────────────────
+
+    /** Antes tiraba NullPointerException al hacer unboxing: se trata como no electronico. */
+    @Test
+    void timbradoConElectronicoNullImprimeComoNoElectronico() throws Exception {
+        factura.getTimbradoDetalle().getTimbrado().setIsElectronico(null);
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        facturaLegalGraphQL.printTicket58mmFactura(null, factura, items, null, memoria);
+
+        String texto = new String(memoria.toByteArray(), StandardCharsets.ISO_8859_1);
+        assertTrue(texto.contains("De 01-01-2026 a 01-01-2027"), "vigencia del timbrado");
+        assertFalse(texto.contains("ekuatia.set.gov.py/consultas"), "sin el bloque del DE");
+        assertTrue(texto.contains("GRACIAS POR LA PREFERENCIA"), "pie");
+    }
+
+    @Test
+    void timbradoConElectronicoNullEnMonedaExtranjera() throws Exception {
+        factura.getTimbradoDetalle().getTimbrado().setIsElectronico(null);
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        facturaLegalGraphQL.printTicket58mmFacturaMonedaExtranjera(null, factura, items, null, "DOLAR", 7000.0,
+                memoria);
+
+        String texto = new String(memoria.toByteArray(), StandardCharsets.ISO_8859_1);
+        assertTrue(texto.contains("De 01-01-2026 a 01-01-2027"), "vigencia del timbrado");
+        assertFalse(texto.contains("ekuatia.set.gov.py/consultas"), "sin el bloque del DE");
+        assertTrue(texto.contains("GRACIAS POR LA PREFERENCIA"), "pie");
+    }
 }
