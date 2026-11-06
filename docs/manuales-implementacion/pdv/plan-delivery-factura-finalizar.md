@@ -113,6 +113,29 @@ Se restaura todo al final.
    reimprime B.
 6. **Desktop viejo (`develop`) + filial nuevo:** el caso 1 da lo mismo que hoy.
 
+### Resultado (06/11)
+
+Jars en el 8092 contra `general` local (sucursal 24, SIFEN apagado). Desktop `web-production` estático en
+`127.0.0.1:4201` contra ese filial (PDV 25, MR), el de `develop` y el del fix en el mismo origen. Temporal y
+restaurado: política de la 24 en TODAS (A_PEDIDO para los casos sin A), timbrado no electrónico 4 (detalle 114) en
+el PDV 25, impresoras inexistentes en la configuración. Cliente de prueba 670 (4043650). Las facturas creadas
+(33144-33152) se borraron al terminar; los deliveries 8050-8054 quedan en la base local.
+
+| Caso | Resultado |
+|---|---|
+| 1. `develop` + `develop` (8050) | **dos facturas activas** para la venta 79317: N° 9 SIN NOMBRE (8.000) y N° 10 a nombre del cliente (3.000) |
+| 6. desktop `develop` + filial fix (8051) | igual que hoy: N° 11 y N° 12 ligadas a la venta (el desktop viejo no manda `ventaId`); PARA ENTREGA con el lock del builder factura bien |
+| 2. fix + fix (8052) | F12 rechazado en pantalla: «La venta ya tiene la factura N° 13: no se emite otra. Si el cliente la necesita a su nombre, primero cancelá la N° 13 en Facturas legales.»; sin factura, persona ni cliente nuevos; la venta sigue sin cliente; corta el control temprano (`FacturaLegalGraphQL.java:222`) |
+| 4. cancelar A y volver a F12 (8052) | con la N° 13 en `activo=false`, F12 emite la N° 14 ligada a la venta, que recibe el cliente después de emitir |
+| 3. delivery sin A (8053, A_PEDIDO) | `saveFacturaLegal` sale con `ventaId: 79320`; emite la N° 15 y la liga en la misma emisión (log `Cliente asociado a la Venta ID: 79320`); después `saveVentaDelivery` y el vínculo de la misma factura; CONCLUIDO |
+| 5. F12 y cobro sin confirmar (8054) | `saveVentaDelivery` cortado en el navegador: el desktop avisa «no emitas otra», el delivery queda PARA ENTREGA con la N° 16 ya ligada; al reabrir, F12 rechazado con «…la factura N° 16…»; F10 lo cierra sin otra factura (cola del caso 2) |
+| Venta común con F12 | `saveFacturaLegal` sin `ventaId`, emite la N° 17 y el vínculo la liga a la venta nueva, como siempre |
+
+**Cancelación por pantalla, no probada:** «Cancelar» de la lista de facturas va al central (`servidor = true`), y el
+central de esta máquina es el alpha compartido. En el caso 4 la cancelación aprobada se simuló con `activo=false` por
+SQL. Lo nuevo (que F12 vuelva a emitir con A cancelada) sí se probó por pantalla. «Reimprimir» desde PARA ENTREGA
+tampoco se ejercitó: no cambia.
+
 ## Fuera de alcance
 
 - Las ventas que ya tienen dos facturas no se tocan.
