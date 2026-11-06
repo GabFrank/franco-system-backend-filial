@@ -86,11 +86,21 @@ public class AuditorUsuarioId {
      * @param cajaId la caja del alta, solo para el log; puede ser null
      */
     public Long firmante(String operacion, Long usuarioIdDelInput, Long cajaId) {
-        if (usuarioIdDelInput == null) {
-            return null;
-        }
-        if (!sesionManda()) {
+        if (usuarioIdDelInput != null && !sesionManda()) {
             verificar(operacion, usuarioIdDelInput);
+            return usuarioIdDelInput;
+        }
+        return firmanteSecundario(operacion, usuarioIdDelInput, cajaId);
+    }
+
+    /**
+     * Como {@link #firmante}, para los campos que viajan junto al principal (cobro, credito, items de
+     * factura, venta del delivery). Cada uno se resuelve por su cuenta: si solo se reemplazaran cuando
+     * el principal difiere, un cliente podria mandar el principal correcto y el cobro a nombre de otro.
+     * Con el interruptor apagado no registra nada, para no duplicar la linea del principal.
+     */
+    public Long firmanteSecundario(String operacion, Long usuarioIdDelInput, Long cajaId) {
+        if (usuarioIdDelInput == null || !sesionManda()) {
             return usuarioIdDelInput;
         }
         try {

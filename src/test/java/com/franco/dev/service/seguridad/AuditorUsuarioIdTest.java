@@ -195,6 +195,23 @@ class AuditorUsuarioIdTest {
     }
 
     @Test
+    @DisplayName("secundario apagado: firma el input y no duplica la linea del principal")
+    void secundarioApagadoNoRegistra() {
+        assertEquals(999L, firmanteCon(sesionActivaDe(410L, true), null)
+                .firmanteSecundario("VentaGraphQL.saveVenta", 999L, 77L));
+        assertTrue(hallazgos().isEmpty());
+    }
+
+    @Test
+    @DisplayName("secundario prendido: se firma por su cuenta aunque el principal ya coincida")
+    void secundarioPrendidoReemplaza() {
+        assertEquals(410L, firmanteCon(sesionActivaDe(410L, true), "true")
+                .firmanteSecundario("VentaGraphQL.saveVenta", 999L, 77L));
+        assertEquals(1, hallazgos().size());
+        assertTrue(hallazgos().get(0).contains("accion=reemplazado"));
+    }
+
+    @Test
     @DisplayName("si la sesion revienta, firma el input sin lanzar")
     void firmanteNuncaLanza() {
         UsuarioSesionService roto = mock(UsuarioSesionService.class);

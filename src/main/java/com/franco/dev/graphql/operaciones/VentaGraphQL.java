@@ -216,19 +216,25 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             SorteoClienteInput sorteoCliente)
             throws Exception, GraphQLException {
         if (ventaItemList == null && cobroDetalleList == null && cobroDetalleList == null) {
-            // Sin items es una edicion (delivery): conserva al cajero original.
-            auditorUsuarioId.verificar("VentaGraphQL.saveVenta", ventaInput.getUsuarioId());
+            // Sin items es una edicion (delivery): conserva al cajero original. Solo si la venta existe:
+            // un id inventado no puede esquivar la firma (issue #142).
+            if (ventaInput.getId() != null && service.findById(ventaInput.getId()).isPresent()) {
+                auditorUsuarioId.verificar("VentaGraphQL.saveVenta", ventaInput.getUsuarioId());
+            } else {
+                ventaInput.setUsuarioId(auditorUsuarioId.firmante("VentaGraphQL.saveVenta",
+                        ventaInput.getUsuarioId(), ventaInput.getCajaId()));
+            }
             return this.saveVenta2(ventaInput);
         }
         // Antes de la huella: la huella, la factura silenciosa y el sorteo leen ventaInput (issue #142).
-        Long firmante = auditorUsuarioId.firmante("VentaGraphQL.saveVenta", ventaInput.getUsuarioId(),
-                ventaInput.getCajaId());
-        if (firmante != null && !firmante.equals(ventaInput.getUsuarioId())) {
-            ventaInput.setUsuarioId(firmante);
-            if (cobroInput != null && cobroInput.getUsuarioId() != null) cobroInput.setUsuarioId(firmante);
-            if (ventaCreditoInput != null && ventaCreditoInput.getUsuarioId() != null)
-                ventaCreditoInput.setUsuarioId(firmante);
-        }
+        String op = "VentaGraphQL.saveVenta";
+        ventaInput.setUsuarioId(auditorUsuarioId.firmante(op, ventaInput.getUsuarioId(), ventaInput.getCajaId()));
+        if (cobroInput != null)
+            cobroInput.setUsuarioId(auditorUsuarioId.firmanteSecundario(op, cobroInput.getUsuarioId(),
+                    ventaInput.getCajaId()));
+        if (ventaCreditoInput != null)
+            ventaCreditoInput.setUsuarioId(auditorUsuarioId.firmanteSecundario(op,
+                    ventaCreditoInput.getUsuarioId(), ventaInput.getCajaId()));
 
         // Se reserva la huella de la venta ANTES del primer write. Consultar y recien poblar el
         // cache despues de persistir dejaba pasar a dos requests concurrentes (caja 662).

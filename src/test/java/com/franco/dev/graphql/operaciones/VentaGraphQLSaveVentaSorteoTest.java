@@ -69,8 +69,7 @@ class VentaGraphQLSaveVentaSorteoTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        // Como el auditor real con el interruptor apagado: firma el input (el mock daria 0L).
-        when(auditorUsuarioId.firmante(any(), any(), any())).thenAnswer(inv -> inv.getArgument(1));
+        com.franco.dev.service.seguridad.AuditorUsuarioIdMocks.firmarElInput(auditorUsuarioId);
         when(ventaDuplicadaCacheService.reservar(any(), any()))
                 .thenReturn(mock(VentaDuplicadaCacheService.Reserva.class));
         when(cobroGraphQL.saveCobro(any(), any(), any())).thenReturn(new Cobro());
