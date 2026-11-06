@@ -81,7 +81,13 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     public Gasto saveGasto(GastoInput input, String printerName, String local, Boolean imprimirEnCliente)
             throws GraphQLException {
-        auditorUsuarioId.verificar("GastoGraphQL.saveGasto", input.getUsuarioId());
+        if (input.getId() == null) {
+            input.setUsuarioId(auditorUsuarioId.firmante("GastoGraphQL.saveGasto", input.getUsuarioId(),
+                    input.getCajaId()));
+        } else {
+            // Editar y finalizar reenvian al autor original a proposito.
+            auditorUsuarioId.verificar("GastoGraphQL.saveGasto", input.getUsuarioId());
+        }
         if (input.getId() == null) {
             String observacion = input.getObservacion() != null ? input.getObservacion().trim() : "";
             if (observacion.isEmpty()) {

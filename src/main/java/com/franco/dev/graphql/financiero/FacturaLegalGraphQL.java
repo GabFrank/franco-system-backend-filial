@@ -204,7 +204,17 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     public TimbradoDetalle saveFacturaLegal(FacturaLegalInput entity, List<FacturaLegalItemInput> detalleList,
             String printerName, Integer pdvId, Boolean print) {
-        auditorUsuarioId.verificar("FacturaLegalGraphQL.saveFacturaLegal", entity.getUsuarioId());
+        // Siempre es alta: el id del input no se usa.
+        Long firmante = auditorUsuarioId.firmante("FacturaLegalGraphQL.saveFacturaLegal", entity.getUsuarioId(),
+                entity.getCajaId());
+        if (firmante != null && !firmante.equals(entity.getUsuarioId())) {
+            entity.setUsuarioId(firmante);
+            if (detalleList != null) {
+                for (FacturaLegalItemInput item : detalleList) {
+                    if (item != null && item.getUsuarioId() != null) item.setUsuarioId(firmante);
+                }
+            }
+        }
         try {
             if(print == null){
                 print = true;

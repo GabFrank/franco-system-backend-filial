@@ -85,7 +85,12 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     @Transactional
     public Retiro saveRetiro(RetiroInput input, List<RetiroDetalleInput> retiroDetalleInputList, String printerName, String local,
             Boolean imprimirEnCliente) throws GraphQLException {
-        auditorUsuarioId.verificar("RetiroGraphQL.saveRetiro", input.getUsuarioId());
+        if (input.getId() == null) {
+            input.setUsuarioId(auditorUsuarioId.firmante("RetiroGraphQL.saveRetiro", input.getUsuarioId(),
+                    input.getCajaSalidaId()));
+        } else {
+            auditorUsuarioId.verificar("RetiroGraphQL.saveRetiro", input.getUsuarioId());
+        }
         ModelMapper m = new ModelMapper();
         Retiro e = m.map(input, Retiro.class);
 

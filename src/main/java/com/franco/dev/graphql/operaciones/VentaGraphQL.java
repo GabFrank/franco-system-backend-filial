@@ -215,11 +215,21 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList, Boolean imprimirEnCliente,
             SorteoClienteInput sorteoCliente)
             throws Exception, GraphQLException {
-        auditorUsuarioId.verificar("VentaGraphQL.saveVenta", ventaInput.getUsuarioId());
         if (ventaItemList == null && cobroDetalleList == null && cobroDetalleList == null) {
+            // Sin items es una edicion (delivery): conserva al cajero original.
+            auditorUsuarioId.verificar("VentaGraphQL.saveVenta", ventaInput.getUsuarioId());
             return this.saveVenta2(ventaInput);
         }
-        
+        // Antes de la huella: la huella, la factura silenciosa y el sorteo leen ventaInput (issue #142).
+        Long firmante = auditorUsuarioId.firmante("VentaGraphQL.saveVenta", ventaInput.getUsuarioId(),
+                ventaInput.getCajaId());
+        if (firmante != null && !firmante.equals(ventaInput.getUsuarioId())) {
+            ventaInput.setUsuarioId(firmante);
+            if (cobroInput != null && cobroInput.getUsuarioId() != null) cobroInput.setUsuarioId(firmante);
+            if (ventaCreditoInput != null && ventaCreditoInput.getUsuarioId() != null)
+                ventaCreditoInput.setUsuarioId(firmante);
+        }
+
         // Se reserva la huella de la venta ANTES del primer write. Consultar y recien poblar el
         // cache despues de persistir dejaba pasar a dos requests concurrentes (caja 662).
         VentaDuplicadaCacheService.Reserva reservaVenta =

@@ -80,7 +80,8 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     @Unsecured()
     @Transactional
     public Conteo saveConteo(ConteoInput input, List<ConteoMonedaInput> conteoMonedaInputList, Long cajaId, Boolean apertura, Boolean imprimirBalance) {
-        auditorUsuarioId.verificar("ConteoGraphQL.saveConteo", input.getUsuarioId());
+        // Un conteo existente vuelve sin escribir mas abajo: reemplazar el input no lo toca.
+        input.setUsuarioId(auditorUsuarioId.firmante("ConteoGraphQL.saveConteo", input.getUsuarioId(), cajaId));
         log.info("[FILIAL saveConteo] INICIO -> cajaId={}, apertura={}, imprimirBalance={}, usuarioId={}, totalGs={}, totalRs={}, totalDs={}, cantConteoMoneda={}",
                 cajaId, apertura, imprimirBalance,
                 input != null ? input.getUsuarioId() : null,

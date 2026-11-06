@@ -44,6 +44,10 @@ class FacturaLegalGraphQLFacturaUnicaTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.initMocks(this);
+        // Como el auditor real con el interruptor apagado: firma el input (el mock daria 0L).
+        org.mockito.Mockito.when(auditorUsuarioId.firmante(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(inv -> inv.getArgument(1));
         venta = new Venta();
         venta.setId(20L);
         venta.setSucursalId(24L);
