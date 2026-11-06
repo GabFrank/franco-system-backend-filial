@@ -40,7 +40,7 @@ class SchedulerPoolTest {
         int pool = Integer.parseInt(props.getProperty("spring.task.scheduling.pool.size", "1").trim());
 
         // Piso del escaneo: si diera 0, el test pasaria con cualquier pool.
-        assertEquals(5, tareas, "cambio la cantidad de @Scheduled: revisar spring.task.scheduling.pool.size");
+        assertEquals(4, tareas, "cambio la cantidad de @Scheduled: revisar spring.task.scheduling.pool.size");
         assertTrue(pool >= tareas, "spring.task.scheduling.pool.size=" + pool + " < " + tareas + " tareas @Scheduled");
     }
 }

@@ -58,11 +58,38 @@ executor + timeout + guard por tarea (~100 líneas cada una) para cubrir lo mism
   subir el pool. La property vive solo en `application.properties`; `application.yml` no define
   nada de `spring.task.*`.
 
+### Fase 2 — borrar el código muerto que confundió el diagnóstico (`fix(scheduler): ...`)
+
+Pedido de Franco (2026-11-06) sobre los dos puntos de «Qué queda fuera». Verificado en
+`origin/develop` 7502560:
+
+- `UpdateService`: el `@Scheduled` tiene el cuerpo comentado desde `b0f957c`; sus helpers
+  estáticos (`downloadNewVersion`, `readFileAsString`, …) no tienen llamadores. Única referencia:
+  un `@Autowired` sin uso en `FrancoSystemsApplication:45`. `app.version` lo sigue leyendo
+  `VersionController` (el `/api/version` de `check-update`), no se toca.
+- Flag `procesandoLotes` de SIFEN: **la carrera no existe**. `git grep SifenSchedulerService`
+  fuera de su clase solo da el test `SifenSchedulerServiceGuardaTest`; `ejecutarManualmente()` no
+  tiene llamador (no hay GraphQL que lo dispare) y ninguna otra clase llama a `enviarLote`/
+  `consultarLote`. El único que entra a `procesarLotesAutomaticamente()` es el scheduler, que no se
+  solapa consigo mismo. Lo que dijo el auditor B de la fase 1 era incorrecto. En vez de volver
+  atómico un flag que no compite, se borra la puerta muerta: si mañana alguien expone una
+  ejecución manual, tendrá que pensar la concurrencia en ese momento.
+
+Cambios:
+- Borrar `service/configuracion/UpdateService.java` y el import + campo de
+  `FrancoSystemsApplication`.
+- Borrar `SifenSchedulerService.ejecutarManualmente()`.
+- `spring.task.scheduling.pool.size=4` y `SchedulerPoolTest` espera 4 tareas.
+
+Pruebas: `clean verify`; arranque en 8082 con `jstack` mostrando `scheduling-1..4` y la purga
+frenada sin parar a las demás (mismo procedimiento de la fase 1); log del arranque sin errores de
+inyección.
+
 ## Datos nuevos
 
 | Dato | Escribe | Lee |
 |---|---|---|
-| `spring.task.scheduling.pool.size` | `application.properties` | `TaskSchedulingAutoConfiguration` de Boot → hilos `scheduling-1..5`; `SchedulerPoolTest` |
+| `spring.task.scheduling.pool.size` | `application.properties` | `TaskSchedulingAutoConfiguration` de Boot → hilos `scheduling-1..4` (5 en la fase 1); `SchedulerPoolTest` |
 
 ## Pruebas
 
@@ -90,6 +117,15 @@ executor + timeout + guard por tarea (~100 líneas cada una) para cubrir lo mism
    - **con `--spring.task.scheduling.pool.size=1`** (lo de hoy): un solo `scheduling-1`, parado en
      `purgar()` con cpu fija en 11.81 ms durante los 75 s: la limpieza del cache no corre.
 
+### Resultados fase 2 (2026-11-06)
+
+1. `./mvnw clean verify -B` en copia aislada (sin `UpdateService.class` en el JAR): **869 tests,
+   0 fallas**; `SchedulerPoolTest` cuenta 4.
+2. Sin la property: falla con `pool.size=1 < 4 tareas @Scheduled`.
+3. Runtime 8082: arranque sin errores de inyección (`UnsatisfiedDependency`/`BeanCreation`: 0);
+   hilos `scheduling-1..4`; con la purga frenada en `scheduling-2`, `scheduling-3` y `-4` siguen
+   tomando tareas (cpu 0.25 → 0.42 ms y 0.21 → 0.25 ms).
+
 ## Auditoría del diff (paso 8)
 
 `git diff --name-only origin/develop`: `application.properties`, `SchedulerPoolTest.java` y este
@@ -104,23 +140,23 @@ plan.
 
 ## Qué queda fuera
 
-- `UpdateService` muerto: el `@Scheduled` no-op y el código comentado se podrían borrar, pero es
-  otra limpieza; queda anotado acá.
+- ~~`UpdateService` muerto~~ → borrado en la fase 2.
+- `SifenSchedulerService.reprocesarDocumentosConFechaAdelantada()` (~200 líneas) tampoco tiene
+  llamador (auditor A de la fase 2). No se borra sin decisión de Franco: es código de facturación.
 - Cota de tiempo a SIFEN (DNS sin timeout): con pool propio ya no frena a nadie más; el DNS
   colgado solo frena al propio SIFEN, que es lo mismo que pasa hoy.
 - El runbook `frc-cicd/runbook-stuck-filial-diagnosis.md` que cita la issue no existe en el clon
   de `frc-cicd`; `frc-cicd` es solo lectura en esta máquina.
 
-- `procesandoLotes` de SIFEN es check-then-set no atómico: una ejecución manual por GraphQL
-  (`ejecutarManualmente`) y la del scheduler pueden solaparse. Pasa igual con 1 hilo (la manual
-  corre en un hilo HTTP); se cierra con `AtomicBoolean.compareAndSet`, en otra issue.
+- ~~`procesandoLotes` de SIFEN no atómico~~ → la carrera no existía (`ejecutarManualmente` no
+  tenía llamador); se borró la puerta muerta en la fase 2.
 - `isFirstRun` del backup saltea el primer disparo de cron después de cada reinicio.
 
 ## Canal y despliegue
 
 | Canal | Rama | Máquinas | Qué prueba |
 |---|---|---|---|
-| alpha | `develop` | 1 filial de laboratorio (mauro :8080), ≤15 min sin gate humano | que arranca y abre `scheduling-1..5` |
+| alpha | `develop` | 1 filial de laboratorio (mauro :8080), ≤15 min sin gate humano | que arranca y abre `scheduling-1..4` |
 | beta | `release/beta` | 6 filiales de farmacia, **sin SIFEN** | arranque y hilos en producción, sin SIFEN |
 | stable | `master` | 18 filiales de bodega, **con SIFEN**, la 4 en Windows (`check-update.ps1`) | el primer canal donde SIFEN corre al lado de otra tarea |
 
@@ -128,9 +164,9 @@ plan.
 lo ejercita. Lo que cambia para SIFEN en bodega es solo con qué otra tarea puede correr a la vez:
 backup y purga vienen apagados (`BACKUP_ENABLED=false` en los runbooks de migración,
 `frc.purga-imagenes.enabled` sin `matchIfMissing`), así que al lado de SIFEN quedan la limpieza
-del cache (un `ConcurrentHashMap` en memoria) y el no-op de `UpdateService`. Ninguna de las dos
-toca tablas, objetos ni la config de jsifenlib. SIFEN ya hoy corre en paralelo con los hilos HTTP
-que crean las ventas y los DE, y con `ejecutarManualmente`; el pool no le agrega concurrencia
+del cache (un `ConcurrentHashMap` en memoria), que no toca tablas, objetos ni la config de
+jsifenlib. SIFEN ya hoy corre en paralelo con los hilos HTTP que crean las ventas y los DE
+(`saveDocumentoElectronico` incluido); el pool no le agrega concurrencia
 sobre sus datos, y SIFEN sigue sin solaparse consigo mismo (`fixedDelay`). No se probó con SIFEN
 encendido en local porque `application-dev` apunta a SIFEN PROD.
 
@@ -156,7 +192,21 @@ que deshacer.
 | B | | Baja: `procesandoLotes` no atómico, `isFirstRun` | fuera de alcance, anotado |
 
 Sin contradicciones entre ejes. Ninguno encontró estado compartido entre tareas ni dependencia
-del central/desktop en el orden del scheduler.
+del central/desktop en el orden del scheduler. (El «manual por GraphQL» de B era incorrecto:
+`ejecutarManualmente` no tenía llamador; se corrigió en la fase 2.)
+
+### Fase 2
+
+| Eje | Veredicto | Hallazgo | Qué se hizo |
+|---|---|---|---|
+| A | aceptar con reservas | Nadie fuera del filial usa `UpdateService` ni `ejecutarManualmente` (frc-cicd, desktop, central, `.graphqls`); carrera inexistente confirmada | — |
+| A | | Media: el plan seguía hablando de 5 hilos y de la carrera | texto pasado a 4; ítems tachados en «Qué queda fuera» |
+| A | | Baja: `reprocesarDocumentosConFechaAdelantada` también muerto | anotado, decide Franco |
+| A, B | | Baja: un `UpdateService.class` viejo en `target/` haría contar 5 | build siempre con `clean` en copia fuera del workspace; si cuenta 5, mirar `target/` |
+| B | aceptar con reservas | Arranque sin cambios (Boot 2.7 ya excluye los `@Scheduled` del lazy-init); rollback sin estado; 4 hilos alcanzan | — |
+| B | | Baja: `${app.version}` sin default deja de ser obligatorio al borrar `UpdateService` | más permisivo, `VersionController` usa `:unknown` |
+
+Los resultados de runtime de la fase 1 se tomaron con 5 hilos (antes de borrar `UpdateService`).
 
 ## Pasos del ciclo
 
