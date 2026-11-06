@@ -48,4 +48,27 @@ class FacturaLegalServiceVigenteDeVentaTest {
 
         assertNull(service.findVigenteDeVenta(7L, 24L));
     }
+
+    /** #221: FINALIZAR con factura no emite otra si la venta ya tiene una vigente; el motivo dice cómo seguir. */
+    @Test
+    void exigirConVigenteRechazaConElNumero() {
+        FacturaLegal vigente = factura(20, null);
+        vigente.setNumeroFactura(48);
+        when(repository.findByVentaIdAndSucursalIdOrderByIdDesc(7L, 24L)).thenReturn(Collections.singletonList(vigente));
+
+        graphql.GraphQLException e = assertThrows(graphql.GraphQLException.class,
+                () -> service.exigirSinFacturaVigente(7L, 24L));
+        assertEquals("La venta ya tiene la factura N° 48: no se emite otra. Si el cliente la necesita a su nombre,"
+                + " primero cancelá la N° 48 en Facturas legales.", e.getMessage());
+    }
+
+    @Test
+    void exigirSinFacturaOConLaAnuladaPasa() {
+        when(repository.findByVentaIdAndSucursalIdOrderByIdDesc(7L, 24L))
+                .thenReturn(Collections.singletonList(factura(30, false)));
+        assertDoesNotThrow(() -> service.exigirSinFacturaVigente(7L, 24L));
+
+        when(repository.findByVentaIdAndSucursalIdOrderByIdDesc(7L, 24L)).thenReturn(Collections.emptyList());
+        assertDoesNotThrow(() -> service.exigirSinFacturaVigente(7L, 24L));
+    }
 }
