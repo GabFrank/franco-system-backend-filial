@@ -112,9 +112,6 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     @Autowired
     private PlatformTransactionManager transactionManager;
 
-    /** Prefijo del lock que serializa la factura de una venta (#210). */
-    static final String CLAVE_FACTURA_VENTA = "factura-venta:";
-
     /** Por debajo de los 60 s con que el desktop corta la mutation. */
     private static final String ESPERA_FACTURA = "15s";
 
@@ -382,7 +379,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         try {
             // Envuelve tambien el commit: una falla del DE deja la transaccion rollback-only y sale recien ahi.
             return new TransactionTemplate(transactionManager).execute(status -> {
-                bloqueo.tomar(CLAVE_FACTURA_VENTA + sucursalId + ":" + venta.getId(), ESPERA_FACTURA);
+                bloqueo.tomar(FacturaLegalService.claveFacturaVenta(sucursalId, venta.getId()), ESPERA_FACTURA);
                 FacturaLegal existente = facturaLegalService.findVigenteDeVenta(venta.getId(), sucursalId);
                 if (existente != null) {
                     return existente;

@@ -10,6 +10,7 @@ import com.franco.dev.service.financiero.FacturaLegalItemService;
 import com.franco.dev.service.sifen.service.SifenService;
 import com.roshka.sifen.Sifen;
 import com.roshka.sifen.core.beans.DocumentoElectronico;
+import graphql.GraphQLException;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +58,25 @@ public class FacturaLegalService extends CrudService<FacturaLegal, FacturaLegalR
         return repository.findByVentaIdAndSucursalIdOrderByIdDesc(ventaId, sucursalId).stream()
                 .filter(f -> !Boolean.FALSE.equals(f.getActivo()))
                 .findFirst().orElse(null);
+    }
+
+    /** Clave del lock que serializa la factura de una venta (#210, #221). */
+    public static String claveFacturaVenta(Long sucursalId, Long ventaId) {
+        return "factura-venta:" + sucursalId + ":" + ventaId;
+    }
+
+    /**
+     * Una venta tiene una sola factura vigente: FINALIZAR con factura emitia otra si PARA ENTREGA ya habia facturado
+     * (#221). Sin @Transactional a proposito: una excepcion de un metodo transaccional dejaria rollback-only la
+     * transaccion del builder, que cuenta con que una GraphQLException no revierte nada.
+     */
+    public void exigirSinFacturaVigente(Long ventaId, Long sucursalId) {
+        FacturaLegal vigente = findVigenteDeVenta(ventaId, sucursalId);
+        if (vigente != null) {
+            throw new GraphQLException("La venta ya tiene la factura N° " + vigente.getNumeroFactura()
+                    + ": no se emite otra. Si el cliente la necesita a su nombre, primero cancelá la N° "
+                    + vigente.getNumeroFactura() + " en Facturas legales.");
+        }
     }
 
     // /**

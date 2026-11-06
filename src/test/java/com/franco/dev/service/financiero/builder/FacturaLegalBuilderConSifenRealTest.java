@@ -70,7 +70,8 @@ class FacturaLegalBuilderConSifenRealTest {
         doReturn(de).when(sifenService).crearDocumentoElectronico(any(FacturaLegal.class));
 
         builder = new FacturaLegalBuilder(facturaLegalService, facturaLegalItemService, timbradoDetalleService,
-                productoService, ventaItemService, presentacionService, usuarioService, sifenService);
+                productoService, ventaItemService, presentacionService, usuarioService, sifenService,
+                org.mockito.Mockito.mock(com.franco.dev.service.financiero.BloqueoTransaccionalService.class));
 
         timbradoDetalle = FacturaElectronicaDePrueba.timbradoDetalle();
         when(timbradoDetalleService.getTimbradoDetalleActual(eq(PDV), eq(true))).thenReturn(timbradoDetalle);

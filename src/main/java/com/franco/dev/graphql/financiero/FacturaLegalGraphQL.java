@@ -214,6 +214,14 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 throw new GraphQLException("pdvId es requerido");
             }
 
+            // Una sola factura vigente por venta (#221): se corta antes de crear persona o cliente. Sin lock (este
+            // metodo no es transaccional); ante una carrera vale el control del builder.
+            Venta ventaDeLaFactura = entity.getVentaId() != null
+                    ? ventaService.findById(entity.getVentaId()).orElse(null) : null;
+            if (ventaDeLaFactura != null) {
+                service.exigirSinFacturaVigente(ventaDeLaFactura.getId(), ventaDeLaFactura.getSucursalId());
+            }
+
             // Crear la factura legal
             FacturaLegal facturaLegal = new FacturaLegal();
 
@@ -301,19 +309,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 }
             }
 
-            if (entity.getVentaId() != null) {
-                Optional<Venta> venta = ventaService.findById(entity.getVentaId());
-                if (venta.isPresent()) {
-                    Venta v = venta.get();
-                    facturaLegal.setVenta(v);
-                    
-                    // Si se creó o asoció un cliente a la factura y la venta no lo tiene, asociarlo a la venta también
-                    if (facturaLegal.getCliente() != null && (v.getCliente() == null || v.getCliente().getId().equals(0L))) {
-                        v.setCliente(facturaLegal.getCliente());
-                        ventaService.save(v);
-                        log.info("Cliente asociado a la Venta ID: {}", v.getId());
-                    }
-                }
+            if (ventaDeLaFactura != null) {
+                facturaLegal.setVenta(ventaDeLaFactura);
             }
 
             if (entity.getUsuarioId() != null) {
@@ -353,6 +350,16 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
             FacturaLegal facturaLegalGuardada = facturaLegalBuilder.build(buildReq);
             TimbradoDetalle timbradoDetalle = facturaLegalGuardada.getTimbradoDetalle();
+
+            // Si se creó o asoció un cliente a la factura y la venta no lo tiene, asociarlo a la venta también. Va
+            // después de build (#221): antes, una factura que no se emitía dejaba la venta con su cliente.
+            Venta v = facturaLegalGuardada.getVenta();
+            if (v != null && facturaLegalGuardada.getCliente() != null
+                    && (v.getCliente() == null || v.getCliente().getId().equals(0L))) {
+                v.setCliente(facturaLegalGuardada.getCliente());
+                ventaService.save(v);
+                log.info("Cliente asociado a la Venta ID: {}", v.getId());
+            }
 
             // Actualizar dirección y email de la persona del cliente si existe cliente y persona.
             //
