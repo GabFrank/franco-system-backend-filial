@@ -107,6 +107,17 @@ código de develop fallan los 6 tests nuevos o cambiados.
 No probado por pantalla: el botón del mobile/PWA → central → filial. El central y los clientes no
 cambian; se probó la misma consulta que el central reenvía (`printerName` y `local` nulos).
 
+## Filiales Windows (06/11)
+
+La única Windows en producción es la 4 de bodega (SUC-INDUSTRIAL). El filial corre como `franco`
+(Scheduled Task `FRC-Filial-Server`), pero con `-Duser.home=C:/frc-filial` (sale del `.env` vía
+`start-filial.ps1`): nunca ve la config del desktop en `C:\Users\...`, ni con las rutas viejas ni
+con las nuevas. Hoy su balance del mobile salía por la «última impresora», que es la única térmica
+(`ticket`, USB). Se creó `C:\frc-filial\config-backup.json` con `{"printers":{"ticket":"ticket"}}`
+(se lee como `user.home/config-backup.json`, ruta que ya existía): no cambia nada hoy y evita el
+error después del merge. En Linux el `user.home` real es `/home/franco` (gotchas.md), así que ahí
+alcanzan las rutas nuevas. Una filial Windows nueva necesita el mismo archivo.
+
 ## Fuera de alcance
 
 El central tiene el mismo patrón en su `PrintingService`: issue aparte.
