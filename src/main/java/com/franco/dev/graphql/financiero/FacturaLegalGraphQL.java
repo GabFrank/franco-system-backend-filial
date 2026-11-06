@@ -1021,7 +1021,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF(factura, "Timbrado: " + facturaLegal.getTimbradoDetalle().getTimbrado().getNumero());
 
             // Si el timbrado es electronico, no se imprime la fecha de inicio y fin
-            if (facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico() != true) {
+            if (!Boolean.TRUE.equals(facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico())) {
                 escpos.writeLF(factura, "De "
                         + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaInicio()
                                 .format(impresionService.shortDate)
@@ -1652,7 +1652,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF(factura, "Timbrado: " + facturaLegal.getTimbradoDetalle().getTimbrado().getNumero());
 
             // Si el timbrado es electronico, no se imprime la fecha de inicio y fin
-            if (facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico() != true) {
+            if (!Boolean.TRUE.equals(facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico())) {
                 escpos.writeLF(factura, "De "
                         + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaInicio()
                                 .format(impresionService.shortDate)
