@@ -81,7 +81,14 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     public Gasto saveGasto(GastoInput input, String printerName, String local, Boolean imprimirEnCliente)
             throws GraphQLException {
-        auditorUsuarioId.verificar("GastoGraphQL.saveGasto", input.getUsuarioId());
+        // Editar y finalizar reenvian al autor original a proposito. Edicion solo si el gasto existe: un
+        // id inventado no puede esquivar la firma (issue #142).
+        if (input.getId() != null && service.findById(input.getId()).isPresent()) {
+            auditorUsuarioId.verificar("GastoGraphQL.saveGasto", input.getUsuarioId());
+        } else {
+            input.setUsuarioId(auditorUsuarioId.firmante("GastoGraphQL.saveGasto", input.getUsuarioId(),
+                    input.getCajaId()));
+        }
         if (input.getId() == null) {
             String observacion = input.getObservacion() != null ? input.getObservacion().trim() : "";
             if (observacion.isEmpty()) {

@@ -191,7 +191,18 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     public Delivery saveDeliveryAndVenta(DeliveryInput deliveryInput, VentaInput ventaInput,
             List<VentaItemInput> ventaItemInputList, VueltoInput vueltoInput, List<VueltoItemInput> vueltoItemInputList,
             CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleInputList) throws GraphqlErrorException {
-        auditorUsuarioId.verificar("DeliveryGraphQL.saveDeliveryAndVenta", deliveryInput.getUsuarioId());
+        if (deliveryInput.getId() == null) {
+            String op = "DeliveryGraphQL.saveDeliveryAndVenta";
+            Long cajaId = ventaInput != null ? ventaInput.getCajaId() : null;
+            deliveryInput.setUsuarioId(auditorUsuarioId.firmante(op, deliveryInput.getUsuarioId(), cajaId));
+            if (ventaInput != null && ventaInput.getId() == null)
+                ventaInput.setUsuarioId(auditorUsuarioId.firmanteSecundario(op, ventaInput.getUsuarioId(), cajaId));
+            if (cobroInput != null && cobroInput.getId() == null)
+                cobroInput.setUsuarioId(auditorUsuarioId.firmanteSecundario(op, cobroInput.getUsuarioId(), cajaId));
+        } else {
+            // Editar un delivery reenvia a proposito los usuarios originales de delivery, venta y cobro.
+            auditorUsuarioId.verificar("DeliveryGraphQL.saveDeliveryAndVenta", deliveryInput.getUsuarioId());
+        }
         exigirAccesoAlGuardar(deliveryInput, ventaInput, cobroInput);
         Delivery delivery = null;
         try {

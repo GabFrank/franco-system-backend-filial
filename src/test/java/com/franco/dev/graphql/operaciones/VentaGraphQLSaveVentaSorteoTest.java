@@ -69,6 +69,7 @@ class VentaGraphQLSaveVentaSorteoTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        com.franco.dev.service.seguridad.AuditorUsuarioIdMocks.firmarElInput(auditorUsuarioId);
         when(ventaDuplicadaCacheService.reservar(any(), any()))
                 .thenReturn(mock(VentaDuplicadaCacheService.Reserva.class));
         when(cobroGraphQL.saveCobro(any(), any(), any())).thenReturn(new Cobro());

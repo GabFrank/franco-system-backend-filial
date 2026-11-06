@@ -44,6 +44,7 @@ class FacturaLegalGraphQLFacturaUnicaTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.initMocks(this);
+        com.franco.dev.service.seguridad.AuditorUsuarioIdMocks.firmarElInput(auditorUsuarioId);
         venta = new Venta();
         venta.setId(20L);
         venta.setSucursalId(24L);
