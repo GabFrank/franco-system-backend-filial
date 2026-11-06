@@ -68,12 +68,44 @@ Sin verificar: qué ruta tiene cada filial real (no se entró por SSH). Se ve de
 - Eje B: MAJOR el test nuevo pasaba con el código viejo → `verifyNoInteractions`. MINOR caso
   desktop sin ticketera → en la tabla. NPE de `searchPrinter` en retiro/gasto → incorporado.
 
+## Auditoría del diff (paso 8)
+
+- Fijo 1 (seguridad): sin resolvers nuevos; rutas de archivo sin entrada del cliente. MEDIO previo:
+  `printerName = ""` caía en la «tercera búsqueda» por `contains("")` de `PrinterOutputStream` y
+  devolvía la primera impresora del sistema → **incorporado**: `getPrintService` corta nulo y blanco
+  (también evita el stacktrace de `setPrintService(null)` en cada impresión sin nombre). El match
+  por `contains` (`ticket` coincide con `ticket2`) queda fuera: cambia comportamiento.
+- Fijo 2 (esquema): sin migraciones ni esquema. El desktop escribe en las rutas nuevas (verificado
+  en `app/main.ts` y `app/package.json`). **Sin verificar**: con qué usuario corre la Scheduled
+  Task del filial en Windows; si es SYSTEM, `user.home` no es el del cajero y ahí el balance del
+  mobile pasa a dar error. `FRC_DESKTOP_CONFIG_PATH` se lee con `getenv` y `start-filial.ps1` pasa el
+  `.env` como `-D`: en Windows ese override no llega (hoy ninguna filial lo usa).
+- Fijo 3 (clientes): sin cambio de contrato. `saveRetiro` sin impresora pasa de revertirse por NPE
+  (con la caché llena) a guardarse sin ticket, con solo un `log.warn`; se reimprime con
+  `reimprimirRetiro`. Aceptado: perder el retiro era peor.
+
 ## Verificación
 
 - `./mvnw clean verify -B` del filial; revertir el fix y ver fallar los dos tests.
 - Runtime: filial local 8082 (sucursal 24, SIFEN apagado), mutation `imprimirBalance` sin
   `printerName` con y sin `config-backup.json` (vía `FRC_DESKTOP_CONFIG_PATH`), antes y después de
   imprimir otro ticket con impresora explícita; cola CUPS propia `zz_` para no tocar las reales.
+
+Resultado (06/11, filial local 8082 con `user.home` temporal, colas CUPS `zz_t226_a/b`
+deshabilitadas para que no salga papel):
+
+| Caso | develop | con el fix |
+|---|---|---|
+| balance del desktop con `zz_t226_b`, luego del mobile sin impresora y config en `~/.config/FRC` → `a` | sale por `b` (otra caja); «No se encontro config» | sale por `a` |
+| + copia vieja en `~/.config/frc-sistemas` → `b` | — | gana la actual (`a`) |
+| sin ninguna config / desktop con `""` | — | error «revisar la impresora de tickets», sin ticket |
+| `saveRetiro` sin impresora, caché llena | NPE, retiro revertido | retiro guardado (1009, borrado después), sin ticket |
+
+`./mvnw clean verify -B`: 857 tests, 0 fallas (en una copia fuera de `dev-frc` por jdtls). Con el
+código de develop fallan los 6 tests nuevos o cambiados.
+
+No probado por pantalla: el botón del mobile/PWA → central → filial. El central y los clientes no
+cambian; se probó la misma consulta que el central reenvía (`printerName` y `local` nulos).
 
 ## Fuera de alcance
 
