@@ -64,6 +64,9 @@ public class DesktopPrinterConfigService {
             paths.add(Paths.get(explicitPath.trim()));
         }
         if (home != null && !home.isEmpty()) {
+            // Donde escribe el desktop actual (userData = appData/FRC); primero, porque las de abajo pueden ser copias viejas
+            paths.add(Paths.get(home, ".config", "FRC", "config", CONFIG_FILE_NAME));
+            paths.add(Paths.get(home, "AppData", "Roaming", "FRC", "config", CONFIG_FILE_NAME));
             paths.add(Paths.get(home, ".config", "frc-sistemas", "config", CONFIG_FILE_NAME));
             paths.add(Paths.get(home, ".frc-sistemas", CONFIG_FILE_NAME));
             paths.add(Paths.get(home, CONFIG_FILE_NAME));
