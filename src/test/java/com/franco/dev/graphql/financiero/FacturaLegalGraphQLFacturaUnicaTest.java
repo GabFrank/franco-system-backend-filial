@@ -89,6 +89,21 @@ class FacturaLegalGraphQLFacturaUnicaTest {
         assertSame(cliente, venta.getCliente());
     }
 
+    /** La factura ya se emitió: un error al guardar la venta no puede salir como rechazo (el desktop no avisaría). */
+    @Test
+    void siFallaGuardarLaVentaDespuesDeEmitirSeDevuelveIgual() {
+        com.franco.dev.domain.financiero.TimbradoDetalle timbrado = new com.franco.dev.domain.financiero.TimbradoDetalle();
+        when(facturaLegalBuilder.build(any(BuildRequest.class))).thenAnswer(inv -> {
+            FacturaLegal f = ((BuildRequest) inv.getArgument(0)).getFacturaLegal();
+            f.setId(100L);
+            f.setTimbradoDetalle(timbrado);
+            return f;
+        });
+        when(ventaService.save(any())).thenThrow(new RuntimeException("serializacion"));
+
+        assertSame(timbrado, facturaLegalGraphQL.saveFacturaLegal(inputConVenta(), Collections.emptyList(), null, 25, false));
+    }
+
     @Test
     void siLaEmisionFallaLaVentaNoQuedaConElCliente() {
         when(facturaLegalBuilder.build(any(BuildRequest.class))).thenThrow(new GraphQLException("sin timbrado"));

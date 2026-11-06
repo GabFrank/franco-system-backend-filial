@@ -146,3 +146,18 @@ Sin hallazgos en: GraphQL, enum, migración, variables (no cambian); central, mo
 mutations; el central va por la API REST, que no pone venta); deadlock con `lote-saldo` o `timbrado_detalle` (orden
 consistente, venta nueva en `saveVenta`); contrato «GraphQLException = nada escrito» y turno del contador (se
 respeta); vuelta atrás (sin datos ni esquema).
+
+## Auditoría del diff (paso 8)
+
+- Fijo 2 (esquema y migración): N/A, el diff no trae migración, `.graphqls`, entidad ni enum.
+- Condicionales A y B: N/A, el diff no toca release ni replicación.
+- Fijo 1 (autorización), Fijo 3 (contrato) y corrección, con un revisor: sin bloqueantes. Sin resolvers ni firmas
+  nuevas; `Venta` tiene `@Id` simple en el filial, así que `findById` no trae la de otra sucursal; el desktop no
+  interpreta el texto del error; la factura silenciosa no puede quedar rollback-only.
+  - **Mayor:** `ventaService.save` del cliente, ahora después de `build`, no tenía try/catch. Un error ahí salía
+    como rechazo con la factura ya emitida: el desktop libera el botón sin avisar y no se imprime. → try/catch con
+    log, como la persona, y test que devuelve el timbrado.
+  - **Menor:** la venta se guardaba con la foto leída al principio (persona, lock y DE en el medio). → se relee antes.
+  - **Declarado:** la sucursal del builder es `venta.sucursal_id` y la de PARA ENTREGA, `delivery.sucursal_id`.
+    Coinciden en la práctica (las dos salen de `sucursalId` del filial). Una venta con `sucursal_id` NULL no
+    encuentra su factura, igual que en `facturaDeEntrega`; `VentaService.save` siempre la completa.

@@ -352,13 +352,21 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             TimbradoDetalle timbradoDetalle = facturaLegalGuardada.getTimbradoDetalle();
 
             // Si se creó o asoció un cliente a la factura y la venta no lo tiene, asociarlo a la venta también. Va
-            // después de build (#221): antes, una factura que no se emitía dejaba la venta con su cliente.
-            Venta v = facturaLegalGuardada.getVenta();
-            if (v != null && facturaLegalGuardada.getCliente() != null
-                    && (v.getCliente() == null || v.getCliente().getId().equals(0L))) {
-                v.setCliente(facturaLegalGuardada.getCliente());
-                ventaService.save(v);
-                log.info("Cliente asociado a la Venta ID: {}", v.getId());
+            // después de build (#221): antes, una factura que no se emitía dejaba la venta con su cliente. Con su
+            // propio try/catch, como la persona: la factura ya está emitida y un error acá no puede salir como rechazo.
+            try {
+                // Se relee: entre el principio y acá pasan la persona, el lock y el DE.
+                Venta v = facturaLegalGuardada.getVenta() != null
+                        ? ventaService.findById(facturaLegalGuardada.getVenta().getId()).orElse(null) : null;
+                if (v != null && facturaLegalGuardada.getCliente() != null
+                        && (v.getCliente() == null || v.getCliente().getId().equals(0L))) {
+                    v.setCliente(facturaLegalGuardada.getCliente());
+                    ventaService.save(v);
+                    log.info("Cliente asociado a la Venta ID: {}", v.getId());
+                }
+            } catch (Exception e) {
+                log.error("No se pudo asociar el cliente a la venta de la factura legal ID: {}. "
+                        + "La factura ya fue guardada y se devuelve igual.", facturaLegalGuardada.getId(), e);
             }
 
             // Actualizar dirección y email de la persona del cliente si existe cliente y persona.
