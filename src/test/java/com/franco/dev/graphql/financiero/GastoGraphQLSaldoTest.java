@@ -68,7 +68,7 @@ class GastoGraphQLSaldoTest {
         GraphQLException e = assertThrows(GraphQLException.class,
                 () -> graphQL.saveGasto(nuevo(50_000.0), null, null, true));
 
-        assertEquals("El valor de gasto es mayor al total en caja: Guaraiens", e.getMessage());
+        assertEquals("El valor de gasto es mayor al total en caja: Guaraníes", e.getMessage());
         verify(service, never()).saveAndSend(any(Gasto.class), anyBoolean());
         verify(transactionManager).rollback(any());
     }

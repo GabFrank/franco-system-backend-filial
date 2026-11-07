@@ -182,7 +182,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             pdvCajaService.bloquearSaldoCaja(e.getCaja().getId());
             PdvCajaBalanceDto balance = pdvCajaService.generarBalance(e.getCaja());
             if (PdvCajaService.superaSaldo(balance, "GUARANI", e.getRetiroGs())) {
-                throw new GraphQLException("El valor de gasto es mayor al total en caja: Guaraiens");
+                throw new GraphQLException("El valor de gasto es mayor al total en caja: Guaraníes");
             }
             if (PdvCajaService.superaSaldo(balance, "REAL", e.getRetiroRs())) {
                 throw new GraphQLException("El valor de gasto es mayor al total en caja: Reales");

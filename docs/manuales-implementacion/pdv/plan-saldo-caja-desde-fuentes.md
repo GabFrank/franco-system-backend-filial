@@ -240,7 +240,7 @@ solo para el pre-gasto. Usuario MR, caja 1185.
 | Gasto 10.000 Gs dentro del saldo | guardado (712) |
 | Fila de `movimiento_caja` del gasto | **quedaba en 0** con el primer arreglo: el alta corre ahora en una transacción y el `MovimientoCaja` reutilizado se escribía con el último `setCantidad(0)`. Arreglado (`8019025`) con test que falla con el código anterior. Gasto 714 → fila −5.000 |
 | Retiro 64.970.000 Gs | guardado (1013); el ticket del servidor se intentó **después** del commit |
-| Gasto 10.000 Gs con el diálogo abierto antes del retiro (disponible viejo) | **rechazado por el filial**: «El valor de gasto es mayor al total en caja: Guaraiens»; nada guardado |
+| Gasto 10.000 Gs con el diálogo abierto antes del retiro (disponible viejo) | **rechazado por el filial**: «El valor de gasto es mayor al total en caja: Guaraníes»; nada guardado |
 | Gasto igual al saldo (6.000 Gs) | guardado (716) |
 | Retiro R$ 10,10 | guardado (1014) |
 | Doble envío: dos `saveRetiro` iguales de R$ 6 a la vez (saldo R$ 10,20) | uno guardado (1016), el otro espera el bloqueo y queda **rechazado** |
