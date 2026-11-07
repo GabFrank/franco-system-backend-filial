@@ -164,7 +164,15 @@ class UsuarioFirmanteEnganchesTest {
         if (idExistente != null) when(gastos.findById(idExistente)).thenReturn(Optional.of(new Gasto()));
         ReflectionTestUtils.setField(gasto, "auditorUsuarioId", auditor);
         ReflectionTestUtils.setField(gasto, "service", gastos);
+        ReflectionTestUtils.setField(gasto, "pdvCajaService", cajaQueExiste());
         return gasto;
+    }
+
+    /** El alta controla el acceso a la caja antes de firmar: la caja tiene que existir. */
+    private static PdvCajaService cajaQueExiste() {
+        PdvCajaService cajas = mock(PdvCajaService.class);
+        when(cajas.findById(any())).thenReturn(Optional.of(new PdvCaja()));
+        return cajas;
     }
 
     @Test
@@ -208,6 +216,7 @@ class UsuarioFirmanteEnganchesTest {
         when(retiros.findById(any())).thenReturn(Optional.empty());
         ReflectionTestUtils.setField(retiro, "auditorUsuarioId", auditor);
         ReflectionTestUtils.setField(retiro, "service", retiros);
+        ReflectionTestUtils.setField(retiro, "pdvCajaService", cajaQueExiste());
         RetiroInput input = new RetiroInput();
         input.setId(999999L); // inventado: no es una edicion
         input.setUsuarioId(3L);

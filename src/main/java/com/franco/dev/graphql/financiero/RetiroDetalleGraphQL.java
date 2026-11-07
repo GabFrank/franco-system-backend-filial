@@ -4,6 +4,7 @@ import com.franco.dev.domain.financiero.Banco;
 import com.franco.dev.domain.financiero.RetiroDetalle;
 import com.franco.dev.graphql.financiero.input.BancoInput;
 import com.franco.dev.graphql.financiero.input.RetiroDetalleInput;
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -39,6 +40,9 @@ public class RetiroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutati
     @Autowired
     private MonedaService monedaService;
 
+    @Autowired
+    private RolSesionService rolSesionService;
+
     public Optional<RetiroDetalle> retiroDetalle(Long id, Long sucId) {return service.findById(id);}
 
     public List<RetiroDetalle> retiroDetalles(int page, int size, Long sucId){
@@ -47,7 +51,14 @@ public class RetiroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutati
     }
 
 
+    /** Mutation suelta: sin clientes, y esquivaba el control de efectivo de saveRetiro. */
     public RetiroDetalle saveRetiroDetalle(RetiroDetalleInput input){
+        rolSesionService.exigirAdmin();
+        return guardarDetalle(input);
+    }
+
+    /** Lo usa saveRetiro para cada detalle; sin control propio (lo hace saveRetiro). */
+    public RetiroDetalle guardarDetalle(RetiroDetalleInput input){
         ModelMapper m = new ModelMapper();
         RetiroDetalle e = m.map(input, RetiroDetalle.class);
         if(input.getUsuarioId()!=null){
