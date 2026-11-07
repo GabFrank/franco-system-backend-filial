@@ -40,23 +40,8 @@ public class MovimientoCajaService extends CrudService<MovimientoCaja, Movimient
         return repository.findByPdvCajaIdAndActivo(id, true);
     }
 
-    public Double findTotalVentaByCajaIdAndMonedaId(Long id, Long monedaId) {
-        Double total = 0.0;
-        total = repository.findTotalVentaByCajaIdAndMonedaId(id, monedaId);
-        if (total == null) {
-            return 0.0;
-        } else {
-            return total;
-        }
-    }
-
     public List<MovimientoCaja> findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento tipoMovimiento, Long referencia) {
         return repository.findByTipoMovimientoAndReferencia(tipoMovimiento, referencia);
-    }
-
-    public Double totalEnCajaPorCajaIdAndMonedaId(Long cajaId, Long monedaId) {
-        Double total = repository.totalEnCajaByCajaIdandMonedaId(cajaId, monedaId);
-        return total != null ? total : 0.0;
     }
 
     @Override

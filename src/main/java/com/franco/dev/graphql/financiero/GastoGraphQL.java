@@ -2,6 +2,7 @@ package com.franco.dev.graphql.financiero;
 
 import com.franco.dev.domain.financiero.Gasto;
 import com.franco.dev.graphql.financiero.input.GastoInput;
+import com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.GastoService;
 import com.franco.dev.service.financiero.PdvCajaService;
@@ -20,6 +21,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -56,6 +59,9 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     @Autowired
     private SucursalService sucursalService;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     public Optional<Gasto> gasto(Long id, Long sucId) {
         Optional<Gasto> gasto = service.findById(id);
@@ -99,7 +105,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         ModelMapper m = new ModelMapper();
         Gasto e = m.map(input, Gasto.class);
 
-        // Sin moneda, el retiro va en 0: saveAndSend compara los montos antes de guardar.
+        // Sin moneda, el retiro va en 0: guardarGastoNuevo compara los montos antes de guardar.
         e.setRetiroGs(PdvCajaService.cero(input.getRetiroGs()));
         e.setRetiroRs(PdvCajaService.cero(input.getRetiroRs()));
         e.setRetiroDs(PdvCajaService.cero(input.getRetiroDs()));
@@ -139,7 +145,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             e.setPreGastoId(null);
             e.setPreGastoSucursalId(null);
         }
-        Gasto gasto = service.saveAndSend(e, false);
+        Gasto gasto = e.getId() == null ? guardarGastoNuevo(e) : service.saveAndSend(e, false);
         GastoDto gastoDto = new GastoDto();
         // imprimirEnCliente: el desktop pide el ticket despues con ticketEscpos(GASTO) y lo imprime el.
         if (gasto != null && input.getFinalizado() != true && !Boolean.TRUE.equals(imprimirEnCliente)) {
@@ -160,6 +166,30 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             impresionService.printGasto(gastoDto, printerName, local);
         }
         return gasto;
+    }
+
+    /**
+     * Alta con control de efectivo: bloqueo de la caja, saldo con la cuenta del cierre y guardado en una
+     * transaccion, sin la impresion (un error al imprimir no deshace el gasto). Issue #80.
+     */
+    private Gasto guardarGastoNuevo(Gasto e) {
+        if (e.getCaja() == null) {
+            throw new GraphQLException("Caja no encontrada");
+        }
+        return new TransactionTemplate(transactionManager).execute(status -> {
+            pdvCajaService.bloquearSaldoCaja(e.getCaja().getId());
+            PdvCajaBalanceDto balance = pdvCajaService.generarBalance(e.getCaja());
+            if (PdvCajaService.superaSaldo(balance, "GUARANI", e.getRetiroGs())) {
+                throw new GraphQLException("El valor de gasto es mayor al total en caja: Guaraiens");
+            }
+            if (PdvCajaService.superaSaldo(balance, "REAL", e.getRetiroRs())) {
+                throw new GraphQLException("El valor de gasto es mayor al total en caja: Reales");
+            }
+            if (PdvCajaService.superaSaldo(balance, "DOLAR", e.getRetiroDs())) {
+                throw new GraphQLException("El valor de gasto es mayor al total en caja: Dolares");
+            }
+            return service.saveAndSend(e, false);
+        });
     }
 
 //    public List<Gasto> gastosSearch(String texto){

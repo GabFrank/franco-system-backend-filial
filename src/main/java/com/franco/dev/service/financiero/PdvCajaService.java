@@ -21,6 +21,7 @@ import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.operaciones.CobroDetalleService;
 import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.DeliveryService;
+import com.franco.dev.service.operaciones.LoteFefoService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.seguridad.RolSesionService;
@@ -86,6 +87,9 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
 
     @Autowired
     private RolSesionService rolSesionService;
+
+    @Autowired
+    private BloqueoTransaccionalService bloqueo;
 
     /** Id del usuario dueño de la caja, o null si no tiene. */
     public static Long duenioId(PdvCaja caja) {
@@ -892,6 +896,55 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             }
         }
         return null;
+    }
+
+    /**
+     * Efectivo que deberia haber en la caja en esa moneda, con la cuenta del cierre: apertura + pagos en
+     * efectivo + vuelto (negativo) - retiros - gastos netos. Con la caja abierta es {@code -diferencia},
+     * lo que el desktop muestra como disponible al cargar un gasto o un retiro. Reemplaza a la suma de
+     * movimiento_caja, que nunca descontaba retiros ni gastos (activo NULL en esas filas, issue #80).
+     * Sin balance o con otra moneda, 0.
+     */
+    public static double saldoEnCaja(PdvCajaBalanceDto b, String denominacion) {
+        if (b == null || denominacion == null) {
+            return 0.0;
+        }
+        if (denominacion.contains("GUARANI")) {
+            return cero(b.getTotalGsAper()) + cero(b.getTotalVentaGs()) + cero(b.getVueltoGs())
+                    - cero(b.getTotalRetiroGs()) - cero(b.getTotalGastoGs());
+        } else if (denominacion.contains("REAL")) {
+            return cero(b.getTotalRsAper()) + cero(b.getTotalVentaRs()) + cero(b.getVueltoRs())
+                    - cero(b.getTotalRetiroRs()) - cero(b.getTotalGastoRs());
+        } else if (denominacion.contains("DOLAR")) {
+            return cero(b.getTotalDsAper()) + cero(b.getTotalVentaDs()) + cero(b.getVueltoDs())
+                    - cero(b.getTotalRetiroDs()) - cero(b.getTotalGastoDs());
+        }
+        return 0.0;
+    }
+
+    /**
+     * Si sacar {@code monto} deja la caja en negativo. La tolerancia es por redondeo de double en R$ y
+     * US$: los retiros "de todo" al cierre dejan margen exacto 0 y el backend no puede ser mas estricto
+     * que la pantalla. Un monto 0 o nulo nunca supera.
+     */
+    public static boolean superaSaldo(PdvCajaBalanceDto b, String denominacion, Double monto) {
+        return cero(monto) > 0 && cero(monto) > saldoEnCaja(b, denominacion) + 0.005;
+    }
+
+    /**
+     * Serializa gastos y retiros de una caja hasta el commit, para que la validacion de saldo vea al
+     * anterior: sin esto un doble envio (0,1 s, caja 2155 de la suc. 22) pasaba dos veces. Pedirlo
+     * antes de leer el balance. Requiere transaccion abierta.
+     */
+    public void bloquearSaldoCaja(Long cajaId) {
+        try {
+            bloqueo.tomar("caja-saldo:" + cajaId, "15s");
+        } catch (RuntimeException e) {
+            if (!LoteFefoService.esEsperaVencida(e)) {
+                throw e;
+            }
+            throw new GraphQLException("Hay otra operación en curso en esta caja. Reintentá en unos segundos.");
+        }
     }
 
     /** Un monto nulo cuenta como 0. */

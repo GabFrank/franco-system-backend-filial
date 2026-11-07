@@ -132,27 +132,7 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
     public Gasto saveAndSend(Gasto entity, Boolean recibir) {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         Boolean isNew = entity.getId() == null;
-        if (isNew) {
-            if (PdvCajaService.cero(entity.getRetiroGs()) > 0) {
-                Double totalEnCajaGs = movimientoCajaService.totalEnCajaPorCajaIdAndMonedaId(entity.getCaja().getId(), Long.valueOf(1));
-                if (PdvCajaService.cero(entity.getRetiroGs()) > totalEnCajaGs) {
-                    throw new GraphQLException("El valor de gasto es mayor al total en caja: Guaraiens");
-                }
-            }
-            if (PdvCajaService.cero(entity.getRetiroRs()) > 0) {
-                Double totalEnCajaRs = movimientoCajaService.totalEnCajaPorCajaIdAndMonedaId(entity.getCaja().getId(), Long.valueOf(2));
-                if (PdvCajaService.cero(entity.getRetiroRs()) > totalEnCajaRs) {
-                    throw new GraphQLException("El valor de gasto es mayor al total en caja: Reales");
-                }
-            }
-            if (PdvCajaService.cero(entity.getRetiroDs()) > 0) {
-                Double totalEnCajaDs = movimientoCajaService.totalEnCajaPorCajaIdAndMonedaId(entity.getCaja().getId(), Long.valueOf(3));
-                if (PdvCajaService.cero(entity.getRetiroDs()) > totalEnCajaDs) {
-                    throw new GraphQLException("El valor de gasto es mayor al total en caja: Dolares");
-                }
-            }
-
-        }
+        // El control de efectivo del alta va en GastoGraphQL (issue #80): aca armaria un ciclo de constructores con PdvCajaService.
         Gasto e = super.save(entity);
 //        propagacionService.propagarEntidad(e, TipoEntidad.GASTO, recibir);
         List<Moneda> monedaList = monedaService.findAll2();

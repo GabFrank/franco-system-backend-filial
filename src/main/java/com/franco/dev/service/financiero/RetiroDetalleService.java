@@ -21,8 +21,6 @@ public class RetiroDetalleService extends CrudService<RetiroDetalle, RetiroDetal
     public CambioService cambioService;
     @Autowired
     private MovimientoCajaService movimientoCajaService;
-    @Autowired
-    private RetiroService retiroService;
 
     @Override
     public RetiroDetalleRepository getRepository() {
@@ -49,30 +47,6 @@ public class RetiroDetalleService extends CrudService<RetiroDetalle, RetiroDetal
 
     public List<RetiroDetalle> findByCajId(Long id) {
         return repository.findByRetiroCajaSalidaId(id);
-    }
-
-    @Override
-    public RetiroDetalle save(RetiroDetalle entity) throws GraphQLException {
-        Long cajaId = entity.getRetiro().getCajaSalida().getId();
-        Double total = entity.getCantidad();
-        Double totalEnCaja = movimientoCajaService.totalEnCajaPorCajaIdAndMonedaId(cajaId, entity.getMoneda().getId());
-        if (total > totalEnCaja) {
-            retiroService.deleteById(entity.getRetiro().getId());
-            throw new GraphQLException("El valor de retiro es mayor al total en caja");
-        } else {
-            RetiroDetalle e = super.save(entity);
-            MovimientoCaja movimientoCaja = new MovimientoCaja();
-            movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.RETIRO);
-            movimientoCaja.setReferencia(e.getId());
-            movimientoCaja.setPdvCaja(entity.getRetiro().getCajaSalida());
-            movimientoCaja.setCantidad(entity.getCantidad() * -1);
-            movimientoCaja.setCambio(cambioService.findLastByMonedaId(entity.getMoneda().getId()));
-            movimientoCaja.setMoneda(entity.getMoneda());
-            movimientoCaja.setUsuario(entity.getUsuario());
-            movimientoCajaService.save(movimientoCaja);
-//        personaPublisher.publish(p);
-            return e;
-        }
     }
 
     @Override

@@ -43,6 +43,9 @@ public class GastoDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private GastoService gastoService;
 
+    @Autowired
+    private PdvCajaService pdvCajaService;
+
     public Optional<GastoDetalle> gastoDetalle(Long id, Long sucId) {return service.findById(id);}
 
     public List<GastoDetalle> gastoDetalles(int page, int size, Long sucId){
@@ -59,6 +62,11 @@ public class GastoDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if(input.getMonedaId()!=null) e.setMoneda(monedaService.findById(input.getMonedaId()).orElse(null));
         if(input.getGastoId()!=null) e.setGasto(gastoService.findById(input.getGastoId()).orElse(null));
         if(input.getCantidad()>0){
+            if (e.getGasto() != null && e.getMoneda() != null && PdvCajaService.superaSaldo(
+                    pdvCajaService.generarBalance(e.getGasto().getCaja()), e.getMoneda().getDenominacion(), e.getCantidad())) {
+                gastoService.deleteById(e.getGasto().getId());
+                throw new GraphQLException("No hay suficiente valor en caja");
+            }
             return service.save(e);
         } else {
             return null;
