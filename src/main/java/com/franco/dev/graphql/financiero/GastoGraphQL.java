@@ -1,6 +1,7 @@
 package com.franco.dev.graphql.financiero;
 
 import com.franco.dev.domain.financiero.Gasto;
+import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.graphql.financiero.input.GastoInput;
 import com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto;
 import com.franco.dev.service.empresarial.SucursalService;
@@ -90,6 +91,13 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         // Editar y finalizar reenvian al autor original a proposito. Edicion solo si el gasto existe: un
         // id inventado no puede esquivar la firma (issue #142).
         boolean edicion = input.getId() != null && service.findById(input.getId()).isPresent();
+        if (!edicion) {
+            PdvCaja caja = input.getCajaId() != null ? pdvCajaService.findById(input.getCajaId()).orElse(null) : null;
+            if (caja == null) {
+                throw new GraphQLException("Caja no encontrada");
+            }
+            pdvCajaService.controlarAccesoEnAlta("GastoGraphQL.saveGasto", caja);
+        }
         if (edicion) {
             auditorUsuarioId.verificar("GastoGraphQL.saveGasto", input.getUsuarioId());
         } else {

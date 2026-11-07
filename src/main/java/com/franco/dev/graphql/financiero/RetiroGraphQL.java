@@ -98,6 +98,15 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             Boolean imprimirEnCliente) throws GraphQLException {
         // Edicion solo si el retiro existe: un id inventado no puede esquivar la firma (issue #142).
         boolean edicion = input.getId() != null && service.findById(input.getId()).isPresent();
+        if (!edicion) {
+            // Sin caja de salida un retiro nuevo esquivaba el control de efectivo.
+            PdvCaja caja = input.getCajaSalidaId() != null
+                    ? pdvCajaService.findById(input.getCajaSalidaId()).orElse(null) : null;
+            if (caja == null) {
+                throw new GraphQLException("Caja no encontrada");
+            }
+            pdvCajaService.controlarAccesoEnAlta("RetiroGraphQL.saveRetiro", caja);
+        }
         if (edicion) {
             auditorUsuarioId.verificar("RetiroGraphQL.saveRetiro", input.getUsuarioId());
         } else {
@@ -123,7 +132,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                 r.setRetiroId(retiro.getId());
                 r.setUsuarioId(retiro.getUsuario().getId());
                 r.setCreadoEn(retiro.getCreadoEn());
-                if (r.getCantidad() != null && r.getCantidad() > 0) retiroDetalleGraphQL.saveRetiroDetalle(r);
+                if (r.getCantidad() != null && r.getCantidad() > 0) retiroDetalleGraphQL.guardarDetalle(r);
             }
             RetiroDto retiroDto = new RetiroDto();
             retiroDto.setId(retiro.getId());

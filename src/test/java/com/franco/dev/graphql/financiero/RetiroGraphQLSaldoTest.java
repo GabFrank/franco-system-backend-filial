@@ -77,7 +77,7 @@ class RetiroGraphQLSaldoTest {
         orden.verify(pdvCajaService).bloquearSaldoCaja(CAJA_ID);
         orden.verify(pdvCajaService).generarBalance(caja);
         orden.verify(service).saveAndSend(any(Retiro.class), eq(false));
-        orden.verify(retiroDetalleGraphQL).saveRetiroDetalle(any());
+        orden.verify(retiroDetalleGraphQL).guardarDetalle(any());
     }
 
     @Test
@@ -87,7 +87,7 @@ class RetiroGraphQLSaldoTest {
 
         assertEquals("El valor de retiro es mayor al total en caja: REAL", e.getMessage());
         verify(service, never()).saveAndSend(any(Retiro.class), anyBoolean());
-        verify(retiroDetalleGraphQL, never()).saveRetiroDetalle(any());
+        verify(retiroDetalleGraphQL, never()).guardarDetalle(any());
     }
 
     @Test
