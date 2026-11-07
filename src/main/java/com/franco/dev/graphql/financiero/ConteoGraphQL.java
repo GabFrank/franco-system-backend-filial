@@ -2,6 +2,7 @@ package com.franco.dev.graphql.financiero;
 
 import com.franco.dev.domain.financiero.Conteo;
 import com.franco.dev.domain.financiero.Moneda;
+import com.franco.dev.domain.financiero.MonedaBilletes;
 import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
@@ -31,8 +32,10 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Component
 public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
@@ -60,6 +63,9 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     private MonedaService monedaService;
     @Autowired
     private CambioService cambioService;
+
+    @Autowired
+    private MonedaBilleteService monedaBilleteService;
     @Autowired
     private SucursalService sucursalService;
     @Autowired
@@ -127,7 +133,7 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                     pdvCaja.setFechaApertura(LocalDateTime.now());
                     pdvCajaService.saveAndSend(pdvCaja, false);
                     crearMovimientosDeConteo(pdvCaja, conteo, monedaList, input.getTotalGs(), input.getTotalRs(),
-                            input.getTotalDs(), PdvCajaTipoMovimiento.CAJA_INICIAL);
+                            input.getTotalDs(), PdvCajaTipoMovimiento.CAJA_INICIAL, conteoMonedaInputList);
                 } else if (!esApertura) {
                     pdvCaja.setConteoCierre(conteo);
                     pdvCaja.setFechaCierre(LocalDateTime.now());
@@ -135,7 +141,7 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                     pdvCajaService.saveAndSend(pdvCaja, false);
                     cierreRealizado = true;
                     crearMovimientosDeConteo(pdvCaja, conteo, monedaList, input.getTotalGs(), input.getTotalRs(),
-                            input.getTotalDs(), PdvCajaTipoMovimiento.CAJA_FINAL);
+                            input.getTotalDs(), PdvCajaTipoMovimiento.CAJA_FINAL, conteoMonedaInputList);
                 }
                 if (conteoMonedaInputList != null && !conteoMonedaInputList.isEmpty()) {
                     for (ConteoMonedaInput conteoMonedaInput : conteoMonedaInputList) {
@@ -250,42 +256,57 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                     movimientosAnteriores.size(), conteoAnterior.getId());
         }
         crearMovimientosDeConteo(pdvCaja, nuevo, monedaService.findAll2(), input.getTotalGs(), input.getTotalRs(),
-                input.getTotalDs(), tipoMovimiento);
+                input.getTotalDs(), tipoMovimiento, conteoMonedaInputList);
 
         log.info("[FILIAL editarConteoCaja] FIN OK -> conteoId={} (cajaId={})", nuevo.getId(), cajaId);
         return nuevo;
     }
 
     /**
-     * Registra en movimiento_caja los totales por moneda de un conteo de apertura o cierre.
+     * Fila de respaldo de un conteo (CAJA_INICIAL / CAJA_FINAL), por moneda: solo si el total de esa moneda no es 0 y
+     * el input no trae billetes de esa moneda. Con billetes el balance usa conteo_moneda; la fila solo la lee
+     * PdvCajaService.aplicarTotales*DesdeMovimientos cuando no los hay (issue #80).
      */
     private void crearMovimientosDeConteo(PdvCaja pdvCaja, Conteo conteo, List<Moneda> monedaList,
                                           Double totalGs, Double totalRs, Double totalDs,
-                                          PdvCajaTipoMovimiento tipoMovimiento) {
+                                          PdvCajaTipoMovimiento tipoMovimiento, List<ConteoMonedaInput> billetes) {
+        Set<Long> conBilletes = monedasConBilletes(billetes);
         for (Moneda moneda : monedaList) {
+            String denominacion = moneda.getDenominacion() != null ? moneda.getDenominacion() : "";
+            Double total = denominacion.contains("GUARANI") ? totalGs
+                    : denominacion.contains("REAL") ? totalRs
+                    : denominacion.contains("DOLAR") ? totalDs : null;
+            if (PdvCajaService.cero(total) == 0.0 || conBilletes.contains(moneda.getId())) {
+                continue;
+            }
             MovimientoCaja movimientoCaja = new MovimientoCaja();
-            if (moneda.getDenominacion().contains("GUARANI")) {
-                movimientoCaja.setMoneda(moneda);
-                movimientoCaja.setCambio(cambioService.findLastByMonedaId(moneda.getId()));
-                movimientoCaja.setCantidad(totalGs);
-            } else if (moneda.getDenominacion().contains("REAL")) {
-                movimientoCaja.setMoneda(moneda);
-                movimientoCaja.setCambio(cambioService.findLastByMonedaId(moneda.getId()));
-                movimientoCaja.setCantidad(totalRs);
-            } else if (moneda.getDenominacion().contains("DOLAR")) {
-                movimientoCaja.setMoneda(moneda);
-                movimientoCaja.setCambio(cambioService.findLastByMonedaId(moneda.getId()));
-                movimientoCaja.setCantidad(totalDs);
-            }
-            if (movimientoCaja.getMoneda() != null) {
-                movimientoCaja.setPdvCaja(pdvCaja);
-                movimientoCaja.setReferencia(conteo.getId());
-                movimientoCaja.setTipoMovimiento(tipoMovimiento);
-                movimientoCaja.setActivo(true);
-                movimientoCaja.setUsuario(conteo.getUsuario());
-                movimientoCajaService.saveAndSend(movimientoCaja, false);
-            }
+            movimientoCaja.setMoneda(moneda);
+            movimientoCaja.setCambio(cambioService.findLastByMonedaId(moneda.getId()));
+            movimientoCaja.setCantidad(total);
+            movimientoCaja.setPdvCaja(pdvCaja);
+            movimientoCaja.setReferencia(conteo.getId());
+            movimientoCaja.setTipoMovimiento(tipoMovimiento);
+            movimientoCaja.setActivo(true);
+            movimientoCaja.setUsuario(conteo.getUsuario());
+            movimientoCajaService.saveAndSend(movimientoCaja, false);
         }
+    }
+
+    /** Monedas con al menos un billete con cantidad en el input del conteo. */
+    private Set<Long> monedasConBilletes(List<ConteoMonedaInput> billetes) {
+        Set<Long> ids = new HashSet<>();
+        if (billetes == null) {
+            return ids;
+        }
+        for (ConteoMonedaInput billete : billetes) {
+            if (billete.getMonedaBilletesId() == null || PdvCajaService.cero(billete.getCantidad()) <= 0) {
+                continue;
+            }
+            monedaBilleteService.findById(billete.getMonedaBilletesId())
+                    .map(MonedaBilletes::getMoneda)
+                    .ifPresent(moneda -> ids.add(moneda.getId()));
+        }
+        return ids;
     }
 
     public Boolean deleteConteo(Long id, Long sucId) {

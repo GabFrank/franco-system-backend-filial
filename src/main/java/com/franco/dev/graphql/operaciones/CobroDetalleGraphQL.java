@@ -1,9 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
-import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.domain.operaciones.CobroDetalle;
-import com.franco.dev.graphql.financiero.MovimientoCajaGraphQL;
-import com.franco.dev.graphql.financiero.input.MovimientoCajaInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
 import com.franco.dev.service.financiero.FormaPagoService;
 import com.franco.dev.service.financiero.MonedaService;
@@ -42,8 +39,6 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     private FormaPagoService formaPagoService;
     @Autowired
     private CobroService cobroService;
-    @Autowired
-    private MovimientoCajaGraphQL movimientoCajaGraphQL;
 
 
     @Autowired
@@ -81,17 +76,6 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             for (CobroDetalleInput input : cobroDetalleInputList) {
                 CobroDetalle cobroDetalle = saveCobroDetalle(input);
                 cobroDetalleList.add(cobroDetalle);
-                if (input.getId() == null && cobroDetalle.getDescuento() != true && cobroDetalle.getAumento() != true && cobroDetalle.getFormaPago().getDescripcion().toUpperCase().contains("EFECTIVO")) {
-                    MovimientoCajaInput movimientoCajaInput = new MovimientoCajaInput();
-                    movimientoCajaInput.setMonedaId(cobroDetalle.getMoneda().getId());
-                    movimientoCajaInput.setCantidad(cobroDetalle.getValor());
-                    movimientoCajaInput.setActivo(true);
-                    movimientoCajaInput.setPdvCajaId(cobroDetalle.getSucursalId());
-                    movimientoCajaInput.setReferencia(cobroDetalle.getCobro().getId());
-                    movimientoCajaInput.setTipoMovimiento(PdvCajaTipoMovimiento.VENTA);
-                    movimientoCajaInput.setUsuarioId(cobroDetalle.getCobro().getUsuario().getId());
-                    movimientoCajaGraphQL.saveMovimientoCaja(movimientoCajaInput);
-                }
             }
         }
         return cobroDetalleList;
