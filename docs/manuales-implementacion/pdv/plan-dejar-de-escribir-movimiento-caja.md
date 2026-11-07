@@ -97,3 +97,23 @@ Filial local 8082, desktop web, caja de MR:
 
 - Los 9 conteos con monto solo en `movimiento_caja`: medido en el central, que tiene huecos de réplica de
   `conteo_moneda`; en las filiales pueden ser menos. Ninguno después de septiembre.
+
+## Resultado de las pruebas (2026-11-07)
+
+- Batería del filial: 911/911.
+- Filial de esta rama en el 8082 (sucursal 24), desktop web, PRUEBACAJA2. Antes de empezar, la última fila
+  de `movimiento_caja` era la 70196.
+  1. Caja 1195: apertura con billetes (50.000 Gs, R$ 20), venta de 2.000, cierre con billetes (52.000 Gs,
+     R$ 20) → diferencia 0 en las dos monedas, ninguna fila nueva. Venta, retiro y gasto en las cajas 1185 y
+     1191 y cierre de la 1191 con billetes: tampoco.
+  2. Reapertura de la 1195 (`reabrirCaja` del filial, con ADMIN temporal) y nuevo cierre por pantalla con
+     55.000 → diferencia +3.000; `editarConteoCaja` del cierre a 52.000 → diferencia 0. Sin errores ni filas
+     nuevas. La reapertura se llamó directo al filial: la pantalla pasa por el central, y el central local no
+     tiene las cajas del filial (sin réplica).
+  3. Caja 1186 (abierta el 27/09 con el código anterior, apertura solo en `movimiento_caja`): el balance toma
+     los 200.000 de la fila.
+  4. Caja 1196 con apertura sin billetes, como la dejaba el código anterior (escribe su fila de respaldo,
+     70197), venta de 2.000 y retiro de 10.000 por pantalla, cierre con billetes por 62.000 → diferencia 0;
+     la única fila nueva es la de la apertura.
+  5. N/A: el filial no tiene pantalla para anular cobros; `cancelarVenta` rechaza a propósito (lo hace el
+     central).
