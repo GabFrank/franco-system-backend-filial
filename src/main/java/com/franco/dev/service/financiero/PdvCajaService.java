@@ -91,6 +91,32 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     @Autowired
     private BloqueoTransaccionalService bloqueo;
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PdvCajaService.class);
+
+    /** Interruptor por filial del control de acceso en las altas de gasto y retiro; solo "true" lo prende. */
+    static final String PROPERTY_EXIGIR_ACCESO_ALTA = "auditoria.acceso-caja.exigir";
+
+    /** Marcador fijo del log para medir antes de prender el interruptor. */
+    public static final String MARCADOR_ACCESO_ALTA = "AUDIT-ACCESO-CAJA";
+
+    /**
+     * Alta de un gasto o un retiro: la sesion tiene que ser la duena de la caja o tener ANALISIS DE CAJA (ADMIN pasa).
+     * Siempre registra quien no cumple; rechaza solo con el interruptor prendido. Apagado (default) a proposito:
+     * el usuario del token puede no ser el cajero hasta tener el desktop arreglado (#142).
+     */
+    public void controlarAccesoEnAlta(String operacion, PdvCaja caja) {
+        Long duenio = duenioId(caja);
+        if (rolSesionService.esDuenioOTieneRol(duenio, RolSesionService.ANALISIS_DE_CAJA)) {
+            return;
+        }
+        log.warn("{} operacion={} cajaId={} usuarioSesion={} duenio={} sucursal={}", MARCADOR_ACCESO_ALTA, operacion,
+                caja != null ? caja.getId() : null, usuarioSesionService.idDelUsuarioAutenticado().orElse(null),
+                duenio, env.getProperty("sucursalId"));
+        if ("true".equalsIgnoreCase(env.getProperty(PROPERTY_EXIGIR_ACCESO_ALTA, "false"))) {
+            throw new GraphQLException("No autorizado: solo el dueño o el rol " + RolSesionService.ANALISIS_DE_CAJA + ".");
+        }
+    }
+
     /** Id del usuario dueño de la caja, o null si no tiene. */
     public static Long duenioId(PdvCaja caja) {
         return caja != null && caja.getUsuario() != null ? caja.getUsuario().getId() : null;
