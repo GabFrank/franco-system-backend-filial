@@ -58,4 +58,24 @@ class GastoServiceEdicionTest {
         assertEquals(13.0, dolar.getCantidad());
         assertEquals(0.0, guarani.getCantidad());
     }
+
+    @Test
+    void enElAltaLaFilaQuedaConElUltimoMontoYNoConUnCeroPosterior() {
+        // Dentro de la transaccion de GastoGraphQL (issue #80) el objeto queda administrado: lo que tenga
+        // al terminar es lo que se escribe. Con solo retiro en Gs tiene que quedar -10.000, no el 0 de US$.
+        Gasto g = new Gasto();
+        g.setSucursalId(24L);
+        g.setRetiroGs(10_000.0);
+        Moneda guarani = new Moneda();
+        guarani.setId(1L);
+        guarani.setDenominacion("GUARANI");
+        when(monedaService.findByDescripcion(any())).thenReturn(guarani);
+        org.mockito.ArgumentCaptor<MovimientoCaja> mov = org.mockito.ArgumentCaptor.forClass(MovimientoCaja.class);
+
+        service.saveAndSend(g, false);
+
+        org.mockito.Mockito.verify(movimientoCajaService).saveAndSend(mov.capture(), org.mockito.ArgumentMatchers.eq(false));
+        assertEquals(-10_000.0, mov.getValue().getCantidad());
+        assertEquals("GUARANI", mov.getValue().getMoneda().getDenominacion());
+    }
 }
