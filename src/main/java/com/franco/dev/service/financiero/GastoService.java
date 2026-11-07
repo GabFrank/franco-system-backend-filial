@@ -1,14 +1,10 @@
 package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.Gasto;
-import com.franco.dev.domain.financiero.Moneda;
-import com.franco.dev.domain.financiero.MovimientoCaja;
-import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.repository.financiero.GastoRepository;
 import com.franco.dev.service.CrudService;
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,12 +16,6 @@ import static com.franco.dev.utilitarios.DateUtils.toDate;
 public class GastoService extends CrudService<Gasto, GastoRepository> {
 
     private final GastoRepository repository;
-    @Autowired
-    private MonedaService monedaService;
-    @Autowired
-    private MovimientoCajaService movimientoCajaService;
-    @Autowired
-    private CambioService cambioService;
 
     @Override
     public GastoRepository getRepository() {
@@ -49,136 +39,14 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
     public Gasto save(Gasto entity) {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
         if(entity.getObservacion() != null) entity.setObservacion(entity.getObservacion().toUpperCase());
-        Gasto e = super.save(entity);
-        List<Moneda> monedaList = monedaService.findAll2();
-        MovimientoCaja movimientoCaja = new MovimientoCaja();
-        movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.GASTO);
-        // guarani
-
-        if (e.getFinalizado() == true) {
-            if (PdvCajaService.cero(e.getRetiroGs()) > 0) {
-                movimientoCaja.setCantidad(PdvCajaService.cero(e.getRetiroGs()) * -1);
-                movimientoCaja.setUsuario(e.getUsuario());
-                movimientoCaja.setMoneda(monedaService.findByDescripcion("GUARANI"));
-                movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-                movimientoCaja.setPdvCaja(e.getCaja());
-                movimientoCaja.setReferencia(e.getId());
-                movimientoCaja.setCreadoEn(e.getCreadoEn());
-                movimientoCajaService.save(movimientoCaja);
-            }
-
-            //real
-            if (PdvCajaService.cero(e.getRetiroRs()) > 0) {
-                movimientoCaja.setCantidad(PdvCajaService.cero(e.getRetiroRs()) * -1);
-                movimientoCaja.setUsuario(e.getUsuario());
-                movimientoCaja.setMoneda(monedaService.findByDescripcion("REAL"));
-                movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-                movimientoCaja.setPdvCaja(e.getCaja());
-                movimientoCaja.setReferencia(e.getId());
-                movimientoCaja.setCreadoEn(e.getCreadoEn());
-                movimientoCajaService.save(movimientoCaja);
-            }
-            // dolar
-            if (PdvCajaService.cero(e.getRetiroDs()) > 0) {
-                movimientoCaja.setCantidad(PdvCajaService.cero(e.getRetiroDs()) * -1);
-                movimientoCaja.setUsuario(e.getUsuario());
-                movimientoCaja.setMoneda(monedaService.findByDescripcion("DOLAR"));
-                movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-                movimientoCaja.setPdvCaja(e.getCaja());
-                movimientoCaja.setReferencia(e.getId());
-                movimientoCaja.setCreadoEn(e.getCreadoEn());
-                movimientoCajaService.save(movimientoCaja);
-            }
-            if (PdvCajaService.cero(e.getVueltoGs()) > 0) {
-                movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoGs()));
-                movimientoCaja.setUsuario(e.getUsuario());
-                movimientoCaja.setMoneda(monedaService.findByDescripcion("GUARANI"));
-                movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-                movimientoCaja.setPdvCaja(e.getCaja());
-                movimientoCaja.setReferencia(e.getId());
-                movimientoCaja.setCreadoEn(e.getCreadoEn());
-                movimientoCajaService.save(movimientoCaja);
-            }
-
-            //real
-            if (PdvCajaService.cero(e.getVueltoRs()) > 0) {
-                movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoRs()));
-                movimientoCaja.setUsuario(e.getUsuario());
-                movimientoCaja.setMoneda(monedaService.findByDescripcion("REAL"));
-                movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-                movimientoCaja.setPdvCaja(e.getCaja());
-                movimientoCaja.setReferencia(e.getId());
-                movimientoCaja.setCreadoEn(e.getCreadoEn());
-                movimientoCajaService.save(movimientoCaja);
-            }
-            // dolar
-            if (PdvCajaService.cero(e.getVueltoDs()) > 0) {
-                movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoDs()));
-                movimientoCaja.setUsuario(e.getUsuario());
-                movimientoCaja.setMoneda(monedaService.findByDescripcion("DOLAR"));
-                movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-                movimientoCaja.setPdvCaja(e.getCaja());
-                movimientoCaja.setReferencia(e.getId());
-                movimientoCaja.setCreadoEn(e.getCreadoEn());
-                movimientoCajaService.save(movimientoCaja);
-            }
-        }
-
-//        personaPublisher.publish(p);
-        return e;
+        return super.save(entity);
     }
 
     @Override
     public Gasto saveAndSend(Gasto entity, Boolean recibir) {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
-        Boolean isNew = entity.getId() == null;
         // El control de efectivo del alta va en GastoGraphQL (issue #80): aca armaria un ciclo de constructores con PdvCajaService.
-        Gasto e = super.save(entity);
-//        propagacionService.propagarEntidad(e, TipoEntidad.GASTO, recibir);
-        List<Moneda> monedaList = monedaService.findAll2();
-        MovimientoCaja movimientoCaja = new MovimientoCaja();
-        movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.GASTO);
-        movimientoCaja.setSucursalId(e.getSucursalId());
-        // guarani
-
-        if (isNew == true) {
-            // Un solo objeto para las seis filas, como siempre (queda la ultima con monto). Se toca solo si hay
-            // monto: dentro de la transaccion de GastoGraphQL un setCantidad(0) sin guardar igual se escribia.
-            double[] cantidades = {
-                    (PdvCajaService.cero(e.getRetiroGs()) > 0 ? PdvCajaService.cero(e.getRetiroGs()) : 0.0) * -1,
-                    (PdvCajaService.cero(e.getRetiroRs()) > 0 ? PdvCajaService.cero(e.getRetiroRs()) : 0.0) * -1,
-                    (PdvCajaService.cero(e.getRetiroDs()) > 0 ? PdvCajaService.cero(e.getRetiroDs()) : 0.0) * -1,
-                    PdvCajaService.cero(e.getVueltoGs()),
-                    PdvCajaService.cero(e.getVueltoRs()),
-                    PdvCajaService.cero(e.getVueltoDs())};
-            String[] monedas = {"GUARANI", "REAL", "DOLAR", "GUARANI", "REAL", "DOLAR"};
-            for (int i = 0; i < cantidades.length; i++) {
-                if (cantidades[i] == 0.0) continue;
-                movimientoCaja.setCantidad(cantidades[i]);
-                movimientoCaja.setUsuario(e.getUsuario());
-                movimientoCaja.setMoneda(monedaService.findByDescripcion(monedas[i]));
-                movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-                movimientoCaja.setPdvCaja(e.getCaja());
-                movimientoCaja.setReferencia(e.getId());
-                movimientoCaja.setCreadoEn(e.getCreadoEn());
-                movimientoCajaService.saveAndSend(movimientoCaja, false);
-            }
-        } else {
-            List<MovimientoCaja> movimientoCajaList = movimientoCajaService.findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.GASTO, entity.getId());
-            for (MovimientoCaja mc : movimientoCajaList) {
-
-                if (mc.getMoneda().getDenominacion().contains("GUARANI")) {
-                    mc.setCantidad(PdvCajaService.cero(e.getRetiroGs()) + PdvCajaService.cero(e.getVueltoGs()));
-                } else if (mc.getMoneda().getDenominacion().contains("REAL")) {
-                    mc.setCantidad(PdvCajaService.cero(e.getRetiroRs()) + PdvCajaService.cero(e.getVueltoRs()));
-                } else if (mc.getMoneda().getDenominacion().contains("DOLAR")) {
-                    mc.setCantidad(PdvCajaService.cero(e.getRetiroDs()) + PdvCajaService.cero(e.getVueltoDs()));
-                }
-
-                movimientoCajaService.saveAndSend(mc, false);
-            }
-        }
-//        personaPublisher.publish(p);
-        return e;
+        // Ya no se escribe movimiento_caja: el saldo sale de generarBalance (#80).
+        return super.save(entity);
     }
 }

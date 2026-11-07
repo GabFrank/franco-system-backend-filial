@@ -1,9 +1,6 @@
 package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.Gasto;
-import com.franco.dev.domain.financiero.Moneda;
-import com.franco.dev.domain.financiero.MovimientoCaja;
-import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.repository.financiero.GastoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,19 +8,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.Arrays;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
-/** Editar un gasto recalcula sus movimientos de caja con el vuelto de la misma moneda, y nulo cuenta 0. */
+/**
+ * Alta y edicion de un gasto guardan solo el gasto: movimiento_caja ya no se escribe (issue #80). Con el codigo
+ * anterior el alta y la edicion escribian o reescribian sus filas, y el servicio dependia de MonedaService.
+ */
 class GastoServiceEdicionTest {
 
     @Mock private GastoRepository repository;
-    @Mock private MonedaService monedaService;
-    @Mock private MovimientoCajaService movimientoCajaService;
-    @Mock private CambioService cambioService;
     @InjectMocks private GastoService service;
 
     @BeforeEach
@@ -32,50 +27,28 @@ class GastoServiceEdicionTest {
         when(repository.save(any(Gasto.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 
-    private static MovimientoCaja movimientoEn(String denominacion) {
-        Moneda m = new Moneda();
-        m.setDenominacion(denominacion);
-        MovimientoCaja mc = new MovimientoCaja();
-        mc.setMoneda(m);
-        return mc;
+    @Test
+    void elAltaGuardaSoloElGasto() {
+        Gasto g = new Gasto();
+        g.setSucursalId(24L);
+        g.setRetiroGs(10_000.0);
+        g.setFinalizado(true);
+
+        assertSame(g, service.saveAndSend(g, false));
+        verify(repository).save(g);
+        verifyNoMoreInteractions(repository);
     }
 
     @Test
-    void enDolaresUsaElVueltoEnDolaresYLosNulosCuentanCero() {
+    void laEdicionGuardaSoloElGasto() {
         Gasto g = new Gasto();
         g.setId(5L);
         g.setSucursalId(24L);
         g.setRetiroDs(10.0);
         g.setVueltoDs(3.0);
-        g.setVueltoRs(99.0); // antes se sumaba este a la moneda US$
-        MovimientoCaja dolar = movimientoEn("DOLAR");
-        MovimientoCaja guarani = movimientoEn("GUARANI"); // retiro y vuelto en Gs nulos
-        when(movimientoCajaService.findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.GASTO, 5L))
-                .thenReturn(Arrays.asList(dolar, guarani));
 
-        service.saveAndSend(g, false);
-
-        assertEquals(13.0, dolar.getCantidad());
-        assertEquals(0.0, guarani.getCantidad());
-    }
-
-    @Test
-    void enElAltaLaFilaQuedaConElUltimoMontoYNoConUnCeroPosterior() {
-        // Dentro de la transaccion de GastoGraphQL (issue #80) el objeto queda administrado: lo que tenga
-        // al terminar es lo que se escribe. Con solo retiro en Gs tiene que quedar -10.000, no el 0 de US$.
-        Gasto g = new Gasto();
-        g.setSucursalId(24L);
-        g.setRetiroGs(10_000.0);
-        Moneda guarani = new Moneda();
-        guarani.setId(1L);
-        guarani.setDenominacion("GUARANI");
-        when(monedaService.findByDescripcion(any())).thenReturn(guarani);
-        org.mockito.ArgumentCaptor<MovimientoCaja> mov = org.mockito.ArgumentCaptor.forClass(MovimientoCaja.class);
-
-        service.saveAndSend(g, false);
-
-        org.mockito.Mockito.verify(movimientoCajaService).saveAndSend(mov.capture(), org.mockito.ArgumentMatchers.eq(false));
-        assertEquals(-10_000.0, mov.getValue().getCantidad());
-        assertEquals("GUARANI", mov.getValue().getMoneda().getDenominacion());
+        assertSame(g, service.saveAndSend(g, false));
+        verify(repository).save(g);
+        verifyNoMoreInteractions(repository);
     }
 }

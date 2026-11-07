@@ -1,6 +1,5 @@
 package com.franco.dev.graphql.operaciones;
 
-import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.CobroDetalle;
@@ -8,13 +7,11 @@ import com.franco.dev.domain.operaciones.Compra;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.graphql.financiero.MovimientoCajaGraphQL;
-import com.franco.dev.graphql.financiero.input.MovimientoCajaInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
 import com.franco.dev.graphql.operaciones.input.CobroInput;
 import com.franco.dev.graphql.operaciones.input.CompraInput;
 import com.franco.dev.service.financiero.CambioService;
 import com.franco.dev.service.financiero.MonedaService;
-import com.franco.dev.service.financiero.MovimientoCajaService;
 import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.CompraService;
 import com.franco.dev.service.operaciones.PedidoService;
@@ -78,18 +75,8 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     discountApplied = true;
                 }
                 c.setCobroId(cobro.getId());
-                CobroDetalle cobroDetalle = cobroDetalleGraphQL.saveCobroDetalle(c);
-                if(cobroDetalle != null && c.getId()==null && cobroDetalle.getDescuento()!=true && cobroDetalle.getAumento()!=true && cobroDetalle.getFormaPago().getDescripcion().toUpperCase().contains("EFECTIVO")){
-                    MovimientoCajaInput movimientoCajaInput = new MovimientoCajaInput();
-                    movimientoCajaInput.setMonedaId(c.getMonedaId());
-                    movimientoCajaInput.setCantidad(c.getValor());
-                    movimientoCajaInput.setActivo(true);
-                    movimientoCajaInput.setPdvCajaId(cajaId);
-                    movimientoCajaInput.setReferencia(cobro.getId());
-                    movimientoCajaInput.setTipoMovimiento(PdvCajaTipoMovimiento.VENTA);
-                    movimientoCajaInput.setUsuarioId(cobro.getUsuario().getId());
-                    movimientoCajaGraphQL.saveMovimientoCaja(movimientoCajaInput);
-                }
+                // Ya no se escribe movimiento_caja: el saldo sale de generarBalance (#80).
+                cobroDetalleGraphQL.saveCobroDetalle(c);
             }
             return cobro;
         } else {
