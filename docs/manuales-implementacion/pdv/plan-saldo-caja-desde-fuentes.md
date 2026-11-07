@@ -228,6 +228,36 @@ el diff no trae migraciones, workflows ni réplica.
 - **Rollback:** solo código; la versión anterior funciona igual (no hay esquema nuevo).
 - **Riesgo:** un gasto que hoy pasa y con la cuenta nueva no entra. Medido: 0 casos en 4 meses.
 
+## Resultado de la prueba (2026-11-07)
+
+Filial de esta rama (jar) en el 8082, sucursal 24, SIFEN apagado. Desktop `develop` en web estático
+(`modoImpresion: BACKEND`, impresora inexistente). Central `develop` en el 8081 con la réplica apagada,
+solo para el pre-gasto. Usuario MR, caja 1185.
+
+| Caso | Resultado |
+|---|---|
+| Arranque del jar (ciclo de beans) | arranca y responde `/api/version` |
+| Gasto 10.000 Gs dentro del saldo | guardado (712) |
+| Fila de `movimiento_caja` del gasto | **quedaba en 0** con el primer arreglo: el alta corre ahora en una transacción y el `MovimientoCaja` reutilizado se escribía con el último `setCantidad(0)`. Arreglado (`8019025`) con test que falla con el código anterior. Gasto 714 → fila −5.000 |
+| Retiro 64.970.000 Gs | guardado (1013); el ticket del servidor se intentó **después** del commit |
+| Gasto 10.000 Gs con el diálogo abierto antes del retiro (disponible viejo) | **rechazado por el filial**: «El valor de gasto es mayor al total en caja: Guaraiens»; nada guardado |
+| Gasto igual al saldo (6.000 Gs) | guardado (716) |
+| Retiro R$ 10,10 | guardado (1014) |
+| Doble envío: dos `saveRetiro` iguales de R$ 6 a la vez (saldo R$ 10,20) | uno guardado (1016), el otro espera el bloqueo y queda **rechazado** |
+| R$ 4,20 contra un saldo de 4,199999999999996 | el filial lo acepta (tolerancia, retiro 1017) |
+| Pre-gasto 1.000 Gs con la caja en 0 | el filial rechaza; el desktop muestra «No se pudo registrar el retiro en caja.»; ni gasto en la filial ni retiro en el central; el pre-gasto sigue AUTORIZADO |
+| `balancePorCajaId` de una caja con 257 ventas | 300–370 ms (local) |
+
+Encontrado al probar, fuera de este PR:
+- **El desktop compara sin tolerancia**: con un saldo de R$ 4,199999… no deja cargar R$ 4,20 (no
+  manda nada). El filial nunca es más estricto que la pantalla, que era la condición.
+- En la `general` local, tres ventas de la caja 1185 apuntan a clientes que no existen (restos de
+  una prueba del 25/10): `generarBalance` falla y el diálogo deshabilita Guardar. Se les sacó el
+  cliente para probar y se restauró al terminar.
+- `generarBalance` falla entero ante un dato roto (cliente inexistente en una venta). Con este
+  cambio, en esa caja el filial también rechaza gastos y retiros; el desktop actual ya los
+  bloqueaba con el mismo balance.
+
 ## Sin verificar
 
 - Fecha real de cancelación de las 3 ventas de los rechazos en R$ (no se guarda en ninguna tabla).
