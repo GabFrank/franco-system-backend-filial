@@ -142,66 +142,27 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
         // guarani
 
         if (isNew == true) {
-            movimientoCaja.setCantidad((PdvCajaService.cero(e.getRetiroGs()) > 0 ? PdvCajaService.cero(e.getRetiroGs()) : 0.0) * -1);
-            movimientoCaja.setUsuario(e.getUsuario());
-            movimientoCaja.setMoneda(monedaService.findByDescripcion("GUARANI"));
-            movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-            movimientoCaja.setPdvCaja(e.getCaja());
-            movimientoCaja.setReferencia(e.getId());
-            movimientoCaja.setCreadoEn(e.getCreadoEn());
-            if (movimientoCaja.getCantidad() != 0.0) movimientoCajaService.saveAndSend(movimientoCaja, false);
-
-
-            //real
-            movimientoCaja.setCantidad((PdvCajaService.cero(e.getRetiroRs()) > 0 ? PdvCajaService.cero(e.getRetiroRs()) : 0.0) * -1);
-            movimientoCaja.setUsuario(e.getUsuario());
-            movimientoCaja.setMoneda(monedaService.findByDescripcion("REAL"));
-            movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-            movimientoCaja.setPdvCaja(e.getCaja());
-            movimientoCaja.setReferencia(e.getId());
-            movimientoCaja.setCreadoEn(e.getCreadoEn());
-            if (movimientoCaja.getCantidad() != 0.0) movimientoCajaService.saveAndSend(movimientoCaja, false);
-
-            // dolar
-            movimientoCaja.setCantidad((PdvCajaService.cero(e.getRetiroDs()) > 0 ? PdvCajaService.cero(e.getRetiroDs()) : 0.0) * -1);
-            movimientoCaja.setUsuario(e.getUsuario());
-            movimientoCaja.setMoneda(monedaService.findByDescripcion("DOLAR"));
-            movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-            movimientoCaja.setPdvCaja(e.getCaja());
-            movimientoCaja.setReferencia(e.getId());
-            movimientoCaja.setCreadoEn(e.getCreadoEn());
-            if (movimientoCaja.getCantidad() != 0.0) movimientoCajaService.saveAndSend(movimientoCaja, false);
-
-            movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoGs()));
-            movimientoCaja.setUsuario(e.getUsuario());
-            movimientoCaja.setMoneda(monedaService.findByDescripcion("GUARANI"));
-            movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-            movimientoCaja.setPdvCaja(e.getCaja());
-            movimientoCaja.setReferencia(e.getId());
-            movimientoCaja.setCreadoEn(e.getCreadoEn());
-            if (movimientoCaja.getCantidad() != 0.0) movimientoCajaService.saveAndSend(movimientoCaja, false);
-
-
-            //real
-            movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoRs()));
-            movimientoCaja.setUsuario(e.getUsuario());
-            movimientoCaja.setMoneda(monedaService.findByDescripcion("REAL"));
-            movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-            movimientoCaja.setPdvCaja(e.getCaja());
-            movimientoCaja.setReferencia(e.getId());
-            movimientoCaja.setCreadoEn(e.getCreadoEn());
-            if (movimientoCaja.getCantidad() != 0.0) movimientoCajaService.saveAndSend(movimientoCaja, false);
-
-            // dolar
-            movimientoCaja.setCantidad(PdvCajaService.cero(e.getVueltoDs()));
-            movimientoCaja.setUsuario(e.getUsuario());
-            movimientoCaja.setMoneda(monedaService.findByDescripcion("DOLAR"));
-            movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
-            movimientoCaja.setPdvCaja(e.getCaja());
-            movimientoCaja.setReferencia(e.getId());
-            movimientoCaja.setCreadoEn(e.getCreadoEn());
-            if (movimientoCaja.getCantidad() != 0.0) movimientoCajaService.saveAndSend(movimientoCaja, false);
-
+            // Un solo objeto para las seis filas, como siempre (queda la ultima con monto). Se toca solo si hay
+            // monto: dentro de la transaccion de GastoGraphQL un setCantidad(0) sin guardar igual se escribia.
+            double[] cantidades = {
+                    (PdvCajaService.cero(e.getRetiroGs()) > 0 ? PdvCajaService.cero(e.getRetiroGs()) : 0.0) * -1,
+                    (PdvCajaService.cero(e.getRetiroRs()) > 0 ? PdvCajaService.cero(e.getRetiroRs()) : 0.0) * -1,
+                    (PdvCajaService.cero(e.getRetiroDs()) > 0 ? PdvCajaService.cero(e.getRetiroDs()) : 0.0) * -1,
+                    PdvCajaService.cero(e.getVueltoGs()),
+                    PdvCajaService.cero(e.getVueltoRs()),
+                    PdvCajaService.cero(e.getVueltoDs())};
+            String[] monedas = {"GUARANI", "REAL", "DOLAR", "GUARANI", "REAL", "DOLAR"};
+            for (int i = 0; i < cantidades.length; i++) {
+                if (cantidades[i] == 0.0) continue;
+                movimientoCaja.setCantidad(cantidades[i]);
+                movimientoCaja.setUsuario(e.getUsuario());
+                movimientoCaja.setMoneda(monedaService.findByDescripcion(monedas[i]));
+                movimientoCaja.setCambio(cambioService.findLastByMonedaId(movimientoCaja.getMoneda().getId()));
+                movimientoCaja.setPdvCaja(e.getCaja());
+                movimientoCaja.setReferencia(e.getId());
+                movimientoCaja.setCreadoEn(e.getCreadoEn());
+                movimientoCajaService.saveAndSend(movimientoCaja, false);
+            }
         } else {
             List<MovimientoCaja> movimientoCajaList = movimientoCajaService.findByTipoMovimientoAndReferencia(PdvCajaTipoMovimiento.GASTO, entity.getId());
             for (MovimientoCaja mc : movimientoCajaList) {
