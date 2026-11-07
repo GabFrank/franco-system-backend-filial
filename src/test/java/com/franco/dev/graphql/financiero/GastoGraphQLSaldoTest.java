@@ -87,6 +87,16 @@ class GastoGraphQLSaldoTest {
     }
 
     @Test
+    void unIdInventadoNoEsquivaElControl() {
+        GastoInput input = nuevo(50_000.0);
+        input.setId(123456L); // no existe
+
+        assertThrows(GraphQLException.class, () -> graphQL.saveGasto(input, null, null, true));
+
+        verify(service, never()).saveAndSend(any(Gasto.class), anyBoolean());
+    }
+
+    @Test
     void sinCajaSeAvisaEnVezDeRomper() {
         GastoInput input = nuevo(1_000.0);
         input.setCajaId(999L);

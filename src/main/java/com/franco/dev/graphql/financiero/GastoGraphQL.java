@@ -89,7 +89,8 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             throws GraphQLException {
         // Editar y finalizar reenvian al autor original a proposito. Edicion solo si el gasto existe: un
         // id inventado no puede esquivar la firma (issue #142).
-        if (input.getId() != null && service.findById(input.getId()).isPresent()) {
+        boolean edicion = input.getId() != null && service.findById(input.getId()).isPresent();
+        if (edicion) {
             auditorUsuarioId.verificar("GastoGraphQL.saveGasto", input.getUsuarioId());
         } else {
             input.setUsuarioId(auditorUsuarioId.firmante("GastoGraphQL.saveGasto", input.getUsuarioId(),
@@ -145,7 +146,8 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             e.setPreGastoId(null);
             e.setPreGastoSucursalId(null);
         }
-        Gasto gasto = e.getId() == null ? guardarGastoNuevo(e) : service.saveAndSend(e, false);
+        // Mismo criterio que la firma: un id inventado no esquiva el control de efectivo.
+        Gasto gasto = edicion ? service.saveAndSend(e, false) : guardarGastoNuevo(e);
         GastoDto gastoDto = new GastoDto();
         // imprimirEnCliente: el desktop pide el ticket despues con ticketEscpos(GASTO) y lo imprime el.
         if (gasto != null && input.getFinalizado() != true && !Boolean.TRUE.equals(imprimirEnCliente)) {

@@ -99,8 +99,10 @@ y **el filial no arranca** (auditoría A).
    llega la caja: «Caja no encontrada» (hoy es un NPE).
 3. Se saca la validación de `GastoService.saveAndSend`: lo único que la llama es `saveGasto` (el
    otro llamador, `saveVueltoGasto`, edita y no valida).
-4. `GastoDetalleGraphQL.saveGastoDetalle` (sin uso en los clientes): inyecta `PdvCajaService`, misma
-   validación antes de `service.save`; se saca la de `GastoDetalleService.save`.
+4. `saveGastoDetalle` (sin uso en los clientes): **queda sin control de efectivo**. El balance del
+   cierre toma el gasto por su cabecera, así que con la cuenta nueva el detalle se compararía
+   contra un saldo que ya descontó su propio gasto y lo borraría. Se saca la validación (y el
+   borrado del gasto) de `GastoDetalleService.save` (auditoría del diff, Fijo 2).
 5. `RetiroDetalleService.save`: no tiene ningún llamador (el retiro entra por `saveAndSend`). Se
    borra el override en vez de portarle la validación.
 6. Borrar `MovimientoCajaService.totalEnCajaPorCajaIdAndMonedaId`, `findTotalVentaByCajaIdAndMonedaId`
@@ -160,8 +162,10 @@ caja. Reintentá en unos segundos.» Se toma **antes** de leer el balance:
   validación y `service.saveAndSend`. La impresión queda afuera, así que un error al imprimir no
   deshace el gasto y el bloqueo se suelta al guardar. De paso, el gasto y sus filas de
   `movimiento_caja` quedan en una sola transacción.
-- **Retiro nuevo**: `saveRetiro` ya es `@Transactional`. El bloqueo dura hasta el commit, que llega
-  después de imprimir (como hoy). Un retiro de otra caja no espera.
+- **Retiro nuevo**: `saveRetiro` ya es `@Transactional` y el bloqueo dura hasta el commit. El ticket
+  que imprime el servidor (`imprimirEnCliente` falso, desktops viejos) pasa a salir **después del
+  commit** (`afterCommit`): la otra caja no espera a la impresora y no sale ticket de un retiro
+  revertido (auditoría del diff, los tres ejes). Un retiro de otra caja no espera.
 
 El segundo envío espera a que el primero confirme y recién ahí lee el balance (READ COMMITTED). Si
 ya no alcanza el efectivo, se rechaza: es el caso de la caja 2155. **Límite:** si alcanza para los
@@ -185,6 +189,22 @@ misma caja, la segunda espera y queda rechazada.
 
 - Concurrencia: dos gastos o retiros a la vez en la misma caja pueden pasar los dos, igual que hoy
   (ningún código toma lock). La ventana entre leer y guardar crece de una consulta a cientos de ms.
+
+## Auditoría del diff (paso 8)
+
+Tres ejes fijos (autorización, persistencia/arranque, contrato con los clientes). Ningún condicional:
+el diff no trae migraciones, workflows ni réplica.
+
+| Hallazgo | Eje | Qué se hizo |
+|---|---|---|
+| Ningún control de acceso se pierde; sin ciclos de constructores; `movimiento_caja` se escribe igual | 1, 2 | verificado; el jar arranca y responde `/api/version` |
+| El bloqueo del retiro se mantenía mientras imprimía el servidor | 1, 2, 3 | ticket del servidor en `afterCommit`, con test |
+| Un gasto con id inventado esquivaba el control (preexistente) | 2 | mismo criterio de «existe» que la firma, con test |
+| `saveGastoDetalle` contaría su propio gasto y lo borraría | 2 | se le saca el control (sin uso en clientes) |
+| Pre-gasto (`retiro-pre-gasto-dialog`): la pantalla no controla saldo; ahora el filial es el único freno y rechaza al final, sin guardar nada (ni gasto ni retiro en el central) | 3 | a probar por pantalla |
+| Desktops anteriores a `a4b478f4` (2026-10-03) validan con un balance que puede estar viejo y muestran «Ocurrió un error al guardar el retiro» | 3 | nota en el PR: en esos equipos ese mensaje puede ser falta de saldo |
+| Tras un rechazo, los diálogos no recargan el disponible | 3 | desktop, fuera de este PR |
+| Las altas de gasto/retiro no exigen acceso a la caja (preexistente) | 1 | anotado por privado (repo público), fuera de este PR |
 
 ## Auditoría del plan (paso 5)
 

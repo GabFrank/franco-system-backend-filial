@@ -27,6 +27,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.HashMap;
 import java.util.List;
@@ -135,7 +137,19 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             retiroDto.setUsuario(retiro.getUsuario());
             // imprimirEnCliente: el desktop pide el ticket despues con ticketEscpos(RETIRO) y lo imprime el.
             if (!Boolean.TRUE.equals(imprimirEnCliente)) {
-                impresionService.printRetiro(retiroDto, printerName, local, false);
+                // Despues del commit: el bloqueo de la caja no espera a la impresora y no sale ticket de
+                // un retiro que se revierte (issue #80).
+                Runnable imprimir = () -> impresionService.printRetiro(retiroDto, printerName, local, false);
+                if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            imprimir.run();
+                        }
+                    });
+                } else {
+                    imprimir.run();
+                }
             }
         }
         return retiro;

@@ -10,6 +10,7 @@ import com.franco.dev.graphql.financiero.input.RetiroInput;
 import com.franco.dev.service.financiero.MonedaService;
 import com.franco.dev.service.financiero.PdvCajaService;
 import com.franco.dev.service.financiero.RetiroService;
+import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.seguridad.AuditorUsuarioId;
 import graphql.GraphQLException;
@@ -19,6 +20,8 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Arrays;
 import java.util.List;
@@ -41,6 +44,7 @@ class RetiroGraphQLSaldoTest {
     @Mock private UsuarioService usuarioService;
     @Mock private MonedaService monedaService;
     @Mock private RetiroDetalleGraphQL retiroDetalleGraphQL;
+    @Mock private ImpresionService impresionService;
     @InjectMocks private RetiroGraphQL graphQL;
 
     private final PdvCaja caja = new PdvCaja();
@@ -92,6 +96,20 @@ class RetiroGraphQLSaldoTest {
                 detalles(detalle(GS, 25_000.0), detalle(GS, 20_000.0)), null, null, true));
 
         verify(service, never()).saveAndSend(any(Retiro.class), anyBoolean());
+    }
+
+    @Test
+    void elTicketDelServidorSaleRecienDespuesDelCommit() {
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            graphQL.saveRetiro(nuevo(), detalles(detalle(GS, 10_000.0)), "frc-ticket", null, false);
+            verify(impresionService, never()).printRetiro(any(), any(), any(), anyBoolean());
+
+            TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+            verify(impresionService).printRetiro(any(), eq("frc-ticket"), any(), eq(false));
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Test

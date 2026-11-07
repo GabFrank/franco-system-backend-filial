@@ -41,7 +41,7 @@ public class GastoDetalleService extends CrudService<GastoDetalle, GastoDetalleR
 
     @Override
     public GastoDetalle save(GastoDetalle entity) throws GraphQLException{
-        // El control de efectivo lo hace GastoDetalleGraphQL (issue #80).
+        // Sin control de efectivo: el balance del cierre toma el gasto por su cabecera, no por el detalle (issue #80).
         GastoDetalle e = super.save(entity);
         MovimientoCaja movimientoCaja = new MovimientoCaja();
         movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.GASTO);
