@@ -925,10 +925,13 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     /**
      * Si sacar {@code monto} deja la caja en negativo. La tolerancia es por redondeo de double en R$ y
      * US$: los retiros "de todo" al cierre dejan margen exacto 0 y el backend no puede ser mas estricto
-     * que la pantalla. Un monto 0 o nulo nunca supera.
+     * que la pantalla. Un monto 0 o nulo nunca supera, y una moneda que el balance no lleva (PESO ARG)
+     * no se controla.
      */
     public static boolean superaSaldo(PdvCajaBalanceDto b, String denominacion, Double monto) {
-        return cero(monto) > 0 && cero(monto) > saldoEnCaja(b, denominacion) + 0.005;
+        boolean monedaDelBalance = denominacion != null && (denominacion.contains("GUARANI")
+                || denominacion.contains("REAL") || denominacion.contains("DOLAR"));
+        return monedaDelBalance && cero(monto) > 0 && cero(monto) > saldoEnCaja(b, denominacion) + 0.005;
     }
 
     /**

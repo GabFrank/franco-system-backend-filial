@@ -203,13 +203,15 @@ class PdvCajaServiceBalanceTest {
     }
 
     @Test
-    void sinBalanceOConOtraMonedaElSaldoEsCeroYUnMontoCeroNuncaSupera() {
+    void sinBalanceElSaldoEsCeroYOtraMonedaOUnMontoCeroNuncaSuperan() {
         movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "GUARANI", 1_000);
         retiros(retiro("GUARANI", 5_000, null)); // saldo negativo
         PdvCajaBalanceDto b = service.generarBalance(caja());
 
         igual(0.0, PdvCajaService.saldoEnCaja(null, "GUARANI"));
         igual(0.0, PdvCajaService.saldoEnCaja(b, "PESO ARG"));
+        assertFalse(PdvCajaService.superaSaldo(b, "PESO ARG", 1.0), "una moneda sin cuenta no se controla");
+        assertFalse(PdvCajaService.superaSaldo(b, null, 1.0));
         assertFalse(PdvCajaService.superaSaldo(b, "GUARANI", 0.0));
         assertFalse(PdvCajaService.superaSaldo(b, "GUARANI", null));
         assertTrue(PdvCajaService.superaSaldo(null, "GUARANI", 1.0));

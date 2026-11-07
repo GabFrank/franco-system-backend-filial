@@ -1,8 +1,12 @@
 package com.franco.dev.graphql.financiero;
 
+import com.franco.dev.domain.financiero.Moneda;
+import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.domain.financiero.Retiro;
+import com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto;
 import com.franco.dev.graphql.financiero.input.RetiroDetalleInput;
 import com.franco.dev.graphql.financiero.input.RetiroInput;
+import com.franco.dev.service.financiero.MonedaService;
 import com.franco.dev.service.financiero.MovimientoCajaService;
 import com.franco.dev.service.financiero.PdvCajaService;
 import com.franco.dev.service.seguridad.RolSesionService;
@@ -24,7 +28,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Component
@@ -63,6 +69,9 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     @Autowired
     private RetiroDetalleService retiroDetalleService;
 
+    @Autowired
+    private MonedaService monedaService;
+
     /** Transaccional para leer la caja (LAZY) del retiro. */
     @Transactional(readOnly = true)
     public Optional<Retiro> retiro(Long id, Long sucId) {
@@ -86,7 +95,8 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     public Retiro saveRetiro(RetiroInput input, List<RetiroDetalleInput> retiroDetalleInputList, String printerName, String local,
             Boolean imprimirEnCliente) throws GraphQLException {
         // Edicion solo si el retiro existe: un id inventado no puede esquivar la firma (issue #142).
-        if (input.getId() != null && service.findById(input.getId()).isPresent()) {
+        boolean edicion = input.getId() != null && service.findById(input.getId()).isPresent();
+        if (edicion) {
             auditorUsuarioId.verificar("RetiroGraphQL.saveRetiro", input.getUsuarioId());
         } else {
             input.setUsuarioId(auditorUsuarioId.firmante("RetiroGraphQL.saveRetiro", input.getUsuarioId(),
@@ -102,6 +112,9 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             e.setCajaEntrada(pdvCajaService.findById(input.getCajaEntradaId()).orElse(null));
         if (input.getResponsableId() != null)
             e.setResponsable(funcionarioService.findById(input.getResponsableId()).orElse(null));
+        if (!edicion && e.getCajaSalida() != null) {
+            exigirEfectivo(e.getCajaSalida(), retiroDetalleInputList);
+        }
         Retiro retiro = service.saveAndSend(e, false);
         if (retiro != null) {
             for (RetiroDetalleInput r : retiroDetalleInputList) {
@@ -127,6 +140,28 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         }
         return retiro;
 
+    }
+
+    /**
+     * Control de efectivo de un retiro nuevo con la cuenta del cierre, con la caja bloqueada hasta el
+     * commit (issue #80). Va antes de guardar nada: despues, el balance ya contaria el propio retiro y
+     * rechazaria el retiro "de todo" del cierre.
+     */
+    private void exigirEfectivo(PdvCaja caja, List<RetiroDetalleInput> detalles) {
+        pdvCajaService.bloquearSaldoCaja(caja.getId());
+        PdvCajaBalanceDto balance = pdvCajaService.generarBalance(caja);
+        Map<Long, Double> porMoneda = new HashMap<>();
+        for (RetiroDetalleInput d : detalles) {
+            if (d.getMonedaId() != null && d.getCantidad() != null && d.getCantidad() > 0) {
+                porMoneda.merge(d.getMonedaId(), d.getCantidad(), Double::sum);
+            }
+        }
+        for (Map.Entry<Long, Double> m : porMoneda.entrySet()) {
+            String denominacion = monedaService.findById(m.getKey()).map(Moneda::getDenominacion).orElse(null);
+            if (PdvCajaService.superaSaldo(balance, denominacion, m.getValue())) {
+                throw new GraphQLException("El valor de retiro es mayor al total en caja: " + denominacion);
+            }
+        }
     }
 
 //    public List<Retiro> retirosSearch(String texto){
