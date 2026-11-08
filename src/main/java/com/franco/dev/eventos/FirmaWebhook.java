@@ -50,6 +50,24 @@ public final class FirmaWebhook {
         return false;
     }
 
+    /**
+     * Firma simetrica "v1" (HMAC-SHA256) de Standard Webhooks, opcional por suscripcion: los SDK oficiales
+     * (standardwebhooks 1.1.x de Python y npm) solo verifican v1 e ignoran v1a. Secreto "whsec_<base64>".
+     */
+    public static String firmarHmac(String secreto, String webhookId, long timestamp, String cuerpo) {
+        String s = secreto.trim();
+        if (s.startsWith("whsec_")) s = s.substring(6);
+        byte[] clave = Base64.getDecoder().decode(s);
+        if (clave.length == 0) throw new IllegalArgumentException("Secreto HMAC vacio");
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(clave, "HmacSHA256"));
+            return "v1," + Base64.getEncoder().encodeToString(mac.doFinal(contenido(webhookId, timestamp, cuerpo)));
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     private static byte[] contenido(String webhookId, long timestamp, String cuerpo) {
         return (webhookId + "." + timestamp + "." + cuerpo).getBytes(StandardCharsets.UTF_8);
     }

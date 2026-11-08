@@ -39,6 +39,12 @@ public class EventosProperties {
     /** Valores de las cabeceras fijas, por nombre de referencia (secreto_ref de la suscripcion). */
     private Map<String, String> secretos = new HashMap<>();
 
+    /**
+     * Secreto HMAC "whsec_..." por id de suscripcion, para los receptores que verifican con los SDK oficiales
+     * (solo v1). Con secreto, la cabecera lleva "v1a,... v1,...". Vive en el overlay, nunca en la base.
+     */
+    private Map<String, String> secretosHmac = new HashMap<>();
+
     /** Hosts (exactos) que pueden resolver a una IP interna: excepcion al bloqueo de SSRF (receptor interno o de prueba). */
     private List<String> hostsPermitidos = new ArrayList<>();
 

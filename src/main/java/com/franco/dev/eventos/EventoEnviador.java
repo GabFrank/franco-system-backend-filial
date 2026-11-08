@@ -192,7 +192,17 @@ public class EventoEnviador {
         cab.put("Content-Type", lote ? SobreCloudEvents.CT_LOTE : SobreCloudEvents.CT_UNO);
         cab.put("webhook-id", webhookId);
         cab.put("webhook-timestamp", String.valueOf(ts));
-        cab.put("webhook-signature", f.firmar(webhookId, ts, cuerpo));
+        String firmas = f.firmar(webhookId, ts, cuerpo);
+        String hmac = props.getSecretosHmac().get(String.valueOf(s.getId()));
+        if (hmac != null && !hmac.trim().isEmpty()) {
+            try {
+                firmas += " " + FirmaWebhook.firmarHmac(hmac, webhookId, ts, cuerpo);
+            } catch (Exception ex) {
+                for (EventosRepositorio.EntregaReclamada e : envio) repo.devolverSinGastar(e, "Secreto HMAC invalido de la suscripcion " + s.getId(), 300);
+                return;
+            }
+        }
+        cab.put("webhook-signature", firmas);
         if (props.getClaveId() != null) cab.put("frc-key-id", props.getClaveId());
         cab.put("frc-intento", String.valueOf(primera.intentos));
 

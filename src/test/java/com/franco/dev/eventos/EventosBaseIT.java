@@ -198,6 +198,40 @@ class EventosBaseIT {
         assertEquals(2, contar("SELECT intentos FROM eventos.webhook_entrega"));
     }
 
+    @Test
+    void conSecretoHmacFirmaV1aYV1() throws Exception {
+        long id = suscripcion("*", null);
+        String whsec = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
+        props.getSecretosHmac().put(String.valueOf(id), whsec);
+        emitirEnTx(1);
+        despachador.ciclo();
+        transporte(200);
+        assertEquals(1, enviador.ciclo(true));
+        Map<String, String> r = recibidas.get(0);
+        String[] firmas = r.get("webhook-signature").split(" ");
+        assertEquals(2, firmas.length);
+        assertTrue(firmas[0].startsWith("v1a,"));
+        long ts = Long.parseLong(r.get("webhook-timestamp"));
+        assertTrue(FirmaWebhook.verificar(publica, r.get("webhook-id"), ts, r.get("_cuerpo"), r.get("webhook-signature")));
+        assertEquals(FirmaWebhook.firmarHmac(whsec, r.get("webhook-id"), ts, r.get("_cuerpo")), firmas[1]);
+        // Muestra para verificarla afuera con la libreria oficial (tools/swh)
+        Map<String, String> muestra = new java.util.LinkedHashMap<>(r);
+        muestra.put("_secreto", whsec);
+        Files.write(Paths.get("target/swh-muestra.json"), mapper.writeValueAsBytes(muestra));
+    }
+
+    @Test
+    void secretoHmacInvalidoNoGastaElIntento() {
+        long id = suscripcion("*", null);
+        props.getSecretosHmac().put(String.valueOf(id), "whsec_");
+        emitirEnTx(1);
+        despachador.ciclo();
+        transporte(200);
+        enviador.ciclo(true);
+        assertEquals(0, recibidas.size());
+        assertEquals(0, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'ENVIADA'"));
+    }
+
     private List<Map<String, String>> recibidas = new CopyOnWriteArrayList<>();
 
     private void transporte(int status) {

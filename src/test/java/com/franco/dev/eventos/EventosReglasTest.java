@@ -152,6 +152,17 @@ class EventosReglasTest {
     }
 
     @Test
+    void firmaHmacV1IgualALaLibreriaOficial() {
+        // Vector calculado con la libreria oficial standardwebhooks 1.1.0 de Python (Webhook.sign).
+        assertEquals("v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE=",
+                FirmaWebhook.firmarHmac("whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw", "msg_p5jXN8AQM9LWM0D4loKWxJek", 1614265330L, "{\"test\": 2432232314}"));
+        // Sin prefijo da lo mismo
+        assertEquals("v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE=",
+                FirmaWebhook.firmarHmac("MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw", "msg_p5jXN8AQM9LWM0D4loKWxJek", 1614265330L, "{\"test\": 2432232314}"));
+        assertThrows(IllegalArgumentException.class, () -> FirmaWebhook.firmarHmac("whsec_", "x", 1L, "{}"));
+    }
+
+    @Test
     void ulidOrdenadoYUnico() {
         String a = Ulid.nuevo(1_700_000_000_000L);
         String b = Ulid.nuevo(1_700_000_000_001L);
