@@ -1,5 +1,6 @@
 package com.franco.dev.graphql;
 
+import com.franco.dev.graphql.configuraciones.WebhookGraphQL;
 import com.franco.dev.graphql.configuraciones.LocalGraphQL;
 import com.franco.dev.graphql.empresarial.CargoGraphQL;
 import com.franco.dev.graphql.empresarial.SectorGraphQL;
@@ -99,6 +100,9 @@ class ControlRolFilialMatrizTest {
         print.put("imprimirEnImpresora", ADMIN);
         print.put("imprimirPruebaEnImpresora", new String[]{"CONFIGURACION"});
         m.put(PrintRouterGraphQL.class, print);
+        Map<String, String[]> webhook = new LinkedHashMap<>();
+        webhook.put("webhookEnviarPrueba", new String[]{"WEBHOOKS GESTIONAR"});
+        m.put(WebhookGraphQL.class, webhook);
         return m;
     }
 
