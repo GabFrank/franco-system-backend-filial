@@ -443,6 +443,48 @@ class EventosBaseIT {
     }
 
     @Test
+    void elLockDelReclamoSeSueltaAunqueFalle() throws Exception {
+        suscripcion("*", null);
+        emitirEnTx(1);
+        despachador.ciclo();
+        assertThrows(Exception.class, () -> repo.reclamar(false, -1, 2, 60), "LIMIT negativo hace fallar el reclamo");
+        assertEquals(0, contar("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND objid = ?", (int) (EventosRepositorio.LOCK_RECLAMO & 0xffffffffL)));
+        // Otro hilo puede reclamar enseguida (si el lock hubiera quedado tomado, se colgaria)
+        java.util.concurrent.Future<List<EventosRepositorio.EntregaReclamada>> f =
+                java.util.concurrent.Executors.newSingleThreadExecutor().submit(() -> repo.reclamar(false, 10, 2, 60));
+        assertEquals(1, f.get(5, java.util.concurrent.TimeUnit.SECONDS).size());
+        assertEquals(0, contar("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory'"));
+    }
+
+    @Test
+    void vencidaA72HorasNoSeVuelveAIntentar() {
+        suscripcion("*", null);
+        emitirEnTx(1);
+        despachador.ciclo();
+        jdbc.update("UPDATE eventos.webhook_entrega SET estado = 'REINTENTO', intentos = 20, primer_intento_en = now() - interval '73 hours'");
+        transporte(200);
+        assertEquals(0, enviador.ciclo(true));
+        assertTrue(recibidas.isEmpty(), "pasadas las 72 h no sale aunque el receptor ya ande");
+        assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'DESCARTADA' AND ultimo_error LIKE 'Vencida a las 72 h%'"));
+    }
+
+    @Test
+    void limpiezaConDescartadasYSinFallarPorFk() {
+        suscripcion("*", null);
+        emitirEnTx(3);
+        despachador.ciclo();
+        jdbc.update("UPDATE eventos.outbox_evento SET repartido_en = now() - interval '40 days'");
+        jdbc.update("UPDATE eventos.webhook_entrega SET estado = 'DESCARTADA', creado_en = now() - interval '10 days' WHERE secuencia = 1");
+        jdbc.update("UPDATE eventos.webhook_entrega SET estado = 'DESCARTADA', creado_en = now() - interval '31 days' WHERE secuencia = 2");
+        jdbc.update("UPDATE eventos.webhook_entrega SET estado = 'ENVIADA', creado_en = now() - interval '8 days' WHERE secuencia = 3");
+        repo.limpiar();
+        assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega"), "queda la DESCARTADA de 10 dias");
+        assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento o JOIN eventos.webhook_entrega e ON e.outbox_id = o.id"),
+                "y su outbox, aunque este repartido hace 40 dias");
+        assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento"));
+    }
+
+    @Test
     void limpiezaNoTocaLoVivo() {
         suscripcion("*", null);
         emitirEnTx(2);

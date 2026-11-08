@@ -97,7 +97,11 @@ class EventosReglasTest {
         assertTrue(DestinoSeguro.bloqueada(InetAddress.getByName("::1")));
         assertTrue(DestinoSeguro.bloqueada(InetAddress.getByName("fd00::1")));
         assertTrue(DestinoSeguro.bloqueada(InetAddress.getByAddress(new byte[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xff, (byte) 0xff, 10, 0, 0, 1})));
-        assertNotNull(DestinoSeguro.validar("https://93.184.215.14/hook", Collections.singletonList("loom.example.com")), "fuera de la lista");
+        // hosts-permitidos es excepcion al bloqueo, no lista de admision
+        assertNull(DestinoSeguro.validar("https://93.184.215.14/hook", Collections.singletonList("loom.example.com")), "publico no listado: pasa");
+        assertNull(DestinoSeguro.validar("https://10.1.2.3/hook", Collections.singletonList("10.1.2.3")), "interno listado: pasa");
+        assertNotNull(DestinoSeguro.validar("https://10.1.2.4/hook", Collections.singletonList("10.1.2.3")), "interno no listado: bloqueado");
+        assertNotNull(DestinoSeguro.validar("http://10.1.2.3/hook", Collections.singletonList("10.1.2.3")), "listado igual exige https");
     }
 
     @Test
@@ -109,6 +113,20 @@ class EventosReglasTest {
             Exception e = assertThrows(Exception.class, () -> t.post(url, Collections.emptyMap(), "{}"), url);
             assertTrue(String.valueOf(causaRaiz(e).getMessage()).contains("Destino bloqueado"), url + ": " + causaRaiz(e));
         }
+    }
+
+    @Test
+    void unHostListadoConectaAunqueSeaInterno() {
+        EventosProperties p = new EventosProperties();
+        p.setTimeoutMs(2000);
+        p.setHostsPermitidos(Collections.singletonList("127.0.0.1"));
+        EventoEnviador.Transporte t = EventoEnviador.transporteNetty(p);
+        // Puerto 9 cerrado: el resolver lo deja pasar y falla recien al conectar
+        Exception e = assertThrows(Exception.class, () -> t.post("https://127.0.0.1:9/x", Collections.emptyMap(), "{}"));
+        assertFalse(String.valueOf(causaRaiz(e).getMessage()).contains("Destino bloqueado"), "" + causaRaiz(e));
+        // Otro interno no listado sigue bloqueado con la lista cargada
+        Exception e2 = assertThrows(Exception.class, () -> t.post("https://10.0.0.1:9/x", Collections.emptyMap(), "{}"));
+        assertTrue(String.valueOf(causaRaiz(e2).getMessage()).contains("Destino bloqueado"), "" + causaRaiz(e2));
     }
 
     private static Throwable causaRaiz(Throwable t) {

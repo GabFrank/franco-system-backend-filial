@@ -157,19 +157,30 @@ public class EventosRepositorio {
      */
     public List<EntregaReclamada> reclamar(boolean lote, int limite, int maxPorDestino, int leaseSeg) {
         // El tope por destino cuenta las EN_CURSO: dos reclamos a la vez (dos hilos o dos JVM) verian
-        // las mismas y tomarian el doble. Se serializan con un advisory lock de sesion sobre la misma
-        // conexion; el UPDATE toma su snapshot despues del lock y ve lo que reclamo el otro.
+        // las mismas y tomarian el doble. Se serializan con pg_advisory_xact_lock dentro de una TX corta
+        // sobre la misma conexion: el lock se suelta solo con el commit o el rollback, aunque algo falle,
+        // y el UPDATE toma su snapshot despues del lock, asi ve lo que reclamo el otro.
         return jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<List<EntregaReclamada>>) con -> {
-            try (java.sql.Statement st = con.createStatement()) {
-                st.execute("SELECT pg_advisory_lock(" + LOCK_RECLAMO + ")");
-            }
+            boolean autoCommit = con.getAutoCommit();
+            con.setAutoCommit(false);
             try {
-                return reclamarConLock(new JdbcTemplate(new org.springframework.jdbc.datasource.SingleConnectionDataSource(con, true)),
-                        lote, limite, maxPorDestino, leaseSeg);
-            } finally {
                 try (java.sql.Statement st = con.createStatement()) {
-                    st.execute("SELECT pg_advisory_unlock(" + LOCK_RECLAMO + ")");
+                    st.execute("SELECT pg_advisory_xact_lock(" + LOCK_RECLAMO + ")");
                 }
+                JdbcTemplate j = new JdbcTemplate(new org.springframework.jdbc.datasource.SingleConnectionDataSource(con, true));
+                // Lo que lleva mas de 72 h sin salir se descarta antes de volver a intentarlo
+                j.update("UPDATE eventos.webhook_entrega SET estado = 'DESCARTADA', lease_hasta = NULL,"
+                        + " ultimo_error = left('Vencida a las 72 h: ' || COALESCE(ultimo_error, ''), 300)"
+                        + " WHERE estado IN ('REINTENTO', 'EN_CURSO') AND primer_intento_en < now() - make_interval(hours => ?)"
+                        + " AND (estado = 'REINTENTO' OR lease_hasta < now())", ReglasEntrega.VENCIMIENTO_HORAS);
+                List<EntregaReclamada> l = reclamarConLock(j, lote, limite, maxPorDestino, leaseSeg);
+                con.commit();
+                return l;
+            } catch (RuntimeException | java.sql.SQLException ex) {
+                con.rollback();
+                throw ex;
+            } finally {
+                con.setAutoCommit(autoCommit);
             }
         });
     }

@@ -39,7 +39,7 @@ public class EventosProperties {
     /** Valores de las cabeceras fijas, por nombre de referencia (secreto_ref de la suscripcion). */
     private Map<String, String> secretos = new HashMap<>();
 
-    /** Si no esta vacia, solo se envia a estos hosts (exactos). Es la defensa contra DNS rebinding. */
+    /** Hosts (exactos) que pueden resolver a una IP interna: excepcion al bloqueo de SSRF (receptor interno o de prueba). */
     private List<String> hostsPermitidos = new ArrayList<>();
 
     /** Envios simultaneos del nodo. */

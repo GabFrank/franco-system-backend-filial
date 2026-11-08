@@ -7,8 +7,9 @@ import java.net.URI;
 import java.util.List;
 
 /**
- * Control de SSRF antes de cada envio: solo https, host en la lista permitida (si hay) y ninguna IP
- * resuelta en rangos privados, de loopback, link-local o CGNAT (100.64/10, la red de Tailscale).
+ * Control de SSRF: solo https y ninguna IP resuelta en rangos privados, de loopback, link-local o CGNAT
+ * (100.64/10, la red de Tailscale), salvo los hosts de frc.webhooks.hosts-permitidos. La validacion
+ * que vale es la de ResolverSeguro, al conectar; esta es el chequeo previo.
  */
 public final class DestinoSeguro {
 
@@ -26,10 +27,9 @@ public final class DestinoSeguro {
         if (!"https".equalsIgnoreCase(u.getScheme())) return "Solo se acepta https";
         String host = u.getHost();
         if (host == null) return "URL sin host";
-        if (hostsPermitidos != null && !hostsPermitidos.isEmpty()
-                && hostsPermitidos.stream().noneMatch(h -> h.equalsIgnoreCase(host))) {
-            return "Host fuera de frc.webhooks.hosts-permitidos";
-        }
+        // hosts-permitidos es la excepcion al bloqueo de rangos (un receptor interno o de prueba). Los
+        // demas hosts publicos se aceptan igual; lo que se bloquea es que resuelvan a una IP interna.
+        if (permitido(host, hostsPermitidos)) return null;
         try {
             for (InetAddress a : InetAddress.getAllByName(host)) {
                 if (bloqueada(a)) return "El host resuelve a una IP interna";
@@ -38,6 +38,10 @@ public final class DestinoSeguro {
             return "No resuelve el host";
         }
         return null;
+    }
+
+    public static boolean permitido(String host, List<String> hostsPermitidos) {
+        return host != null && hostsPermitidos != null && hostsPermitidos.stream().anyMatch(h -> h.equalsIgnoreCase(host));
     }
 
     static boolean bloqueada(InetAddress a) {

@@ -66,7 +66,7 @@ public class EventoEnviador {
      */
     static Transporte transporteNetty(EventosProperties props) {
         reactor.netty.http.client.HttpClient http = reactor.netty.http.client.HttpClient.create()
-                .resolver(new ResolverSeguro())
+                .resolver(new ResolverSeguro(props.getHostsPermitidos()))
                 .followRedirect(false)
                 .option(io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS, props.getTimeoutMs())
                 .responseTimeout(Duration.ofMillis(props.getTimeoutMs()));
