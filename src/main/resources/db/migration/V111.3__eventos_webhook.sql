@@ -103,6 +103,8 @@ CREATE TABLE IF NOT EXISTS eventos.destino_estado (
     ultimo_error       VARCHAR(300),
     actualizado_en     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- config_version de la suscripcion al pausar por 410: si el central la cambia (reactivar, otra URL), se despausa.
+ALTER TABLE eventos.destino_estado ADD COLUMN IF NOT EXISTS pausado_config_version BIGINT;
 
 -- Estado del nodo (BRANCH_TO_MAIN). PK = sucursal_id para que no choquen las filas de las filiales.
 CREATE TABLE IF NOT EXISTS eventos.nodo_estado (

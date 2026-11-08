@@ -34,6 +34,8 @@ import java.util.Optional;
 @Component
 public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(VentaItemGraphQL.class);
+
     @Autowired
     private VentaItemService service;
 
@@ -161,11 +163,16 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
             calcularTotalVenta(venta);
         // Aviso venta.item_eliminado recien con el borrado hecho. La TX de este metodo no se toca
         // (sigue sin TX de afuera, como en develop): el aviso va en una TX propia y nunca cambia el resultado.
-        if (Boolean.TRUE.equals(ok) && ventaItem != null) {
-            eventoEmisor.emitirEnNuevaTx("venta.item_eliminado", "media",
-                    ventaItem.getUsuario() != null ? ventaItem.getUsuario().getId() : null,
-                    venta != null ? "venta/" + venta.getId() : "venta-item/" + id,
-                    EventosVenta.itemEliminado(ventaItem, venta));
+        // Apagado no arma nada; armar el aviso (relaciones LAZY) nunca cambia el resultado del borrado.
+        if (Boolean.TRUE.equals(ok) && ventaItem != null && eventoEmisor.encendido()) {
+            try {
+                eventoEmisor.emitirEnNuevaTx("venta.item_eliminado", "media",
+                        ventaItem.getUsuario() != null ? ventaItem.getUsuario().getId() : null,
+                        venta != null ? "venta/" + venta.getId() : "venta-item/" + id,
+                        EventosVenta.itemEliminado(ventaItem, venta));
+            } catch (RuntimeException e) {
+                log.warn("[eventos] no se pudo armar venta.item_eliminado del item {}: {}", id, e.toString());
+            }
         }
         return ok;
     }

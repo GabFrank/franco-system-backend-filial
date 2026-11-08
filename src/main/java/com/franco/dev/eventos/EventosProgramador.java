@@ -64,7 +64,10 @@ public class EventosProgramador {
                 // sigue
             }
         }), Duration.ofSeconds(1));
-        scheduler.scheduleWithFixedDelay(() -> seguro("cancelar", repo::cancelarDeInactivas), Duration.ofMinutes(1));
+        scheduler.scheduleWithFixedDelay(() -> seguro("cancelar", () -> {
+            repo.cancelarDeInactivas();
+            repo.despausar410ConConfigNueva();
+        }), Duration.ofMinutes(1));
         mantenimiento.scheduleWithFixedDelay(() -> seguro("latido", this::latido), Duration.ofMinutes(10));
         mantenimiento.schedule(() -> seguro("limpieza", repo::limpiar), new CronTrigger("0 30 3 * * *"));
         log.info("[eventos] webhooks encendidos en la sucursal {}", sucursalId);

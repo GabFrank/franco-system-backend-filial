@@ -334,6 +334,11 @@ class EventosBaseIT {
         enviador.ciclo(true);
         assertEquals(1, contar("SELECT count(*) FROM eventos.destino_estado WHERE pausado_por_410 AND suscripcion_id = ?", a));
         assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'REINTENTO'"), "no se pierde");
+        // Sin cambio en el central sigue pausado; con config_version nueva se despausa
+        assertEquals(0, repo.despausar410ConConfigNueva());
+        jdbc.update("UPDATE configuraciones.webhook_suscripcion SET config_version = config_version + 1 WHERE id = ?", a);
+        assertEquals(1, repo.despausar410ConConfigNueva());
+        assertEquals(0, contar("SELECT count(*) FROM eventos.destino_estado WHERE pausado_por_410"));
     }
 
     @Test

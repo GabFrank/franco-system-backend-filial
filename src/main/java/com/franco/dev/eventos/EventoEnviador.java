@@ -233,7 +233,7 @@ public class EventoEnviador {
                     repo.resolver(e, "DESCARTADA", r.status, "HTTP " + r.status, 0);
                     break;
                 case PAUSAR_410:
-                    // Queda viva: sale si se reactiva el destino
+                    // Queda viva: sale cuando el central cambia la suscripcion (despausar410ConConfigNueva)
                     repo.resolver(e, "REINTENTO", r.status, "HTTP 410", 3600);
                     break;
                 default:

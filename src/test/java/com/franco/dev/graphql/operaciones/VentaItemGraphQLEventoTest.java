@@ -39,6 +39,7 @@ class VentaItemGraphQLEventoTest {
         when(cambio.findLastValorEnGsByMonedaIdOrDefault(anyLong(), anyDouble())).thenReturn(1.0);
         when(movs.findByReferencia(anyLong())).thenReturn(Collections.emptyList());
         when(service.findByVentaId(anyLong())).thenReturn(Collections.emptyList());
+        when(emisor.encendido()).thenReturn(true);
     }
 
     private VentaItem item() {
@@ -83,5 +84,22 @@ class VentaItemGraphQLEventoTest {
         when(service.deleteById(9L)).thenReturn(false);
         assertFalse(g.deleteVentaItem(9L, null));
         verifyNoInteractions(emisor);
+    }
+
+    @Test
+    void apagadoNoArmaNiEmite() {
+        when(emisor.encendido()).thenReturn(false);
+        when(service.findById(9L)).thenReturn(Optional.of(item()));
+        when(service.deleteById(9L)).thenReturn(true);
+        assertTrue(g.deleteVentaItem(9L, null));
+        org.mockito.Mockito.verify(emisor, org.mockito.Mockito.never()).emitirEnNuevaTx(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void unErrorAlArmarElAvisoNoCambiaElResultado() {
+        when(service.findById(9L)).thenReturn(Optional.of(item()));
+        when(service.deleteById(9L)).thenReturn(true);
+        org.mockito.Mockito.doThrow(new IllegalStateException("lazy")).when(emisor).emitirEnNuevaTx(any(), any(), any(), any(), any());
+        assertTrue(g.deleteVentaItem(9L, null));
     }
 }

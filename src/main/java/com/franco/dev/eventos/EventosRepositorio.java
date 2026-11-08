@@ -276,8 +276,16 @@ public class EventosRepositorio {
     }
 
     public void pausarPor410(long suscripcionId) {
-        jdbc.update("UPDATE eventos.destino_estado SET pausado_por_410 = true, ultimo_error = 'HTTP 410', actualizado_en = now()"
+        jdbc.update("UPDATE eventos.destino_estado d SET pausado_por_410 = true, ultimo_error = 'HTTP 410', actualizado_en = now(),"
+                + " pausado_config_version = (SELECT s.config_version FROM configuraciones.webhook_suscripcion s WHERE s.id = d.suscripcion_id)"
                 + " WHERE suscripcion_id = ?", suscripcionId);
+    }
+
+    /** Un 410 pausa el destino hasta que el central cambie la suscripcion (reactivarla, otra URL): ahi se despausa. */
+    public int despausar410ConConfigNueva() {
+        return jdbc.update("UPDATE eventos.destino_estado d SET pausado_por_410 = false, pausado_config_version = NULL, actualizado_en = now()"
+                + " FROM configuraciones.webhook_suscripcion s WHERE s.id = d.suscripcion_id AND d.pausado_por_410"
+                + " AND s.activo IS TRUE AND s.config_version IS DISTINCT FROM d.pausado_config_version");
     }
 
     /** Si la suscripcion ya no esta activa, sus entregas vivas quedan CANCELADA. */
