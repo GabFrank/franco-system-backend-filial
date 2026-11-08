@@ -69,8 +69,10 @@ class EventosReglasTest {
     void clasificaCodigosHttp() {
         assertEquals(ReglasEntrega.Resultado.ENVIADA, ReglasEntrega.clasificar(200));
         assertEquals(ReglasEntrega.Resultado.ENVIADA, ReglasEntrega.clasificar(204));
-        for (int c : new int[]{408, 429, 500, 502, 503}) assertEquals(ReglasEntrega.Resultado.REINTENTO, ReglasEntrega.clasificar(c), "" + c);
-        for (int c : new int[]{301, 302, 400, 401, 403, 404, 422}) assertEquals(ReglasEntrega.Resultado.DESCARTADA, ReglasEntrega.clasificar(c), "" + c);
+        for (int c : new int[]{301, 302, 401, 403, 404, 408, 409, 425, 429, 500, 502, 503, 418}) {
+            assertEquals(ReglasEntrega.Resultado.REINTENTO, ReglasEntrega.clasificar(c), "" + c);
+        }
+        for (int c : new int[]{400, 413, 415, 422}) assertEquals(ReglasEntrega.Resultado.DESCARTADA, ReglasEntrega.clasificar(c), "" + c);
         assertEquals(ReglasEntrega.Resultado.PAUSAR_410, ReglasEntrega.clasificar(410));
     }
 
@@ -80,7 +82,7 @@ class EventosReglasTest {
         assertEquals(60, ReglasEntrega.esperaSegundos(2, null));
         assertEquals(300, ReglasEntrega.esperaSegundos(3, null));
         assertEquals(1800, ReglasEntrega.esperaSegundos(4, null));
-        assertEquals(3600, ReglasEntrega.esperaSegundos(50, null), "sin vencimiento: sigue cada hora");
+        assertEquals(3600, ReglasEntrega.esperaSegundos(50, null), "despues sigue cada hora hasta las 72 h");
         assertEquals(120, ReglasEntrega.esperaSegundos(1, 120L));
         assertEquals(10, ReglasEntrega.esperaSegundos(1, 2L));
     }
@@ -99,6 +101,22 @@ class EventosReglasTest {
     }
 
     @Test
+    void elTransporteRealBloqueaIpsInternasAlConectar() {
+        EventosProperties p = new EventosProperties();
+        p.setTimeoutMs(2000);
+        EventoEnviador.Transporte t = EventoEnviador.transporteNetty(p);
+        for (String url : new String[]{"https://localhost:9/x", "https://127.0.0.1:9/x", "https://10.0.0.1:9/x"}) {
+            Exception e = assertThrows(Exception.class, () -> t.post(url, Collections.emptyMap(), "{}"), url);
+            assertTrue(String.valueOf(causaRaiz(e).getMessage()).contains("Destino bloqueado"), url + ": " + causaRaiz(e));
+        }
+    }
+
+    private static Throwable causaRaiz(Throwable t) {
+        while (t.getCause() != null && t.getCause() != t) t = t.getCause();
+        return t;
+    }
+
+    @Test
     void firmaStandardWebhooksEd25519() {
         byte[] semilla = new byte[32];
         for (int i = 0; i < 32; i++) semilla[i] = (byte) i;
@@ -106,6 +124,9 @@ class EventosReglasTest {
         String cuerpo = "{\"id\":\"evt_7_X\"}";
         String cab = f.firmar("evt_7_X", 1731000000L, cuerpo);
         assertTrue(cab.startsWith("v1a,"));
+        // Vector calculado aparte con el Ed25519 nativo de Node 22 (crypto.sign): misma semilla, mismo contenido.
+        assertEquals("v1a,CaGwqZ0xfaIabQS5grvjUyPRJT5/un4yFxZ8nrg9Gq0jzRgNVz6VoDFX7XO/TZJSAgamBA1TNtskFXBEEDtBBg==", cab);
+        assertEquals("A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=", f.clavePublicaBase64());
         assertTrue(FirmaWebhook.verificar(f.clavePublicaBase64(), "evt_7_X", 1731000000L, cuerpo, cab));
         assertFalse(FirmaWebhook.verificar(f.clavePublicaBase64(), "evt_7_X", 1731000001L, cuerpo, cab), "otra hora");
         assertFalse(FirmaWebhook.verificar(f.clavePublicaBase64(), "evt_7_X", 1731000000L, cuerpo + " ", cab), "otro cuerpo");

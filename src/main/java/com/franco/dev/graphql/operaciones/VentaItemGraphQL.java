@@ -1,14 +1,17 @@
 package com.franco.dev.graphql.operaciones;
 
 import com.franco.dev.domain.financiero.Cambio;
+import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
+import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.domain.operaciones.dto.LotePreferidoDto;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
 import com.franco.dev.graphql.operaciones.input.VentaItemLoteInput;
 import com.franco.dev.service.financiero.CambioService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
-import com.franco.dev.service.operaciones.VentaItemOperacionService;
+import com.franco.dev.eventos.EventoEmisor;
+import com.franco.dev.eventos.EventosVenta;
 import com.franco.dev.service.operaciones.VentaItemService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -56,9 +59,7 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
     private MovimientoStockService movimientoStockService;
 
     @Autowired
-    private VentaItemOperacionService ventaItemOperacionService;
-
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(VentaItemGraphQL.class);
+    private EventoEmisor eventoEmisor;
 
     public Optional<VentaItem> ventaItem(Long id, Long sucId) {
         return service.findById(id);
@@ -136,18 +137,37 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         ventaService.saveAndSend(venta, false);
     }
 
-    /**
-     * Desactiva los movimientos de stock del item, lo borra, recalcula el total y anota el aviso
-     * venta.item_eliminado, todo en una TX (VentaItemOperacionService). Si algo falla no queda nada a
-     * medias y se devuelve false, como antes.
-     */
     public Boolean deleteVentaItem(Long id, Long sucId) {
-        try {
-            return ventaItemOperacionService.eliminar(id, this::calcularTotalVenta);
-        } catch (Exception e) {
-            log.warn("No se pudo eliminar el item de venta {}: {}", id, e.toString());
-            return false;
+        VentaItem ventaItem = service.findById(id).orElse(null);
+        Venta venta = null;
+        if (ventaItem != null) {
+            venta = ventaItem.getVenta();
+            
+            // Antes de eliminar el VentaItem, desactivar todos los movimientos de stock asociados
+            // para evitar que queden movimientos huérfanos
+            List<MovimientoStock> movimientosStock = movimientoStockService.findByReferencia(id);
+            
+            for (MovimientoStock ms : movimientosStock) {
+                // Solo desactivar movimientos de tipo VENTA para este venta_item
+                if (ms.getTipoMovimiento() == TipoMovimiento.VENTA 
+                    && ms.getEstado() != null && ms.getEstado()) {
+                    ms.setEstado(false);
+                    movimientoStockService.saveAndSend(ms, false);
+                }
+            }
         }
+        Boolean ok = service.deleteById(id);
+        if (venta != null)
+            calcularTotalVenta(venta);
+        // Aviso venta.item_eliminado recien con el borrado hecho. La TX de este metodo no se toca
+        // (sigue sin TX de afuera, como en develop): el aviso va en una TX propia y nunca cambia el resultado.
+        if (Boolean.TRUE.equals(ok) && ventaItem != null) {
+            eventoEmisor.emitirEnNuevaTx("venta.item_eliminado", "media",
+                    ventaItem.getUsuario() != null ? ventaItem.getUsuario().getId() : null,
+                    venta != null ? "venta/" + venta.getId() : "venta-item/" + id,
+                    EventosVenta.itemEliminado(ventaItem, venta));
+        }
+        return ok;
     }
 
     public Long countVentaItem() {

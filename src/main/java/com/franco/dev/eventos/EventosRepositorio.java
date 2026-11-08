@@ -63,7 +63,7 @@ public class EventosRepositorio {
         s.setEntrega(rs.getString("entrega"));
         s.setDatosPersonales(Boolean.TRUE.equals(rs.getObject("datos_personales")));
         s.setCabeceraNombre(rs.getString("cabecera_nombre"));
-        s.setCabeceraRef(rs.getString("cabecera_ref"));
+        s.setSecretoRef(rs.getString("secreto_ref"));
         s.setLatido(Boolean.TRUE.equals(rs.getObject("latido")));
         s.setActivo(Boolean.TRUE.equals(rs.getObject("activo")));
         long cv = rs.getLong("config_version");
@@ -87,7 +87,7 @@ public class EventosRepositorio {
 
     /** Toma eventos sin despachar con lock (SKIP LOCKED): dos JVM no despachan el mismo. Llamar dentro de una TX. */
     public List<EventoPendiente> tomarSinDespachar(int limite) {
-        return jdbc.query("SELECT id, tipo, sucursal_id, datos FROM eventos.outbox_evento WHERE despachado_en IS NULL "
+        return jdbc.query("SELECT id, tipo, sucursal_id, datos FROM eventos.outbox_evento WHERE repartido_en IS NULL "
                 + "ORDER BY id LIMIT ? FOR UPDATE SKIP LOCKED", (rs, i) -> {
             EventoPendiente e = new EventoPendiente();
             e.id = rs.getLong("id");
@@ -121,7 +121,7 @@ public class EventosRepositorio {
     public boolean crearPrueba(Long suscripcionId, String eventoId, Long sucursalId) {
         Suscripcion s = suscripcion(suscripcionId);
         if (s == null || !s.isActivo()) return false;
-        Long outboxId = jdbc.queryForObject("INSERT INTO eventos.outbox_evento (evento_id, tipo, gravedad, sucursal_id, sujeto, datos, despachado_en)"
+        Long outboxId = jdbc.queryForObject("INSERT INTO eventos.outbox_evento (evento_id, tipo, gravedad, sucursal_id, sujeto, datos, repartido_en)"
                 + " VALUES (?, 'webhook.prueba', 'baja', ?, ?, CAST(? AS jsonb), now()) RETURNING id", Long.class,
                 eventoId, sucursalId, "suscripcion/" + suscripcionId, "{\"mensaje\":\"Aviso de prueba de FRC\"}");
         crearEntrega(outboxId, s, null);
@@ -129,7 +129,7 @@ public class EventosRepositorio {
     }
 
     public void marcarDespachado(long outboxId) {
-        jdbc.update("UPDATE eventos.outbox_evento SET despachado_en = now() WHERE id = ?", outboxId);
+        jdbc.update("UPDATE eventos.outbox_evento SET repartido_en = now() WHERE id = ?", outboxId);
     }
 
     // ---------------------------------------------------------------- envio
@@ -155,8 +155,28 @@ public class EventosRepositorio {
      * que ya estan EN_CURSO con lease vigente, y salta las pausadas (circuit breaker o 410). La TX del
      * reclamo termina antes de mandar el HTTP.
      */
-    @Transactional
     public List<EntregaReclamada> reclamar(boolean lote, int limite, int maxPorDestino, int leaseSeg) {
+        // El tope por destino cuenta las EN_CURSO: dos reclamos a la vez (dos hilos o dos JVM) verian
+        // las mismas y tomarian el doble. Se serializan con un advisory lock de sesion sobre la misma
+        // conexion; el UPDATE toma su snapshot despues del lock y ve lo que reclamo el otro.
+        return jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<List<EntregaReclamada>>) con -> {
+            try (java.sql.Statement st = con.createStatement()) {
+                st.execute("SELECT pg_advisory_lock(" + LOCK_RECLAMO + ")");
+            }
+            try {
+                return reclamarConLock(new JdbcTemplate(new org.springframework.jdbc.datasource.SingleConnectionDataSource(con, true)),
+                        lote, limite, maxPorDestino, leaseSeg);
+            } finally {
+                try (java.sql.Statement st = con.createStatement()) {
+                    st.execute("SELECT pg_advisory_unlock(" + LOCK_RECLAMO + ")");
+                }
+            }
+        });
+    }
+
+    static final long LOCK_RECLAMO = 246_111_003L;
+
+    private List<EntregaReclamada> reclamarConLock(JdbcTemplate jdbc, boolean lote, int limite, int maxPorDestino, int leaseSeg) {
         // Por lote: un solo POST en curso por suscripcion, con hasta `limite` eventos.
         // Individual: hasta maxPorDestino envios en curso por suscripcion.
         return jdbc.query(
@@ -207,11 +227,20 @@ public class EventosRepositorio {
 
     /** Guarda el resultado solo si la entrega sigue siendo de este envio (cerco por lease). */
     public boolean resolver(EntregaReclamada e, String estado, Integer status, String error, long esperaSeg) {
-        int n = jdbc.update("UPDATE eventos.webhook_entrega SET estado = ?, ultimo_status_http = ?, ultimo_error = ?,"
+        // Un REINTENTO de una entrega cuyo primer intento fue hace mas de 72 h pasa a DESCARTADA.
+        int n = jdbc.update("UPDATE eventos.webhook_entrega SET"
+                        + " estado = CASE WHEN ? = 'REINTENTO' AND COALESCE(primer_intento_en, now()) < now() - make_interval(hours => ?)"
+                        + "   THEN 'DESCARTADA' ELSE ? END,"
+                        + " ultimo_status_http = ?,"
+                        + " ultimo_error = CASE WHEN ? = 'REINTENTO' AND COALESCE(primer_intento_en, now()) < now() - make_interval(hours => ?)"
+                        + "   THEN left('Vencida a las 72 h: ' || COALESCE(?, ''), 300) ELSE ? END,"
+                        + " primer_intento_en = COALESCE(primer_intento_en, now()),"
                         + " proximo_intento_en = now() + make_interval(secs => ?), lease_hasta = NULL,"
                         + " enviado_en = CASE WHEN ? = 'ENVIADA' THEN now() ELSE enviado_en END"
                         + " WHERE id = ? AND estado = 'EN_CURSO' AND lease_hasta = ?",
-                estado, status, corto(error), (double) esperaSeg, estado, e.id, e.leaseHasta);
+                estado, ReglasEntrega.VENCIMIENTO_HORAS, estado, status,
+                estado, ReglasEntrega.VENCIMIENTO_HORAS, corto(error), corto(error),
+                (double) esperaSeg, estado, e.id, e.leaseHasta);
         return n == 1;
     }
 
@@ -284,7 +313,7 @@ public class EventosRepositorio {
         } while (n == 5000);
         do {
             n = jdbc.update("DELETE FROM eventos.outbox_evento o WHERE o.id IN (SELECT o2.id FROM eventos.outbox_evento o2"
-                    + " WHERE o2.despachado_en < now() - interval '1 day' AND NOT EXISTS ("
+                    + " WHERE o2.repartido_en < now() - interval '1 day' AND NOT EXISTS ("
                     + "   SELECT 1 FROM eventos.webhook_entrega e WHERE e.outbox_id = o2.id) LIMIT 5000)");
             total += n;
         } while (n == 5000);

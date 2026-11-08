@@ -5,10 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -61,24 +57,38 @@ public class EventoEnviador {
             t.setDaemon(true);
             return t;
         });
-        HttpClient http = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofMillis(props.getTimeoutMs()))
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
-        this.transporte = (url, cab, cuerpo) -> {
-            HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url))
-                    .timeout(Duration.ofMillis(props.getTimeoutMs()))
-                    .POST(HttpRequest.BodyPublishers.ofString(cuerpo));
-            cab.forEach(b::header);
-            HttpResponse<Void> r = http.send(b.build(), HttpResponse.BodyHandlers.discarding());
-            Long ra = r.headers().firstValue("Retry-After").map(v -> {
-                try {
-                    return Long.parseLong(v.trim());
-                } catch (NumberFormatException e) {
-                    return null;
-                }
-            }).orElse(null);
-            return new Respuesta(r.statusCode(), ra);
+        this.transporte = transporteNetty(props);
+    }
+
+    /**
+     * Reactor Netty (ya viene con webflux) con ResolverSeguro: la IP se valida al conectar, no antes.
+     * Sin redirecciones (es el default de Reactor Netty) y con timeout de conexion y de respuesta.
+     */
+    static Transporte transporteNetty(EventosProperties props) {
+        reactor.netty.http.client.HttpClient http = reactor.netty.http.client.HttpClient.create()
+                .resolver(new ResolverSeguro())
+                .followRedirect(false)
+                .option(io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS, props.getTimeoutMs())
+                .responseTimeout(Duration.ofMillis(props.getTimeoutMs()));
+        return (url, cab, cuerpo) -> {
+            Respuesta r = http.headers(h -> cab.forEach(h::set))
+                    .post()
+                    .uri(url)
+                    .send(reactor.netty.ByteBufFlux.fromString(reactor.core.publisher.Mono.just(cuerpo)))
+                    .responseSingle((resp, body) -> body.asByteArray().defaultIfEmpty(new byte[0]).map(ignorado -> {
+                        String v = resp.responseHeaders().get("Retry-After");
+                        Long ra = null;
+                        if (v != null) {
+                            try {
+                                ra = Long.parseLong(v.trim());
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+                        return new Respuesta(resp.status().code(), ra);
+                    }))
+                    .block(Duration.ofMillis(props.getTimeoutMs() + 1000L));
+            if (r == null) throw new java.io.IOException("Sin respuesta");
+            return r;
         };
     }
 
@@ -163,9 +173,9 @@ public class EventoEnviador {
         // Cabecera fija (plataformas que autentican asi, como Loom). Sin el secreto cargado no se
         // manda: vuelve a la cola sin gastar el intento, para no perder nada mientras se arregla.
         if (s.getCabeceraNombre() != null && !s.getCabeceraNombre().isEmpty()) {
-            String valor = s.getCabeceraRef() == null ? null : props.getSecretos().get(s.getCabeceraRef());
+            String valor = s.getSecretoRef() == null ? null : props.getSecretos().get(s.getSecretoRef());
             if (valor == null) {
-                for (EventosRepositorio.EntregaReclamada e : envio) repo.devolverSinGastar(e, "Falta el secreto " + s.getCabeceraRef(), 300);
+                for (EventosRepositorio.EntregaReclamada e : envio) repo.devolverSinGastar(e, "Falta el secreto " + s.getSecretoRef(), 300);
                 return;
             }
             cab.put(s.getCabeceraNombre(), valor);

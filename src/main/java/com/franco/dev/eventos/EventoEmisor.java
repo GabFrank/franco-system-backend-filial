@@ -34,7 +34,7 @@ public class EventoEmisor {
     private static final Logger log = LoggerFactory.getLogger(EventoEmisor.class);
 
     static final String INSERT = "INSERT INTO eventos.outbox_evento "
-            + "(evento_id, tipo, version_sobre, gravedad, sucursal_id, usuario_id, sujeto, datos, link) "
+            + "(evento_id, tipo, version_evento, gravedad, sucursal_id, usuario_id, sujeto, datos, link) "
             + "VALUES (?, ?, 1, ?, ?, ?, ?, CAST(? AS jsonb), ?)";
 
     private final JdbcTemplate jdbc;
@@ -106,10 +106,18 @@ public class EventoEmisor {
         insertarConSavepoint(tipo, gravedad, usuarioId, sujeto, datos);
     }
 
-    /** Para hechos del propio nodo que no vienen de una operacion (el latido). */
-    public void emitirEnTxPropia(String tipo, String gravedad, Long usuarioId, String sujeto, Map<String, Object> datos) {
+    /**
+     * En una TX propia (REQUIRES_NEW), para hechos que ocurren fuera de una TX (deleteVentaItem) o del
+     * propio nodo (latido). Nunca lanza: un fallo se cuenta en fallosEmisor.
+     */
+    public void emitirEnNuevaTx(String tipo, String gravedad, Long usuarioId, String sujeto, Map<String, Object> datos) {
         if (!encendido()) return;
-        txPropia.executeWithoutResult(s -> insertarConSavepoint(tipo, gravedad, usuarioId, sujeto, datos));
+        try {
+            txPropia.executeWithoutResult(s -> insertarConSavepoint(tipo, gravedad, usuarioId, sujeto, datos));
+        } catch (Exception e) {
+            fallosEmisor.incrementAndGet();
+            log.warn("[eventos] no se pudo anotar {} en TX propia: {}", tipo, e.toString());
+        }
     }
 
     void insertarConSavepoint(String tipo, String gravedad, Long usuarioId, String sujeto, Map<String, Object> datos) {

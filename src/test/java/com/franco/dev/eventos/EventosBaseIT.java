@@ -230,7 +230,7 @@ class EventosBaseIT {
     @Test
     void cabeceraFijaYFaltaDeSecretoNoPierdeNada() {
         long a = suscripcion("*", null);
-        jdbc.update("UPDATE configuraciones.webhook_suscripcion SET cabecera_nombre = 'X-Loom-Secreto', cabecera_ref = 'loom' WHERE id = ?", a);
+        jdbc.update("UPDATE configuraciones.webhook_suscripcion SET cabecera_nombre = 'X-Loom-Secreto', secreto_ref = 'loom' WHERE id = ?", a);
         emitirEnTx(1);
         despachador.ciclo();
         transporte(200);
@@ -303,7 +303,7 @@ class EventosBaseIT {
     }
 
     @Test
-    void errorDeRedReintentaSinVencer() {
+    void errorDeRedReintentaHasta72HorasYDespuesDescarta() {
         suscripcion("*", null);
         emitirEnTx(1);
         despachador.ciclo();
@@ -312,13 +312,65 @@ class EventosBaseIT {
             jdbc.update("UPDATE eventos.webhook_entrega SET proximo_intento_en = now(); UPDATE eventos.destino_estado SET pausado_hasta = NULL");
             enviador.ciclo(true);
         }
-        jdbc.update("UPDATE eventos.webhook_entrega SET creado_en = now() - interval '5 days'");
+        assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'REINTENTO' AND intentos = 8 AND primer_intento_en IS NOT NULL"));
+        // A las 71 h sigue viva y la limpieza no la toca
+        jdbc.update("UPDATE eventos.webhook_entrega SET primer_intento_en = now() - interval '71 hours', creado_en = now() - interval '71 hours'");
         repo.limpiar();
-        assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'REINTENTO' AND intentos = 8"), "5 dias sin internet: sigue viva");
         jdbc.update("UPDATE eventos.webhook_entrega SET proximo_intento_en = now(); UPDATE eventos.destino_estado SET pausado_hasta = NULL");
+        enviador.ciclo(true);
+        assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'REINTENTO'"));
+        // Pasadas las 72 h, el siguiente fallo la descarta
+        jdbc.update("UPDATE eventos.webhook_entrega SET primer_intento_en = now() - interval '73 hours', proximo_intento_en = now();"
+                + " UPDATE eventos.destino_estado SET pausado_hasta = NULL");
+        enviador.ciclo(true);
+        assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'DESCARTADA' AND ultimo_error LIKE 'Vencida a las 72 h%'"));
+    }
+
+    @Test
+    void siVuelveLaRedAntesDe72HorasSale() {
+        suscripcion("*", null);
+        emitirEnTx(1);
+        despachador.ciclo();
+        enviador.setTransporte((u, c, b) -> { throw new java.net.ConnectException("sin internet"); });
+        enviador.ciclo(true);
+        jdbc.update("UPDATE eventos.webhook_entrega SET primer_intento_en = now() - interval '60 hours', proximo_intento_en = now()");
         transporte(200);
         enviador.ciclo(true);
         assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'ENVIADA'"));
+    }
+
+    @Test
+    void credencialRotadaOUrl404SeReintentan() {
+        suscripcion("*", null);
+        emitirEnTx(2);
+        despachador.ciclo();
+        transporte(401);
+        enviador.ciclo(true);
+        jdbc.update("UPDATE eventos.webhook_entrega SET proximo_intento_en = now()");
+        transporte(404);
+        enviador.ciclo(true);
+        assertEquals(2, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'REINTENTO' AND ultimo_status_http = 404"));
+        jdbc.update("UPDATE eventos.webhook_entrega SET proximo_intento_en = now()");
+        transporte(200);
+        enviador.ciclo(true);
+        assertEquals(2, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'ENVIADA'"));
+    }
+
+    @Test
+    void repartoSinSuscripcionesMarcaYNoCreaEntregas() {
+        emitirEnTx(3);
+        assertEquals(3, despachador.ciclo());
+        assertEquals(0, contar("SELECT count(*) FROM eventos.webhook_entrega"));
+        assertEquals(0, contar("SELECT count(*) FROM eventos.outbox_evento WHERE repartido_en IS NULL"));
+    }
+
+    @Test
+    void emitirEnNuevaTxSinTransaccionDeAfuera() {
+        emisor.emitirEnNuevaTx("venta.item_eliminado", "media", null, "venta/1", Collections.singletonMap("venta_id", 1));
+        assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento"));
+        jdbc.execute("ALTER TABLE eventos.outbox_evento ADD CONSTRAINT no_falla CHECK (tipo <> 'falla')");
+        emisor.emitirEnNuevaTx("falla", "media", null, null, null); // no lanza
+        assertEquals(1, emisor.getFallosEmisor());
     }
 
     @Test
@@ -397,7 +449,7 @@ class EventosBaseIT {
         despachador.ciclo();
         jdbc.update("UPDATE eventos.webhook_entrega SET estado = 'ENVIADA', creado_en = now() - interval '8 days' WHERE secuencia = 1");
         jdbc.update("UPDATE eventos.webhook_entrega SET creado_en = now() - interval '40 days' WHERE secuencia = 2");
-        jdbc.update("UPDATE eventos.outbox_evento SET despachado_en = now() - interval '2 days'");
+        jdbc.update("UPDATE eventos.outbox_evento SET repartido_en = now() - interval '2 days'");
         repo.limpiar();
         assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega"));
         assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento"));

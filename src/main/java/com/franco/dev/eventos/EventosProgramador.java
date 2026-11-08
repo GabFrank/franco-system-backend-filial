@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Corre el despacho, el envio, el latido y la limpieza en un scheduler propio de 1 hilo. No es un
+ * Corre el reparto, el envio, el latido y la limpieza en dos schedulers propios de 1 hilo cada uno. No es un
  * bean TaskScheduler: si lo fuera, Spring dejaria de crear el pool de 4 que usan las demas tareas.
  */
 @Component
@@ -30,6 +30,7 @@ public class EventosProgramador {
     private final EventosProperties props;
     private final Long sucursalId;
     private ThreadPoolTaskScheduler scheduler;
+    private ThreadPoolTaskScheduler mantenimiento;
 
     public EventosProgramador(EventoEmisor emisor, EventoDespachador despachador, EventoEnviador enviador,
                               EventosRepositorio repo, EventosProperties props,
@@ -48,22 +49,30 @@ public class EventosProgramador {
             log.info("[eventos] webhooks apagados en este nodo (frc.webhooks.enabled=false o falta V111.3)");
             return;
         }
-        scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(1);
-        scheduler.setThreadNamePrefix("eventos-");
-        scheduler.setDaemon(true);
-        scheduler.initialize();
-        scheduler.scheduleWithFixedDelay(() -> seguro("despacho", despachador::ciclo), Duration.ofSeconds(2));
+        // Dos hilos: uno para reparto y envio, otro para latido y limpieza. Una limpieza larga no frena el envio.
+        scheduler = hilo("eventos-envio-");
+        mantenimiento = hilo("eventos-mant-");
+        scheduler.scheduleWithFixedDelay(() -> seguro("reparto", despachador::ciclo), Duration.ofSeconds(2));
         scheduler.scheduleWithFixedDelay(() -> seguro("envio", () -> enviador.ciclo(false)), Duration.ofSeconds(1));
         scheduler.scheduleWithFixedDelay(() -> seguro("cancelar", repo::cancelarDeInactivas), Duration.ofMinutes(1));
-        scheduler.scheduleWithFixedDelay(() -> seguro("latido", this::latido), Duration.ofMinutes(10));
-        scheduler.schedule(() -> seguro("limpieza", repo::limpiar), new CronTrigger("0 30 3 * * *"));
+        mantenimiento.scheduleWithFixedDelay(() -> seguro("latido", this::latido), Duration.ofMinutes(10));
+        mantenimiento.schedule(() -> seguro("limpieza", repo::limpiar), new CronTrigger("0 30 3 * * *"));
         log.info("[eventos] webhooks encendidos en la sucursal {}", sucursalId);
+    }
+
+    private static ThreadPoolTaskScheduler hilo(String prefijo) {
+        ThreadPoolTaskScheduler s = new ThreadPoolTaskScheduler();
+        s.setPoolSize(1);
+        s.setThreadNamePrefix(prefijo);
+        s.setDaemon(true);
+        s.initialize();
+        return s;
     }
 
     @PreDestroy
     public void parar() {
         if (scheduler != null) scheduler.shutdown();
+        if (mantenimiento != null) mantenimiento.shutdown();
     }
 
     /**
@@ -79,7 +88,7 @@ public class EventosProgramador {
         datos.put("emisor_encendido", emisor.encendido());
         datos.put("firma_configurada", enviador.firmaConfigurada());
         datos.put("fallos_emisor", emisor.getFallosEmisor());
-        emisor.emitirEnTxPropia("nodo.latido", "baja", null, "nodo/" + suc, datos);
+        emisor.emitirEnNuevaTx("nodo.latido", "baja", null, "nodo/" + suc, datos);
     }
 
     private void seguro(String nombre, Runnable r) {

@@ -36,7 +36,7 @@ public class EventosProperties {
     /** Identificador de la clave publica que publica el central (p. ej. "suc7-v1"). */
     private String claveId;
 
-    /** Valores de las cabeceras fijas, por nombre de referencia (cabecera_ref de la suscripcion). */
+    /** Valores de las cabeceras fijas, por nombre de referencia (secreto_ref de la suscripcion). */
     private Map<String, String> secretos = new HashMap<>();
 
     /** Si no esta vacia, solo se envia a estos hosts (exactos). Es la defensa contra DNS rebinding. */

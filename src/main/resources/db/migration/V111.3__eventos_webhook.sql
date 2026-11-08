@@ -36,10 +36,10 @@ CREATE TABLE IF NOT EXISTS configuraciones.webhook_suscripcion (
     umbrales          JSONB,
     contenido         VARCHAR,
     entrega           VARCHAR,
-    version_sobre     INTEGER,
+    version_evento     INTEGER,
     datos_personales  BOOLEAN,
     cabecera_nombre   VARCHAR,
-    cabecera_ref      VARCHAR,
+    secreto_ref      VARCHAR,
     latido            BOOLEAN,
     verificada        BOOLEAN,
     activo            BOOLEAN,
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS eventos.outbox_evento (
     id              BIGSERIAL PRIMARY KEY,
     evento_id       VARCHAR     NOT NULL UNIQUE,
     tipo            VARCHAR     NOT NULL,
-    version_sobre   INTEGER     NOT NULL DEFAULT 1,
+    version_evento   INTEGER     NOT NULL DEFAULT 1,
     gravedad        VARCHAR,
     ocurrido_en     TIMESTAMPTZ NOT NULL DEFAULT now(),
     sucursal_id     BIGINT,
@@ -62,11 +62,11 @@ CREATE TABLE IF NOT EXISTS eventos.outbox_evento (
     sujeto          VARCHAR,
     datos           JSONB,
     link            VARCHAR,
-    despachado_en   TIMESTAMPTZ
+    repartido_en   TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_outbox_evento_sin_despachar
-    ON eventos.outbox_evento (id) WHERE despachado_en IS NULL;
+    ON eventos.outbox_evento (id) WHERE repartido_en IS NULL;
 
 -- Una entrega por evento y suscripcion. secuencia: correlativa y sin saltos por suscripcion y nodo.
 CREATE TABLE IF NOT EXISTS eventos.webhook_entrega (
@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS eventos.webhook_entrega (
     umbral_aplicado     JSONB,
     estado              VARCHAR     NOT NULL DEFAULT 'PENDIENTE',
     intentos            INTEGER     NOT NULL DEFAULT 0,
+    primer_intento_en   TIMESTAMPTZ,
     proximo_intento_en  TIMESTAMPTZ NOT NULL DEFAULT now(),
     lease_hasta         TIMESTAMPTZ,
     ultimo_status_http  INTEGER,

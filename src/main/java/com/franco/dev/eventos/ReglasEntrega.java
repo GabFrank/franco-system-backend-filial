@@ -7,7 +7,7 @@ public final class ReglasEntrega {
 
     public enum Resultado { ENVIADA, REINTENTO, DESCARTADA, PAUSAR_410 }
 
-    /** Reintentos: 10 s, 1 min, 5 min, 30 min y despues cada 1 h, sin vencimiento (no se pierde nada). */
+    /** Reintentos: 10 s, 1 min, 5 min, 30 min y despues cada 1 h, hasta 72 h desde el primer intento. */
     private static final long[] ESPERAS_SEG = {10, 60, 300, 1800, 3600};
 
     private ReglasEntrega() {
@@ -43,15 +43,21 @@ public final class ReglasEntrega {
         return true;
     }
 
+    /**
+     * Solo se descarta en el acto lo que el receptor nunca va a aceptar tal cual (400, 413, 415, 422).
+     * El resto se reintenta con backoff: 3xx (no se siguen), 401/403 (credencial rotada), 404 (URL
+     * transitoria), 408, 409, 425, 429, 5xx y cualquier otro. 410 pausa el destino. Lo que no sale en
+     * 72 h desde el primer intento pasa a DESCARTADA (ver EventosRepositorio.resolver).
+     */
     public static Resultado clasificar(int status) {
         if (status >= 200 && status < 300) return Resultado.ENVIADA;
         if (status == 410) return Resultado.PAUSAR_410;
-        if (status == 408 || status == 429 || status >= 500) return Resultado.REINTENTO;
-        if (status == 400 || status == 401 || status == 403 || status == 404 || status == 422) return Resultado.DESCARTADA;
-        // 3xx (no se siguen redirecciones) y el resto de 4xx: el receptor no lo va a aceptar nunca
-        if (status >= 300 && status < 500) return Resultado.DESCARTADA;
+        if (status == 400 || status == 413 || status == 415 || status == 422) return Resultado.DESCARTADA;
         return Resultado.REINTENTO;
     }
+
+    /** Horas desde el primer intento real tras las cuales una entrega que no salio se descarta. */
+    public static final int VENCIMIENTO_HORAS = 72;
 
     /** Segundos hasta el proximo intento; respeta Retry-After si viene y es mayor. */
     public static long esperaSegundos(int intentosHechos, Long retryAfterSeg) {

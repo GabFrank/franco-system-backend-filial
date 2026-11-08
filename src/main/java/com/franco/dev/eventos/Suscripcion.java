@@ -21,7 +21,7 @@ public class Suscripcion {
     private String entrega;
     private boolean datosPersonales;
     private String cabeceraNombre;
-    private String cabeceraRef;
+    private String secretoRef;
     private boolean latido;
     private boolean activo;
     private Long configVersion;
