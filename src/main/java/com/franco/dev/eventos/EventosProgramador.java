@@ -45,6 +45,9 @@ public class EventosProgramador {
 
     @EventListener(ApplicationReadyEvent.class)
     public void arrancar() {
+        // Con la app lista Flyway ya corrio: recien aca se sabe si V111.3 esta. Sin esta llamada el
+        // emisor quedaba apagado para siempre en un nodo real (lo encontro la prueba punta a punta).
+        emisor.verificarEsquema();
         if (!emisor.encendido()) {
             log.info("[eventos] webhooks apagados en este nodo (frc.webhooks.enabled=false o falta V111.3)");
             return;
