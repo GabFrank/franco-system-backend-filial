@@ -71,10 +71,16 @@ public class EventoEnviador {
                 .option(io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS, props.getTimeoutMs())
                 .responseTimeout(Duration.ofMillis(props.getTimeoutMs()));
         return (url, cab, cuerpo) -> {
-            Respuesta r = http.headers(h -> cab.forEach(h::set))
+            // Content-Length fijo: sin el, netty manda chunked y hay receptores que leen el cuerpo vacio
+            // (lo encontro la prueba punta a punta con un receptor Python estandar).
+            byte[] bytes = cuerpo.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            Respuesta r = http.headers(h -> {
+                        cab.forEach(h::set);
+                        h.set("Content-Length", String.valueOf(bytes.length));
+                    })
                     .post()
                     .uri(url)
-                    .send(reactor.netty.ByteBufFlux.fromString(reactor.core.publisher.Mono.just(cuerpo)))
+                    .send(reactor.core.publisher.Mono.just(io.netty.buffer.Unpooled.wrappedBuffer(bytes)))
                     .responseSingle((resp, body) -> body.asByteArray().defaultIfEmpty(new byte[0]).map(ignorado -> {
                         String v = resp.responseHeaders().get("Retry-After");
                         Long ra = null;

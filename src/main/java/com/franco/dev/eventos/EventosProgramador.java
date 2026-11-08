@@ -56,7 +56,14 @@ public class EventosProgramador {
         scheduler = hilo("eventos-envio-");
         mantenimiento = hilo("eventos-mant-");
         scheduler.scheduleWithFixedDelay(() -> seguro("reparto", despachador::ciclo), Duration.ofSeconds(2));
-        scheduler.scheduleWithFixedDelay(() -> seguro("envio", () -> enviador.ciclo(false)), Duration.ofSeconds(1));
+        // Mientras haya trabajo, ciclo tras ciclo (hasta 5 s, para no frenar el reparto): con un ciclo por
+        // segundo y tope de 2 por receptor salian ~2 avisos/s y 500 borrados tardaban 4 min en drenar.
+        scheduler.scheduleWithFixedDelay(() -> seguro("envio", () -> {
+            long hasta = System.currentTimeMillis() + 5000;
+            while (enviador.ciclo(true) > 0 && System.currentTimeMillis() < hasta) {
+                // sigue
+            }
+        }), Duration.ofSeconds(1));
         scheduler.scheduleWithFixedDelay(() -> seguro("cancelar", repo::cancelarDeInactivas), Duration.ofMinutes(1));
         mantenimiento.scheduleWithFixedDelay(() -> seguro("latido", this::latido), Duration.ofMinutes(10));
         mantenimiento.schedule(() -> seguro("limpieza", repo::limpiar), new CronTrigger("0 30 3 * * *"));
