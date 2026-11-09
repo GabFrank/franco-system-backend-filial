@@ -83,4 +83,21 @@ public interface PdvCajaRepository extends HelperRepository<PdvCaja, Long> {
                                                               @org.springframework.data.repository.query.Param("fechaApertura") java.time.LocalDateTime fechaApertura,
                                                               @org.springframework.data.repository.query.Param("cajaId") Long cajaId,
                                                               org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * Version liviana para los avisos (fase 2b): id, fecha de cierre, usuario (id, nickname) y conteo de cierre
+     * de la caja anterior del mismo maletin, sin cargar entidades.
+     */
+    @org.springframework.data.jpa.repository.Query(value = "SELECT c.id, c.fecha_cierre, u.id AS uid, u.nickname, c.conteo_cierre_id FROM financiero.pdv_caja c"
+            + " LEFT JOIN personas.usuario u ON u.id = c.usuario_id WHERE c.maletin_id = :maletinId AND c.fecha_cierre < :fechaApertura"
+            + " AND c.conteo_cierre_id IS NOT NULL AND c.id <> :cajaId ORDER BY c.fecha_cierre DESC LIMIT 1", nativeQuery = true)
+    java.util.List<Object[]> findCajaAnteriorLiviana(@org.springframework.data.repository.query.Param("maletinId") Long maletinId,
+                                                    @org.springframework.data.repository.query.Param("fechaApertura") java.time.LocalDateTime fechaApertura,
+                                                    @org.springframework.data.repository.query.Param("cajaId") Long cajaId);
+
+    /** Total contado por moneda (denominacion) en un conteo, en una sola consulta (fase 2b). */
+    @org.springframework.data.jpa.repository.Query(value = "SELECT mo.denominacion, SUM(cm.cantidad * mb.valor) FROM financiero.conteo_moneda cm"
+            + " JOIN financiero.moneda_billetes mb ON mb.id = cm.moneda_billetes_id JOIN financiero.moneda mo ON mo.id = mb.moneda_id"
+            + " WHERE cm.conteo_id = :conteoId AND cm.cantidad IS NOT NULL AND mb.valor IS NOT NULL GROUP BY mo.denominacion", nativeQuery = true)
+    java.util.List<Object[]> totalesDeConteo(@org.springframework.data.repository.query.Param("conteoId") Long conteoId);
 }

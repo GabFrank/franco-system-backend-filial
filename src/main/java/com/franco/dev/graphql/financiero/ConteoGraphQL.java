@@ -161,12 +161,22 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
      */
     private com.franco.dev.eventos.EventosCaja.Anterior buscarAnterior(PdvCaja caja) {
         if (caja.getMaletin() == null || caja.getFechaApertura() == null) return null;
-        List<PdvCaja> l = pdvCajaRepository.findPreviousCajaByMaletinAndFecha(caja.getMaletin().getId(),
-                caja.getFechaApertura(), caja.getId(), org.springframework.data.domain.PageRequest.of(0, 1));
-        if (l == null || l.isEmpty() || l.get(0).getConteoCierre() == null) return null;
-        PdvCaja a = l.get(0);
-        Map<String, Double> t = com.franco.dev.eventos.EventosCaja.totalesDeConteo(
-                conteoMonedaService.findByConteoId(a.getConteoCierre().getId()), null);
+        // Dos consultas nativas, sin cargar la entidad ni los billetes uno por uno (costo de la apertura).
+        List<Object[]> l = pdvCajaRepository.findCajaAnteriorLiviana(caja.getMaletin().getId(), caja.getFechaApertura(), caja.getId());
+        if (l == null || l.isEmpty()) return null;
+        Object[] f = l.get(0);
+        PdvCaja a = new PdvCaja();
+        a.setId(((Number) f[0]).longValue());
+        if (f[1] != null) a.setFechaCierre(f[1] instanceof java.sql.Timestamp ? ((java.sql.Timestamp) f[1]).toLocalDateTime() : (LocalDateTime) f[1]);
+        if (f[2] != null) {
+            com.franco.dev.domain.personas.Usuario u = new com.franco.dev.domain.personas.Usuario();
+            u.setId(((Number) f[2]).longValue());
+            u.setNickname((String) f[3]);
+            a.setUsuario(u);
+        }
+        Map<String, Double> t = new java.util.HashMap<>();
+        for (Object[] r : pdvCajaRepository.totalesDeConteo(((Number) f[4]).longValue()))
+            if (r[0] != null && r[1] != null) t.put(String.valueOf(r[0]), ((Number) r[1]).doubleValue());
         return new com.franco.dev.eventos.EventosCaja.Anterior(a, t.get("GUARANI"), t.get("REAL"), t.get("DOLAR"));
     }
 
