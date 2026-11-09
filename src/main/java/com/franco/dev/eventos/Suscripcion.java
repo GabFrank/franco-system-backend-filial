@@ -17,7 +17,7 @@ public class Suscripcion {
     private List<Long> sucursalIds;
     /** {"tipo": {"campo": minimo}}: el evento sale solo si el valor absoluto del campo llega al minimo. */
     private Map<String, Map<String, Number>> umbrales;
-    /** "lote" o "individual" (por defecto). */
+    /** "individual" (por defecto), "lote" o "lote:<segundos>" (junta lo pendiente y lo manda cuando el mas viejo cumple la ventana). */
     private String entrega;
     /**
      * {"tipo": {"atributo": [valores]}}: el evento sale solo si cada atributo coincide con alguno de los
@@ -37,6 +37,6 @@ public class Suscripcion {
     private Long configVersion;
 
     public boolean porLote() {
-        return "lote".equalsIgnoreCase(entrega);
+        return entrega != null && entrega.trim().toLowerCase().matches("lote(:[0-9]+)?");
     }
 }

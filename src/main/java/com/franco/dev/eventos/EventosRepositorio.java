@@ -230,7 +230,7 @@ public class EventosRepositorio {
     static final long LOCK_RECLAMO = 246_111_003L;
 
     private List<EntregaReclamada> reclamarConLock(JdbcTemplate jdbc, boolean lote, int limite, int maxPorDestino, int leaseSeg) {
-        // Por lote: un solo POST en curso por suscripcion, con hasta `limite` eventos.
+        // Por lote: un solo POST en curso por suscripcion, con hasta `limite` eventos ("lote" o "lote:<segundos>").
         // Individual: hasta maxPorDestino envios en curso por suscripcion.
         return jdbc.query(
                 "WITH en_curso AS ("
@@ -241,7 +241,12 @@ public class EventosRepositorio {
                         + "  FROM eventos.webhook_entrega e"
                         + "  JOIN configuraciones.webhook_suscripcion s ON s.id = e.suscripcion_id"
                         + "  LEFT JOIN eventos.destino_estado d ON d.suscripcion_id = e.suscripcion_id"
-                        + "  WHERE (lower(COALESCE(s.entrega, 'individual')) = 'lote') = ?"
+                        + "  WHERE (lower(COALESCE(s.entrega, 'individual')) ~ '^lote(:[0-9]+)?$') = ?"
+                        // Ventana del lote ("lote:300"): sale cuando el pendiente mas viejo cumple los segundos.
+                        + "    AND (COALESCE(substring(lower(s.entrega) from '^lote:([0-9]+)$')::int, 0) = 0"
+                        + "         OR EXISTS (SELECT 1 FROM eventos.webhook_entrega v WHERE v.suscripcion_id = e.suscripcion_id"
+                        + "           AND v.estado IN ('PENDIENTE','REINTENTO','EN_CURSO')"
+                        + "           AND v.creado_en <= now() - make_interval(secs => substring(lower(s.entrega) from '^lote:([0-9]+)$')::int)))"
                         + "    AND ((e.estado IN ('PENDIENTE','REINTENTO') AND e.proximo_intento_en <= now())"
                         + "         OR (e.estado = 'EN_CURSO' AND e.lease_hasta < now()))"
                         + "    AND (d.pausado_hasta IS NULL OR d.pausado_hasta <= now())"
