@@ -30,6 +30,7 @@ class ProyeccionesFase2bContratoTest {
 
     private static void enCatalogo(String tipo, Map<String, Object> d) {
         assertTrue(Proyeccion.rutasFueraDeCatalogo(tipo, d).isEmpty(), tipo + ": " + Proyeccion.rutasFueraDeCatalogo(tipo, d));
+        ProyeccionesContratoTest.sinPan(d);
     }
 
     @Test

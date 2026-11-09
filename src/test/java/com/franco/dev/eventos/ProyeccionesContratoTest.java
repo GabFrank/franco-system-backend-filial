@@ -49,7 +49,7 @@ class ProyeccionesContratoTest {
         return s % 10 == 0;
     }
 
-    private static void sinPan(Object o) {
+    static void sinPan(Object o) {
         Matcher m = PAN.matcher(String.valueOf(o).replaceAll("[ -]", ""));
         while (m.find()) assertFalse(luhn(m.group()), "valor con forma de PAN: " + m.group());
     }

@@ -30,7 +30,22 @@ class RetiroGastoEventosTest {
         ArgumentCaptor<Supplier<Map<String, Object>>> datos = ArgumentCaptor.forClass(Supplier.class);
         ArgumentCaptor<Supplier<Map<String, Object>>> atr = ArgumentCaptor.forClass(Supplier.class);
         verify(e).emitirProyeccion(eq(tipo), anyString(), any(), anyString(), datos.capture(), atr.capture());
-        return new Map[]{datos.getValue().get(), atr.getValue().get()};
+        Map<String, Object> d = datos.getValue().get();
+        // anti-PAN: ningun valor con forma de numero de tarjeta (13 a 19 digitos con Luhn valido)
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\d{13,19}").matcher(String.valueOf(d).replaceAll("[ -]", ""));
+        while (m.find()) {
+            String n = m.group();
+            int s = 0;
+            boolean dbl = false;
+            for (int i = n.length() - 1; i >= 0; i--) {
+                int x = n.charAt(i) - '0';
+                if (dbl && (x *= 2) > 9) x -= 9;
+                s += x;
+                dbl = !dbl;
+            }
+            assertTrue(s % 10 != 0, "valor con forma de PAN: " + n);
+        }
+        return new Map[]{d, atr.getValue().get()};
     }
 
     @Test
