@@ -16,6 +16,19 @@ public class EventoDespachador {
 
     private final EventosRepositorio repo;
     private final TransactionTemplate tx;
+    private final java.util.concurrent.atomic.AtomicLong filtrosInvalidos = new java.util.concurrent.atomic.AtomicLong();
+
+    /** Entregas que no salieron porque un filtro usa un atributo que el catalogo no conoce. */
+    public long getFiltrosInvalidos() {
+        return filtrosInvalidos.get();
+    }
+
+    private static Suscripcion sinFiltros(Suscripcion s) {
+        Suscripcion c = new Suscripcion();
+        org.springframework.beans.BeanUtils.copyProperties(s, c);
+        c.setFiltros(null);
+        return c;
+    }
 
     public EventoDespachador(EventosRepositorio repo, PlatformTransactionManager txManager) {
         this.repo = repo;
@@ -30,9 +43,12 @@ public class EventoDespachador {
             List<Suscripcion> suscripciones = repo.suscripcionesActivas();
             for (EventosRepositorio.EventoPendiente e : eventos) {
                 for (Suscripcion s : suscripciones) {
-                    if (ReglasEntrega.recibe(s, e.tipo, e.sucursalId, e.datos)) {
+                    if (ReglasEntrega.recibe(s, e.tipo, e.sucursalId, e.datos, e.atributos)) {
                         Map<String, Number> umbral = s.getUmbrales() == null ? null : s.getUmbrales().get(e.tipo);
                         repo.crearEntrega(e.id, s, umbral);
+                    } else if (s.getFiltros() != null && ReglasEntrega.recibe(sinFiltros(s), e.tipo, e.sucursalId, e.datos, e.atributos)
+                            && ReglasEntrega.evaluarFiltros(s, e.tipo, e.atributos) == ReglasEntrega.Filtro.INVALIDO) {
+                        filtrosInvalidos.incrementAndGet();
                     }
                 }
                 repo.marcarDespachado(e.id);

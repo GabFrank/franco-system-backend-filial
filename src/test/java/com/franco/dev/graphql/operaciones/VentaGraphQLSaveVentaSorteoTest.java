@@ -72,7 +72,7 @@ class VentaGraphQLSaveVentaSorteoTest {
         com.franco.dev.service.seguridad.AuditorUsuarioIdMocks.firmarElInput(auditorUsuarioId);
         when(ventaDuplicadaCacheService.reservar(any(), any()))
                 .thenReturn(mock(VentaDuplicadaCacheService.Reserva.class));
-        when(cobroGraphQL.saveCobro(any(), any(), any())).thenReturn(new Cobro());
+        when(cobroGraphQL.guardarCobro(any(), any(), any(), any())).thenReturn(new Cobro());
         when(pdvCajaService.findById(any())).thenReturn(Optional.of(new PdvCaja()));
         when(env.getProperty("sucursalId")).thenReturn("7");
         guardada = new Venta();

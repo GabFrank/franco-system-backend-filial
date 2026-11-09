@@ -194,11 +194,28 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         return ventaItemList;
     }
 
+    /** La cancelacion y su aviso venta.items_cancelados van en una sola TX (fase 2, #246). */
+    @Transactional
     public Boolean cancelarVentaItens(Long id, Long sucId) {
         List<VentaItem> ventaItemList = service.findByVentaId(id);
+        List<VentaItem> cancelados = new ArrayList<>();
         for (VentaItem vi : ventaItemList) {
+            if (!Boolean.FALSE.equals(vi.getActivo())) cancelados.add(vi);
             vi.setActivo(false);
             service.saveAndSend(vi, false);
+        }
+        if (!cancelados.isEmpty()) {
+            Venta venta = ventaService.findById(id).orElse(null);
+            Long cajaId = venta != null && venta.getCaja() != null ? venta.getCaja().getId() : null;
+            eventoEmisor.emitirProyeccion("venta.items_cancelados", "media",
+                    venta != null && venta.getUsuario() != null ? venta.getUsuario().getId() : null,
+                    "venta/" + (venta != null ? venta.getSucursalId() + "/" : "") + id,
+                    () -> EventosVenta.itemsCancelados(id, venta, cancelados),
+                    () -> {
+                        java.util.Map<String, Object> a = new java.util.LinkedHashMap<>();
+                        a.put("caja_id", cajaId);
+                        return a;
+                    });
         }
         return true;
     }

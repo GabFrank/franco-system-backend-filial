@@ -139,7 +139,7 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (input.getUsuarioId() != null) {
             entity.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         }
-        return service.save(entity);
+        return service.guardarConAviso(entity);
     }
 
     /**

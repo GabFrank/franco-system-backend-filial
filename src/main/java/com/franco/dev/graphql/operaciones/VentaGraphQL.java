@@ -97,6 +97,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     @Autowired
     private AuditorUsuarioId auditorUsuarioId;
 
+    @Autowired
+    private com.franco.dev.eventos.EventoEmisor eventoEmisor;
+
     public static final DecimalFormat df = new DecimalFormat("#,###.##");
     private static final Logger log = LoggerFactory.getLogger(VentaGraphQL.class);
     @Autowired
@@ -208,6 +211,36 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return service.saveAndSend(e, false);
     }
 
+    /** Estado guardado de la venta, solo si los avisos estan encendidos (sin costo con el flag apagado). */
+    public VentaEstado estadoActual(Long ventaId) {
+        if (ventaId == null || !eventoEmisor.encendido()) return null;
+        return service.findById(ventaId).map(Venta::getEstado).orElse(null);
+    }
+
+    /** venta.concluida (fase 2, #246): en la TX de la operacion, solo al pasar a CONCLUIDA. */
+    public void emitirConcluida(VentaEstado anterior, Venta venta, List<VentaItem> items) {
+        emitirConcluida(anterior, venta, items, null);
+    }
+
+    /** guardados: los detalles del cobro que se acaban de guardar; null = se leen de la base. */
+    public void emitirConcluida(VentaEstado anterior, Venta venta, List<VentaItem> items,
+                                List<com.franco.dev.domain.operaciones.CobroDetalle> guardados) {
+        if (!com.franco.dev.eventos.EventosVenta.concluyeAhora(anterior, venta)) return;
+        java.util.function.Supplier<List<com.franco.dev.domain.operaciones.CobroDetalle>> detalles =
+                () -> guardados != null ? guardados
+                        : venta.getCobro() != null ? cobroDetalleService.findByCobroId(venta.getCobro().getId()) : java.util.Collections.emptyList();
+        List<com.franco.dev.domain.operaciones.CobroDetalle>[] cache = new List[1];
+        eventoEmisor.emitirProyeccion("venta.concluida", "baja",
+                venta.getUsuario() != null ? venta.getUsuario().getId() : null,
+                "venta/" + venta.getSucursalId() + "/" + venta.getId(),
+                () -> {
+                    cache[0] = detalles.get();
+                    List<VentaItem> it = items != null ? items : ventaItemService.findByVentaId(venta.getId());
+                    return com.franco.dev.eventos.EventosVenta.venta(venta, it, cache[0]);
+                },
+                () -> com.franco.dev.eventos.EventosVenta.atributosVenta(venta, cache[0] != null ? cache[0] : detalles.get()));
+    }
+
     @Transactional
     public Venta saveVenta(VentaInput ventaInput, List<VentaItemInput> ventaItemList, CobroInput cobroInput,
             List<CobroDetalleInput> cobroDetalleList, Boolean ticket, Boolean facturar, String printerName,
@@ -254,12 +287,15 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         Venta venta = null;
         Cobro cobro = null;
         List<VentaItem> ventaItemList1 = new ArrayList<>();
+        // Para venta.concluida: sale solo en la transicion a CONCLUIDA (una venta que ya lo estaba no repite)
+        VentaEstado estadoAnterior = estadoActual(ventaInput.getId());
         // El try/finally envuelve TODO el tramo reservado. No alcanza con cubrir el camino de
         // deshacerVenta: hay salidas por excepcion que ni siquiera llegan ahi, como el throw de
         // "Esta caja ya esta cerrada" mas abajo. Y el rollback de la transaccion no toca el cache.
         boolean reservaConfirmada = false;
         try {
-            cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
+            List<com.franco.dev.domain.operaciones.CobroDetalle> detallesGuardados = new java.util.ArrayList<>();
+            cobro = cobroGraphQL.guardarCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId(), detallesGuardados);
             if (cobro != null) {
                 ModelMapper m = new ModelMapper();
                 Venta e = m.map(ventaInput, Venta.class);
@@ -281,6 +317,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 venta = service.saveAndSend(e, false);
                 if (venta != null) {
                     ventaItemList1 = ventaItemGraphQL.saveVentaItemList(ventaItemList, venta.getId());
+                    emitirConcluida(estadoAnterior, venta, ventaItemList1, detallesGuardados);
                 
                     // La venta existe: la reserva pasa a ser el antecedente que bloquea a la gemela.
                     if (venta.getId() != null) {
@@ -1249,6 +1286,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
              throw new GraphQLException("La venta no corresponde a este delivery");
          }
          pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
+         VentaEstado estadoAnterior = venta.getEstado();
          try {
              venta.setEstado(VentaEstado.CONCLUIDA);
              venta.setSucursalId(delivery.getSucursalId());
@@ -1271,7 +1309,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                   cd.setCobroId(venta.getCobro().getId());
                  cd.setUsuarioId(delivery.getUsuario().getId());
                  cd.setSucursalId(delivery.getSucursalId());
-                 cobroDetalleGraphQL.saveCobroDetalle(cd);
+                 cobroDetalleGraphQL.guardarDetalle(cd);
              }
              if (ventaCreditoInput != null) {
                  ventaCreditoInput.setVentaId(venta.getId());
@@ -1279,7 +1317,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                  venta.setCliente(ventaCredito.getCliente());
              }
              deliveryService.save(delivery);
-             return service.save(venta);
+             Venta guardada = service.save(venta);
+             emitirConcluida(estadoAnterior, guardada, null);
+             return guardada;
          } catch (Exception e) {
              e.printStackTrace();
              throw new GraphQLException("Ocurrio un problema, favor contactar con RRHH");

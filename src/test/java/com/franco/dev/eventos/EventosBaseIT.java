@@ -42,6 +42,11 @@ class EventosBaseIT {
     private EventoEnviador enviador;
     private String publica;
 
+    @org.junit.jupiter.api.AfterEach
+    void cerrar() {
+        if (enviador != null) enviador.cerrar();
+    }
+
     @BeforeEach
     void preparar() throws Exception {
         ds = new DriverManagerDataSource(System.getProperty("it.eventos.url", "jdbc:postgresql://localhost:5432/eventos_it"), "franco", "franco");
@@ -50,6 +55,8 @@ class EventosBaseIT {
         jdbc.execute(new String(Files.readAllBytes(Paths.get("src/main/resources/db/migration/V111.3__eventos_webhook.sql")), "UTF-8"));
         // Idempotente: se puede correr dos veces a mano en una filial
         jdbc.execute(new String(Files.readAllBytes(Paths.get("src/main/resources/db/migration/V111.3__eventos_webhook.sql")), "UTF-8"));
+        jdbc.execute(new String(Files.readAllBytes(Paths.get("src/main/resources/db/migration/V111.4__eventos_filtros_campos.sql")), "UTF-8"));
+        jdbc.execute(new String(Files.readAllBytes(Paths.get("src/main/resources/db/migration/V111.4__eventos_filtros_campos.sql")), "UTF-8"));
         jdbc.execute("CREATE TABLE public.venta_prueba (id int)");
         txm = new DataSourceTransactionManager(ds);
         tx = new TransactionTemplate(txm);
@@ -489,9 +496,10 @@ class EventosBaseIT {
         assertThrows(Exception.class, () -> repo.reclamar(false, -1, 2, 60), "LIMIT negativo hace fallar el reclamo");
         assertEquals(0, contar("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND objid = ?", (int) (EventosRepositorio.LOCK_RECLAMO & 0xffffffffL)));
         // Otro hilo puede reclamar enseguida (si el lock hubiera quedado tomado, se colgaria)
-        java.util.concurrent.Future<List<EventosRepositorio.EntregaReclamada>> f =
-                java.util.concurrent.Executors.newSingleThreadExecutor().submit(() -> repo.reclamar(false, 10, 2, 60));
+        java.util.concurrent.ExecutorService otro = java.util.concurrent.Executors.newSingleThreadExecutor();
+        java.util.concurrent.Future<List<EventosRepositorio.EntregaReclamada>> f = otro.submit(() -> repo.reclamar(false, 10, 2, 60));
         assertEquals(1, f.get(5, java.util.concurrent.TimeUnit.SECONDS).size());
+        otro.shutdownNow();
         assertEquals(0, contar("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory'"));
     }
 
@@ -534,5 +542,194 @@ class EventosBaseIT {
         repo.limpiar();
         assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega"));
         assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento"));
+    }
+
+    // ---------------------------------------------------------------- fase 2: proyecciones, filtros y campos
+
+    private static Map<String, Object> ventaDatos() {
+        Map<String, Object> usuario = new java.util.LinkedHashMap<>();
+        usuario.put("id", 3);
+        usuario.put("nickname", "ana");
+        Map<String, Object> d = new java.util.LinkedHashMap<>();
+        d.put("id", 10);
+        d.put("totalGs", 50000);
+        d.put("ventaObs", "texto libre");
+        d.put("usuario", usuario);
+        d.put("ventaItemList", Collections.singletonList(Collections.singletonMap("cantidad", 1)));
+        return d;
+    }
+
+    private Map<String, Object> atributosTarjeta() {
+        Map<String, Object> a = new java.util.HashMap<>();
+        a.put("formas_pago", java.util.Arrays.asList("TARJETA", "EFECTIVO"));
+        a.put("total_gs", 50000);
+        return a;
+    }
+
+    private void emitirVenta() {
+        tx.executeWithoutResult(s -> emisor.emitirProyeccion("venta.concluida", "baja", 3L, "venta/7/10", EventosBaseIT::ventaDatos, this::atributosTarjeta));
+    }
+
+    @Test
+    void sinSuscriptoresNoSeArmaNiSeGuardaNada() {
+        emisor.setRefrescoMs(0);
+        java.util.concurrent.atomic.AtomicInteger armados = new java.util.concurrent.atomic.AtomicInteger();
+        tx.executeWithoutResult(s -> emisor.emitirProyeccion("venta.concluida", "baja", 3L, "venta/7/10",
+                () -> { armados.incrementAndGet(); return ventaDatos(); }, null));
+        assertEquals(0, armados.get());
+        assertEquals(0, contar("SELECT count(*) FROM eventos.outbox_evento"));
+        // Suscripcion a otra sucursal: tampoco
+        long id = suscripcion("venta.concluida", null);
+        jdbc.update("UPDATE configuraciones.webhook_suscripcion SET sucursal_ids = '{8}' WHERE id = ?", id);
+        emitirVenta();
+        assertEquals(0, contar("SELECT count(*) FROM eventos.outbox_evento"));
+        jdbc.update("UPDATE configuraciones.webhook_suscripcion SET sucursal_ids = '{7}' WHERE id = ?", id);
+        emitirVenta();
+        assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento"));
+    }
+
+    @Test
+    void loPersonalSeGuardaSoloSiAlguienLoPide() throws Exception {
+        emisor.setRefrescoMs(0);
+        long id = suscripcion("venta.concluida", null);
+        emitirVenta();
+        String d1 = jdbc.queryForObject("SELECT datos::text FROM eventos.outbox_evento ORDER BY id DESC LIMIT 1", String.class);
+        assertTrue(!d1.contains("ana") && !d1.contains("texto libre"), d1);
+        jdbc.update("UPDATE configuraciones.webhook_suscripcion SET datos_personales = true WHERE id = ?", id);
+        emitirVenta();
+        String d2 = jdbc.queryForObject("SELECT datos::text FROM eventos.outbox_evento ORDER BY id DESC LIMIT 1", String.class);
+        assertTrue(d2.contains("ana") && d2.contains("texto libre"), d2);
+        String a = jdbc.queryForObject("SELECT atributos::text FROM eventos.outbox_evento ORDER BY id DESC LIMIT 1", String.class);
+        assertTrue(a.contains("TARJETA"), a);
+    }
+
+    @Test
+    void laSuscripcionNuevaValeDesdeElRefresco() {
+        emisor.setRefrescoMs(60_000);
+        emitirVenta(); // lee la lista vacia y la guarda
+        suscripcion("venta.concluida", null);
+        emitirVenta(); // todavia dentro de la ventana
+        assertEquals(0, contar("SELECT count(*) FROM eventos.outbox_evento"));
+        emisor.setRefrescoMs(0);
+        emitirVenta();
+        assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento"));
+    }
+
+    @Test
+    void filtrosYCamposPorSuscripcionDeExtremoAExtremo() throws Exception {
+        emisor.setRefrescoMs(0);
+        long conFiltro = suscripcion("venta.concluida", null);
+        jdbc.update("UPDATE configuraciones.webhook_suscripcion SET filtros = CAST(? AS jsonb), campos = CAST(? AS jsonb) WHERE id = ?",
+                "{\"venta.concluida\": {\"formas_pago\": [\"TARJETA\"]}}", "{\"venta.concluida\": [\"id\", \"totalGs\"]}", conFiltro);
+        long soloPix = suscripcion("venta.concluida", null);
+        jdbc.update("UPDATE configuraciones.webhook_suscripcion SET filtros = CAST(? AS jsonb) WHERE id = ?",
+                "{\"venta.concluida\": {\"formas_pago\": [\"PIX\"]}}", soloPix);
+        long mal = suscripcion("venta.concluida", null);
+        jdbc.update("UPDATE configuraciones.webhook_suscripcion SET filtros = CAST(? AS jsonb) WHERE id = ?",
+                "{\"venta.concluida\": {\"forma_pago\": [\"TARJETA\"]}}", mal);
+        long todo = suscripcion("venta.concluida", null);
+        emitirVenta();
+        despachador.ciclo();
+        assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE suscripcion_id = ?", conFiltro));
+        assertEquals(0, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE suscripcion_id = ?", soloPix));
+        assertEquals(0, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE suscripcion_id = ?", mal));
+        assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE suscripcion_id = ?", todo));
+        assertEquals(1, despachador.getFiltrosInvalidos());
+        transporte(200);
+        while (enviador.ciclo(true) > 0) { }
+        assertEquals(2, recibidas.size());
+        for (Map<String, String> r : recibidas) {
+            Map<?, ?> data = (Map<?, ?>) mapper.readValue(r.get("_cuerpo"), Map.class).get("data");
+            if (data.size() == 2) {
+                assertEquals(new java.util.HashSet<>(java.util.Arrays.asList("id", "totalGs")), data.keySet());
+            } else {
+                assertTrue(data.containsKey("ventaItemList"));
+                assertTrue(!data.containsKey("ventaObs"), "sin datos_personales no sale lo personal");
+            }
+        }
+    }
+
+    @Test
+    void descartadaA72HorasNoGuardaLosDatos() {
+        emisor.setRefrescoMs(0);
+        suscripcion("venta.concluida", null);
+        emitirVenta();
+        despachador.ciclo();
+        jdbc.update("UPDATE eventos.webhook_entrega SET estado = 'REINTENTO', intentos = 20, primer_intento_en = now() - interval '73 hours'");
+        transporte(200);
+        enviador.ciclo(true);
+        assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'DESCARTADA'"));
+        assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento WHERE datos IS NULL AND atributos IS NULL"));
+    }
+
+    @Test
+    void conOtraEntregaVivaLosDatosSeQuedan() {
+        emisor.setRefrescoMs(0);
+        suscripcion("venta.concluida", null);
+        suscripcion("venta.concluida", null);
+        emitirVenta();
+        despachador.ciclo();
+        jdbc.update("UPDATE eventos.webhook_entrega SET estado = 'REINTENTO', intentos = 20, primer_intento_en = now() - interval '73 hours' WHERE secuencia = 1 AND suscripcion_id = (SELECT min(suscripcion_id) FROM eventos.webhook_entrega)");
+        jdbc.update("UPDATE eventos.webhook_entrega SET proximo_intento_en = now() + interval '1 hour' WHERE suscripcion_id = (SELECT max(suscripcion_id) FROM eventos.webhook_entrega)");
+        transporte(200);
+        enviador.ciclo(true);
+        assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'DESCARTADA'"));
+        assertEquals(0, contar("SELECT count(*) FROM eventos.outbox_evento WHERE datos IS NULL"));
+    }
+
+    /** Fase 2 (#246): cada tipo del catalogo deja 1 fila si la operacion confirma y 0 si se revierte. */
+    @Test
+    void cadaTipoDeLaFase2EsAtomicoConSuOperacion() {
+        emisor.setRefrescoMs(0);
+        String tipos = String.join(",", CatalogoEventos.todos().keySet());
+        suscripcion(tipos, null);
+        for (String t : CatalogoEventos.todos().keySet()) {
+            tx.executeWithoutResult(s -> {
+                emisor.emitirProyeccion(t, "baja", 3L, "x/7/1", () -> new java.util.LinkedHashMap<>(), null);
+                s.setRollbackOnly();
+            });
+            assertEquals(0, contar("SELECT count(*) FROM eventos.outbox_evento WHERE tipo = ?", t), t + " con rollback");
+            tx.executeWithoutResult(s -> emisor.emitirProyeccion(t, "baja", 3L, "x/7/1", () -> new java.util.LinkedHashMap<>(), null));
+            assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento WHERE tipo = ?", t), t + " con commit");
+        }
+    }
+
+    /** retiro.eliminado y gasto.creado con los metodos reales de los resolvers y el emisor real. */
+    @Test
+    void retiroYGastoDeExtremoAExtremo() throws Exception {
+        emisor.setRefrescoMs(0);
+        suscripcion("retiro.eliminado,gasto.creado", null);
+        com.franco.dev.graphql.financiero.RetiroGraphQL rg = new com.franco.dev.graphql.financiero.RetiroGraphQL();
+        org.springframework.test.util.ReflectionTestUtils.setField(rg, "eventoEmisor", emisor);
+        com.franco.dev.graphql.financiero.GastoGraphQL gg = new com.franco.dev.graphql.financiero.GastoGraphQL();
+        org.springframework.test.util.ReflectionTestUtils.setField(gg, "eventoEmisor", emisor);
+        com.franco.dev.domain.financiero.PdvCaja c = new com.franco.dev.domain.financiero.PdvCaja();
+        c.setId(15L);
+        com.franco.dev.domain.financiero.Retiro r = new com.franco.dev.domain.financiero.Retiro();
+        r.setId(4L);
+        r.setSucursalId(7L);
+        r.setCajaSalida(c);
+        com.franco.dev.domain.financiero.Gasto g = new com.franco.dev.domain.financiero.Gasto();
+        g.setId(9L);
+        g.setSucursalId(7L);
+        g.setCaja(c);
+        g.setRetiroGs(30000.0);
+        java.lang.reflect.Method er = rg.getClass().getDeclaredMethod("emitirRetiro", String.class,
+                com.franco.dev.domain.financiero.Retiro.class, com.franco.dev.graphql.financiero.input.RetiroInput.class);
+        er.setAccessible(true);
+        java.lang.reflect.Method eg = gg.getClass().getDeclaredMethod("emitirGasto", String.class, com.franco.dev.domain.financiero.Gasto.class);
+        eg.setAccessible(true);
+        tx.executeWithoutResult(s -> {
+            try {
+                er.invoke(rg, "retiro.eliminado", r, null);
+                eg.invoke(gg, "gasto.creado", g);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento WHERE tipo = 'retiro.eliminado' AND sujeto = 'retiro/7/4'"));
+        String d = jdbc.queryForObject("SELECT datos::text FROM eventos.outbox_evento WHERE tipo = 'gasto.creado'", String.class);
+        assertTrue(d.contains("30000"), d);
+        assertEquals(0, emisor.getFallosEmisor());
     }
 }

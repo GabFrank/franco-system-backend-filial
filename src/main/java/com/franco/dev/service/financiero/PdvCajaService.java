@@ -884,8 +884,28 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         caja.setFechaCierre(null);
         caja.setActivo(true);
         // saveAndSend vuelve a marcar el maletin como abierto.
-        return saveAndSend(caja, false);
+        PdvCaja reabierta = saveAndSend(caja, false);
+        // caja.reabierta (fase 2, #246), en esta misma TX
+        if (reabierta != null && eventoEmisor != null) {
+            Long usuarioId = registro.getUsuarioId();
+            eventoEmisor.emitirProyeccion("caja.reabierta", "media", usuarioId,
+                    "caja/" + reabierta.getSucursalId() + "/" + reabierta.getId(),
+                    () -> {
+                        java.util.Map<String, Object> d = new java.util.LinkedHashMap<>();
+                        d.put("caja", com.franco.dev.eventos.EventosVenta.mapa("id", reabierta.getId()));
+                        d.put("sucursalId", reabierta.getSucursalId());
+                        d.put("usuario", com.franco.dev.eventos.EventosVenta.mapa("id", usuarioId));
+                        d.put("motivo", registro.getMotivo());
+                        d.put("reabiertaEn", LocalDateTime.now().toString());
+                        return d;
+                    },
+                    () -> com.franco.dev.eventos.EventosVenta.mapa("caja_id", reabierta.getId()));
+        }
+        return reabierta;
     }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.franco.dev.eventos.EventoEmisor eventoEmisor;
 
     /**
      * Por que no se puede reabrir la caja, o null si se puede. Las reglas del issue #662: cerrada,

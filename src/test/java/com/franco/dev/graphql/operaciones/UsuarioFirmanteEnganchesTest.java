@@ -80,7 +80,7 @@ class UsuarioFirmanteEnganchesTest {
         AuditorUsuarioIdMocks.firmarElInput(auditorUsuarioId);
         when(ventaDuplicadaCacheService.reservar(any(), any()))
                 .thenReturn(mock(VentaDuplicadaCacheService.Reserva.class));
-        when(cobroGraphQL.saveCobro(any(), any(), any())).thenReturn(new Cobro());
+        when(cobroGraphQL.guardarCobro(any(), any(), any(), any())).thenReturn(new Cobro());
         when(pdvCajaService.findById(any())).thenReturn(Optional.of(new PdvCaja()));
         when(env.getProperty("sucursalId")).thenReturn("7");
         Venta guardada = new Venta();
@@ -111,7 +111,7 @@ class UsuarioFirmanteEnganchesTest {
                 1L, null, null, false, null);
 
         verify(ventaDuplicadaCacheService).reservar(eq(410L), any());
-        verify(cobroGraphQL).saveCobro(argThat(c -> Long.valueOf(410L).equals(c.getUsuarioId())), any(), any());
+        verify(cobroGraphQL).guardarCobro(argThat(c -> Long.valueOf(410L).equals(c.getUsuarioId())), any(), any(), any());
     }
 
     @Test
@@ -126,7 +126,7 @@ class UsuarioFirmanteEnganchesTest {
         ventaGraphQL.saveVenta(vi, Collections.singletonList(new VentaItemInput()), ci, new ArrayList<>(), true,
                 false, "impresora", "local", 1L, null, null, false, null);
 
-        verify(cobroGraphQL).saveCobro(argThat(c -> Long.valueOf(410L).equals(c.getUsuarioId())), any(), any());
+        verify(cobroGraphQL).guardarCobro(argThat(c -> Long.valueOf(410L).equals(c.getUsuarioId())), any(), any(), any());
     }
 
     @Test

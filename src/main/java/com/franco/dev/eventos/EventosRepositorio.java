@@ -60,6 +60,24 @@ public class EventosRepositorio {
                 s.setUmbrales(Collections.singletonMap("*", Collections.singletonMap("_ilegible", Double.MAX_VALUE)));
             }
         }
+        String filtros = columna(rs, "filtros");
+        if (filtros != null) {
+            try {
+                s.setFiltros(mapper.readValue(filtros, new TypeReference<Map<String, Map<String, List<Object>>>>() {}));
+            } catch (Exception e) {
+                // Filtro ilegible: no entrega nada con ese filtro (se cuenta como invalido al repartir)
+                s.setFiltros(Collections.singletonMap("*", Collections.singletonMap(FILTRO_ILEGIBLE, Collections.emptyList())));
+            }
+        }
+        String campos = columna(rs, "campos");
+        if (campos != null) {
+            try {
+                s.setCampos(mapper.readValue(campos, new TypeReference<Map<String, List<String>>>() {}));
+            } catch (Exception e) {
+                s.setCampos(null);
+            }
+        }
+        s.setDatosSensibles(Boolean.TRUE.equals(columnaObj(rs, "datos_sensibles")));
         s.setEntrega(rs.getString("entrega"));
         s.setDatosPersonales(Boolean.TRUE.equals(rs.getObject("datos_personales")));
         s.setCabeceraNombre(rs.getString("cabecera_nombre"));
@@ -69,6 +87,22 @@ public class EventosRepositorio {
         long cv = rs.getLong("config_version");
         s.setConfigVersion(rs.wasNull() ? null : cv);
         return s;
+    }
+
+    public static final String FILTRO_ILEGIBLE = "_ilegible";
+
+    /** Columnas de la V111.4: si la base todavia no la tiene, valen null y todo queda como en la 1a. */
+    private static String columna(ResultSet rs, String c) throws SQLException {
+        Object o = columnaObj(rs, c);
+        return o == null ? null : o.toString();
+    }
+
+    private static Object columnaObj(ResultSet rs, String c) throws SQLException {
+        java.sql.ResultSetMetaData md = rs.getMetaData();
+        for (int i = 1; i <= md.getColumnCount(); i++) {
+            if (c.equalsIgnoreCase(md.getColumnLabel(i))) return rs.getObject(i);
+        }
+        return null;
     }
 
     private static List<String> textos(Array a) throws SQLException {
@@ -83,11 +117,12 @@ public class EventosRepositorio {
         public String tipo;
         public Long sucursalId;
         public Map<String, Object> datos;
+        public Map<String, Object> atributos;
     }
 
     /** Toma eventos sin despachar con lock (SKIP LOCKED): dos JVM no despachan el mismo. Llamar dentro de una TX. */
     public List<EventoPendiente> tomarSinDespachar(int limite) {
-        return jdbc.query("SELECT id, tipo, sucursal_id, datos FROM eventos.outbox_evento WHERE repartido_en IS NULL "
+        return jdbc.query("SELECT id, tipo, sucursal_id, datos, atributos FROM eventos.outbox_evento WHERE repartido_en IS NULL "
                 + "ORDER BY id LIMIT ? FOR UPDATE SKIP LOCKED", (rs, i) -> {
             EventoPendiente e = new EventoPendiente();
             e.id = rs.getLong("id");
@@ -99,6 +134,12 @@ public class EventosRepositorio {
                 e.datos = d == null ? Collections.emptyMap() : mapper.readValue(d, new TypeReference<Map<String, Object>>() {});
             } catch (Exception ex) {
                 e.datos = Collections.emptyMap();
+            }
+            try {
+                String a = rs.getString("atributos");
+                e.atributos = a == null ? null : mapper.readValue(a, new TypeReference<Map<String, Object>>() {});
+            } catch (Exception ex) {
+                e.atributos = null;
             }
             return e;
         }, limite);
@@ -169,10 +210,11 @@ public class EventosRepositorio {
                 }
                 JdbcTemplate j = new JdbcTemplate(new org.springframework.jdbc.datasource.SingleConnectionDataSource(con, true));
                 // Lo que lleva mas de 72 h sin salir se descarta antes de volver a intentarlo
-                j.update("UPDATE eventos.webhook_entrega SET estado = 'DESCARTADA', lease_hasta = NULL,"
+                List<Long> vencidas = j.queryForList("UPDATE eventos.webhook_entrega SET estado = 'DESCARTADA', lease_hasta = NULL,"
                         + " ultimo_error = left('Vencida a las 72 h: ' || COALESCE(ultimo_error, ''), 300)"
                         + " WHERE estado IN ('REINTENTO', 'EN_CURSO') AND primer_intento_en < now() - make_interval(hours => ?)"
-                        + " AND (estado = 'REINTENTO' OR lease_hasta < now())", ReglasEntrega.VENCIMIENTO_HORAS);
+                        + " AND (estado = 'REINTENTO' OR lease_hasta < now()) RETURNING outbox_id", Long.class, ReglasEntrega.VENCIMIENTO_HORAS);
+                for (Long o : new java.util.LinkedHashSet<>(vencidas)) vaciarDatosSiNadieLosEspera(j, o);
                 List<EntregaReclamada> l = reclamarConLock(j, lote, limite, maxPorDestino, leaseSeg);
                 con.commit();
                 return l;
@@ -252,7 +294,23 @@ public class EventosRepositorio {
                 estado, ReglasEntrega.VENCIMIENTO_HORAS, estado, status,
                 estado, ReglasEntrega.VENCIMIENTO_HORAS, corto(error), corto(error),
                 (double) esperaSeg, estado, e.id, e.leaseHasta);
+        if (n == 1 && !"ENVIADA".equals(estado)) {
+            Long o = jdbc.queryForObject("SELECT outbox_id FROM eventos.webhook_entrega WHERE id = ?", Long.class, e.id);
+            if (o != null) vaciarDatosSiNadieLosEspera(jdbc, o);
+        }
         return n == 1;
+    }
+
+    /**
+     * Lo que ya no va a salir no guarda los datos en reposo: si ninguna entrega del evento sigue viva y
+     * alguna quedo DESCARTADA o CANCELADA, el data pasa a NULL (queda la fila para la auditoria).
+     */
+    static void vaciarDatosSiNadieLosEspera(JdbcTemplate j, long outboxId) {
+        j.update("UPDATE eventos.outbox_evento o SET datos = NULL, atributos = NULL WHERE o.id = ? AND o.datos IS NOT NULL"
+                + " AND o.repartido_en IS NOT NULL"
+                + " AND EXISTS (SELECT 1 FROM eventos.webhook_entrega e WHERE e.outbox_id = o.id AND e.estado IN ('DESCARTADA','CANCELADA'))"
+                + " AND NOT EXISTS (SELECT 1 FROM eventos.webhook_entrega e WHERE e.outbox_id = o.id"
+                + "   AND e.estado IN ('PENDIENTE','REINTENTO','EN_CURSO'))", outboxId);
     }
 
     /** Fallo de nuestro lado (sin firma, sin secreto): vuelve a la cola sin gastar el intento. */

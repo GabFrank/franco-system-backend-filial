@@ -23,7 +23,7 @@ public final class ListaBlanca {
         CAMPOS.put("webhook.prueba", set("mensaje"));
         CAMPOS.put("nodo.latido", set(
                 "pendientes", "pendiente_mas_viejo", "descartadas_24h", "config_version", "destinos_pausados",
-                "hora_nodo", "emisor_encendido", "firma_configurada", "fallos_emisor"));
+                "hora_nodo", "emisor_encendido", "firma_configurada", "fallos_emisor", "filtros_invalidos"));
     }
 
     private ListaBlanca() {
@@ -38,6 +38,8 @@ public final class ListaBlanca {
     }
 
     public static Map<String, Object> filtrar(String tipo, Map<String, Object> datos) {
+        // Los tipos con proyeccion (fase 2) tienen su lista blanca por rutas en CatalogoEventos
+        if (CatalogoEventos.tieneProyeccion(tipo)) return Proyeccion.limpiar(tipo, datos, true, true);
         Map<String, Object> out = new LinkedHashMap<>();
         if (datos == null) return out;
         Set<String> permitidos = campos(tipo);

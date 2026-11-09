@@ -21,6 +21,15 @@ public final class SobreCloudEvents {
     }
 
     public static ObjectNode evento(ObjectMapper mapper, String empresa, EventosRepositorio.EntregaReclamada e) {
+        return evento(mapper, empresa, e, null);
+    }
+
+    /**
+     * Con suscripcion, el data de los tipos con proyeccion sale recortado para ella: sin lo personal ni lo
+     * sensible si no tiene el permiso, y solo con sus `campos` si los eligio.
+     */
+    @SuppressWarnings("unchecked")
+    public static ObjectNode evento(ObjectMapper mapper, String empresa, EventosRepositorio.EntregaReclamada e, Suscripcion s) {
         ObjectNode n = mapper.createObjectNode();
         n.put("specversion", "1.0");
         n.put("id", e.eventoId);
@@ -35,7 +44,16 @@ public final class SobreCloudEvents {
         if (e.link != null) n.put("frclink", e.link);
         JsonNode datos;
         try {
-            datos = e.datos == null ? mapper.createObjectNode() : mapper.readTree(e.datos);
+            if (e.datos == null) {
+                datos = mapper.createObjectNode();
+            } else if (s != null && CatalogoEventos.tieneProyeccion(e.tipo)) {
+                java.util.Map<String, Object> m = mapper.readValue(e.datos, java.util.Map.class);
+                m = Proyeccion.limpiar(e.tipo, m, s.isDatosPersonales(), s.isDatosSensibles());
+                m = Proyeccion.recortar(e.tipo, m, s.getCampos() == null ? null : s.getCampos().get(e.tipo));
+                datos = mapper.valueToTree(m);
+            } else {
+                datos = mapper.readTree(e.datos);
+            }
         } catch (Exception ex) {
             datos = mapper.createObjectNode();
         }
@@ -44,10 +62,14 @@ public final class SobreCloudEvents {
     }
 
     public static String cuerpo(ObjectMapper mapper, String empresa, List<EventosRepositorio.EntregaReclamada> l, boolean lote) {
+        return cuerpo(mapper, empresa, l, lote, null);
+    }
+
+    public static String cuerpo(ObjectMapper mapper, String empresa, List<EventosRepositorio.EntregaReclamada> l, boolean lote, Suscripcion s) {
         try {
-            if (!lote) return mapper.writeValueAsString(evento(mapper, empresa, l.get(0)));
+            if (!lote) return mapper.writeValueAsString(evento(mapper, empresa, l.get(0), s));
             ArrayNode a = mapper.createArrayNode();
-            for (EventosRepositorio.EntregaReclamada e : l) a.add(evento(mapper, empresa, e));
+            for (EventosRepositorio.EntregaReclamada e : l) a.add(evento(mapper, empresa, e, s));
             return mapper.writeValueAsString(a);
         } catch (Exception ex) {
             throw new IllegalStateException(ex);

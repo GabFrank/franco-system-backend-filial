@@ -34,6 +34,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -82,6 +83,36 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         return service.findAll(pageable);
     }
 
+
+    @Autowired
+    private com.franco.dev.eventos.EventoEmisor eventoEmisor;
+
+    @Autowired
+    private com.franco.dev.service.financiero.ConteoMonedaService conteoMonedaService;
+
+    /** caja.abierta, caja.cerrada y caja.cierre_con_diferencia (fase 2, #246), en la TX del conteo. */
+    private void emitirAperturaOCierre(PdvCaja pdvCaja, boolean esApertura, ConteoInput input) {
+        if (!eventoEmisor.encendido()) return;
+        String sujeto = "caja/" + pdvCaja.getSucursalId() + "/" + pdvCaja.getId();
+        Long usuarioId = input.getUsuarioId();
+        if (esApertura) {
+            eventoEmisor.emitirProyeccion("caja.abierta", "baja", usuarioId, sujeto,
+                    () -> com.franco.dev.eventos.EventosCaja.abierta(pdvCaja, input.getTotalGs(), input.getTotalRs(), input.getTotalDs()),
+                    () -> com.franco.dev.eventos.EventosCaja.atributosCaja(pdvCaja));
+            return;
+        }
+        com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto[] balance = new com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto[1];
+        java.util.function.Supplier<com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto> b = () -> {
+            if (balance[0] == null) balance[0] = pdvCajaService.generarBalance(pdvCaja);
+            return balance[0];
+        };
+        eventoEmisor.emitirProyeccion("caja.cerrada", "baja", usuarioId, sujeto,
+                () -> com.franco.dev.eventos.EventosCaja.cerrada(pdvCaja, b.get()),
+                () -> com.franco.dev.eventos.EventosCaja.atributosCierre(pdvCaja, b.get()));
+        eventoEmisor.emitirProyeccion("caja.cierre_con_diferencia", "media", usuarioId, sujeto,
+                () -> com.franco.dev.eventos.EventosCaja.cerrada(pdvCaja, b.get()),
+                () -> com.franco.dev.eventos.EventosCaja.atributosCierre(pdvCaja, b.get()));
+    }
 
     @Unsecured()
     @Transactional
@@ -151,6 +182,7 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                         conteoMonedaGraphQL.saveConteoMoneda(conteoMonedaInput);
                     }
                 }
+                emitirAperturaOCierre(pdvCaja, esApertura, input);
                 if (cierreRealizado) {
                     programarImpresionBalanceCierre(cajaId, imprimirBalance);
                 }
@@ -247,6 +279,9 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         PdvCajaTipoMovimiento tipoMovimiento = esApertura ? PdvCajaTipoMovimiento.CAJA_INICIAL : PdvCajaTipoMovimiento.CAJA_FINAL;
         List<MovimientoCaja> movimientosAnteriores = movimientoCajaService
                 .findByTipoMovimientoAndReferencia(tipoMovimiento, conteoAnterior.getId());
+        // Antes de desactivarlos: con ellos y los billetes sale el total anterior del aviso (#246).
+        Map<String, Double> totalAnterior = com.franco.dev.eventos.EventosCaja.totalesDeConteo(
+                conteoMonedaService.findByConteoId(conteoAnterior.getId()), movimientosAnteriores);
         if (movimientosAnteriores != null) {
             for (MovimientoCaja movimientoAnterior : movimientosAnteriores) {
                 movimientoAnterior.setActivo(false);
@@ -257,6 +292,18 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         }
         crearMovimientosDeConteo(pdvCaja, nuevo, monedaService.findAll2(), input.getTotalGs(), input.getTotalRs(),
                 input.getTotalDs(), tipoMovimiento, conteoMonedaInputList);
+
+        final PdvCaja cajaEditada = pdvCaja;
+        eventoEmisor.emitirProyeccion("caja.conteo_editado", "media", usuario.getId(),
+                "caja/" + pdvCaja.getSucursalId() + "/" + pdvCaja.getId(),
+                () -> com.franco.dev.eventos.EventosCaja.conteoEditado(cajaEditada, esApertura, usuario, totalAnterior,
+                        input.getTotalGs(), input.getTotalRs(), input.getTotalDs()),
+                () -> {
+                    Map<String, Object> a = new java.util.LinkedHashMap<>();
+                    a.put("caja_id", cajaEditada.getId());
+                    a.put("apertura", esApertura);
+                    return a;
+                });
 
         log.info("[FILIAL editarConteoCaja] FIN OK -> conteoId={} (cajaId={})", nuevo.getId(), cajaId);
         return nuevo;

@@ -62,6 +62,11 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     public Cobro saveCobro(CobroInput input, List<CobroDetalleInput> cobroDetalleList, Long cajaId){
+        return guardarCobro(input, cobroDetalleList, cajaId, null);
+    }
+
+    /** guardados: si no es null, recibe los detalles guardados (el aviso venta.concluida no los vuelve a leer, #246). */
+    public Cobro guardarCobro(CobroInput input, List<CobroDetalleInput> cobroDetalleList, Long cajaId, List<CobroDetalle> guardados){
         auditorUsuarioId.verificar("CobroGraphQL.saveCobro", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         Cobro e = m.map(input, Cobro.class);
@@ -76,7 +81,8 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 }
                 c.setCobroId(cobro.getId());
                 // Ya no se escribe movimiento_caja: el saldo sale de generarBalance (#80).
-                cobroDetalleGraphQL.saveCobroDetalle(c);
+                CobroDetalle cd = cobroDetalleGraphQL.guardarDetalle(c);
+                if (guardados != null && cd != null) guardados.add(cd);
             }
             return cobro;
         } else {

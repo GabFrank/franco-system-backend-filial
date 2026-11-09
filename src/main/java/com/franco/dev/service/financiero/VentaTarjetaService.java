@@ -151,7 +151,32 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         VentaTarjeta guardado = repository.save(vt);
 
         vincularIdentificadorAlCobro(vt, identificadorTransaccion, cobroDetalleId);
+        emitir("venta_tarjeta.completada", "baja", guardado);
         return guardado;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.franco.dev.eventos.EventoEmisor eventoEmisor;
+
+    /**
+     * Guardado de saveVentaTarjeta en una TX con su aviso: venta_tarjeta.creada solo en el alta, la
+     * edicion por esta via no avisa (fase 2, #246).
+     */
+    @Transactional
+    public VentaTarjeta guardarConAviso(VentaTarjeta entity) {
+        boolean nueva = entity.getId() == null || !repository.existsById(entity.getId());
+        VentaTarjeta guardada = save(entity);
+        if (nueva) emitir("venta_tarjeta.creada", "baja", guardada);
+        return guardada;
+    }
+
+    /** venta_tarjeta.* (fase 2, #246), en la TX de la operacion. */
+    private void emitir(String tipo, String gravedad, VentaTarjeta vt) {
+        if (eventoEmisor == null || vt == null) return;
+        Long usuarioId = vt.getUsuario() != null ? vt.getUsuario().getId() : null;
+        eventoEmisor.emitirProyeccion(tipo, gravedad, usuarioId, "venta_tarjeta/" + vt.getSucursalId() + "/" + vt.getId(),
+                () -> com.franco.dev.eventos.EventosTarjeta.tarjeta(vt),
+                () -> com.franco.dev.eventos.EventosTarjeta.atributos(vt));
     }
 
     /**
@@ -521,7 +546,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         LocalDateTime ahora = LocalDateTime.now();
         pendientes.forEach(vt -> {
             aplicarNoCompletado(vt, motivo, observacion, usuario, ahora);
-            repository.save(vt);
+            emitir("venta_tarjeta.no_completada", "media", repository.save(vt));
         });
         return pendientes.size();
     }
@@ -537,7 +562,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         List<VentaTarjeta> pendientes = repository.findByCajaIdAndSucursalIdAndEstado(cajaId, sucursalId, "PENDIENTE");
         pendientes.forEach(vt -> {
             vt.setEstado("NO_COMPLETADO");
-            repository.save(vt);
+            emitir("venta_tarjeta.no_completada", "media", repository.save(vt));
         });
         return pendientes.size();
     }
@@ -564,7 +589,9 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                     + ": solo se puede dejar sin conciliar uno que este PENDIENTE.");
         }
         aplicarNoCompletado(vt, motivo, observacion, usuario, LocalDateTime.now());
-        return repository.save(vt);
+        VentaTarjeta guardada = repository.save(vt);
+        emitir("venta_tarjeta.no_completada", "media", guardada);
+        return guardada;
     }
 
     /**
