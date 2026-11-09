@@ -56,7 +56,7 @@ class ProyeccionFiltrosTest {
         assertEquals(10L, d.get("id"));
         assertNull(d.get("ventaObs"));
         assertEquals(m("id", 3L), d.get("usuario"));
-        assertEquals(m("id", 4L, "codigo", "C1", "persona", m()), d.get("cliente"));
+        assertEquals(m("id", 4L, "codigo", "C1"), d.get("cliente"), "persona sin nada operativo no sale como {}");
         List<Map<String, Object>> det = (List<Map<String, Object>>) sub(d, "cobro").get("cobroDetalleList");
         assertNull(det.get(0).get("identificadorTransaccion"));
         assertNull(det.get(1).get("secreto"));
@@ -189,5 +189,16 @@ class ProyeccionFiltrosTest {
         Suscripcion s = sus("venta.item_eliminado");
         assertTrue(ReglasEntrega.recibe(s, "venta.item_eliminado", 7L, m("venta_id", 1)));
         assertEquals(ReglasEntrega.Filtro.PASA, ReglasEntrega.evaluarFiltros(s, "venta.item_eliminado", null));
+    }
+
+    @Test
+    void unObjetoQueQuedaVacioNoSale() {
+        Map<String, Object> u = new java.util.LinkedHashMap<>();
+        u.put("nickname", "ana");
+        Map<String, Object> d = new java.util.LinkedHashMap<>();
+        d.put("id", 1L);
+        d.put("usuario", u);
+        Map<String, Object> l = Proyeccion.limpiar("caja.reabierta", d, false, false);
+        assertFalse(l.containsKey("usuario"), l.toString());
     }
 }

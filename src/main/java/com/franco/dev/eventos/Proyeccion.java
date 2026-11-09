@@ -89,7 +89,9 @@ public final class Proyeccion {
             if (!entra.test(ruta)) continue;
             Object v = e.getValue();
             if (v instanceof Map) {
-                out.put(e.getKey(), copiar((Map<String, Object>) v, ruta, entra));
+                // Un objeto que quedo vacio (todo lo de adentro era personal o no se pidio) no sale como {}
+                Map<String, Object> hijo = copiar((Map<String, Object>) v, ruta, entra);
+                if (!hijo.isEmpty() || ((Map<?, ?>) v).isEmpty()) out.put(e.getKey(), hijo);
             } else if (v instanceof Collection) {
                 List<Object> l = new ArrayList<>();
                 for (Object x : (Collection<?>) v) {
