@@ -28,6 +28,8 @@ class GastoGraphQLSaldoTest {
 
     private static final long CAJA_ID = 2155L;
 
+    @Mock private com.franco.dev.eventos.EventoEmisor eventoEmisor;
+
     @Mock private GastoService service;
     @Mock private PdvCajaService pdvCajaService;
     @Mock private AuditorUsuarioId auditorUsuarioId;

@@ -38,6 +38,8 @@ class RetiroGraphQLSaldoTest {
     private static final long GS = 1L;
     private static final long RS = 2L;
 
+    @Mock private com.franco.dev.eventos.EventoEmisor eventoEmisor;
+
     @Mock private RetiroService service;
     @Mock private PdvCajaService pdvCajaService;
     @Mock private AuditorUsuarioId auditorUsuarioId;

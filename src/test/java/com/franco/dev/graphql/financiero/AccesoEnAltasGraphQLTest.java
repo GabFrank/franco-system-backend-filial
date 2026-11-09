@@ -39,6 +39,8 @@ class AccesoEnAltasGraphQLTest {
     private static final long CAJA_ID = 1185L;
     private static final GraphQLException NO = new GraphQLException("No autorizado: solo el dueño o el rol ANALISIS DE CAJA.");
 
+    @Mock private com.franco.dev.eventos.EventoEmisor eventoEmisor;
+
     @Mock private PdvCajaService pdvCajaService;
     @Mock private AuditorUsuarioId auditorUsuarioId;
     @Mock private UsuarioService usuarioService;

@@ -670,4 +670,60 @@ class EventosBaseIT {
         assertEquals(1, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'DESCARTADA'"));
         assertEquals(0, contar("SELECT count(*) FROM eventos.outbox_evento WHERE datos IS NULL"));
     }
+
+    /** Fase 2 (#246): cada tipo del catalogo deja 1 fila si la operacion confirma y 0 si se revierte. */
+    @Test
+    void cadaTipoDeLaFase2EsAtomicoConSuOperacion() {
+        emisor.setRefrescoMs(0);
+        String tipos = String.join(",", CatalogoEventos.todos().keySet());
+        suscripcion(tipos, null);
+        for (String t : CatalogoEventos.todos().keySet()) {
+            tx.executeWithoutResult(s -> {
+                emisor.emitirProyeccion(t, "baja", 3L, "x/7/1", () -> new java.util.LinkedHashMap<>(), null);
+                s.setRollbackOnly();
+            });
+            assertEquals(0, contar("SELECT count(*) FROM eventos.outbox_evento WHERE tipo = ?", t), t + " con rollback");
+            tx.executeWithoutResult(s -> emisor.emitirProyeccion(t, "baja", 3L, "x/7/1", () -> new java.util.LinkedHashMap<>(), null));
+            assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento WHERE tipo = ?", t), t + " con commit");
+        }
+    }
+
+    /** retiro.eliminado y gasto.creado con los metodos reales de los resolvers y el emisor real. */
+    @Test
+    void retiroYGastoDeExtremoAExtremo() throws Exception {
+        emisor.setRefrescoMs(0);
+        suscripcion("retiro.eliminado,gasto.creado", null);
+        com.franco.dev.graphql.financiero.RetiroGraphQL rg = new com.franco.dev.graphql.financiero.RetiroGraphQL();
+        org.springframework.test.util.ReflectionTestUtils.setField(rg, "eventoEmisor", emisor);
+        com.franco.dev.graphql.financiero.GastoGraphQL gg = new com.franco.dev.graphql.financiero.GastoGraphQL();
+        org.springframework.test.util.ReflectionTestUtils.setField(gg, "eventoEmisor", emisor);
+        com.franco.dev.domain.financiero.PdvCaja c = new com.franco.dev.domain.financiero.PdvCaja();
+        c.setId(15L);
+        com.franco.dev.domain.financiero.Retiro r = new com.franco.dev.domain.financiero.Retiro();
+        r.setId(4L);
+        r.setSucursalId(7L);
+        r.setCajaSalida(c);
+        com.franco.dev.domain.financiero.Gasto g = new com.franco.dev.domain.financiero.Gasto();
+        g.setId(9L);
+        g.setSucursalId(7L);
+        g.setCaja(c);
+        g.setRetiroGs(30000.0);
+        java.lang.reflect.Method er = rg.getClass().getDeclaredMethod("emitirRetiro", String.class,
+                com.franco.dev.domain.financiero.Retiro.class, com.franco.dev.graphql.financiero.input.RetiroInput.class);
+        er.setAccessible(true);
+        java.lang.reflect.Method eg = gg.getClass().getDeclaredMethod("emitirGasto", String.class, com.franco.dev.domain.financiero.Gasto.class);
+        eg.setAccessible(true);
+        tx.executeWithoutResult(s -> {
+            try {
+                er.invoke(rg, "retiro.eliminado", r, null);
+                eg.invoke(gg, "gasto.creado", g);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        assertEquals(1, contar("SELECT count(*) FROM eventos.outbox_evento WHERE tipo = 'retiro.eliminado' AND sujeto = 'retiro/7/4'"));
+        String d = jdbc.queryForObject("SELECT datos::text FROM eventos.outbox_evento WHERE tipo = 'gasto.creado'", String.class);
+        assertTrue(d.contains("30000"), d);
+        assertEquals(0, emisor.getFallosEmisor());
+    }
 }
