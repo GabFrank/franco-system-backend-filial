@@ -219,9 +219,16 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     /** venta.concluida (fase 2, #246): en la TX de la operacion, solo al pasar a CONCLUIDA. */
     public void emitirConcluida(VentaEstado anterior, Venta venta, List<VentaItem> items) {
+        emitirConcluida(anterior, venta, items, null);
+    }
+
+    /** guardados: los detalles del cobro que se acaban de guardar; null = se leen de la base. */
+    public void emitirConcluida(VentaEstado anterior, Venta venta, List<VentaItem> items,
+                                List<com.franco.dev.domain.operaciones.CobroDetalle> guardados) {
         if (!com.franco.dev.eventos.EventosVenta.concluyeAhora(anterior, venta)) return;
         java.util.function.Supplier<List<com.franco.dev.domain.operaciones.CobroDetalle>> detalles =
-                () -> venta.getCobro() != null ? cobroDetalleService.findByCobroId(venta.getCobro().getId()) : java.util.Collections.emptyList();
+                () -> guardados != null ? guardados
+                        : venta.getCobro() != null ? cobroDetalleService.findByCobroId(venta.getCobro().getId()) : java.util.Collections.emptyList();
         List<com.franco.dev.domain.operaciones.CobroDetalle>[] cache = new List[1];
         eventoEmisor.emitirProyeccion("venta.concluida", "baja",
                 venta.getUsuario() != null ? venta.getUsuario().getId() : null,
@@ -287,7 +294,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         // "Esta caja ya esta cerrada" mas abajo. Y el rollback de la transaccion no toca el cache.
         boolean reservaConfirmada = false;
         try {
-            cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
+            List<com.franco.dev.domain.operaciones.CobroDetalle> detallesGuardados = new java.util.ArrayList<>();
+            cobro = cobroGraphQL.guardarCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId(), detallesGuardados);
             if (cobro != null) {
                 ModelMapper m = new ModelMapper();
                 Venta e = m.map(ventaInput, Venta.class);
@@ -309,7 +317,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 venta = service.saveAndSend(e, false);
                 if (venta != null) {
                     ventaItemList1 = ventaItemGraphQL.saveVentaItemList(ventaItemList, venta.getId());
-                    emitirConcluida(estadoAnterior, venta, ventaItemList1);
+                    emitirConcluida(estadoAnterior, venta, ventaItemList1, detallesGuardados);
                 
                     // La venta existe: la reserva pasa a ser el antecedente que bloquea a la gemela.
                     if (venta.getId() != null) {
