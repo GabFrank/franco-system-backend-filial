@@ -64,6 +64,12 @@ public class EventoEnviador {
      * Reactor Netty (ya viene con webflux) con ResolverSeguro: la IP se valida al conectar, no antes.
      * Sin redirecciones (es el default de Reactor Netty) y con timeout de conexion y de respuesta.
      */
+    /** Para los tests y el apagado: corta el pool de envio (los hilos quedaban vivos entre tests). */
+    @javax.annotation.PreDestroy
+    public void cerrar() {
+        pool.shutdownNow();
+    }
+
     static Transporte transporteNetty(EventosProperties props) {
         reactor.netty.http.client.HttpClient http = reactor.netty.http.client.HttpClient.create()
                 .resolver(new ResolverSeguro(props.getHostsPermitidos()))

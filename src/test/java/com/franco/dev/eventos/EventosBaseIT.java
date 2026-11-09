@@ -42,6 +42,11 @@ class EventosBaseIT {
     private EventoEnviador enviador;
     private String publica;
 
+    @org.junit.jupiter.api.AfterEach
+    void cerrar() {
+        if (enviador != null) enviador.cerrar();
+    }
+
     @BeforeEach
     void preparar() throws Exception {
         ds = new DriverManagerDataSource(System.getProperty("it.eventos.url", "jdbc:postgresql://localhost:5432/eventos_it"), "franco", "franco");
@@ -491,9 +496,10 @@ class EventosBaseIT {
         assertThrows(Exception.class, () -> repo.reclamar(false, -1, 2, 60), "LIMIT negativo hace fallar el reclamo");
         assertEquals(0, contar("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND objid = ?", (int) (EventosRepositorio.LOCK_RECLAMO & 0xffffffffL)));
         // Otro hilo puede reclamar enseguida (si el lock hubiera quedado tomado, se colgaria)
-        java.util.concurrent.Future<List<EventosRepositorio.EntregaReclamada>> f =
-                java.util.concurrent.Executors.newSingleThreadExecutor().submit(() -> repo.reclamar(false, 10, 2, 60));
+        java.util.concurrent.ExecutorService otro = java.util.concurrent.Executors.newSingleThreadExecutor();
+        java.util.concurrent.Future<List<EventosRepositorio.EntregaReclamada>> f = otro.submit(() -> repo.reclamar(false, 10, 2, 60));
         assertEquals(1, f.get(5, java.util.concurrent.TimeUnit.SECONDS).size());
+        otro.shutdownNow();
         assertEquals(0, contar("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory'"));
     }
 
