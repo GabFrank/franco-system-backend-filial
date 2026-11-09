@@ -93,6 +93,46 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         return service.findByCajaSalidaId(id);
     }
 
+    @Autowired
+    private com.franco.dev.eventos.EventoEmisor eventoEmisor;
+
+    /** retiro.creado / editado / eliminado (fase 2, #246), en la TX de la operacion. */
+    void emitirRetiro(String tipo, Retiro retiro, RetiroInput input) {
+        Double gs = input != null ? input.getRetiroGs() : null; // eliminado: el detalle queda en retiro_detalle
+        Double rs = input != null ? input.getRetiroRs() : null; // eliminado: el detalle queda en retiro_detalle
+        Double ds = input != null ? input.getRetiroDs() : null; // eliminado: el detalle queda en retiro_detalle
+        eventoEmisor.emitirProyeccion(tipo, "retiro.eliminado".equals(tipo) ? "media" : "baja",
+                retiro.getUsuario() != null ? retiro.getUsuario().getId() : null,
+                "retiro/" + retiro.getSucursalId() + "/" + retiro.getId(),
+                () -> {
+                    java.util.Map<String, Object> d = new java.util.LinkedHashMap<>();
+                    d.put("id", retiro.getId());
+                    if (retiro.getCajaSalida() != null) d.put("caja", com.franco.dev.eventos.EventosVenta.mapa("id", retiro.getCajaSalida().getId()));
+                    d.put("sucursalId", retiro.getSucursalId());
+                    if (retiro.getUsuario() != null) d.put("usuario", com.franco.dev.eventos.EventosVenta.mapa("id", retiro.getUsuario().getId()));
+                    d.put("creadoEn", retiro.getCreadoEn() != null ? retiro.getCreadoEn().toString() : null);
+                    java.util.List<java.util.Map<String, Object>> det = new java.util.ArrayList<>();
+                    det.add(detalle("GUARANI", gs));
+                    det.add(detalle("REAL", rs));
+                    det.add(detalle("DOLAR", ds));
+                    d.put("detalle", det);
+                    return d;
+                },
+                () -> {
+                    java.util.Map<String, Object> a = new java.util.LinkedHashMap<>();
+                    a.put("caja_id", retiro.getCajaSalida() != null ? retiro.getCajaSalida().getId() : null);
+                    a.put("monto_gs", gs);
+                    return a;
+                });
+    }
+
+    private static java.util.Map<String, Object> detalle(String moneda, Double v) {
+        java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("moneda", moneda);
+        m.put("valor", v != null ? v : 0.0);
+        return m;
+    }
+
     @Transactional
     public Retiro saveRetiro(RetiroInput input, List<RetiroDetalleInput> retiroDetalleInputList, String printerName, String local,
             Boolean imprimirEnCliente) throws GraphQLException {
@@ -134,6 +174,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
                 r.setCreadoEn(retiro.getCreadoEn());
                 if (r.getCantidad() != null && r.getCantidad() > 0) retiroDetalleGraphQL.guardarDetalle(r);
             }
+            emitirRetiro(edicion ? "retiro.editado" : "retiro.creado", retiro, input);
             RetiroDto retiroDto = new RetiroDto();
             retiroDto.setId(retiro.getId());
             retiroDto.setCajaId(retiro.getCajaSalida() != null ? retiro.getCajaSalida().getId() : null);
