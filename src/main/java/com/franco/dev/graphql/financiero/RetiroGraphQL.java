@@ -110,7 +110,7 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         Double gs = input != null ? input.getRetiroGs() : null; // eliminado: el detalle queda en retiro_detalle
         java.util.List<com.franco.dev.domain.financiero.RetiroDetalle>[] cache = new java.util.List[]{previos};
         java.util.function.Supplier<java.util.List<com.franco.dev.domain.financiero.RetiroDetalle>> detalles = () -> {
-            if (cache[0] == null) cache[0] = retiroDetalleService.findByRetiroId(retiro.getId());
+            if (cache[0] == null && retiroDetalleService != null) cache[0] = retiroDetalleService.findByRetiroId(retiro.getId());
             return cache[0];
         };
         eventoEmisor.emitirProyeccion(tipo, "retiro.eliminado".equals(tipo) ? "media" : "baja",

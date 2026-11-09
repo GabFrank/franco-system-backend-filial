@@ -52,7 +52,7 @@ class VentaTarjetaServiceTest {
         when(configuracionService.findOrDefault()).thenReturn(new ConfiguracionVentaTarjeta());
         capturaCuponRepository = mock(CapturaCuponRepository.class);
         service = new VentaTarjetaService(repository, cobroDetalleRepository, monedaService,
-                configuracionService, capturaCuponRepository, null);
+                configuracionService, capturaCuponRepository, null, null);
     }
 
     @Test
