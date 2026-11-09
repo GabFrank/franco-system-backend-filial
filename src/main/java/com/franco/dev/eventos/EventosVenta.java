@@ -151,14 +151,14 @@ public final class EventosVenta {
         return a;
     }
 
-    static Map<String, Object> usuario(com.franco.dev.domain.personas.Usuario u) {
+    public static Map<String, Object> usuario(com.franco.dev.domain.personas.Usuario u) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", u.getId());
         m.put("nickname", u.getNickname());
         return m;
     }
 
-    static Map<String, Object> mapa(String k, Object v) {
+    public static Map<String, Object> mapa(String k, Object v) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put(k, v);
         return m;
