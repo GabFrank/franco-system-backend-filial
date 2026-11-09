@@ -317,6 +317,24 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         return service.deleteById(id);
     }
 
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager txManager;
+
+    /**
+     * Venta y delivery concluidos juntos o ninguno (antes eran dos saves en autocommit), y venta.concluida
+     * en la misma TX, solo si la venta pasa a CONCLUIDA ahora (#246). Sin llamadas externas adentro.
+     */
+    void concluir(Delivery delivery, Venta venta) {
+        new org.springframework.transaction.support.TransactionTemplate(txManager).executeWithoutResult(st -> {
+            VentaEstado anterior = venta.getEstado();
+            delivery.setEstado(DeliveryEstado.CONCLUIDO);
+            venta.setEstado(VentaEstado.CONCLUIDA);
+            Venta guardada = ventaService.saveAndSend(venta, false);
+            service.saveAndSend(delivery, false);
+            if (guardada != null) ventaGraphQL.emitirConcluida(anterior, guardada, null);
+        });
+    }
+
     public Delivery saveDeliveryEstado(Long deliveryId, DeliveryEstado deliveryEstado, String printerName, String local,
             Long pdvId, Boolean imprimirEnCliente) throws GraphQLException {
         // Impresion desde el cliente: los mismos comprobantes, escritos en memoria en el mismo orden,
@@ -357,10 +375,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                     }
                     break;
                 case CONCLUIDO:
-                    delivery.setEstado(DeliveryEstado.CONCLUIDO);
-                    venta.setEstado(VentaEstado.CONCLUIDA);
-                    ventaService.saveAndSend(venta, false);
-                    service.saveAndSend(delivery, false);
+                    concluir(delivery, venta);
                     break;
             }
             return delivery;
