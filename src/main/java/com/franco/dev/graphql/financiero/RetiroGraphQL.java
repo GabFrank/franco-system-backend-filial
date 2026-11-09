@@ -98,30 +98,65 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
 
     /** retiro.creado / editado / eliminado (fase 2, #246), en la TX de la operacion. */
     void emitirRetiro(String tipo, Retiro retiro, RetiroInput input) {
+        emitirRetiro(tipo, retiro, input, null);
+    }
+
+    /**
+     * retiro.* con la forma de la consulta del cliente (fase 2b, #246): estado, observacion, el detalle por
+     * moneda con su id, el responsable y la caja de salida con su maletin. El detalle se lee de
+     * retiro_detalle (en el borrado, el que se leyo antes de borrar).
+     */
+    void emitirRetiro(String tipo, Retiro retiro, RetiroInput input, java.util.List<com.franco.dev.domain.financiero.RetiroDetalle> previos) {
         Double gs = input != null ? input.getRetiroGs() : null; // eliminado: el detalle queda en retiro_detalle
-        Double rs = input != null ? input.getRetiroRs() : null; // eliminado: el detalle queda en retiro_detalle
-        Double ds = input != null ? input.getRetiroDs() : null; // eliminado: el detalle queda en retiro_detalle
+        java.util.List<com.franco.dev.domain.financiero.RetiroDetalle>[] cache = new java.util.List[]{previos};
+        java.util.function.Supplier<java.util.List<com.franco.dev.domain.financiero.RetiroDetalle>> detalles = () -> {
+            if (cache[0] == null) cache[0] = retiroDetalleService.findByRetiroId(retiro.getId());
+            return cache[0];
+        };
         eventoEmisor.emitirProyeccion(tipo, "retiro.eliminado".equals(tipo) ? "media" : "baja",
                 retiro.getUsuario() != null ? retiro.getUsuario().getId() : null,
                 "retiro/" + retiro.getSucursalId() + "/" + retiro.getId(),
                 () -> {
                     java.util.Map<String, Object> d = new java.util.LinkedHashMap<>();
                     d.put("id", retiro.getId());
-                    if (retiro.getCajaSalida() != null) d.put("caja", com.franco.dev.eventos.EventosVenta.mapa("id", retiro.getCajaSalida().getId()));
                     d.put("sucursalId", retiro.getSucursalId());
-                    if (retiro.getUsuario() != null) d.put("usuario", com.franco.dev.eventos.EventosVenta.mapa("id", retiro.getUsuario().getId()));
                     d.put("creadoEn", retiro.getCreadoEn() != null ? retiro.getCreadoEn().toString() : null);
+                    d.put("estado", retiro.getEstado() != null ? retiro.getEstado().name() : null);
+                    d.put("observacion", retiro.getObservacion());
+                    if (retiro.getCajaSalida() != null) {
+                        d.put("caja", com.franco.dev.eventos.EventosVenta.mapa("id", retiro.getCajaSalida().getId()));
+                        java.util.Map<String, Object> cs = com.franco.dev.eventos.EventosVenta.mapa("id", retiro.getCajaSalida().getId());
+                        if (retiro.getCajaSalida().getMaletin() != null)
+                            cs.put("maletin", com.franco.dev.eventos.EventosVenta.mapa("descripcion", retiro.getCajaSalida().getMaletin().getDescripcion()));
+                        d.put("cajaSalida", cs);
+                    }
+                    if (retiro.getUsuario() != null) d.put("usuario", com.franco.dev.eventos.EventosVenta.usuario(retiro.getUsuario()));
+                    if (retiro.getResponsable() != null && retiro.getResponsable().getPersona() != null)
+                        d.put("responsable", com.franco.dev.eventos.EventosVenta.mapa("persona",
+                                com.franco.dev.eventos.EventosVenta.mapa("nombre", retiro.getResponsable().getPersona().getNombre())));
                     java.util.List<java.util.Map<String, Object>> det = new java.util.ArrayList<>();
-                    det.add(detalle("GUARANI", gs));
-                    det.add(detalle("REAL", rs));
-                    det.add(detalle("DOLAR", ds));
-                    d.put("detalle", det);
+                    java.util.List<com.franco.dev.domain.financiero.RetiroDetalle> l = detalles.get();
+                    if (l != null) for (com.franco.dev.domain.financiero.RetiroDetalle rd : l) {
+                        java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                        m.put("cantidad", rd.getCantidad());
+                        if (rd.getMoneda() != null) {
+                            java.util.Map<String, Object> mo = com.franco.dev.eventos.EventosVenta.mapa("id", rd.getMoneda().getId());
+                            mo.put("denominacion", rd.getMoneda().getDenominacion());
+                            m.put("moneda", mo);
+                        }
+                        det.add(m);
+                    }
+                    d.put("retiroDetalleList", det);
                     return d;
                 },
                 () -> {
                     java.util.Map<String, Object> a = new java.util.LinkedHashMap<>();
                     a.put("caja_id", retiro.getCajaSalida() != null ? retiro.getCajaSalida().getId() : null);
-                    a.put("monto_gs", gs);
+                    Double monto = gs;
+                    if (monto == null && detalles.get() != null) for (com.franco.dev.domain.financiero.RetiroDetalle rd : detalles.get())
+                        if (rd.getMoneda() != null && rd.getMoneda().getDenominacion() != null
+                                && rd.getMoneda().getDenominacion().toUpperCase().startsWith("GUARANI")) monto = rd.getCantidad();
+                    a.put("monto_gs", monto);
                     return a;
                 });
     }
@@ -237,8 +272,11 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     public Boolean deleteRetiro(Long id, Long sucId) {
         Retiro retiro = service.findById(id).orElse(null);
         if (retiro == null) return false;
+        // El detalle se lee antes de borrar, y solo si alguien va a recibir el aviso (fase 2b).
+        java.util.List<com.franco.dev.domain.financiero.RetiroDetalle> previos = eventoEmisor.haySuscriptos("retiro.eliminado")
+                ? new java.util.ArrayList<>(retiroDetalleService.findByRetiroId(id)) : null;
         Boolean ok = service.deleteById(id);
-        if (Boolean.TRUE.equals(ok)) emitirRetiro("retiro.eliminado", retiro, null);
+        if (Boolean.TRUE.equals(ok)) emitirRetiro("retiro.eliminado", retiro, null, previos);
         return ok;
     }
 

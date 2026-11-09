@@ -111,35 +111,59 @@ public final class CatalogoEventos {
 
         // ---------------------------------------------------------------- caja
         Map<String, Clase> caja = rutas(
-                "caja.id", O, "sucursalId", O, "usuario.id", O, "usuario.nickname", P,
+                "caja.id", O, "id", O, "sucursalId", O, "sucursal.id", O, "usuario.id", O, "usuario.nickname", P,
                 "maletin.id", O, "maletin.descripcion", O, "fechaApertura", O, "fechaCierre", O,
                 "conteo.moneda", O, "conteo.total", O);
-        agregar("caja.abierta", Familia.CAMBIO, set("caja_id", "usuario_id"), caja);
+        // Fase 2b: el balance de apertura, la caja anterior del mismo maletin y el estado consecutivo.
+        Map<String, Clase> apertura = new LinkedHashMap<>(caja);
+        apertura.putAll(rutas("balance.totalAperGs", O, "balance.totalAperRs", O, "balance.totalAperDs", O,
+                "cajaAnteriorId", O, "estadoDiferenciaConsecutiva", O,
+                "cajaAnterior.id", O, "cajaAnterior.usuario.id", O, "cajaAnterior.usuario.nickname", P,
+                "cajaAnterior.fechaCierre", O, "cajaAnterior.balance.totalCierreGs", O,
+                "cajaAnterior.balance.totalCierreRs", O, "cajaAnterior.balance.totalCierreDs", O));
+        agregar("caja.abierta", Familia.CAMBIO, set("caja_id", "usuario_id"), apertura);
         Map<String, Clase> cierre = new LinkedHashMap<>(caja);
-        cierre.putAll(rutas("diferencias.moneda", O, "diferencias.esperado", O, "diferencias.contado", O,
-                "diferencias.diferencia", O));
-        Set<String> atrCierre = set("caja_id", "usuario_id", "con_diferencia", "diferencia_gs", "diferencia_rs", "diferencia_ds");
+        cierre.put("cajaAnteriorId", O);
+        for (String b : new String[]{"totalAper", "totalCierre", "diferencia", "totalVenta", "totalRetiro", "totalGasto", "vuelto"})
+            for (String m : new String[]{"Gs", "Rs", "Ds"}) cierre.put("balance." + b + m, O);
+        cierre.putAll(rutas("balance.totalTarjeta", O, "balance.totalTransferencia", O, "balance.totalCredito", O,
+                "cotizacion.rs", O, "cotizacion.ds", O));
+        Set<String> atrCierre = set("caja_id", "usuario_id", "con_diferencia", "diferencia_gs", "diferencia_rs", "diferencia_ds",
+                "diferencia_total_gs");
         agregar("caja.cerrada", Familia.CAMBIO, atrCierre, cierre);
         agregar("caja.cierre_con_diferencia", Familia.ALERTA, atrCierre, cierre);
+        agregar("caja.maletin_distinto", Familia.ALERTA, set("caja_id", "usuario_id"), rutas(
+                "caja.id", O, "caja.sucursal.id", O, "caja.usuario.id", O, "caja.usuario.nickname", P,
+                "caja.fechaApertura", O, "caja.maletin.id", O, "caja.maletin.descripcion", O, "sucursalId", O,
+                "cajaAnterior.id", O, "cajaAnterior.usuario.id", O, "cajaAnterior.usuario.nickname", P,
+                "cajaAnterior.fechaCierre", O,
+                "dejo.gs", O, "dejo.rs", O, "dejo.ds", O, "recibio.gs", O, "recibio.rs", O, "recibio.ds", O,
+                "diferencia.gs", O, "diferencia.rs", O, "diferencia.ds", O));
         agregar("caja.conteo_editado", Familia.ALERTA, set("caja_id", "apertura"), rutas(
-                "caja.id", O, "sucursalId", O, "apertura", O, "usuario.id", O, "usuario.nickname", P,
+                "caja.id", O, "caja.sucursal.id", O, "caja.fechaCierre", O, "sucursalId", O, "apertura", O, "tipo", O,
+                "usuario.id", O, "usuario.nickname", P,
                 "conteoAnterior.moneda", O, "conteoAnterior.total", O,
-                "conteoNuevo.moneda", O, "conteoNuevo.total", O));
+                "conteoNuevo.moneda", O, "conteoNuevo.total", O,
+                "balance.diferenciaGs", O, "balance.diferenciaRs", O, "balance.diferenciaDs", O));
         agregar("caja.reabierta", Familia.ALERTA, set("caja_id"), rutas(
                 "caja.id", O, "sucursalId", O, "usuario.id", O, "motivo", P, "reabiertaEn", O));
 
         // ---------------------------------------------------------------- retiro y gasto
         Map<String, Clase> retiro = rutas(
-                "id", O, "caja.id", O, "sucursalId", O, "usuario.id", O, "responsable.nickname", P,
-                "creadoEn", O, "detalle.moneda", O, "detalle.valor", O);
+                "id", O, "caja.id", O, "sucursalId", O, "usuario.id", O, "usuario.nickname", P,
+                "creadoEn", O, "estado", O, "observacion", P,
+                "retiroDetalleList.cantidad", O, "retiroDetalleList.moneda.id", O, "retiroDetalleList.moneda.denominacion", O,
+                "responsable.persona.nombre", P, "cajaSalida.id", O, "cajaSalida.maletin.descripcion", O);
         Set<String> atrRetiro = set("caja_id", "monto_gs");
         agregar("retiro.creado", Familia.CAMBIO, atrRetiro, retiro);
         agregar("retiro.editado", Familia.CAMBIO, atrRetiro, retiro);
         agregar("retiro.eliminado", Familia.ALERTA, atrRetiro, retiro);
         Map<String, Clase> gasto = rutas(
-                "id", O, "caja.id", O, "sucursalId", O, "tipoGasto.id", O, "tipoGasto.descripcion", O,
-                "valorGs", O, "valorRs", O, "valorDs", O, "descripcion", P,
-                "autorizadoPor.nickname", P, "usuario.id", O, "creadoEn", O);
+                "id", O, "caja.id", O, "sucursalId", O, "sucursal.id", O, "tipoGasto.id", O, "tipoGasto.descripcion", O,
+                "valorGs", O, "valorRs", O, "valorDs", O, "descripcion", P, "observacion", P, "cancelado", O,
+                "retiroGs", O, "retiroRs", O, "retiroDs", O, "vueltoGs", O, "vueltoRs", O, "vueltoDs", O,
+                "responsable.persona.nombre", P,
+                "autorizadoPor.nickname", P, "usuario.id", O, "usuario.nickname", P, "creadoEn", O);
         Set<String> atrGasto = set("caja_id", "tipo_gasto_id", "monto_gs");
         agregar("gasto.creado", Familia.CAMBIO, atrGasto, gasto);
         agregar("gasto.editado", Familia.CAMBIO, atrGasto, gasto);

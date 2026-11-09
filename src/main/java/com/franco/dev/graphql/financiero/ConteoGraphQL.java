@@ -96,9 +96,28 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         String sujeto = "caja/" + pdvCaja.getSucursalId() + "/" + pdvCaja.getId();
         Long usuarioId = input.getUsuarioId();
         if (esApertura) {
+            // La caja anterior se busca una sola vez y solo si alguien va a recibir el aviso (fase 2b).
+            Object[] ant = new Object[1];
+            java.util.function.Supplier<com.franco.dev.eventos.EventosCaja.Anterior> anterior = () -> {
+                if (ant[0] == null) {
+                    ant[0] = Boolean.FALSE;
+                    com.franco.dev.eventos.EventosCaja.Anterior a = buscarAnterior(pdvCaja);
+                    if (a != null) ant[0] = a;
+                    else com.franco.dev.eventos.EventosCaja.SIN_CAJA_ANTERIOR.incrementAndGet();
+                }
+                return ant[0] instanceof com.franco.dev.eventos.EventosCaja.Anterior ? (com.franco.dev.eventos.EventosCaja.Anterior) ant[0] : null;
+            };
             eventoEmisor.emitirProyeccion("caja.abierta", "baja", usuarioId, sujeto,
-                    () -> com.franco.dev.eventos.EventosCaja.abierta(pdvCaja, input.getTotalGs(), input.getTotalRs(), input.getTotalDs()),
+                    () -> com.franco.dev.eventos.EventosCaja.abierta(pdvCaja, input.getTotalGs(), input.getTotalRs(), input.getTotalDs(), anterior.get()),
                     () -> com.franco.dev.eventos.EventosCaja.atributosCaja(pdvCaja));
+            if (eventoEmisor.haySuscriptos("caja.maletin_distinto")) {
+                com.franco.dev.eventos.EventosCaja.Anterior a = anterior.get();
+                if (com.franco.dev.eventos.EventosCaja.hayDiferencia(input.getTotalGs(), input.getTotalRs(), input.getTotalDs(), a)) {
+                    eventoEmisor.emitirProyeccion("caja.maletin_distinto", "alta", usuarioId, sujeto,
+                            () -> com.franco.dev.eventos.EventosCaja.maletinDistinto(pdvCaja, input.getTotalGs(), input.getTotalRs(), input.getTotalDs(), a),
+                            () -> com.franco.dev.eventos.EventosCaja.atributosCaja(pdvCaja));
+                }
+            }
             return;
         }
         com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto[] balance = new com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto[1];
@@ -106,12 +125,64 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
             if (balance[0] == null) balance[0] = pdvCajaService.generarBalance(pdvCaja);
             return balance[0];
         };
+        Double[][] cot = new Double[1][];
+        java.util.function.Supplier<Double[]> c = () -> {
+            if (cot[0] == null) {
+                cot[0] = cotizaciones();
+                if (com.franco.dev.eventos.EventosCaja.diferenciaTotalGs(b.get(), cot[0][0], cot[0][1]) == null)
+                    com.franco.dev.eventos.EventosCaja.SIN_COTIZACION.incrementAndGet();
+            }
+            return cot[0];
+        };
+        Long[] anteriorId = new Long[1];
+        boolean[] buscada = new boolean[1];
+        java.util.function.Supplier<Long> ant = () -> {
+            if (!buscada[0]) {
+                buscada[0] = true;
+                com.franco.dev.eventos.EventosCaja.Anterior a = buscarAnterior(pdvCaja);
+                anteriorId[0] = a != null ? a.caja.getId() : null;
+            }
+            return anteriorId[0];
+        };
         eventoEmisor.emitirProyeccion("caja.cerrada", "baja", usuarioId, sujeto,
-                () -> com.franco.dev.eventos.EventosCaja.cerrada(pdvCaja, b.get()),
-                () -> com.franco.dev.eventos.EventosCaja.atributosCierre(pdvCaja, b.get()));
+                () -> com.franco.dev.eventos.EventosCaja.cerrada(pdvCaja, b.get(), ant.get(), c.get()[0], c.get()[1]),
+                () -> com.franco.dev.eventos.EventosCaja.atributosCierre(pdvCaja, b.get(), c.get()[0], c.get()[1]));
         eventoEmisor.emitirProyeccion("caja.cierre_con_diferencia", "media", usuarioId, sujeto,
-                () -> com.franco.dev.eventos.EventosCaja.cerrada(pdvCaja, b.get()),
-                () -> com.franco.dev.eventos.EventosCaja.atributosCierre(pdvCaja, b.get()));
+                () -> com.franco.dev.eventos.EventosCaja.cerrada(pdvCaja, b.get(), ant.get(), c.get()[0], c.get()[1]),
+                () -> com.franco.dev.eventos.EventosCaja.atributosCierre(pdvCaja, b.get(), c.get()[0], c.get()[1]));
+    }
+
+    @Autowired
+    private com.franco.dev.repository.financiero.PdvCajaRepository pdvCajaRepository;
+
+    /**
+     * La caja anterior del mismo maletin en esta filial y los totales de su conteo de cierre (fase 2b).
+     * null si la caja no tiene maletin o fecha, o si el maletin no tiene una caja cerrada antes aca.
+     */
+    private com.franco.dev.eventos.EventosCaja.Anterior buscarAnterior(PdvCaja caja) {
+        if (caja.getMaletin() == null || caja.getFechaApertura() == null) return null;
+        List<PdvCaja> l = pdvCajaRepository.findPreviousCajaByMaletinAndFecha(caja.getMaletin().getId(),
+                caja.getFechaApertura(), caja.getId(), org.springframework.data.domain.PageRequest.of(0, 1));
+        if (l == null || l.isEmpty() || l.get(0).getConteoCierre() == null) return null;
+        PdvCaja a = l.get(0);
+        Map<String, Double> t = com.franco.dev.eventos.EventosCaja.totalesDeConteo(
+                conteoMonedaService.findByConteoId(a.getConteoCierre().getId()), null);
+        return new com.franco.dev.eventos.EventosCaja.Anterior(a, t.get("GUARANI"), t.get("REAL"), t.get("DOLAR"));
+    }
+
+    @Autowired
+    private com.franco.dev.service.financiero.CambioService cambioServiceEventos;
+
+    /** Ultima cotizacion en Gs del real y del dolar (null si no hay), de la tabla de cambios de la filial. */
+    private Double[] cotizaciones() {
+        Double rs = null, ds = null;
+        for (com.franco.dev.domain.financiero.Moneda m : monedaService.findAll2()) {
+            if (m.getDenominacion() == null) continue;
+            String den = m.getDenominacion().trim().toUpperCase();
+            if (den.startsWith("REAL")) rs = cambioServiceEventos.findLastValorEnGsByMonedaId(m.getId());
+            else if (den.startsWith("DOLAR") || den.startsWith("DÓLAR")) ds = cambioServiceEventos.findLastValorEnGsByMonedaId(m.getId());
+        }
+        return new Double[]{rs, ds};
     }
 
     @Unsecured()
@@ -297,7 +368,7 @@ public class ConteoGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
         eventoEmisor.emitirProyeccion("caja.conteo_editado", "media", usuario.getId(),
                 "caja/" + pdvCaja.getSucursalId() + "/" + pdvCaja.getId(),
                 () -> com.franco.dev.eventos.EventosCaja.conteoEditado(cajaEditada, esApertura, usuario, totalAnterior,
-                        input.getTotalGs(), input.getTotalRs(), input.getTotalDs()),
+                        input.getTotalGs(), input.getTotalRs(), input.getTotalDs(), pdvCajaService.generarBalance(cajaEditada)),
                 () -> {
                     Map<String, Object> a = new java.util.LinkedHashMap<>();
                     a.put("caja_id", cajaEditada.getId());

@@ -23,7 +23,8 @@ public final class ListaBlanca {
         CAMPOS.put("webhook.prueba", set("mensaje"));
         CAMPOS.put("nodo.latido", set(
                 "pendientes", "pendiente_mas_viejo", "descartadas_24h", "config_version", "destinos_pausados",
-                "hora_nodo", "emisor_encendido", "firma_configurada", "fallos_emisor", "filtros_invalidos"));
+                "hora_nodo", "emisor_encendido", "firma_configurada", "fallos_emisor", "filtros_invalidos",
+                "aperturas_sin_caja_anterior", "cierres_sin_cotizacion"));
     }
 
     private ListaBlanca() {

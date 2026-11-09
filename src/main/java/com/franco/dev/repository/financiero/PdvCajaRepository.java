@@ -72,4 +72,15 @@ public interface PdvCajaRepository extends HelperRepository<PdvCaja, Long> {
     @Query("SELECT MAX(c.id) FROM PdvCaja c")
     Long findMaxId();
 
+
+    /**
+     * La caja anterior del mismo maletin (fase 2b, eventos): el mismo criterio que el central
+     * (findPreviousCajaByMaletinAndFecha), sobre las cajas de esta filial.
+     */
+    @org.springframework.data.jpa.repository.Query("SELECT c FROM PdvCaja c WHERE c.maletin.id = :maletinId AND c.fechaCierre < :fechaApertura"
+            + " AND c.conteoCierre IS NOT NULL AND c.id <> :cajaId ORDER BY c.fechaCierre DESC")
+    java.util.List<PdvCaja> findPreviousCajaByMaletinAndFecha(@org.springframework.data.repository.query.Param("maletinId") Long maletinId,
+                                                              @org.springframework.data.repository.query.Param("fechaApertura") java.time.LocalDateTime fechaApertura,
+                                                              @org.springframework.data.repository.query.Param("cajaId") Long cajaId,
+                                                              org.springframework.data.domain.Pageable pageable);
 }

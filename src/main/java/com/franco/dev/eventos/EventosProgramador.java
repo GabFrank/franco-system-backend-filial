@@ -102,6 +102,8 @@ public class EventosProgramador {
         datos.put("firma_configurada", enviador.firmaConfigurada());
         datos.put("fallos_emisor", emisor.getFallosEmisor());
         datos.put("filtros_invalidos", despachador.getFiltrosInvalidos());
+        datos.put("aperturas_sin_caja_anterior", EventosCaja.SIN_CAJA_ANTERIOR.get());
+        datos.put("cierres_sin_cotizacion", EventosCaja.SIN_COTIZACION.get());
         emisor.emitirEnNuevaTx("nodo.latido", "baja", null, "nodo/" + suc, datos);
     }
 
