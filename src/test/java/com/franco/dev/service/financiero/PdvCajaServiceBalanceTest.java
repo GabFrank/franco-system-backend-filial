@@ -71,6 +71,7 @@ class PdvCajaServiceBalanceTest {
         MockitoAnnotations.initMocks(this);
         when(deliveryService.getRepository()).thenReturn(deliveryRepository);
         when(ventaService.findAllByCajaId(CAJA_ID)).thenReturn(ventas);
+        when(ventaService.findResumenByCajaId(CAJA_ID)).thenReturn(ventas);
         when(movimientoCajaService.findByPdvCajaId(CAJA_ID)).thenReturn(movimientos);
         when(cobroService.findById(anyLong())).thenAnswer(inv -> {
             Cobro c = new Cobro();

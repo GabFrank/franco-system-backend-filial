@@ -401,7 +401,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                     : new ArrayList<>();
             List<RetiroDetalle> retiroDetalleList = retiroDetalleService.findByCajId(pdvCaja.getId());
             List<Gasto> gastoList = gastoService.findByCajaId(pdvCaja.getId());
-            List<Venta> ventaList = ventaService.findAllByCajaId(pdvCaja.getId());
+            List<Venta> ventaList = ventaService.findResumenByCajaId(pdvCaja.getId());
             List<Delivery> deliveryList = deliveryService.getRepository().findDeliveryByCajaEstadoAndSucId(
                     pdvCaja.getId(),
                     Arrays.asList(DeliveryEstado.CONCLUIDO, DeliveryEstado.PARA_ENTREGA, DeliveryEstado.ENTREGADO),
