@@ -19,7 +19,17 @@ public class Suscripcion {
     private Map<String, Map<String, Number>> umbrales;
     /** "lote" o "individual" (por defecto). */
     private String entrega;
+    /**
+     * {"tipo": {"atributo": [valores]}}: el evento sale solo si cada atributo coincide con alguno de los
+     * valores (si el atributo del evento es una lista, alcanza con un elemento). Un atributo que el
+     * catalogo no conoce para ese tipo no entrega nada y se cuenta como filtro invalido.
+     */
+    private Map<String, Map<String, List<Object>>> filtros;
+    /** {"tipo": ["ruta", ...]}: recorta el data a esas rutas. Sin entrada para el tipo, va completo. */
+    private Map<String, List<String>> campos;
     private boolean datosPersonales;
+    /** Codigo de autorizacion, boleta, QR crudo, identificador de transaccion: solo con este permiso. */
+    private boolean datosSensibles;
     private String cabeceraNombre;
     private String secretoRef;
     private boolean latido;

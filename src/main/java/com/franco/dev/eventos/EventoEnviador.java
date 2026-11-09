@@ -192,7 +192,7 @@ public class EventoEnviador {
             return;
         }
         boolean lote = envio.size() > 1 || s.porLote();
-        String cuerpo = SobreCloudEvents.cuerpo(mapper, props.getEmpresa(), envio, lote);
+        String cuerpo = SobreCloudEvents.cuerpo(mapper, props.getEmpresa(), envio, lote, s);
         String webhookId = lote ? "lote_" + primera.eventoId + "_" + envio.size() : primera.eventoId;
         long ts = System.currentTimeMillis() / 1000;
         cab.put("Content-Type", lote ? SobreCloudEvents.CT_LOTE : SobreCloudEvents.CT_UNO);
