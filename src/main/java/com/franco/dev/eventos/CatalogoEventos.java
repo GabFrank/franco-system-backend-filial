@@ -47,7 +47,7 @@ public final class CatalogoEventos {
     static {
         // ---------------------------------------------------------------- venta
         Map<String, Clase> venta = rutas(
-                "id", O, "estado", O, "creadoEn", O, "sucursalId", O,
+                "id", O, "estado", O, "creadoEn", O, "sucursalId", O, "sucursal.id", O,
                 "totalGs", O, "totalRs", O, "totalDs", O, "valorTotal", O, "valorDescuento", O,
                 "esDelivery", O, "ventaObs", P,
                 "usuario.id", O, "usuario.nickname", P,
@@ -58,7 +58,8 @@ public final class CatalogoEventos {
                 "cobro.cobroDetalleList.pago", O, "cobro.cobroDetalleList.vuelto", O,
                 "cobro.cobroDetalleList.descuento", O, "cobro.cobroDetalleList.aumento", O,
                 "cobro.cobroDetalleList.identificadorTransaccion", S,
-                "cobro.cobroDetalleList.moneda.denominacion", O, "cobro.cobroDetalleList.formaPago.descripcion", O);
+                "cobro.cobroDetalleList.moneda.id", O, "cobro.cobroDetalleList.moneda.denominacion", O,
+                "cobro.cobroDetalleList.formaPago.id", O, "cobro.cobroDetalleList.formaPago.descripcion", O);
         Map<String, Clase> ventaConItems = new LinkedHashMap<>(venta);
         ventaConItems.putAll(rutas(
                 "ventaItemList.id", O, "ventaItemList.cantidad", O, "ventaItemList.precio", O,
@@ -66,22 +67,47 @@ public final class CatalogoEventos {
                 "ventaItemList.producto.id", O, "ventaItemList.producto.descripcion", O,
                 "ventaItemList.presentacion.id", O, "ventaItemList.presentacion.descripcion", O,
                 "ventaItemList.presentacion.codigoPrincipal.codigo", O));
-        Set<String> atrVenta = set("formas_pago", "monedas", "total_gs", "caja_id", "es_delivery");
+        Set<String> atrVenta = set("formas_pago", "formas_pago_id", "monedas", "total_gs", "caja_id", "es_delivery");
         agregar("venta.concluida", Familia.CAMBIO, atrVenta, ventaConItems);
-        agregar("venta.cobro_editado", Familia.CAMBIO, set("formas_pago", "monedas", "caja_id"), venta);
+        // Fase 2b: la forma que pidio el cliente, cabecera minima y las lineas como quedaron.
+        agregar("venta.cobro_editado", Familia.CAMBIO, set("formas_pago", "formas_pago_id", "monedas", "caja_id"), rutas(
+                "venta.id", O, "venta.estado", O, "venta.creadoEn", O, "venta.sucursalId", O,
+                "venta.usuario.id", O, "venta.usuario.nickname", P, "venta.caja.id", O,
+                "cobroDetalleList.id", O, "cobroDetalleList.valor", O, "cobroDetalleList.cambio", O,
+                "cobroDetalleList.pago", O, "cobroDetalleList.vuelto", O, "cobroDetalleList.descuento", O,
+                "cobroDetalleList.aumento", O, "cobroDetalleList.identificadorTransaccion", S,
+                "cobroDetalleList.moneda.id", O, "cobroDetalleList.moneda.denominacion", O,
+                "cobroDetalleList.formaPago.id", O, "cobroDetalleList.formaPago.descripcion", O));
 
         // ---------------------------------------------------------------- venta_tarjeta
         Map<String, Clase> tarjeta = rutas(
-                "id", O, "ventaId", O, "cajaId", O, "sucursalId", O, "estado", O, "origen", O,
-                "monto", O, "montoEscaneado", O, "moneda.denominacion", O, "creadoEn", O,
-                "terminalPos.id", O, "terminalPos.descripcion", O, "terminalPos.serie", O,
-                "terminalPos.adquirente", O,
-                "codigoAutorizacion", S, "numeroBoleta", S, "qrCrudo", S,
-                "noCompletadoMotivo", O, "noCompletadoEn", O);
+                "id", O, "ventaId", O, "cajaId", O, "caja.id", O, "sucursalId", O, "estado", O, "origen", O,
+                "monto", O, "montoEscaneado", O, "moneda.id", O, "moneda.denominacion", O, "creadoEn", O,
+                "usuario.id", O, "usuario.nickname", P,
+                "terminalPos.id", O, "terminalPos.descripcion", O, "terminalPos.serie", O, "terminalPos.codigo", O,
+                "terminalPos.adquirente", O, "terminalPos.proveedorServicio.id", O,
+                "terminalPos.proveedorServicio.persona.nombre", O,
+                "codigoAutorizacion", S, "numeroBoleta", S, "qrCrudo", S, "imagenUrl", S,
+                "noCompletadoMotivo", O, "noCompletadoEn", O,
+                "venta.id", O, "venta.estado", O,
+                "venta.cobro.cobroDetalleList.id", O, "venta.cobro.cobroDetalleList.valor", O,
+                "venta.cobro.cobroDetalleList.cambio", O, "venta.cobro.cobroDetalleList.pago", O,
+                "venta.cobro.cobroDetalleList.vuelto", O, "venta.cobro.cobroDetalleList.descuento", O,
+                "venta.cobro.cobroDetalleList.aumento", O,
+                "venta.cobro.cobroDetalleList.identificadorTransaccion", S,
+                "venta.cobro.cobroDetalleList.moneda.id", O, "venta.cobro.cobroDetalleList.moneda.denominacion", O,
+                "venta.cobro.cobroDetalleList.formaPago.id", O, "venta.cobro.cobroDetalleList.formaPago.descripcion", O);
         Set<String> atrTarjeta = set("estado", "terminal_id", "adquirente", "caja_id");
         agregar("venta_tarjeta.creada", Familia.CAMBIO, atrTarjeta, tarjeta);
         agregar("venta_tarjeta.completada", Familia.CAMBIO, atrTarjeta, tarjeta);
         agregar("venta_tarjeta.no_completada", Familia.ALERTA, atrTarjeta, tarjeta);
+        agregar("venta_tarjeta.cancelada", Familia.ALERTA, atrTarjeta, tarjeta);
+        agregar("venta_tarjeta.reabierta", Familia.CAMBIO, atrTarjeta, tarjeta);
+        Map<String, Clase> tarjetaEditada = new LinkedHashMap<>(tarjeta);
+        tarjetaEditada.putAll(rutas("cambios.monto.antes", O, "cambios.monto.despues", O,
+                "cambios.moneda.antes", O, "cambios.moneda.despues", O,
+                "cambios.terminalPos.antes", O, "cambios.terminalPos.despues", O));
+        agregar("venta_tarjeta.editada", Familia.ALERTA, atrTarjeta, tarjetaEditada);
 
         // ---------------------------------------------------------------- caja
         Map<String, Clase> caja = rutas(

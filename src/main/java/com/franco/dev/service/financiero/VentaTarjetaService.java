@@ -164,18 +164,72 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
      */
     @Transactional
     public VentaTarjeta guardarConAviso(VentaTarjeta entity) {
-        boolean nueva = entity.getId() == null || !repository.existsById(entity.getId());
+        VentaTarjeta previa = entity.getId() != null ? repository.findById(entity.getId()).orElse(null) : null;
+        // Foto de lo guardado antes de pisarlo: monto, moneda y terminal (fase 2b, venta_tarjeta.editada).
+        java.util.Map<String, Object> antes = previa != null ? com.franco.dev.eventos.EventosTarjeta.foto(previa) : null;
         VentaTarjeta guardada = save(entity);
-        if (nueva) emitir("venta_tarjeta.creada", "baja", guardada);
+        if (previa == null) {
+            emitir("venta_tarjeta.creada", "baja", guardada);
+        } else {
+            java.util.Map<String, Object> cambios = com.franco.dev.eventos.EventosTarjeta.cambios(antes,
+                    com.franco.dev.eventos.EventosTarjeta.foto(guardada));
+            if (!cambios.isEmpty()) emitir("venta_tarjeta.editada", "media", guardada, cambios);
+        }
         return guardada;
+    }
+
+    /**
+     * cancelarVentaTarjetaPorVentaId en una sola TX (fase 2b, #246): antes cancelaba registro por registro
+     * sin TX, y un fallo a mitad dejaba unos cancelados y otros no. Ahora es todo o nada, con un aviso
+     * venta_tarjeta.cancelada por registro. Solo guarda: no llama a nada externo.
+     */
+    @Transactional
+    public boolean cancelarPorVenta(Long ventaId, Long sucId) {
+        List<VentaTarjeta> registros = findAllByVentaIdAndSucursalId(ventaId, sucId);
+        if (registros == null || registros.isEmpty()) return false;
+        try {
+            for (VentaTarjeta vt : registros) {
+                boolean yaCancelada = "CANCELADO".equals(vt.getEstado());
+                vt.setEstado("CANCELADO");
+                VentaTarjeta g = save(vt);
+                if (!yaCancelada) emitir("venta_tarjeta.cancelada", "media", g);
+            }
+        } catch (RuntimeException e) {
+            log.warn("[venta_tarjeta] no se pudo cancelar los cobros con tarjeta de la venta {}/{}: {}", ventaId, sucId, e.toString());
+            throw new GraphQLException("No se pudo cancelar el cobro con tarjeta de la venta " + ventaId
+                    + "; no se cancelo ninguno, reintenta.");
+        }
+        return true;
     }
 
     /** venta_tarjeta.* (fase 2, #246), en la TX de la operacion. */
     private void emitir(String tipo, String gravedad, VentaTarjeta vt) {
+        emitir(tipo, gravedad, vt, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.franco.dev.repository.operaciones.VentaRepository ventaRepository;
+
+    /**
+     * La proyeccion lleva la venta y sus lineas de cobro (fase 2b): dos lecturas por id, y solo si el
+     * emisor arma el Map (flag prendido y alguien suscripto a ese tipo).
+     */
+    private void emitir(String tipo, String gravedad, VentaTarjeta vt, java.util.Map<String, Object> cambios) {
         if (eventoEmisor == null || vt == null) return;
         Long usuarioId = vt.getUsuario() != null ? vt.getUsuario().getId() : null;
         eventoEmisor.emitirProyeccion(tipo, gravedad, usuarioId, "venta_tarjeta/" + vt.getSucursalId() + "/" + vt.getId(),
-                () -> com.franco.dev.eventos.EventosTarjeta.tarjeta(vt),
+                () -> {
+                    com.franco.dev.domain.operaciones.Venta venta = null;
+                    List<CobroDetalle> detalles = null;
+                    if (vt.getVentaId() != null && ventaRepository != null) {
+                        venta = ventaRepository.findById(vt.getVentaId()).orElse(null);
+                        if (venta != null && venta.getCobro() != null)
+                            detalles = cobroDetalleRepository.findByCobroId(venta.getCobro().getId());
+                    }
+                    java.util.Map<String, Object> d = com.franco.dev.eventos.EventosTarjeta.tarjeta(vt, venta, detalles);
+                    if (cambios != null) d.put("cambios", cambios);
+                    return d;
+                },
                 () -> com.franco.dev.eventos.EventosTarjeta.atributos(vt));
     }
 
@@ -612,6 +666,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
      * y un COMPLETADO tiene su cupon: devolverlo a PENDIENTE tiraria un dato bueno y dejaria la
      * conciliacion peor de como estaba.
      */
+    @Transactional
     public VentaTarjeta reabrir(Long id, Long sucursalId,
                                 com.franco.dev.domain.personas.Usuario usuario) {
         VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
@@ -625,7 +680,9 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         vt.setEstado("PENDIENTE");
         vt.setReabiertoPor(usuario);
         vt.setReabiertoEn(LocalDateTime.now());
-        return repository.save(vt);
+        VentaTarjeta guardada = repository.save(vt);
+        emitir("venta_tarjeta.reabierta", "media", guardada);
+        return guardada;
     }
 
     private void aplicarNoCompletado(VentaTarjeta vt, String motivo, String observacion,
