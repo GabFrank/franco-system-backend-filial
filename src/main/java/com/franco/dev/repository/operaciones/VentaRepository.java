@@ -33,6 +33,10 @@ public interface VentaRepository extends HelperRepository<Venta, Long>, JpaSpeci
 
     public Page<Venta> findByCajaIdOrderByIdDesc(Long id, Pageable pageable);
 
+    /** Solo estado, total y cobro de las ventas de una caja, sin cargar las relaciones (balance de caja). */
+    @org.springframework.data.jpa.repository.Query("SELECT v.id, v.estado, v.totalGs, c.id FROM Venta v LEFT JOIN v.cobro c WHERE v.caja.id = :id")
+    List<Object[]> findResumenByCajaId(@org.springframework.data.repository.query.Param("id") Long id);
+
     public List<Venta> findByCajaId(Long id);
 
     public List<Venta> findByCreadoEnBetween(LocalDateTime inicio, LocalDateTime fin);

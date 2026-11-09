@@ -225,10 +225,22 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     d.put("valorGs", g.getRetiroGs());
                     d.put("valorRs", g.getRetiroRs());
                     d.put("valorDs", g.getRetiroDs());
-                    d.put("descripcion", g.getObservacion());
+                    // Fase 2b: los nombres de la consulta del cliente.
+                    d.put("sucursal", com.franco.dev.eventos.EventosVenta.mapa("id", g.getSucursalId()));
+                    d.put("observacion", g.getObservacion());
+                    d.put("cancelado", g.getCancelado());
+                    d.put("retiroGs", g.getRetiroGs());
+                    d.put("retiroRs", g.getRetiroRs());
+                    d.put("retiroDs", g.getRetiroDs());
+                    d.put("vueltoGs", g.getVueltoGs());
+                    d.put("vueltoRs", g.getVueltoRs());
+                    d.put("vueltoDs", g.getVueltoDs());
+                    if (g.getResponsable() != null && g.getResponsable().getPersona() != null)
+                        d.put("responsable", com.franco.dev.eventos.EventosVenta.mapa("persona",
+                                com.franco.dev.eventos.EventosVenta.mapa("nombre", g.getResponsable().getPersona().getNombre())));
                     if (g.getAutorizadoPor() != null && g.getAutorizadoPor().getPersona() != null)
                         d.put("autorizadoPor", com.franco.dev.eventos.EventosVenta.mapa("nickname", g.getAutorizadoPor().getPersona().getNombre()));
-                    if (g.getUsuario() != null) d.put("usuario", com.franco.dev.eventos.EventosVenta.mapa("id", g.getUsuario().getId()));
+                    if (g.getUsuario() != null) d.put("usuario", com.franco.dev.eventos.EventosVenta.usuario(g.getUsuario()));
                     d.put("creadoEn", g.getCreadoEn() != null ? g.getCreadoEn().toString() : null);
                     return d;
                 },

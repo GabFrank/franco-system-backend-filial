@@ -122,12 +122,12 @@ class ProyeccionesContratoTest {
     @Test
     void cajaCumpleElCatalogo() {
         PdvCaja c = venta().getCaja();
-        Map<String, Object> ab = EventosCaja.abierta(c, 100000.0, 0.0, 0.0);
+        Map<String, Object> ab = EventosCaja.abierta(c, 100000.0, 0.0, 0.0, null);
         assertTrue(Proyeccion.rutasFueraDeCatalogo("caja.abierta", ab).isEmpty(), Proyeccion.rutasFueraDeCatalogo("caja.abierta", ab).toString());
         PdvCajaBalanceDto b = new PdvCajaBalanceDto();
         b.setTotalGsCierre(90000.0);
         b.setDiferenciaGs(-10000.0);
-        Map<String, Object> ce = EventosCaja.cerrada(c, b);
+        Map<String, Object> ce = EventosCaja.cerrada(c, b, null, 1400.0, 7300.0);
         assertTrue(Proyeccion.rutasFueraDeCatalogo("caja.cerrada", ce).isEmpty(), Proyeccion.rutasFueraDeCatalogo("caja.cerrada", ce).toString());
         Map<String, Object> a = EventosCaja.atributosCierre(c, b);
         assertEquals(true, a.get("con_diferencia"));
@@ -156,6 +156,8 @@ class ProyeccionesContratoTest {
         assertFalse(sinPermiso.containsKey("codigoAutorizacion"));
         assertFalse(sinPermiso.containsKey("qrCrudo"));
         assertFalse(sinPermiso.containsKey("imagenUrl"));
+        // Fase 2b: con datos sensibles, la imagen del cupon si sale (la pidio el cliente para los cupones).
+        assertEquals("https://x/cupon.jpg", Proyeccion.limpiar("venta_tarjeta.completada", d, true, true).get("imagenUrl"));
         sinPan(Proyeccion.limpiar("venta_tarjeta.completada", d, true, true));
         assertTrue(CatalogoEventos.tipo("venta_tarjeta.completada").atributos.containsAll(EventosTarjeta.atributos(vt).keySet()));
     }

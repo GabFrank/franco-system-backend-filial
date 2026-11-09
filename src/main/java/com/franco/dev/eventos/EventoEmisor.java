@@ -80,6 +80,16 @@ public class EventoEmisor {
         return props.isEnabled() && esquemaPresente;
     }
 
+    /** Si alguien en esta sucursal esta suscripto a ese tipo (fase 2b: evita calculos para alertas sin oyentes). */
+    public boolean haySuscriptos(String tipo) {
+        if (!encendido()) return false;
+        try {
+            return pedidoPara(tipo)[0];
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public String eventoIdNuevo() {
         return "evt_" + (sucursalId != null ? sucursalId : 0) + "_" + Ulid.nuevo();
     }

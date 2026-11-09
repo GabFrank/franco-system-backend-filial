@@ -98,7 +98,8 @@ class ProyeccionFiltrosTest {
         assertEquals(CatalogoEventos.Clase.SENSIBLE, tj.get("codigoAutorizacion"));
         assertEquals(CatalogoEventos.Clase.SENSIBLE, tj.get("qrCrudo"));
         assertEquals(CatalogoEventos.Clase.SENSIBLE, tj.get("numeroBoleta"));
-        assertFalse(tj.containsKey("imagenUrl"));
+        // Fase 2b: la imagen del cupon la pidio el cliente; sale solo con datos sensibles.
+        assertEquals(CatalogoEventos.Clase.SENSIBLE, tj.get("imagenUrl"));
         assertFalse(tj.containsKey("datosExtra"));
     }
 

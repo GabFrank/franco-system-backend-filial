@@ -466,6 +466,28 @@ class EventosBaseIT {
     }
 
     @Test
+    void loteConVentanaEsperaAlMasViejo() throws Exception {
+        long a = suscripcion("*", "lote:300");
+        emitirEnTx(3);
+        despachador.ciclo();
+        transporte(200);
+        assertTrue(repo.reclamar(true, 100, 2, 60).isEmpty(), "dentro de la ventana no sale nada");
+        assertTrue(repo.reclamar(false, 100, 2, 60).isEmpty(), "tampoco por el camino individual");
+        jdbc.update("UPDATE eventos.webhook_entrega SET creado_en = now() - interval '301 seconds'"
+                + " WHERE suscripcion_id = ? AND secuencia = (SELECT min(secuencia) FROM eventos.webhook_entrega WHERE suscripcion_id = ?)", a, a);
+        emitirEnTx(1);
+        despachador.ciclo();
+        assertEquals(1, enviador.ciclo(true));
+        Map<String, String> r = recibidas.get(0);
+        assertEquals(SobreCloudEvents.CT_LOTE, r.get("Content-Type"));
+        List<?> l = mapper.readValue(r.get("_cuerpo"), List.class);
+        assertEquals(4, l.size(), "cumplida la ventana sale todo lo pendiente junto");
+        assertEquals(4, contar("SELECT count(*) FROM eventos.webhook_entrega WHERE estado = 'ENVIADA' AND suscripcion_id = ?", a));
+        java.util.List<Long> seq = jdbc.queryForList("SELECT secuencia FROM eventos.webhook_entrega WHERE suscripcion_id = ? ORDER BY id", Long.class, a);
+        assertEquals(java.util.Arrays.asList(1L, 2L, 3L, 4L), seq, "en orden y sin huecos");
+    }
+
+    @Test
     void suscripcionDesactivadaCancelaLoPendiente() {
         long a = suscripcion("*", null);
         emitirEnTx(3);

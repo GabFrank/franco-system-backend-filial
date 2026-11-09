@@ -87,10 +87,10 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         eventoEmisor.emitirProyeccion("venta.cobro_editado", "media",
                 venta.getUsuario() != null ? venta.getUsuario().getId() : null,
                 "venta/" + venta.getSucursalId() + "/" + venta.getId(),
-                () -> com.franco.dev.eventos.EventosVenta.venta(venta, null, detalles.get()),
+                () -> com.franco.dev.eventos.EventosVenta.cobroEditado(venta, detalles.get()),
                 () -> {
                     java.util.Map<String, Object> a = com.franco.dev.eventos.EventosVenta.atributosVenta(venta, detalles.get());
-                    a.keySet().retainAll(java.util.Arrays.asList("formas_pago", "monedas", "caja_id"));
+                    a.keySet().retainAll(java.util.Arrays.asList("formas_pago", "formas_pago_id", "monedas", "caja_id"));
                     return a;
                 });
     }

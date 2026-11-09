@@ -13,6 +13,10 @@ public interface CobroDetalleRepository extends HelperRepository<CobroDetalle, L
         return CobroDetalle.class;
     }
 
+    /** Detalles de varios cobros en una consulta, con moneda y forma de pago (balance de caja sin N+1). */
+    @org.springframework.data.jpa.repository.Query("SELECT cd FROM CobroDetalle cd LEFT JOIN FETCH cd.moneda LEFT JOIN FETCH cd.formaPago WHERE cd.cobro.id IN :ids")
+    List<CobroDetalle> findByCobroIdInConMonedaYFormaPago(@org.springframework.data.repository.query.Param("ids") java.util.Collection<Long> ids);
+
     public List<CobroDetalle> findByCobroId(Long id);
 
     /** Cobros que ya tienen colgada esta referencia del proveedor. Deberia haber a lo sumo uno. */

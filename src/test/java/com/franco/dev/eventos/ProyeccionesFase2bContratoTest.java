@@ -88,6 +88,6 @@ class ProyeccionesFase2bContratoTest {
         Cobro co = new Cobro();
         co.setId(20L);
         v.setCobro(co);
-        enCatalogo("venta.cobro_editado", EventosVenta.venta(v, null, Collections.emptyList()));
+        enCatalogo("venta.cobro_editado", EventosVenta.cobroEditado(v, Collections.emptyList()));
     }
 }
