@@ -158,4 +158,35 @@ class ProyeccionesFase2bTest {
         d.put("cambios", c);
         enCatalogo("venta_tarjeta.editada", d);
     }
+
+    @Test
+    void tarjetaSinPermisoSensibleNoLlevaQrNiCodigosNiPan() {
+        VentaTarjeta t = new VentaTarjeta();
+        t.setId(5L);
+        t.setMonto(new BigDecimal("50000"));
+        t.setQrCrudo("00020101021226|4111111111111111|5303600");
+        t.setCodigoAutorizacion("123456");
+        t.setNumeroBoleta("998877");
+        Map<String, Object> d = EventosTarjeta.tarjeta(t);
+        Map<String, Object> limpio = Proyeccion.limpiar("venta_tarjeta.creada", d, true, false);
+        assertFalse(limpio.containsKey("qrCrudo"));
+        assertFalse(limpio.containsKey("codigoAutorizacion"));
+        assertFalse(limpio.containsKey("numeroBoleta"));
+        assertFalse(limpio.containsKey("imagenUrl"));
+        ProyeccionesContratoTest.sinPan(limpio);
+        assertEquals("00020101021226|4111111111111111|5303600",
+                Proyeccion.limpiar("venta_tarjeta.creada", EventosTarjeta.tarjeta(t), true, true).get("qrCrudo"), "con permiso sensible sí va");
+    }
+
+    @Test
+    void cobroSinPermisoSensibleNoLlevaIdentificador() {
+        Venta v = new Venta();
+        v.setId(9L);
+        CobroDetalle cd = new CobroDetalle();
+        cd.setIdentificadorTransaccion("E2E4111111111111111");
+        Map<String, Object> d = EventosVenta.cobroEditado(v, Collections.singletonList(cd));
+        Map<String, Object> limpio = Proyeccion.limpiar("venta.cobro_editado", d, true, false);
+        assertFalse(String.valueOf(limpio).contains("identificadorTransaccion"), String.valueOf(limpio));
+        ProyeccionesContratoTest.sinPan(limpio);
+    }
 }
