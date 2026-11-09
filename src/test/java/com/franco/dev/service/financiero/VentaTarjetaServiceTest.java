@@ -795,4 +795,42 @@ class VentaTarjetaServiceTest {
 
         assertEquals("{\"stoneId\":\"XR44B\"}", r.getDatosExtra());
     }
+
+    // ---------------------------------------------------------------- fase 2b (#246)
+
+    @Test
+    void cancelarPorVentaCancelaTodosLosRegistros() {
+        VentaTarjeta a = new VentaTarjeta();
+        a.setId(1L);
+        a.setEstado("PENDIENTE");
+        VentaTarjeta b = new VentaTarjeta();
+        b.setId(2L);
+        b.setEstado("COMPLETADO");
+        when(repository.findByVentaIdAndSucursalIdOrderByIdAsc(10L, 7L)).thenReturn(java.util.Arrays.asList(a, b));
+        when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
+        assertTrue(service.cancelarPorVenta(10L, 7L));
+        assertEquals("CANCELADO", a.getEstado());
+        assertEquals("CANCELADO", b.getEstado());
+        verify(repository, times(2)).save(any(VentaTarjeta.class));
+    }
+
+    @Test
+    void cancelarPorVentaSinRegistrosDevuelveFalse() {
+        when(repository.findByVentaIdAndSucursalIdOrderByIdAsc(10L, 7L)).thenReturn(java.util.Collections.emptyList());
+        assertEquals(false, service.cancelarPorVenta(10L, 7L));
+    }
+
+    /** Si falla uno, sale un error claro para el cajero (la TX de Spring revierte los demas). */
+    @Test
+    void cancelarPorVentaConFallaDaUnErrorClaro() {
+        VentaTarjeta a = new VentaTarjeta();
+        a.setId(1L);
+        VentaTarjeta b = new VentaTarjeta();
+        b.setId(2L);
+        when(repository.findByVentaIdAndSucursalIdOrderByIdAsc(10L, 7L)).thenReturn(java.util.Arrays.asList(a, b));
+        when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0))
+                .thenThrow(new RuntimeException("db caida"));
+        Exception e = assertThrows(graphql.GraphQLException.class, () -> service.cancelarPorVenta(10L, 7L));
+        assertTrue(e.getMessage().contains("no se cancelo ninguno"), e.getMessage());
+    }
 }
