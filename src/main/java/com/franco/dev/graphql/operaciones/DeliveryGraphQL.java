@@ -20,7 +20,11 @@ import com.franco.dev.service.financiero.FacturaService;
 import com.franco.dev.service.financiero.PoliticaFacturacion;
 import com.franco.dev.service.financiero.PoliticaFacturacionService;
 import com.franco.dev.service.financiero.FacturaLegalService;
+import com.franco.dev.service.financiero.BloqueoTransaccionalService;
+import com.franco.dev.domain.financiero.FacturaLegal;
+import com.franco.dev.service.operaciones.LoteFefoService;
 import com.franco.dev.service.seguridad.AuditorUsuarioId;
+import com.franco.dev.service.seguridad.RolSesionService;
 import graphql.GraphQLException;
 import graphql.GraphqlErrorException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
@@ -30,7 +34,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static com.franco.dev.utilitarios.DateUtils.stringToDate;
 
@@ -100,32 +106,65 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     @Autowired
     private FacturaLegalService facturaLegalService;
 
+    @Autowired
+    private BloqueoTransaccionalService bloqueo;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
+    /** Prefijo del lock que serializa la factura de una venta (#210). */
+    static final String CLAVE_FACTURA_VENTA = "factura-venta:";
+
+    /** Por debajo de los 60 s con que el desktop corta la mutation. */
+    private static final String ESPERA_FACTURA = "15s";
+
+    static final String MENSAJE_FACTURA_EN_CURSO =
+            "La factura de este delivery se está generando en otra operación. Reintentá en unos segundos.";
+
+    @Autowired
+    private RolSesionService rolSesionService;
+
+    /** Un delivery lo opera el cajero de la caja de su venta, o ANALISIS DE CAJA. Sin venta todavia, pasa. */
     public Optional<Delivery> delivery(Long id, Long sucId) {
-        return service.findById(id);
+        Optional<Delivery> delivery = service.findById(id);
+        delivery.map(this::ventaDe).ifPresent(v -> pdvCajaService.exigirAccesoARegistroDeCaja(v.getCaja()));
+        return delivery;
     }
 
+    // Las listas de toda la sucursal no las usa ningun cliente (el PDV lista por caja): solo ANALISIS DE CAJA.
     public List<Delivery> deliverys(int page, int size, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
     }
 
     public List<Delivery> deliverysByEstado(DeliveryEstado estado, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.findByEstado(estado);
     }
 
     public List<Delivery> deliverysByEstadoList(List<DeliveryEstado> estadoList, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.getRepository().findDeliveryByEstadoAndSucId(estadoList, sucId);
     }
 
     public List<Delivery> deliverysByEstadoNotIn(DeliveryEstado estado, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.findByEstadoNotIn(estado);
     }
 
     public List<Delivery> deliverysUltimos10(Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.findTop10();
     }
 
+    /** Sin llamadores en los clientes; el PDV guarda con saveDeliveryAndVenta. */
     public Delivery saveDelivery(DeliveryInput input) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
+        return guardarDelivery(input);
+    }
+
+    private Delivery guardarDelivery(DeliveryInput input) {
         auditorUsuarioId.verificar("DeliveryGraphQL.saveDelivery", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         Delivery e = m.map(input, Delivery.class);
@@ -156,6 +195,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
             List<VentaItemInput> ventaItemInputList, VueltoInput vueltoInput, List<VueltoItemInput> vueltoItemInputList,
             CobroInput cobroInput, List<CobroDetalleInput> cobroDetalleInputList) throws GraphqlErrorException {
         auditorUsuarioId.verificar("DeliveryGraphQL.saveDeliveryAndVenta", deliveryInput.getUsuarioId());
+        exigirAccesoAlGuardar(deliveryInput, ventaInput, cobroInput);
         Delivery delivery = null;
         try {
             if (cobroInput == null && cobroDetalleInputList != null) {
@@ -171,7 +211,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                 ventaInput.setCobroId(cobro.getId());
             }
 
-            delivery = saveDelivery(deliveryInput);
+            delivery = guardarDelivery(deliveryInput);
             if (delivery != null) {
                 ventaInput.setDeliveryId(delivery.getId());
             }
@@ -217,7 +257,55 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
 
     }
 
+    /**
+     * Antes de cualquier escritura: los ids del input se cruzan contra lo guardado (la venta tiene que ser la del
+     * delivery y el cobro el de la venta) y se exige la caja. Al editar manda la caja de la venta guardada, tambien
+     * para el movimiento que hace saveCobro; al crear, la caja que llega tiene que existir.
+     */
+    private void exigirAccesoAlGuardar(DeliveryInput deliveryInput, VentaInput ventaInput, CobroInput cobroInput) {
+        Delivery guardado = null;
+        if (deliveryInput.getId() != null) {
+            guardado = service.findById(deliveryInput.getId()).orElse(null);
+            if (guardado == null) {
+                throw new GraphQLException("Delivery no encontrado");
+            }
+        }
+        Venta ventaGuardada = guardado != null ? ventaDe(guardado) : null;
+        Long ventaId = ventaInput != null ? ventaInput.getId() : null;
+        boolean mismaVenta = ventaGuardada == null ? ventaId == null : ventaGuardada.getId().equals(ventaId);
+        if (!mismaVenta) {
+            throw new GraphQLException("La venta no corresponde a este delivery");
+        }
+        Long cobroId = cobroInput != null ? cobroInput.getId() : null;
+        if (cobroId != null && (ventaGuardada == null || ventaGuardada.getCobro() == null
+                || !cobroId.equals(ventaGuardada.getCobro().getId()))) {
+            throw new GraphQLException("El cobro no corresponde a esta venta");
+        }
+        // Sin cobroInput, el cobroId del cliente quedaria en la venta: sale de la venta guardada (o se crea despues).
+        if (ventaInput != null) {
+            ventaInput.setCobroId(ventaGuardada != null && ventaGuardada.getCobro() != null
+                    ? ventaGuardada.getCobro().getId() : null);
+        }
+        if (ventaGuardada != null) {
+            pdvCajaService.exigirAccesoARegistroDeCaja(ventaGuardada.getCaja());
+            if (ventaGuardada.getCaja() != null) {
+                ventaInput.setCajaId(ventaGuardada.getCaja().getId());
+            }
+        } else {
+            Long cajaId = ventaInput != null ? ventaInput.getCajaId() : null;
+            if (cajaId == null || !pdvCajaService.findById(cajaId).isPresent()) {
+                throw new GraphQLException("Caja no encontrada");
+            }
+            pdvCajaService.exigirAccesoACaja(cajaId);
+        }
+    }
+
+    private Venta ventaDe(Delivery delivery) {
+        return ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(), delivery.getSucursalId());
+    }
+
     public Boolean deleteDelivery(Long id, Long sucId) {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.deleteById(id);
     }
 
@@ -228,8 +316,11 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         ByteArrayOutputStream ticketCliente = Boolean.TRUE.equals(imprimirEnCliente)
                 ? new ByteArrayOutputStream() : null;
         Delivery delivery = service.findById(deliveryId).orElse(null);
-        Venta venta = ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(),
-                delivery.getSucursalId());
+        Venta venta = delivery != null ? ventaDe(delivery) : null;
+        if (venta == null) {
+            throw new GraphQLException("Delivery no encontrado");
+        }
+        pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
         try {
             delivery.setEstado(deliveryEstado);
             delivery = service.saveAndSend(delivery, false);
@@ -240,35 +331,13 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                     // sucursal diga que se respete (issue #127). Si no factura, sale el ticket simple.
                     // Un reintento despues de que fallo la impresion reimprime la factura que ya se creo,
                     // sin otra factura ni otro turno de la politica (issue #207).
-                    com.franco.dev.domain.financiero.FacturaLegal facturaExistente = facturaLegalService
-                            .findVigenteDeVenta(venta.getId(), delivery.getSucursalId());
+                    // Afuera de la transaccion: resolver() es NOT_SUPPORTED y adentro pediria otra conexion.
                     PoliticaFacturacion politica = configuracionFacturacionLector.resolver();
-                    if (facturaExistente != null) {
-                        facturaLegalGraphQL.printTicket58mmFactura(venta, facturaExistente, null, printerName,
-                                ticketCliente);
-                    } else if (politicaFacturacionService.facturarDelivery(pdvId, politica)) {
-                        com.franco.dev.domain.financiero.FacturaLegal facturaLegalConDE;
-                        try {
-                            // Crear factura legal con documento electrónico integrado
-                            // Sin input del PDV (null): el descuento lo lee del cobro guardado del delivery
-                            facturaLegalConDE = facturaService
-                                    .crearFacturaLegalDesdeVenta(venta, ventaItemList, pdvId, null);
-
-                            if (facturaLegalConDE == null) {
-                                throw new GraphQLException("Problema al crear factura legal");
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            if (PoliticaFacturacionService.salioDeUnTurno(
-                                    PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION, politica)
-                                    && PoliticaFacturacionService.fallaAntesDeEscribir(e)) {
-                                politicaFacturacionService.devolverTurno();
-                            }
-                            throw new GraphQLException("Problema al generar factura electrónica: " + e.getMessage());
-                        }
-                        // Fuera del try: una falla de la impresora no es una falla de la factura, que ya existe.
-                        facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
-                                ticketCliente);
+                    FacturaLegal factura = facturaDeEntrega(venta, ventaItemList, delivery.getSucursalId(), pdvId,
+                            politica);
+                    if (factura != null) {
+                        // Despues del commit: una falla de la impresora no es una falla de la factura, que ya existe.
+                        facturaLegalGraphQL.printTicket58mmFactura(venta, factura, null, printerName, ticketCliente);
                     } else {
                         ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, false, printerName, local, false,
                                 null, delivery, ticketCliente);
@@ -301,18 +370,82 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         }
     }
 
+    /**
+     * La factura vigente de la venta o, si la politica lo pide, una nueva; null si sale el ticket simple. Buscar y
+     * crear van en una transaccion con un lock por venta: dos PARA ENTREGA juntos (el reintento de la misma caja
+     * despues del corte de 60 s del desktop) creaban dos facturas (#210). El segundo espera al commit del primero
+     * y reimprime su factura.
+     */
+    private FacturaLegal facturaDeEntrega(Venta venta, List<VentaItem> items, Long sucursalId, Long pdvId,
+            PoliticaFacturacion politica) {
+        boolean[] tomoTurno = {false};
+        try {
+            // Envuelve tambien el commit: una falla del DE deja la transaccion rollback-only y sale recien ahi.
+            return new TransactionTemplate(transactionManager).execute(status -> {
+                bloqueo.tomar(CLAVE_FACTURA_VENTA + sucursalId + ":" + venta.getId(), ESPERA_FACTURA);
+                FacturaLegal existente = facturaLegalService.findVigenteDeVenta(venta.getId(), sucursalId);
+                if (existente != null) {
+                    return existente;
+                }
+                if (!politicaFacturacionService.facturarDelivery(pdvId, politica)) {
+                    return null;
+                }
+                tomoTurno[0] = true;
+                // Sin input del PDV (null): el descuento lo lee del cobro guardado del delivery
+                FacturaLegal nueva = facturaService.crearFacturaLegalDesdeVenta(venta, items, pdvId, null);
+                if (nueva == null) {
+                    throw new GraphQLException("Problema al crear factura legal");
+                }
+                return nueva;
+            });
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            if (!tomoTurno[0]) {
+                if (LoteFefoService.esEsperaVencida(e)) {
+                    throw new GraphQLException(MENSAJE_FACTURA_EN_CURSO);
+                }
+                throw e;
+            }
+            if (PoliticaFacturacionService.salioDeUnTurno(PoliticaFacturacionService.RutaVenta.FACTURA_E_IMPRESION,
+                    politica) && PoliticaFacturacionService.fallaAntesDeEscribir(e)) {
+                politicaFacturacionService.devolverTurno();
+            }
+            throw new GraphQLException("Problema al generar factura electrónica"
+                    + (e instanceof GraphQLException ? ": " + e.getMessage() : ""));
+        }
+    }
+
     public Boolean reimprimirDelivery(Long id, String printerName, String local) {
         Delivery delivery = service.findById(id).orElse(null);
-        Venta venta = ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(),
-                delivery.getSucursalId());
+        Venta venta = delivery == null ? null
+                : ventaService.getRepository().findByDeliveryIdAndSucursalId(delivery.getId(), delivery.getSucursalId());
+        if (venta == null) {
+            throw new GraphQLException("Delivery no encontrado");
+        }
+        pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
+        // Como PARA ENTREGA: la factura de la venta, si tiene, y despues el ticket (#211).
+        // Una factura que no sale no frena el ticket: se avisa al final.
+        FacturaLegal factura = facturaLegalService.findVigenteDeVenta(venta.getId(), delivery.getSucursalId());
+        boolean facturaFallo = factura != null && !Boolean.TRUE.equals(
+                facturaLegalGraphQL.reimprimirFacturaLegal(factura.getId(), delivery.getSucursalId(), printerName));
         try {
             List<VentaItem> ventaItemList = ventaItemGraphQL.ventaItemListPorVentaId(venta.getId(), null);
-            ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true, printerName, local, false, null,
-                    delivery);
-            return true;
+            Boolean impreso = ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, true,
+                    printerName, local, false, null, delivery, null, true);
+            if (facturaFallo) {
+                throw new GraphQLException(Boolean.TRUE.equals(impreso)
+                        ? "No se pudo reimprimir la factura del delivery"
+                        : "No se pudo reimprimir la factura ni el delivery");
+            }
+            return Boolean.TRUE.equals(impreso);
+        } catch (GraphQLException e) {
+            throw e;
         } catch (Exception e) {
             e.printStackTrace();
-            throw new GraphQLException("Delivery no encontrado");
+            // El motivo solo si es de la impresora (textos propios); el resto queda en el log.
+            throw new GraphQLException((facturaFallo ? "No se pudo reimprimir la factura ni el delivery"
+                    : "No se pudo reimprimir el delivery")
+                    + (e instanceof IOException && e.getMessage() != null ? ": " + e.getMessage() : ""));
         }
     }
 
@@ -328,6 +461,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
     }
 
     public Long countDelivery() {
+        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         return service.count();
     }
 }

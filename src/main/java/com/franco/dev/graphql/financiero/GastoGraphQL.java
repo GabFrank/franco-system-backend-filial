@@ -92,6 +92,10 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         ModelMapper m = new ModelMapper();
         Gasto e = m.map(input, Gasto.class);
 
+        // Sin moneda, el retiro va en 0: saveAndSend compara los montos antes de guardar.
+        e.setRetiroGs(PdvCajaService.cero(input.getRetiroGs()));
+        e.setRetiroRs(PdvCajaService.cero(input.getRetiroRs()));
+        e.setRetiroDs(PdvCajaService.cero(input.getRetiroDs()));
         if (input.getVueltoGs() != null) {
             e.setVueltoGs(input.getVueltoGs());
         } else {
@@ -145,7 +149,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             gastoDto.setVueltoGs(input.getVueltoGs());
             gastoDto.setVueltoRs(input.getVueltoRs());
             gastoDto.setVueltoDs(input.getVueltoDs());
-            gastoDto.setCajaId(gasto.getCaja().getId());
+            gastoDto.setCajaId(gasto.getCaja() != null ? gasto.getCaja().getId() : null);
             impresionService.printGasto(gastoDto, printerName, local);
         }
         return gasto;
@@ -164,8 +168,10 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     }
 
     public Boolean reimprimirGasto(Long id, String printerName, Long sucId) {
+        Gasto gasto = service.findById(id).orElseThrow(() -> new GraphQLException("El gasto " + id + " no existe"));
+        // Fuera del try: un rechazo es un error, no un "intente de nuevo".
+        pdvCajaService.exigirAccesoARegistroDeCaja(gasto.getCaja());
         try {
-            Gasto gasto = service.findById(id).orElse(null);
             GastoDto gastoDto = new GastoDto();
             gastoDto.setId(gasto.getId());
             gastoDto.setFecha(gasto.getCreadoEn());
@@ -180,10 +186,9 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             gastoDto.setVueltoGs(gasto.getVueltoGs());
             gastoDto.setVueltoRs(gasto.getVueltoRs());
             gastoDto.setVueltoDs(gasto.getVueltoDs());
-            gastoDto.setCajaId(gasto.getCaja().getId());
+            gastoDto.setCajaId(gasto.getCaja() != null ? gasto.getCaja().getId() : null);
             gastoDto.setReimpresion(true);
-            impresionService.printGasto(gastoDto, printerName, null);
-            return true;
+            return impresionService.printGasto(gastoDto, printerName, null, null, true);
         } catch (Exception e) {
             return false;
         }

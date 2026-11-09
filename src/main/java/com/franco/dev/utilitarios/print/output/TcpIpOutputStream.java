@@ -56,6 +56,9 @@ public class TcpIpOutputStream  extends SalidaConEnvioEnHilo {
             } catch (Exception ex) {
                 registrarFalla(ex);
                 throw new RuntimeException(ex);
+            } catch (Error ex) {
+                registrarFalla(ex);
+                throw ex;
             } finally {
                 terminarEnvio();
             }
@@ -64,6 +67,7 @@ public class TcpIpOutputStream  extends SalidaConEnvioEnHilo {
 
         threadPrint = new Thread(runnablePrint);
         threadPrint.setUncaughtExceptionHandler(uncaughtException);
+        vigilarEnvio(threadPrint);
         threadPrint.start();
 
 

@@ -121,6 +121,10 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         if (cambiaLaVerificacion(input, existente, verificadoPorGuardado)) {
             rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         }
+        if (reabre(input, existente)) {
+            // Reabrir deja la caja a medias (activa con conteo de cierre): se hace solo con reabrirCaja.
+            throw new GraphQLException("Una caja cerrada solo se reabre con «Reabrir caja» (ADMIN, con motivo)");
+        }
         log.info("[FILIAL savePdvCaja] INICIO -> id={}, sucursalId={}, maletinId={}, usuarioId={}, estado={}, activo={}, fechaApertura={}",
                 input != null ? input.getId() : null,
                 input != null ? input.getSucursalId() : null,
@@ -165,6 +169,19 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         }
     }
 
+    /** Solo ADMIN, con motivo. Las reglas viven en {@link PdvCajaService#reabrirCaja}. */
+    public PdvCaja reabrirCaja(Long cajaId, String motivo) {
+        log.info("[FILIAL reabrirCaja] cajaId={}, motivo={}", cajaId, motivo);
+        return service.reabrirCaja(cajaId, motivo);
+    }
+
+    /** El input pasa a activo una caja guardada como cerrada. */
+    static boolean reabre(PdvCajaInput in, PdvCaja guardada) {
+        return guardada != null
+                && Boolean.TRUE.equals(in.getActivo())
+                && (guardada.getConteoCierre() != null || Boolean.FALSE.equals(guardada.getActivo()));
+    }
+
     public PdvCaja transferirCaja(Long cajaId, Long usuarioId) {
         // El desktop inicia sesion con el destino antes de transferir: pasa el dueño, el rol o el propio destino.
         if (!rolSesionService.esDuenioOTieneRol(usuarioId)) {
@@ -207,7 +224,11 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
             }
             return service.findById(id).orElse(null);
         }
-        return service.imprimirBalance(id, resolvedPrinter, resolvedLocal);
+        // El desktop espera al envio: un balance chico que no sale se avisa en vez de darlo por impreso.
+        if (!service.imprimirBalanceEsperando(id, resolvedPrinter, resolvedLocal)) {
+            throw new GraphQLException("No se pudo imprimir el balance");
+        }
+        return service.findById(id).orElse(null);
     }
 
     public Page<PdvCaja> cajasWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId,

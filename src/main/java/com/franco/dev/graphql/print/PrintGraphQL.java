@@ -16,7 +16,6 @@ import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.productos.FamiliaService;
 import com.franco.dev.service.utils.PrintingService;
 import com.franco.dev.service.utils.TicketCajaData;
-import com.franco.dev.utilitarios.print.output.PrinterOutputStream;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
@@ -27,7 +26,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import javax.print.PrintService;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,9 +38,6 @@ public class PrintGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     @Autowired
     private PrintingService printingService;
-
-    private PrintService printService;
-    private PrinterOutputStream printerOutputStream;
 
     @Autowired
     private SucursalService sucursalService;

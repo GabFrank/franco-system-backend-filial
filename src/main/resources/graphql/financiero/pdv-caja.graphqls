@@ -81,6 +81,8 @@ extend type Query {
 extend type Mutation {
   savePdvCaja(pdvCaja: PdvCajaInput!): PdvCaja!
   transferirCaja(cajaId: ID!, usuarioId: ID!): PdvCaja
+  "Reabre una caja cerrada por equivocacion. Solo ADMIN, con motivo (issue desktop #662)."
+  reabrirCaja(cajaId: ID!, motivo: String!): PdvCaja!
 }
 
 enum PdvCajaEstado {
