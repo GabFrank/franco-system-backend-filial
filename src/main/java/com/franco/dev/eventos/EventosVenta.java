@@ -163,4 +163,25 @@ public final class EventosVenta {
         m.put(k, v);
         return m;
     }
+
+    /** venta.items_cancelados (fase 2, #246): los items que estaban activos antes de cancelar. */
+    public static Map<String, Object> itemsCancelados(Long ventaId, Venta venta, List<VentaItem> items) {
+        Map<String, Object> d = new LinkedHashMap<>();
+        d.put("venta", mapa("id", ventaId));
+        if (venta != null && venta.getCaja() != null) d.put("caja", mapa("id", venta.getCaja().getId()));
+        if (venta != null && venta.getUsuario() != null) d.put("usuario", mapa("id", venta.getUsuario().getId()));
+        List<Map<String, Object>> l = new java.util.ArrayList<>();
+        for (VentaItem vi : items) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", vi.getId());
+            if (vi.getProducto() != null) m.put("producto", mapa("id", vi.getProducto().getId()));
+            if (vi.getPresentacion() != null) m.put("presentacion", mapa("id", vi.getPresentacion().getId()));
+            m.put("cantidad", vi.getCantidad());
+            m.put("precio", vi.getPrecio());
+            m.put("valorTotal", vi.getCantidad() != null && vi.getPrecio() != null ? vi.getCantidad() * vi.getPrecio() : null);
+            l.add(m);
+        }
+        d.put("items", l);
+        return d;
+    }
 }

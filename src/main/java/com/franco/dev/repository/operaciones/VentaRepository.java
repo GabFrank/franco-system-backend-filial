@@ -13,6 +13,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface VentaRepository extends HelperRepository<Venta, Long>, JpaSpecificationExecutor {
+
+    /** Venta del cobro, para el aviso venta.cobro_editado (fase 2, #246). */
+    Venta findFirstByCobro_Id(Long cobroId);
+
     default Class<Venta> getEntityClass() {
         return Venta.class;
     }

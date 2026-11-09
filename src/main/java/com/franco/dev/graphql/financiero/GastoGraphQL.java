@@ -155,7 +155,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             e.setPreGastoSucursalId(null);
         }
         // Mismo criterio que la firma: un id inventado no esquiva el control de efectivo.
-        Gasto gasto = edicion ? service.saveAndSend(e, false) : guardarGastoNuevo(e);
+        Gasto gasto = edicion ? guardarEdicion(e) : guardarGastoNuevo(e);
         GastoDto gastoDto = new GastoDto();
         // imprimirEnCliente: el desktop pide el ticket despues con ticketEscpos(GASTO) y lo imprime el.
         if (gasto != null && input.getFinalizado() != true && !Boolean.TRUE.equals(imprimirEnCliente)) {
@@ -198,16 +198,70 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             if (PdvCajaService.superaSaldo(balance, "DOLAR", e.getRetiroDs())) {
                 throw new GraphQLException("El valor de gasto es mayor al total en caja: Dolares");
             }
-            return service.saveAndSend(e, false);
+            Gasto g = service.saveAndSend(e, false);
+            if (g != null) emitirGasto("gasto.creado", g);
+            return g;
         });
+    }
+
+    @Autowired
+    private com.franco.dev.eventos.EventoEmisor eventoEmisor;
+
+    /** gasto.creado / editado / eliminado (fase 2, #246), en la TX del guardado; la impresion queda afuera. */
+    void emitirGasto(String tipo, Gasto g) {
+        eventoEmisor.emitirProyeccion(tipo, "gasto.eliminado".equals(tipo) ? "media" : "baja",
+                g.getUsuario() != null ? g.getUsuario().getId() : null,
+                "gasto/" + g.getSucursalId() + "/" + g.getId(),
+                () -> {
+                    java.util.Map<String, Object> d = new java.util.LinkedHashMap<>();
+                    d.put("id", g.getId());
+                    if (g.getCaja() != null) d.put("caja", com.franco.dev.eventos.EventosVenta.mapa("id", g.getCaja().getId()));
+                    d.put("sucursalId", g.getSucursalId());
+                    if (g.getTipoGasto() != null) {
+                        java.util.Map<String, Object> t = com.franco.dev.eventos.EventosVenta.mapa("id", g.getTipoGasto().getId());
+                        t.put("descripcion", g.getTipoGasto().getDescripcion());
+                        d.put("tipoGasto", t);
+                    }
+                    d.put("valorGs", g.getRetiroGs());
+                    d.put("valorRs", g.getRetiroRs());
+                    d.put("valorDs", g.getRetiroDs());
+                    d.put("descripcion", g.getObservacion());
+                    if (g.getAutorizadoPor() != null && g.getAutorizadoPor().getPersona() != null)
+                        d.put("autorizadoPor", com.franco.dev.eventos.EventosVenta.mapa("nickname", g.getAutorizadoPor().getPersona().getNombre()));
+                    if (g.getUsuario() != null) d.put("usuario", com.franco.dev.eventos.EventosVenta.mapa("id", g.getUsuario().getId()));
+                    d.put("creadoEn", g.getCreadoEn() != null ? g.getCreadoEn().toString() : null);
+                    return d;
+                },
+                () -> {
+                    java.util.Map<String, Object> a = new java.util.LinkedHashMap<>();
+                    a.put("caja_id", g.getCaja() != null ? g.getCaja().getId() : null);
+                    a.put("tipo_gasto_id", g.getTipoGasto() != null ? g.getTipoGasto().getId() : null);
+                    a.put("monto_gs", g.getRetiroGs());
+                    return a;
+                });
     }
 
 //    public List<Gasto> gastosSearch(String texto){
 //        return service.findByAll(texto);
 //    }
 
+    /** Edicion en TX con su aviso (fase 2, #246): antes el guardado iba solo. */
+    private Gasto guardarEdicion(Gasto e) {
+        return new TransactionTemplate(transactionManager).execute(status -> {
+            Gasto g = service.saveAndSend(e, false);
+            if (g != null) emitirGasto("gasto.editado", g);
+            return g;
+        });
+    }
+
     public Boolean deleteGasto(Long id, Long sucId) {
-        return service.deleteById(id);
+        return new TransactionTemplate(transactionManager).execute(status -> {
+            Gasto g = service.findById(id).orElse(null);
+            if (g == null) return false;
+            Boolean ok = service.deleteById(id);
+            if (Boolean.TRUE.equals(ok)) emitirGasto("gasto.eliminado", g);
+            return ok;
+        });
     }
 
     public Long countGasto() {

@@ -232,8 +232,14 @@ public class RetiroGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
 //        return service.findByAll(texto);
 //    }
 
+    /** El aviso retiro.eliminado va en la misma TX que el borrado (fase 2, #246). */
+    @Transactional
     public Boolean deleteRetiro(Long id, Long sucId) {
-        return service.deleteById(id);
+        Retiro retiro = service.findById(id).orElse(null);
+        if (retiro == null) return false;
+        Boolean ok = service.deleteById(id);
+        if (Boolean.TRUE.equals(ok)) emitirRetiro("retiro.eliminado", retiro, null);
+        return ok;
     }
 
     public Long countRetiro() {

@@ -158,6 +158,18 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.franco.dev.eventos.EventoEmisor eventoEmisor;
 
+    /**
+     * Guardado de saveVentaTarjeta en una TX con su aviso: venta_tarjeta.creada solo en el alta, la
+     * edicion por esta via no avisa (fase 2, #246).
+     */
+    @Transactional
+    public VentaTarjeta guardarConAviso(VentaTarjeta entity) {
+        boolean nueva = entity.getId() == null || !repository.existsById(entity.getId());
+        VentaTarjeta guardada = save(entity);
+        if (nueva) emitir("venta_tarjeta.creada", "baja", guardada);
+        return guardada;
+    }
+
     /** venta_tarjeta.* (fase 2, #246), en la TX de la operacion. */
     private void emitir(String tipo, String gravedad, VentaTarjeta vt) {
         if (eventoEmisor == null || vt == null) return;

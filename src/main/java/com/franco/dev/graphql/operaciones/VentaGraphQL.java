@@ -1301,7 +1301,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                   cd.setCobroId(venta.getCobro().getId());
                  cd.setUsuarioId(delivery.getUsuario().getId());
                  cd.setSucursalId(delivery.getSucursalId());
-                 cobroDetalleGraphQL.saveCobroDetalle(cd);
+                 cobroDetalleGraphQL.guardarDetalle(cd);
              }
              if (ventaCreditoInput != null) {
                  ventaCreditoInput.setVentaId(venta.getId());

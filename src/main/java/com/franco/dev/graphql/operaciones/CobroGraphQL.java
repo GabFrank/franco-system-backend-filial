@@ -76,7 +76,7 @@ public class CobroGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 }
                 c.setCobroId(cobro.getId());
                 // Ya no se escribe movimiento_caja: el saldo sale de generarBalance (#80).
-                cobroDetalleGraphQL.saveCobroDetalle(c);
+                cobroDetalleGraphQL.guardarDetalle(c);
             }
             return cobro;
         } else {

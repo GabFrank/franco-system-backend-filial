@@ -91,4 +91,37 @@ public final class EventosCaja {
         a.put("usuario_id", c.getUsuario() != null ? c.getUsuario().getId() : null);
         return a;
     }
+
+    /**
+     * caja.conteo_editado (fase 2, #246). Conteo no guarda totales: el anterior se suma de sus billetes
+     * (conteo_moneda) y de sus filas de respaldo activas; el nuevo es el del input.
+     */
+    public static Map<String, Object> conteoEditado(PdvCaja c, boolean apertura,
+                                                    com.franco.dev.domain.personas.Usuario editor,
+                                                    Map<String, Double> anterior, Double gs, Double rs, Double ds) {
+        Map<String, Object> d = new LinkedHashMap<>();
+        d.put("caja", EventosVenta.mapa("id", c.getId()));
+        d.put("sucursalId", c.getSucursalId());
+        d.put("apertura", apertura);
+        if (editor != null) d.put("usuario", EventosVenta.usuario(editor));
+        d.put("conteoAnterior", totales(anterior.get("GUARANI"), anterior.get("REAL"), anterior.get("DOLAR")));
+        d.put("conteoNuevo", totales(gs, rs, ds));
+        return d;
+    }
+
+    /** Totales por denominacion de un conteo, desde sus billetes y sus movimientos de respaldo activos. */
+    public static Map<String, Double> totalesDeConteo(List<com.franco.dev.domain.financiero.ConteoMoneda> billetes,
+                                                      List<com.franco.dev.domain.financiero.MovimientoCaja> respaldo) {
+        Map<String, Double> t = new LinkedHashMap<>();
+        if (billetes != null) for (com.franco.dev.domain.financiero.ConteoMoneda cm : billetes) {
+            if (cm.getMonedaBilletes() == null || cm.getMonedaBilletes().getMoneda() == null || cm.getCantidad() == null
+                    || cm.getMonedaBilletes().getValor() == null) continue;
+            t.merge(cm.getMonedaBilletes().getMoneda().getDenominacion(), cm.getCantidad() * cm.getMonedaBilletes().getValor(), Double::sum);
+        }
+        if (respaldo != null) for (com.franco.dev.domain.financiero.MovimientoCaja mc : respaldo) {
+            if (Boolean.FALSE.equals(mc.getActivo()) || mc.getMoneda() == null || mc.getCantidad() == null) continue;
+            t.merge(mc.getMoneda().getDenominacion(), mc.getCantidad(), Double::sum);
+        }
+        return t;
+    }
 }
