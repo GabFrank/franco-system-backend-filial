@@ -488,6 +488,13 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                 totalGastoDs += (cero(gasto.getRetiroDs()) - cero(gasto.getVueltoDs()));
             }
 
+            // Los detalles de todos los cobros de la caja en una sola consulta (antes eran dos por venta: N+1).
+            java.util.Set<Long> cobroIds = new java.util.HashSet<>();
+            for (Venta v : ventaList) {
+                if (v.getCobro() != null && v.getCobro().getId() != null) cobroIds.add(v.getCobro().getId());
+            }
+            java.util.Map<Long, List<CobroDetalle>> detallesPorCobro = cobroIds.isEmpty()
+                    ? new java.util.HashMap<>() : cobroDetalleService.findByCobroIds(cobroIds);
             for (Venta venta : ventaList) {
                 // Como el central: solo concluidas y en verificacion, haya o no cobro.
                 if (venta.getEstado() == VentaEstado.CONCLUIDA
@@ -495,9 +502,8 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                     totalGeneral += venta.getTotalGs();
                 }
 
-                Cobro cobro = cobroService.findById(venta.getCobro().getId()).orElse(null);
-                if (cobro != null) {
-                    List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(cobro.getId());
+                List<CobroDetalle> cobroDetalleList = venta.getCobro() != null ? detallesPorCobro.get(venta.getCobro().getId()) : null;
+                if (cobroDetalleList != null) {
                     if (venta.getEstado() == VentaEstado.CONCLUIDA
                             || venta.getEstado() == VentaEstado.EN_VERIFICACION) {
                         for (CobroDetalle cobroDetalle : cobroDetalleList) {

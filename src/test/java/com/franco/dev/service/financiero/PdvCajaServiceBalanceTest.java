@@ -79,6 +79,11 @@ class PdvCajaServiceBalanceTest {
         });
         when(cobroDetalleService.findByCobroId(anyLong()))
                 .thenAnswer(inv -> detalles.getOrDefault(inv.<Long>getArgument(0), new ArrayList<>()));
+        when(cobroDetalleService.findByCobroIds(org.mockito.ArgumentMatchers.anyCollection())).thenAnswer(inv -> {
+            Map<Long, List<CobroDetalle>> m = new HashMap<>();
+            for (Object id : inv.<java.util.Collection<?>>getArgument(0)) m.put((Long) id, detalles.getOrDefault((Long) id, new ArrayList<>()));
+            return m;
+        });
     }
 
     @Test
