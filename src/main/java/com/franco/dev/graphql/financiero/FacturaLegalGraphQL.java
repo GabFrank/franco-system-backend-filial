@@ -248,7 +248,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             facturaLegal.setTotalParcial10(entity.getTotalParcial10());
             facturaLegal.setTotalFinal(entity.getTotalFinal());
             facturaLegal.setDescuento(entity.getDescuento());
-            facturaLegal.setMonedaExtranjera(entity.getMonedaExtranjera());
+            // El escritorio manda la denominacion ("DOLAR") y la columna es varchar(3): sin normalizar,
+            // toda factura en moneda extranjera fallaba al guardar. Un codigo desconocido queda como vino.
+            String isoExtranjera = com.franco.dev.service.financiero.CodigoIsoMoneda.deDenominacion(entity.getMonedaExtranjera());
+            facturaLegal.setMonedaExtranjera(isoExtranjera != null ? isoExtranjera : entity.getMonedaExtranjera());
             facturaLegal.setTipoCambio(entity.getTipoCambio());
 
             // Mapear fechas
@@ -1569,6 +1572,22 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      * @param monedaExtranjera Código de moneda extranjera (ej: "USD", "EUR")
      * @param tipoCambio Tipo de cambio utilizado
      */
+    /**
+     * El ticket-factura en la moneda de la factura: el de moneda extranjera si la factura la tiene (moneda
+     * por modulo, fase 4), si no el de siempre. Lo usan la venta con ticket y el delivery.
+     */
+    public void imprimirTicketFactura(Venta venta, FacturaLegal facturaLegal, List<FacturaLegalItem> items,
+            String printerName, OutputStream destino) throws Exception {
+        if (facturaLegal != null && facturaLegal.getMonedaExtranjera() != null
+                && !facturaLegal.getMonedaExtranjera().trim().isEmpty()
+                && facturaLegal.getTipoCambio() != null && facturaLegal.getTipoCambio() > 0) {
+            printTicket58mmFacturaMonedaExtranjera(venta, facturaLegal, items, printerName,
+                    facturaLegal.getMonedaExtranjera(), facturaLegal.getTipoCambio(), destino);
+        } else {
+            printTicket58mmFactura(venta, facturaLegal, items, printerName, destino);
+        }
+    }
+
     public void printTicket58mmFacturaMonedaExtranjera(Venta venta, FacturaLegal facturaLegal,
             List<FacturaLegalItem> facturaLegalItemList, String printerName, String monedaExtranjera, Double tipoCambio) throws Exception {
         printTicket58mmFacturaMonedaExtranjera(venta, facturaLegal, facturaLegalItemList, printerName, monedaExtranjera,

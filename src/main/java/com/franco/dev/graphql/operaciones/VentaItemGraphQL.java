@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.service.operaciones.MonedaVenta;
 import com.franco.dev.domain.financiero.Cambio;
 import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.Venta;
@@ -7,6 +8,12 @@ import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
 import com.franco.dev.domain.operaciones.dto.LotePreferidoDto;
 import com.franco.dev.graphql.operaciones.input.VentaItemInput;
+import com.franco.dev.domain.financiero.Moneda;
+import com.franco.dev.service.financiero.MonedaService;
+import com.franco.dev.service.operaciones.RastroPrecio;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.math.BigDecimal;
 import com.franco.dev.graphql.operaciones.input.VentaItemLoteInput;
 import com.franco.dev.service.financiero.CambioService;
 import com.franco.dev.service.operaciones.MovimientoStockService;
@@ -34,10 +41,14 @@ import java.util.Optional;
 @Component
 public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(VentaItemGraphQL.class);
 
     @Autowired
     private VentaItemService service;
+
+    private static final Logger log = LoggerFactory.getLogger(VentaItemGraphQL.class);
+
+    @Autowired
+    private MonedaService monedaService;
 
     @Autowired
     private UsuarioService usuarioService;
@@ -100,8 +111,62 @@ public class VentaItemGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         // Se setea explicitamente y no via ModelMapper: son tipos distintos (input -> dto) y el
         // campo es transiente, solo viaja hasta VentaLoteService.
         e.setLotesPreferidos(mapearLotesPreferidos(input));
+        aplicarRastroPrecio(e, input);
         e = service.saveAndSend(e, false);
         return e;
+    }
+
+    /**
+     * El rastro de la conversion del precio de lista (V110.5): se guarda tal cual lo manda el PDV, y si
+     * el precio cobrado no da con el rastro queda RASTRO_PRECIO_DISTINTO en el log. No se rechaza: es
+     * una venta ya cobrada. Sin rastro, el item es como siempre.
+     */
+    void aplicarRastroPrecio(VentaItem e, VentaItemInput input) {
+        e.setPrecioMoneda(null);
+        e.setPrecioLista(null);
+        e.setPrecioCotizacion(null);
+        // Venta en otra moneda que la de la empresa (V111.5): el precio cobrado en esa moneda, y precio
+        // como su equivalente. Sin moneda en la venta, el item es como siempre.
+        Moneda monedaVenta = e.getVenta() != null ? e.getVenta().getMoneda() : null;
+        e.setPrecioEnMoneda(monedaVenta != null ? MonedaVenta.aBigDecimal(input.getPrecioEnMoneda()) : null);
+        if (monedaVenta != null) {
+            controlarEquivalente(e, input);
+        }
+        if (input.getPrecioMonedaId() == null || input.getPrecioLista() == null || input.getPrecioCotizacion() == null) {
+            return;
+        }
+        e.setPrecioMoneda(monedaService.findById(input.getPrecioMonedaId()).orElse(null));
+        e.setPrecioLista(BigDecimal.valueOf(input.getPrecioLista()));
+        e.setPrecioCotizacion(BigDecimal.valueOf(input.getPrecioCotizacion()));
+        // El rastro convierte a la moneda en que se cobra: la de la venta si la tiene, si no la de la empresa.
+        Double cobrado = e.getPrecioEnMoneda() != null ? input.getPrecioEnMoneda() : input.getPrecio();
+        int decimales = monedaVenta != null && e.getPrecioEnMoneda() != null
+                ? MonedaVenta.decimales(monedaVenta) : MonedaVenta.decimales(principal());
+        BigDecimal esperado = RastroPrecio.esperado(input.getPrecioLista(), input.getPrecioCotizacion(), decimales);
+        if (!RastroPrecio.coincide(cobrado, esperado, decimales)) {
+            log.warn("RASTRO_PRECIO_DISTINTO venta={} producto={} precio={} lista={} cotizacion={} esperado={}",
+                    input.getVentaId(), input.getProductoId(), cobrado, input.getPrecioLista(),
+                    input.getPrecioCotizacion(), esperado);
+        }
+    }
+
+    /** precio (moneda de la empresa) tiene que ser precio_en_moneda por la cotizacion de la venta. */
+    private void controlarEquivalente(VentaItem e, VentaItemInput input) {
+        int decimales = MonedaVenta.decimales(principal());
+        BigDecimal calculado = MonedaVenta.equivalente(e.getPrecioEnMoneda(), e.getVenta().getCotizacion(), decimales);
+        if (calculado == null || !MonedaVenta.coincide(input.getPrecio(), calculado, decimales, 1)) {
+            log.warn("PRECIO_EQUIVALENTE_DISTINTO venta={} producto={} precio={} precioEnMoneda={} cotizacion={} calculado={}",
+                    input.getVentaId(), input.getProductoId(), input.getPrecio(), input.getPrecioEnMoneda(),
+                    e.getVenta().getCotizacion(), calculado);
+        }
+    }
+
+    private Moneda principal() {
+        try {
+            return monedaService.principal();
+        } catch (RuntimeException ex) {
+            return null;
+        }
     }
 
     /**

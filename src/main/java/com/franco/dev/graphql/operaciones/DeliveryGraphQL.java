@@ -234,6 +234,13 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                     ventaInput.setTotalRs(venta.getTotalRs());
                     ventaInput.setTotalDs(venta.getTotalDs());
                     ventaInput.setDeliveryId(venta.getDelivery().getId());
+                    // La moneda de la venta (fase 4) se conserva igual que los totales: saveVenta2 la
+                    // pisaria en NULL.
+                    if (venta.getMoneda() != null) {
+                        ventaInput.setMonedaId(venta.getMoneda().getId());
+                        ventaInput.setCotizacion(venta.getCotizacion() != null ? venta.getCotizacion().doubleValue() : null);
+                        ventaInput.setTotalMoneda(venta.getTotalMoneda() != null ? venta.getTotalMoneda().doubleValue() : null);
+                    }
                 }
             }
             venta = ventaGraphQL.saveVenta2(ventaInput);
@@ -363,7 +370,7 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
                             politica);
                     if (factura != null) {
                         // Despues del commit: una falla de la impresora no es una falla de la factura, que ya existe.
-                        facturaLegalGraphQL.printTicket58mmFactura(venta, factura, null, printerName, ticketCliente);
+                        facturaLegalGraphQL.imprimirTicketFactura(venta, factura, null, printerName, ticketCliente);
                     } else {
                         ventaGraphQL.printTicket58mm(venta, null, ventaItemList, null, false, printerName, local, false,
                                 null, delivery, ticketCliente);

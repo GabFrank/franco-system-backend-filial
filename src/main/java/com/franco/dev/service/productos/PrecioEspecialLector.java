@@ -138,7 +138,7 @@ public class PrecioEspecialLector {
 
     private static PrecioPorSucursal copiaConEspecial(PrecioPorSucursal o, Fila e) {
         return new PrecioPorSucursal(o.getId(), o.getPrincipal(), o.getPresentacion(), o.getTipoPrecio(),
-                o.getSucursal(), e.getPrecio(), o.getCreadoEn(), o.getUsuario(), true);
+                o.getSucursal(), e.getPrecio(), o.getCreadoEn(), o.getUsuario(), true, o.getMoneda());
     }
 
     private static Presentacion copiaActiva(Presentacion o) {

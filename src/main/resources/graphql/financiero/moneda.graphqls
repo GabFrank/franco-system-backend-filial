@@ -12,6 +12,8 @@ type Moneda {
     decimales: Int
     reglaRedondeo: String
     redondeoMultiplo: Float
+    # Codigo ISO 4217 (PYG, USD, BRL); puede venir null hasta que el central lo rellene.
+    codigoIso: String
 }
 
 input MonedaInput {
@@ -33,6 +35,10 @@ extend type Query {
     monedas(page:Int = 0, size:Int = 10):[Moneda]!
     monedasSearch(texto: String): [Moneda]
     countMoneda: Int
+    # Moneda del PDV de esta sucursal (moneda por modulo); sin configuracion, la de la empresa.
+    monedaDelPdv: Moneda
+    # Moneda configurada para la factura de esta sucursal; null = la moneda de la venta.
+    monedaDeFacturacion: Moneda
 }
 
 extend type Mutation {

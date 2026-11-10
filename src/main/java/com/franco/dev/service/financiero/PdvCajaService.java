@@ -507,6 +507,13 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                     if (venta.getEstado() == VentaEstado.CONCLUIDA
                             || venta.getEstado() == VentaEstado.EN_VERIFICACION) {
                         for (CobroDetalle cobroDetalle : cobroDetalleList) {
+                            // Un descuento en otra moneda que la de la empresa (PDV en USD, fase 4) se
+                            // perdia: solo se sumaban los de guaranies en efectivo.
+                            Double descuentoOtraMoneda = descuentoEnOtraMoneda(cobroDetalle);
+                            if (descuentoOtraMoneda != null) {
+                                totalDescuento += descuentoOtraMoneda;
+                                continue;
+                            }
                             if (cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")) {
                                 if (cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")) {
                                     if (cobroDetalle.getDescuento() != null && cobroDetalle.getDescuento()) {
@@ -835,6 +842,25 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         return repository.save(caja);
     }
 
+
+    /**
+     * El descuento de una linea en otra moneda que la de la empresa, llevado a la de la empresa con la
+     * cotizacion precisa (V111.5) o el cambio. null si la linea no es descuento o es de la moneda de la
+     * empresa: esas siguen por el camino de siempre.
+     */
+    static Double descuentoEnOtraMoneda(CobroDetalle cd) {
+        if (cd == null || !Boolean.TRUE.equals(cd.getDescuento()) || cd.getMoneda() == null
+                || Boolean.TRUE.equals(cd.getMoneda().getPrincipal()) || cd.getValor() == null) {
+            return null;
+        }
+        // Sin principal marcada en ninguna moneda se mantiene el criterio de siempre (por nombre).
+        if (cd.getMoneda().getDenominacion() != null && cd.getMoneda().getDenominacion().contains("GUARANI")) {
+            return null;
+        }
+        double factor = cd.getCotizacion() != null ? cd.getCotizacion().doubleValue()
+                : cd.getCambio() != null && cd.getCambio() > 0 ? cd.getCambio() : 1.0;
+        return cd.getValor() * factor;
+    }
 
     @Autowired
     private PdvCajaReaperturaRepository reaperturaRepository;

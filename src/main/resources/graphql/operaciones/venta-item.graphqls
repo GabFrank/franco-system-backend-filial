@@ -35,6 +35,13 @@ input VentaItemInput {
     # casi todas las ventas. No se persiste: solo sesga la asignacion, y el registro real de que
     # salio de cada lote queda en el ledger operaciones.movimiento_stock_lote.
     lotes: [VentaItemLoteInput]
+    # Rastro de la conversion cuando el precio de lista esta en otra moneda que la de cobro (V110.5):
+    # su moneda, el precio en esa moneda y la cotizacion (moneda de cobro por unidad). Omitir = sin conversion.
+    precioMonedaId: Int
+    precioLista: Float
+    precioCotizacion: Float
+    # Precio unitario en la moneda de la venta (V111.5); precio va siempre en la de la empresa.
+    precioEnMoneda: Float
 }
 
 # Lote elegido a mano para un item de venta. La cantidad va EN UNIDADES BASE, la misma unidad que

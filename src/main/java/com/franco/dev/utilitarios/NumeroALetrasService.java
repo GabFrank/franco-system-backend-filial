@@ -15,30 +15,48 @@ public class NumeroALetrasService {
             "setecientos ", "ochocientos ", "novecientos "};
 
 
+    /**
+     * Un entero (hasta 999.999.999.999) en letras. Hasta 9 digitos el texto es el de siempre, salvo el
+     * plural de los millones (de 2 a 9 millones decia "DOS MILLON"). Desde mil millones antes devolvia
+     * null y el total en letras salia vacio. Entrada que no es un entero sin signo: null.
+     */
     public String converter(String numero, boolean mayusculas) {
-        String literal = ""; //se valida formato de entrada -> 0,00 y 999 999 999,00
-        if (Pattern.matches("\\d{1,9}", numero)) {
-            if (Integer.parseInt(numero) == 0) {//si el valor es cero
-                literal = "cero ";
-            } else if (Integer.parseInt(numero) > 999999) {//si es millon
-                literal = getMillones(numero);
-            } else if (Integer.parseInt(numero) > 999) {//si es miles
-                literal = getMiles(numero);
-            } else if (Integer.parseInt(numero) > 99) {//si es centena
-                literal = getCentenas(numero);
-            } else if (Integer.parseInt(numero) > 9) {//si es decena
-                literal = getDecenas(numero);
-            } else {//sino unidades -> 9
-                literal = getUnidades(numero);
-            } //devuelve el resultado en mayusculas o minusculas
-            if (mayusculas) {
-                return literal.toUpperCase();
-            } else {
-                return literal.toLowerCase();
-            }
-        } else {//error, no se puede convertir
-            return literal = null;
+        if (numero == null || !Pattern.matches("\\d{1,12}", numero)) {
+            return null;
         }
+        long valor = Long.parseLong(numero);
+        String literal;
+        if (valor == 0) {
+            literal = "cero ";
+        } else if (valor > 999999999L) {
+            literal = getMilesDeMillones(String.valueOf(valor));
+        } else if (valor > 999999) {
+            literal = getMillones(String.valueOf(valor));
+        } else if (valor > 999) {
+            literal = getMiles(String.valueOf(valor));
+        } else if (valor > 99) {
+            literal = getCentenas(String.valueOf(valor));
+        } else if (valor > 9) {
+            literal = getDecenas(String.valueOf(valor));
+        } else {
+            literal = getUnidades(String.valueOf(valor));
+        }
+        return mayusculas ? literal.toUpperCase() : literal.toLowerCase();
+    }
+
+    /**
+     * Un monto con los decimales de su moneda: la parte entera en letras y los decimales como fraccion
+     * ("CINCO CON 85/100"). Con 0 decimales es {@link #converter} de la parte entera, redondeada.
+     */
+    public String enLetras(java.math.BigDecimal monto, int decimales, boolean mayusculas) {
+        if (monto == null || monto.signum() < 0) return null;
+        java.math.BigDecimal redondeado = monto.setScale(Math.max(decimales, 0), java.math.RoundingMode.HALF_UP);
+        String entero = converter(redondeado.toBigInteger().toString(), mayusculas);
+        if (entero == null || decimales <= 0) return entero;
+        java.math.BigInteger fraccion = redondeado.remainder(java.math.BigDecimal.ONE).movePointRight(decimales).toBigInteger();
+        String digitos = String.format("%0" + decimales + "d", fraccion);
+        String denominador = java.math.BigInteger.TEN.pow(decimales).toString();
+        return entero.trim() + (mayusculas ? " CON " : " con ") + digitos + "/" + denominador;
     }
 
     /* funciones para convertir los numeros a literales */
@@ -99,11 +117,22 @@ public class NumeroALetrasService {
         //se obtiene los millones
         String millon = numero.substring(0, numero.length() - 6);
         String n = "";
-        if (millon.length() > 1) {
+        if (Integer.parseInt(millon) > 1) {
             n = getCentenas(millon) + "millones ";
         } else {
             n = getUnidades(millon) + "millon ";
         }
         return n + getMiles(miles);
+    }
+
+    private String getMilesDeMillones(String numero) { // 999 999 999 999
+        String resto = numero.substring(numero.length() - 9);
+        String milesDeMillon = numero.substring(0, numero.length() - 9);
+        String n = Integer.parseInt(milesDeMillon) > 1 ? getCentenas(milesDeMillon) + "mil " : "mil ";
+        int millones = Integer.parseInt(resto.substring(0, 3));
+        if (millones == 0) {
+            return n + "millones " + getMiles(resto.substring(3));
+        }
+        return n + getCentenas(resto.substring(0, 3)) + "millones " + getMiles(resto.substring(3));
     }
 }

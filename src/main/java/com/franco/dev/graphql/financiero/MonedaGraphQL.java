@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.financiero;
 
+import com.franco.dev.service.financiero.MonedaModuloLector;
 import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.domain.financiero.MonedaBilletes;
@@ -26,6 +27,8 @@ public class MonedaGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
 
     @Autowired
     private MonedaService service;
+    @Autowired
+    private MonedaModuloLector monedaModuloLector;
 
     @Autowired
     private UsuarioService usuarioService;
@@ -56,6 +59,20 @@ public class MonedaGraphQL implements GraphQLQueryResolver, GraphQLMutationResol
     public Boolean deleteMoneda(Long id){
         rolSesionService.exigirAdmin();
         return service.deleteById(id);
+    }
+
+    /**
+     * La moneda en que opera el PDV de esta sucursal (modulo PDV de la moneda por modulo, leido del
+     * espejo); sin configuracion, la de la empresa. Operacion aparte: un filial viejo no la tiene y el
+     * escritorio sigue en la moneda de la empresa.
+     */
+    public Moneda monedaDelPdv() {
+        return monedaModuloLector.pdv();
+    }
+
+    /** La moneda configurada para la factura de esta sucursal; null = la de la venta. */
+    public Moneda monedaDeFacturacion() {
+        return monedaModuloLector.configurada(MonedaModuloLector.FACTURACION).orElse(null);
     }
 
     public Long countMoneda(){
