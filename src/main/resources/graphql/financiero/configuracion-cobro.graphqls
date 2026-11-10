@@ -4,6 +4,10 @@ type ConfiguracionCobro {
     aumentoConTope: Boolean!
     """Tope del aumento, en porcentaje del total del cobro. Nunca null (default 20)."""
     aumentoTopePorcentaje: Float!
+    """true = el descuento del cobro no puede pasar descuentoTopePorcentaje del total. Nunca null (default false)."""
+    descuentoConTope: Boolean!
+    """Tope del descuento, en porcentaje del total del cobro. Nunca null (default 15)."""
+    descuentoTopePorcentaje: Float!
     modificadoEn: Date
 }
 
