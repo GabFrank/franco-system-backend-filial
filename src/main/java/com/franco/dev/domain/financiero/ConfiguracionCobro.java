@@ -27,6 +27,9 @@ public class ConfiguracionCobro implements Identifiable<Long> {
     /** El 20% que estaba clavado en el boton de aumento del desktop. */
     public static final BigDecimal TOPE_DEFAULT = new BigDecimal("20");
 
+    /** El que propone el central al activar el tope del descuento (V272.3). */
+    public static final BigDecimal TOPE_DESCUENTO_DEFAULT = new BigDecimal("15");
+
     @Id
     @GenericGenerator(name = "assigned-identity", strategy = "com.franco.dev.config.AssignedIdentityGenerator")
     @GeneratedValue(generator = "assigned-identity", strategy = GenerationType.IDENTITY)
@@ -37,6 +40,12 @@ public class ConfiguracionCobro implements Identifiable<Long> {
 
     @Column(name = "aumento_tope_porcentaje")
     private BigDecimal aumentoTopePorcentaje = TOPE_DEFAULT;
+
+    @Column(name = "descuento_con_tope")
+    private Boolean descuentoConTope = false;
+
+    @Column(name = "descuento_tope_porcentaje")
+    private BigDecimal descuentoTopePorcentaje = TOPE_DESCUENTO_DEFAULT;
 
     @Column(name = "usuario_id")
     private Long usuarioId;
@@ -55,5 +64,15 @@ public class ConfiguracionCobro implements Identifiable<Long> {
     public BigDecimal getAumentoTopePorcentaje() {
         return aumentoTopePorcentaje == null || aumentoTopePorcentaje.signum() <= 0
                 ? TOPE_DEFAULT : aumentoTopePorcentaje;
+    }
+
+    /** Al reves que el aumento: un dato faltante es "sin tope", que es como funcionaba el descuento antes. */
+    public Boolean getDescuentoConTope() {
+        return descuentoConTope == null ? Boolean.FALSE : descuentoConTope;
+    }
+
+    public BigDecimal getDescuentoTopePorcentaje() {
+        return descuentoTopePorcentaje == null || descuentoTopePorcentaje.signum() <= 0
+                ? TOPE_DESCUENTO_DEFAULT : descuentoTopePorcentaje;
     }
 }
