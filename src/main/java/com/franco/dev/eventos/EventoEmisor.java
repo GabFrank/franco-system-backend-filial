@@ -69,7 +69,7 @@ public class EventoEmisor {
                     Integer.class);
             esquemaPresente = n != null && n > 0;
         } catch (Exception e) {
-            esquemaPresente = false;
+            // un error al arrancar no apaga un esquema ya visto; encendido() reintenta
         }
         if (props.isEnabled() && !esquemaPresente) {
             log.warn("[eventos] frc.webhooks.enabled=true pero falta el esquema eventos (V111.3): el emisor queda apagado");
@@ -77,8 +77,59 @@ public class EventoEmisor {
     }
 
     public boolean encendido() {
-        return props.isEnabled() && esquemaPresente;
+        if (!props.isEnabled()) return false;
+        // Tomcat atiende pedidos antes de ApplicationReadyEvent: sin esto, lo que pasaba en esos segundos
+        // se descartaba sin aviso (los 6 de 40 de la medicion ABBA de C1, #587). Flyway ya corrio al
+        // levantar el contexto, asi que la consulta es segura aca.
+        if (!esquemaPresente) verificarEsquemaSilencioso();
+        return esquemaPresente;
     }
+
+    /** Pausa entre consultas cuando el esquema de verdad no esta (nodo sin V111.3). */
+    static final long REVERIFICAR_SIN_ESQUEMA_MS = 30_000;
+    /** Tope de la consulta: una base lenta no frena las ventas que esperan detras del lock. */
+    static final int TIMEOUT_VERIFICACION_S = 2;
+
+    java.util.function.LongSupplier reloj = System::currentTimeMillis;
+    private volatile long noVistoHasta = 0;
+
+    /**
+     * Nunca tira excepcion (corre en el camino de la venta). Solo una respuesta "no esta" pausa la proxima
+     * consulta 30 s; un error transitorio no pausa nada, asi no se reabre la ventana de perdida. Con el
+     * lock tomado por otro hilo se espera su resultado (como mucho el timeout de la consulta + 1 s).
+     */
+    void verificarEsquemaSilencioso() {
+        if (esquemaPresente || reloj.getAsLong() < noVistoHasta) return;
+        try {
+            if (!verificando.tryLock(TIMEOUT_VERIFICACION_S + 1L, java.util.concurrent.TimeUnit.SECONDS)) return;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+        try {
+            if (esquemaPresente) return;
+            Integer n = jdbc.execute((ConnectionCallback<Integer>) con -> {
+                try (PreparedStatement ps = con.prepareStatement(
+                        "SELECT count(*) FROM information_schema.tables WHERE table_schema='eventos' AND table_name='outbox_evento'")) {
+                    ps.setQueryTimeout(TIMEOUT_VERIFICACION_S);
+                    try (java.sql.ResultSet rs = ps.executeQuery()) {
+                        return rs.next() ? rs.getInt(1) : 0;
+                    }
+                }
+            });
+            if (n != null && n > 0) {
+                esquemaPresente = true;
+            } else {
+                noVistoHasta = reloj.getAsLong() + REVERIFICAR_SIN_ESQUEMA_MS;
+            }
+        } catch (Exception e) {
+            log.debug("[eventos] no se pudo verificar el esquema, se reintenta en el proximo aviso: {}", e.getMessage());
+        } finally {
+            verificando.unlock();
+        }
+    }
+
+    private final java.util.concurrent.locks.ReentrantLock verificando = new java.util.concurrent.locks.ReentrantLock();
 
     /** Si alguien en esta sucursal esta suscripto a ese tipo (fase 2b: evita calculos para alertas sin oyentes). */
     public boolean haySuscriptos(String tipo) {
