@@ -26,7 +26,6 @@ public class PrintingService {
     private Logger log = LoggerFactory.getLogger(PrintingService.class);
     // Bean compartido entre cajas: la caché se escribe desde varios hilos
     private List<PrintService> printServiceList = new CopyOnWriteArrayList<>();
-    private PrintService selectedPrintService;
 
     PrintingService() {
     }
@@ -74,9 +73,10 @@ public class PrintingService {
     }
 
     public PrintService getPrintService(String printerName) {
+        // Sin nombre no hay impresora (#226): null tiraba NPE (revertía un retiro) y "" caía en la primera del sistema
+        if (printerName == null || printerName.trim().isEmpty()) return null;
         PrintService ps = searchPrinter(printerName);
         if(ps!=null){
-            selectedPrintService = ps;
             return ps;
         } else {
             return setPrintService(printerName);
@@ -88,7 +88,6 @@ public class PrintingService {
         try {
             ps = PrinterOutputStream.getPrintServiceByName(printerName);
             if (ps != null) {
-                selectedPrintService = ps;
                 printServiceList.add(ps);
             } else {
                 log.warn("Impresora '{}' no encontrada en el sistema, no se agrega al cache", printerName);
@@ -97,10 +96,6 @@ public class PrintingService {
             e.printStackTrace();
         }
         return ps;
-    }
-
-    public PrintService getLasUsedPrinter(){
-        return selectedPrintService;
     }
 
     public PrintService searchPrinter(String printerName) {

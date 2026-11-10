@@ -21,6 +21,7 @@ import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.operaciones.CobroDetalleService;
 import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.DeliveryService;
+import com.franco.dev.service.operaciones.LoteFefoService;
 import com.franco.dev.service.operaciones.VentaService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.seguridad.RolSesionService;
@@ -86,6 +87,35 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
 
     @Autowired
     private RolSesionService rolSesionService;
+
+    @Autowired
+    private BloqueoTransaccionalService bloqueo;
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PdvCajaService.class);
+
+    /** Interruptor por filial del control de acceso en las altas de gasto y retiro; solo "true" lo prende. */
+    static final String PROPERTY_EXIGIR_ACCESO_ALTA = "auditoria.acceso-caja.exigir";
+
+    /** Marcador fijo del log para medir antes de prender el interruptor. */
+    public static final String MARCADOR_ACCESO_ALTA = "AUDIT-ACCESO-CAJA";
+
+    /**
+     * Alta de un gasto o un retiro: la sesion tiene que ser la duena de la caja o tener ANALISIS DE CAJA (ADMIN pasa).
+     * Siempre registra quien no cumple; rechaza solo con el interruptor prendido. Apagado (default) a proposito:
+     * el usuario del token puede no ser el cajero hasta tener el desktop arreglado (#142).
+     */
+    public void controlarAccesoEnAlta(String operacion, PdvCaja caja) {
+        Long duenio = duenioId(caja);
+        if (rolSesionService.esDuenioOTieneRol(duenio, RolSesionService.ANALISIS_DE_CAJA)) {
+            return;
+        }
+        log.warn("{} operacion={} cajaId={} usuarioSesion={} duenio={} sucursal={}", MARCADOR_ACCESO_ALTA, operacion,
+                caja != null ? caja.getId() : null, usuarioSesionService.idDelUsuarioAutenticado().orElse(null),
+                duenio, env.getProperty("sucursalId"));
+        if ("true".equalsIgnoreCase(env.getProperty(PROPERTY_EXIGIR_ACCESO_ALTA, "false"))) {
+            throw new GraphQLException("No autorizado: solo el dueño o el rol " + RolSesionService.ANALISIS_DE_CAJA + ".");
+        }
+    }
 
     /** Id del usuario dueño de la caja, o null si no tiene. */
     public static Long duenioId(PdvCaja caja) {
@@ -371,7 +401,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                     : new ArrayList<>();
             List<RetiroDetalle> retiroDetalleList = retiroDetalleService.findByCajId(pdvCaja.getId());
             List<Gasto> gastoList = gastoService.findByCajaId(pdvCaja.getId());
-            List<Venta> ventaList = ventaService.findAllByCajaId(pdvCaja.getId());
+            List<Venta> ventaList = ventaService.findResumenByCajaId(pdvCaja.getId());
             List<Delivery> deliveryList = deliveryService.getRepository().findDeliveryByCajaEstadoAndSucId(
                     pdvCaja.getId(),
                     Arrays.asList(DeliveryEstado.CONCLUIDO, DeliveryEstado.PARA_ENTREGA, DeliveryEstado.ENTREGADO),
@@ -458,6 +488,13 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                 totalGastoDs += (cero(gasto.getRetiroDs()) - cero(gasto.getVueltoDs()));
             }
 
+            // Los detalles de todos los cobros de la caja en una sola consulta (antes eran dos por venta: N+1).
+            java.util.Set<Long> cobroIds = new java.util.HashSet<>();
+            for (Venta v : ventaList) {
+                if (v.getCobro() != null && v.getCobro().getId() != null) cobroIds.add(v.getCobro().getId());
+            }
+            java.util.Map<Long, List<CobroDetalle>> detallesPorCobro = cobroIds.isEmpty()
+                    ? new java.util.HashMap<>() : cobroDetalleService.findByCobroIds(cobroIds);
             for (Venta venta : ventaList) {
                 // Como el central: solo concluidas y en verificacion, haya o no cobro.
                 if (venta.getEstado() == VentaEstado.CONCLUIDA
@@ -465,9 +502,8 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                     totalGeneral += venta.getTotalGs();
                 }
 
-                Cobro cobro = cobroService.findById(venta.getCobro().getId()).orElse(null);
-                if (cobro != null) {
-                    List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(cobro.getId());
+                List<CobroDetalle> cobroDetalleList = venta.getCobro() != null ? detallesPorCobro.get(venta.getCobro().getId()) : null;
+                if (cobroDetalleList != null) {
                     if (venta.getEstado() == VentaEstado.CONCLUIDA
                             || venta.getEstado() == VentaEstado.EN_VERIFICACION) {
                         for (CobroDetalle cobroDetalle : cobroDetalleList) {
@@ -880,8 +916,28 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
         caja.setFechaCierre(null);
         caja.setActivo(true);
         // saveAndSend vuelve a marcar el maletin como abierto.
-        return saveAndSend(caja, false);
+        PdvCaja reabierta = saveAndSend(caja, false);
+        // caja.reabierta (fase 2, #246), en esta misma TX
+        if (reabierta != null && eventoEmisor != null) {
+            Long usuarioId = registro.getUsuarioId();
+            eventoEmisor.emitirProyeccion("caja.reabierta", "media", usuarioId,
+                    "caja/" + reabierta.getSucursalId() + "/" + reabierta.getId(),
+                    () -> {
+                        java.util.Map<String, Object> d = new java.util.LinkedHashMap<>();
+                        d.put("caja", com.franco.dev.eventos.EventosVenta.mapa("id", reabierta.getId()));
+                        d.put("sucursalId", reabierta.getSucursalId());
+                        d.put("usuario", com.franco.dev.eventos.EventosVenta.mapa("id", usuarioId));
+                        d.put("motivo", registro.getMotivo());
+                        d.put("reabiertaEn", LocalDateTime.now().toString());
+                        return d;
+                    },
+                    () -> com.franco.dev.eventos.EventosVenta.mapa("caja_id", reabierta.getId()));
+        }
+        return reabierta;
     }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.franco.dev.eventos.EventoEmisor eventoEmisor;
 
     /**
      * Por que no se puede reabrir la caja, o null si se puede. Las reglas del issue #662: cerrada,
@@ -918,6 +974,58 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             }
         }
         return null;
+    }
+
+    /**
+     * Efectivo que deberia haber en la caja en esa moneda, con la cuenta del cierre: apertura + pagos en
+     * efectivo + vuelto (negativo) - retiros - gastos netos. Con la caja abierta es {@code -diferencia},
+     * lo que el desktop muestra como disponible al cargar un gasto o un retiro. Reemplaza a la suma de
+     * movimiento_caja, que nunca descontaba retiros ni gastos (activo NULL en esas filas, issue #80).
+     * Sin balance o con otra moneda, 0.
+     */
+    public static double saldoEnCaja(PdvCajaBalanceDto b, String denominacion) {
+        if (b == null || denominacion == null) {
+            return 0.0;
+        }
+        if (denominacion.contains("GUARANI")) {
+            return cero(b.getTotalGsAper()) + cero(b.getTotalVentaGs()) + cero(b.getVueltoGs())
+                    - cero(b.getTotalRetiroGs()) - cero(b.getTotalGastoGs());
+        } else if (denominacion.contains("REAL")) {
+            return cero(b.getTotalRsAper()) + cero(b.getTotalVentaRs()) + cero(b.getVueltoRs())
+                    - cero(b.getTotalRetiroRs()) - cero(b.getTotalGastoRs());
+        } else if (denominacion.contains("DOLAR")) {
+            return cero(b.getTotalDsAper()) + cero(b.getTotalVentaDs()) + cero(b.getVueltoDs())
+                    - cero(b.getTotalRetiroDs()) - cero(b.getTotalGastoDs());
+        }
+        return 0.0;
+    }
+
+    /**
+     * Si sacar {@code monto} deja la caja en negativo. La tolerancia es por redondeo de double en R$ y
+     * US$: los retiros "de todo" al cierre dejan margen exacto 0 y el backend no puede ser mas estricto
+     * que la pantalla. Un monto 0 o nulo nunca supera, y una moneda que el balance no lleva (PESO ARG)
+     * no se controla.
+     */
+    public static boolean superaSaldo(PdvCajaBalanceDto b, String denominacion, Double monto) {
+        boolean monedaDelBalance = denominacion != null && (denominacion.contains("GUARANI")
+                || denominacion.contains("REAL") || denominacion.contains("DOLAR"));
+        return monedaDelBalance && cero(monto) > 0 && cero(monto) > saldoEnCaja(b, denominacion) + 0.005;
+    }
+
+    /**
+     * Serializa gastos y retiros de una caja hasta el commit, para que la validacion de saldo vea al
+     * anterior: sin esto un doble envio (0,1 s, caja 2155 de la suc. 22) pasaba dos veces. Pedirlo
+     * antes de leer el balance. Requiere transaccion abierta.
+     */
+    public void bloquearSaldoCaja(Long cajaId) {
+        try {
+            bloqueo.tomar("caja-saldo:" + cajaId, "15s");
+        } catch (RuntimeException e) {
+            if (!LoteFefoService.esEsperaVencida(e)) {
+                throw e;
+            }
+            throw new GraphQLException("Hay otra operación en curso en esta caja. Reintentá en unos segundos.");
+        }
     }
 
     /** Un monto nulo cuenta como 0. */

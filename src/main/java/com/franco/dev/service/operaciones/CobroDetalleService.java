@@ -33,6 +33,22 @@ public class CobroDetalleService extends CrudService<CobroDetalle, CobroDetalleR
 //        texto = texto.replace(' ', '%');
 //        return  repository.findByProveedor(texto.toLowerCase());
 //
+    /**
+     * Detalles agrupados por cobro, en consultas de a 1000 cobros. Un cobro sin detalles queda con lista vacia
+     * (lo mismo que devuelve findByCobroId).
+     */
+    public java.util.Map<Long, List<CobroDetalle>> findByCobroIds(java.util.Collection<Long> ids) {
+        java.util.Map<Long, List<CobroDetalle>> m = new java.util.HashMap<>();
+        java.util.List<Long> l = new java.util.ArrayList<>(ids);
+        for (Long id : l) m.put(id, new java.util.ArrayList<>());
+        for (int i = 0; i < l.size(); i += 1000) {
+            for (CobroDetalle cd : repository.findByCobroIdInConMonedaYFormaPago(l.subList(i, Math.min(l.size(), i + 1000)))) {
+                m.computeIfAbsent(cd.getCobro().getId(), k -> new java.util.ArrayList<>()).add(cd);
+            }
+        }
+        return m;
+    }
+
     public List<CobroDetalle> findByCobroId(Long id) {
         return repository.findByCobroId(id);
     }

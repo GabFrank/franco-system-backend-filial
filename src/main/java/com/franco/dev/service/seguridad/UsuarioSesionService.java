@@ -72,24 +72,42 @@ public class UsuarioSesionService {
      */
     @Transactional(propagation = Propagation.NOT_SUPPORTED, readOnly = true)
     public Optional<Long> idDelUsuarioAutenticado() {
+        Entrada entrada = resolver();
+        return entrada == null ? Optional.empty() : Optional.ofNullable(entrada.usuarioId);
+    }
+
+    /**
+     * Como {@link #idDelUsuarioAutenticado()}, pero vacio tambien si el usuario esta inactivo. El
+     * token no vence: un usuario dado de baja puede seguir firmando con una sesion vieja.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED, readOnly = true)
+    public Optional<Long> idDelUsuarioActivoAutenticado() {
+        Entrada entrada = resolver();
+        return entrada == null || !entrada.activo ? Optional.empty() : Optional.ofNullable(entrada.usuarioId);
+    }
+
+    /** La entrada del cache para el nickname del token, o null si la request no trae identidad. */
+    private Entrada resolver() {
         String nickname = nicknameAutenticado();
         if (nickname == null) {
-            return Optional.empty();
+            return null;
         }
         String clave = nickname.trim().toUpperCase();
         long ahora = reloj.getAsLong();
 
         Entrada entrada = cache.get(clave);
         if (entrada != null && ahora - entrada.resueltoEn < TTL_MS) {
-            return Optional.ofNullable(entrada.usuarioId);
+            return entrada;
         }
 
-        Long id = usuarioService.findByNickname(clave).map(Usuario::getId).orElse(null);
-        cache.put(clave, new Entrada(id, ahora));
-        if (id == null) {
+        Usuario usuario = usuarioService.findByNickname(clave).orElse(null);
+        entrada = new Entrada(usuario == null ? null : usuario.getId(),
+                usuario != null && !Boolean.FALSE.equals(usuario.getActivo()), ahora);
+        cache.put(clave, entrada);
+        if (usuario == null) {
             log.debug("El nickname {} del token no resuelve a ningun usuario", clave);
         }
-        return Optional.ofNullable(id);
+        return entrada;
     }
 
     /** El nickname del JWT de esta request, o null si el contexto no trae identidad. */
@@ -115,10 +133,12 @@ public class UsuarioSesionService {
 
     private static class Entrada {
         private final Long usuarioId;
+        private final boolean activo;
         private final long resueltoEn;
 
-        private Entrada(Long usuarioId, long resueltoEn) {
+        private Entrada(Long usuarioId, boolean activo, long resueltoEn) {
             this.usuarioId = usuarioId;
+            this.activo = activo;
             this.resueltoEn = resueltoEn;
         }
     }

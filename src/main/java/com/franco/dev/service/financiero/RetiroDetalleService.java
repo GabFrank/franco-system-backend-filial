@@ -1,13 +1,10 @@
 package com.franco.dev.service.financiero;
 
-import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.RetiroDetalle;
-import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.repository.financiero.RetiroDetalleRepository;
 import com.franco.dev.service.CrudService;
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,12 +14,6 @@ import java.util.List;
 public class RetiroDetalleService extends CrudService<RetiroDetalle, RetiroDetalleRepository> {
 
     private final RetiroDetalleRepository repository;
-    @Autowired
-    public CambioService cambioService;
-    @Autowired
-    private MovimientoCajaService movimientoCajaService;
-    @Autowired
-    private RetiroService retiroService;
 
     @Override
     public RetiroDetalleRepository getRepository() {
@@ -52,45 +43,9 @@ public class RetiroDetalleService extends CrudService<RetiroDetalle, RetiroDetal
     }
 
     @Override
-    public RetiroDetalle save(RetiroDetalle entity) throws GraphQLException {
-        Long cajaId = entity.getRetiro().getCajaSalida().getId();
-        Double total = entity.getCantidad();
-        Double totalEnCaja = movimientoCajaService.totalEnCajaPorCajaIdAndMonedaId(cajaId, entity.getMoneda().getId());
-        if (total > totalEnCaja) {
-            retiroService.deleteById(entity.getRetiro().getId());
-            throw new GraphQLException("El valor de retiro es mayor al total en caja");
-        } else {
-            RetiroDetalle e = super.save(entity);
-            MovimientoCaja movimientoCaja = new MovimientoCaja();
-            movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.RETIRO);
-            movimientoCaja.setReferencia(e.getId());
-            movimientoCaja.setPdvCaja(entity.getRetiro().getCajaSalida());
-            movimientoCaja.setCantidad(entity.getCantidad() * -1);
-            movimientoCaja.setCambio(cambioService.findLastByMonedaId(entity.getMoneda().getId()));
-            movimientoCaja.setMoneda(entity.getMoneda());
-            movimientoCaja.setUsuario(entity.getUsuario());
-            movimientoCajaService.save(movimientoCaja);
-//        personaPublisher.publish(p);
-            return e;
-        }
-    }
-
-    @Override
     public RetiroDetalle saveAndSend(RetiroDetalle entity, Boolean recibir) throws GraphQLException {
         entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
-        RetiroDetalle e = super.save(entity);
-//        propagacionService.propagarEntidad(e, TipoEntidad.RETIRO_DETALLE, recibir);
-        MovimientoCaja movimientoCaja = new MovimientoCaja();
-        movimientoCaja.setTipoMovimiento(PdvCajaTipoMovimiento.RETIRO);
-        movimientoCaja.setReferencia(e.getId());
-        movimientoCaja.setPdvCaja(entity.getRetiro().getCajaSalida());
-        movimientoCaja.setCantidad(entity.getCantidad() * -1);
-        movimientoCaja.setCambio(cambioService.findLastByMonedaId(entity.getMoneda().getId()));
-        movimientoCaja.setMoneda(entity.getMoneda());
-        movimientoCaja.setUsuario(entity.getUsuario());
-        movimientoCajaService.saveAndSend(movimientoCaja, false);
-//        personaPublisher.publish(p);
-        return e;
-
+        // Ya no se escribe movimiento_caja: el saldo sale de generarBalance (#80).
+        return super.save(entity);
     }
 }

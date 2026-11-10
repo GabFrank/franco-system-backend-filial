@@ -746,13 +746,4 @@ public class SifenSchedulerService {
             log.error("❌ Error al reprocesar documentos con fecha adelantada", e);
         }
     }
-    
-    /**
-     * Método público para forzar una ejecución manual del scheduler.
-     * Útil para pruebas o ejecuciones on-demand desde GraphQL.
-     */
-    public void ejecutarManualmente() {
-        log.info("🔧 Ejecución manual del scheduler solicitada");
-        procesarLotesAutomaticamente();
-    }
 }

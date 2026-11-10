@@ -4,10 +4,12 @@ import com.franco.dev.domain.financiero.DocumentoElectronico;
 import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.FacturaLegalItem;
 import com.franco.dev.domain.financiero.TimbradoDetalle;
+import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.domain.productos.Presentacion;
 import com.franco.dev.domain.productos.Producto;
+import com.franco.dev.service.financiero.BloqueoTransaccionalService;
 import com.franco.dev.service.financiero.FacturaLegalItemService;
 import com.franco.dev.service.financiero.FacturaLegalService;
 import com.franco.dev.service.financiero.TimbradoDetalleService;
@@ -61,6 +63,10 @@ public class FacturaLegalBuilder {
     private final PresentacionService presentacionService;
     private final UsuarioService usuarioService;
     private final SifenService sifenService; // puede ser null si SIFEN desactivado
+    private final BloqueoTransaccionalService bloqueo;
+
+    /** Por debajo de los 60 s con que el desktop corta la mutation, como en PARA ENTREGA (#210). */
+    private static final String ESPERA_FACTURA_VENTA = "15s";
 
     /**
      * Interruptor del ensayo del DE. En false el builder no ensaya y una falla al armar el DE vuelve
@@ -85,7 +91,8 @@ public class FacturaLegalBuilder {
                                VentaItemService ventaItemService,
                                PresentacionService presentacionService,
                                UsuarioService usuarioService,
-                               @org.springframework.beans.factory.annotation.Autowired(required = false) SifenService sifenService) {
+                               @org.springframework.beans.factory.annotation.Autowired(required = false) SifenService sifenService,
+                               BloqueoTransaccionalService bloqueo) {
         this.facturaLegalService = facturaLegalService;
         this.facturaLegalItemService = facturaLegalItemService;
         this.timbradoDetalleService = timbradoDetalleService;
@@ -94,6 +101,7 @@ public class FacturaLegalBuilder {
         this.presentacionService = presentacionService;
         this.usuarioService = usuarioService;
         this.sifenService = sifenService;
+        this.bloqueo = bloqueo;
     }
 
     /**
@@ -124,6 +132,17 @@ public class FacturaLegalBuilder {
         FacturaLegal facturaLegal = request.getFacturaLegal();
         Long pdvId = request.getPdvId();
         List<FacturaLegalItemDescriptor> items = request.getItems();
+
+        // 0. Una sola factura vigente por venta (#221). El lock va antes de leer el timbrado: si espera, no sigue con
+        // un numero viejo. PARA ENTREGA ya lo tiene en su transaccion y aca no se vuelve a pedir.
+        // shortcut: hashtext es de 32 bits; si la clave de una venta nueva de saveVenta choca con otra en curso, espera
+        // y al vencer aborta la venta. Despreciable; si pasa, migrar la clave a hashtextextended (PG 11+).
+        Venta venta = facturaLegal.getVenta();
+        if (venta != null && venta.getId() != null) {
+            bloqueo.tomar(FacturaLegalService.claveFacturaVenta(venta.getSucursalId(), venta.getId()),
+                    ESPERA_FACTURA_VENTA);
+            facturaLegalService.exigirSinFacturaVigente(venta.getId(), venta.getSucursalId());
+        }
 
         // 1. Resolver timbrado: si viene pre-resuelto en el request, usarlo; sino lookup por pdvId
         boolean sifenHabilitado = sifenService != null && sifenService.isSifenEnabled();

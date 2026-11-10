@@ -60,6 +60,27 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
                 asc);
     }
 
+    /**
+     * Las ventas de una caja con solo id, estado, totalGs y el id del cobro (objetos sueltos, no administrados).
+     * Para el balance: evita cargar en EAGER cliente, usuario, cobro y demas relaciones de cada venta.
+     */
+    public List<Venta> findResumenByCajaId(Long id) {
+        List<Venta> l = new java.util.ArrayList<>();
+        for (Object[] r : repository.findResumenByCajaId(id)) {
+            Venta v = new Venta();
+            v.setId((Long) r[0]);
+            v.setEstado((com.franco.dev.domain.operaciones.enums.VentaEstado) r[1]);
+            v.setTotalGs(r[2] != null ? ((Number) r[2]).doubleValue() : null);
+            if (r[3] != null) {
+                com.franco.dev.domain.operaciones.Cobro c = new com.franco.dev.domain.operaciones.Cobro();
+                c.setId((Long) r[3]);
+                v.setCobro(c);
+            }
+            l.add(v);
+        }
+        return l;
+    }
+
     public List<Venta> findAllByCajaId(Long id) {
         return repository.findByCajaId(id);
     }

@@ -7,6 +7,7 @@ import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.graphql.financiero.input.BancoInput;
 import com.franco.dev.graphql.financiero.input.GastoDetalleInput;
+import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.service.financiero.*;
 import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -43,6 +44,9 @@ public class GastoDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private GastoService gastoService;
 
+    @Autowired
+    private RolSesionService rolSesionService;
+
     public Optional<GastoDetalle> gastoDetalle(Long id, Long sucId) {return service.findById(id);}
 
     public List<GastoDetalle> gastoDetalles(int page, int size, Long sucId){
@@ -50,7 +54,9 @@ public class GastoDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.findAll(pageable);
     }
 
+    /** Mutation sin clientes: solo ADMIN. */
     public GastoDetalle saveGastoDetalle(GastoDetalleInput input) throws GraphQLException  {
+        rolSesionService.exigirAdmin();
         ModelMapper m = new ModelMapper();
         GastoDetalle e = m.map(input, GastoDetalle.class);
         if(input.getUsuarioId()!=null){
