@@ -60,4 +60,17 @@ class TicketMonedaVentaTest {
         v.setCotizacion(new BigDecimal("6100"));
         return v;
     }
+
+    /** #254: el envio sale en la moneda de la venta, como los items: 5.000 Gs a 6.450 -> "0,78". */
+    @Test
+    void envio_enLaMonedaDeLaVenta() {
+        com.franco.dev.domain.financiero.Moneda usd = new com.franco.dev.domain.financiero.Moneda();
+        usd.setId(3L);
+        usd.setDecimales(2);
+        Venta venta = new Venta();
+        venta.setMoneda(usd);
+        venta.setCotizacion(new java.math.BigDecimal("6450"));
+
+        assertEquals("0,78", TicketMonedaVenta.envio(venta, 5000.0));
+    }
 }

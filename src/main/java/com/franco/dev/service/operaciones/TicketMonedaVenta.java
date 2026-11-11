@@ -62,6 +62,11 @@ public final class TicketMonedaVenta {
         return BigDecimal.valueOf(totalFinalEmpresa).divide(venta.getCotizacion(), dec, RoundingMode.HALF_UP);
     }
 
+    /** El envio del delivery en la moneda de la venta, como lo cobro el PDV: "0,78" (#254). */
+    public static String envio(Venta venta, Double valor) {
+        return formato(MonedaVenta.envioEnMoneda(valor, venta), decimales(venta));
+    }
+
     public static String formato(BigDecimal monto, int decimales) {
         NumberFormat f = NumberFormat.getNumberInstance(GERMAN);
         f.setMinimumFractionDigits(decimales);
