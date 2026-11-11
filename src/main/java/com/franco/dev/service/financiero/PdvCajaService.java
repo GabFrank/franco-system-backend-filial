@@ -622,9 +622,17 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                     + totalRetiroRs + totalGastoRs);
             balance.setDiferenciaDs(balance.getTotalDsCierre() - balance.getTotalDsAper() - totalVentaDs - vueltoDs
                     + totalRetiroDs + totalGastoDs);
+            // A centavos (#255): la suma de doubles dejaba -0.5700000000000021 o 1e-14 en una caja que cuadra, y el
+            // evento de cierre la marcaba con diferencia. Los totales no: saldoEnCaja los vuelve a sumar.
+            balance.setDiferenciaRs(centavos(balance.getDiferenciaRs()));
+            balance.setDiferenciaDs(centavos(balance.getDiferenciaDs()));
             balance.setSucursal((Sucursal) sucursalService.findById(pdvCaja.getSucursalId()).orElse(null));
         }
         return balance;
+    }
+
+    private static Double centavos(Double valor) {
+        return valor == null ? null : java.math.BigDecimal.valueOf(valor).setScale(2, java.math.RoundingMode.HALF_UP).doubleValue();
     }
 
     public PdvCaja imprimirBalance(Long id, String printerName, String local) {
