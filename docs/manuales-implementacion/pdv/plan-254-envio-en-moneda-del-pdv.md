@@ -114,6 +114,29 @@ terminar).
 
 Al terminar: configuración del PDV de la sucursal 2 apagada, filial del 8092 bajado.
 
+## Resultado de las pruebas de runtime (alpha, 11/11/2026)
+
+Filial de la rama por jar en el 8092 (`SUCURSALID=2`, `general@5552`, SIFEN y su scheduler apagados, como el alpha) y
+el desktop `web-production` de `develop` apuntado a él. PDV de la sucursal 2 en USD (configuración 12) durante las
+pruebas; cotización del dólar 6.450.
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 1 | Delivery 11 en USD (BANES 200 4,83 + envío 0,78 = 5,61 US$), «Finalizar» con la factura de la política | Factura 30102: «SERVICIO DE DELIVERY» **5.031**, total **36.185** = lo cobrado (5,61 × 6.450). Antes: 5.000 / 36.154 (factura 30093) |
+| 2 | «Finalizar con Factura» desde el pago (delivery 16, otra venta en USD) | Factura 30104: envío 5.031, total 36.185. El segundo intento del diálogo lo rechaza la protección de factura única («la venta ya tiene la factura…»), como antes |
+| 3 | Ticket simple de la venta 80140 (delivery 12, política `A_PEDIDO` + respeta=true por unos minutos), capturado en una cola CUPS propia | «Delivery: 0,78»; totales Gs 36.185, US$ 5,61. Impreso también en `frc-ticket` |
+| 4 | Cotización del comercio a 6.500 entre armar (6.450) y finalizar el delivery 13 | El desktop cobra 5,61 US$ (envío 0,78 con la cotización de la venta, `envioEnBase`): coincide con la fórmula del filial |
+| 5 | Regresión en Gs: deliverys 14 (ticket) y 15 (factura) | Ticket «Delivery: 5,000», total 36.125. Factura 30103: envío 5.000, total 36.125. Sin cambios |
+
+Alpha quedó restaurado: configuración PDV 12 inactiva, política `INTERVALO` / respeta=false, cotización del dólar 6.450
+(la 6.500 de prueba, borrada), cola `zz_ticket254` borrada.
+
+**Visto de paso, fuera de alcance (desktop / cobro):**
+- La lista de deliverys muestra por un momento el total con la cotización del día (5,55 US$) antes de convertir el
+  delivery con la de la venta (5,61).
+- El pago en USD se registra en `cobro_detalle` con el cambio del día (6.500) y la venta con el suyo (6.450): en
+  dólares coinciden, el equivalente en Gs de la caja no.
+
 ## Auditoría (paso 5, 11/11/2026)
 
 | # | Hallazgo | Qué se hizo |
@@ -126,6 +149,18 @@ Al terminar: configuración del PDV de la sucursal 2 apagada, filial del 8092 ba
 | A2 | Otros lectores del envío de catálogo | Ticket de venta (l.886/1077) entra en la fase 2; l.1008 y `PdvCajaService` son código muerto; central anotado |
 | A3 | `PdvCajaService` suma con `=+` | Variable muerta, fuera de alcance |
 | A4 | Redondeo sin modo explícito | `HALF_UP` con escala explícita en las dos divisiones |
+
+## Auditoría del diff (paso 8)
+
+- Fijo 1 (autorización): N/A, sin resolver nuevo ni cambio de permisos; `VentaGraphQL` solo cambia el contenido del ticket.
+- Fijo 2 (esquema): N/A, sin migración ni `.graphqls`.
+- Condicionales A y B: ningún archivo los dispara.
+- Fijo 3 (contrato, auditor sonnet): sin bugs. Las ventas sin moneda no leen la moneda de la empresa y dan el mismo valor
+  que antes; `precioDelivery != null` además evita un NPE que antes existía con una tarifa sin valor. Notas:
+  - El `catch` de `principal()` no evita el rollback-only si la falla es de JPA (riesgo ya aceptado en el plan).
+  - Empate exacto de HALF_UP: el desktop divide en flotante y podría diferir en un centavo; con cotización y tarifa
+    enteras casi no se da.
+  - El cableado del ticket (`printTicket58mm`) no tiene test unitario; lo cubre la prueba de runtime 3.
 
 ## Sin verificar
 
