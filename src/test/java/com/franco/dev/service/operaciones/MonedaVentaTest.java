@@ -30,6 +30,42 @@ class MonedaVentaTest {
         assertNull(MonedaVenta.equivalente(null, new BigDecimal("6100"), 0));
     }
 
+    private static Venta ventaEn(Integer decimales, String cotizacion) {
+        Moneda usd = new Moneda();
+        usd.setId(3L);
+        usd.setDecimales(decimales);
+        Venta v = new Venta();
+        v.setMoneda(usd);
+        v.setCotizacion(cotizacion != null ? new BigDecimal(cotizacion) : null);
+        return v;
+    }
+
+    /** #254: el envio se cobra convertido y redondeado a la moneda de la venta (0,78 USD = 5.031 Gs), no 5.000. */
+    @Test
+    void envio_comoLoCobraElPdv() {
+        Venta usd = ventaEn(2, "6450.0000");
+        assertEquals(new BigDecimal("0.78"), MonedaVenta.envioEnMoneda(5000.0, usd));
+        assertEquals(5031.0, MonedaVenta.envioCobrado(5000.0, usd, 0));
+        // HALF_UP en los dos redondeos: 5.000 / 6.100 = 0,8197 -> 0,82 -> 5.002
+        assertEquals(5002.0, MonedaVenta.envioCobrado(5000.0, ventaEn(2, "6100"), 0));
+    }
+
+    @Test
+    void envio_monedaSinDecimales_redondeaAEnteroComoElPdv() {
+        assertEquals(new BigDecimal("1"), MonedaVenta.envioEnMoneda(5000.0, ventaEn(null, "6450")));
+        assertEquals(6450.0, MonedaVenta.envioCobrado(5000.0, ventaEn(null, "6450"), 0));
+    }
+
+    @Test
+    void envio_sinMonedaOSinCotizacion_elDeCatalogo() {
+        assertEquals(5000.0, MonedaVenta.envioCobrado(5000.0, new Venta(), 0));
+        assertEquals(5000.0, MonedaVenta.envioCobrado(5000.0, ventaEn(2, null), 0));
+        assertEquals(5000.0, MonedaVenta.envioCobrado(5000.0, ventaEn(2, "0"), 0));
+        assertEquals(5000.0, MonedaVenta.envioCobrado(5000.0, null, 0));
+        assertNull(MonedaVenta.envioCobrado(null, ventaEn(2, "6450"), 0));
+        assertNull(MonedaVenta.envioEnMoneda(5000.0, new Venta()));
+    }
+
     @Test
     void coincide_conUnaUnidadPorItemDeTolerancia() {
         BigDecimal calculado = new BigDecimal("35685");
