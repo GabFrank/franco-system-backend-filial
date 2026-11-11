@@ -69,6 +69,33 @@ Filial de la rama por jar en el 8092 contra la base del alpha (`SUCURSALID=2`, S
    → `diferenciaDs = 0` y el evento de cierre sin `con_diferencia`.
 3. Regresión: balance de una caja solo en guaraníes, igual que con el filial del alpha (comparar las dos respuestas).
 
+## Resultado de las pruebas de runtime (alpha, 11/11/2026)
+
+Filial de la rama por jar en el 8092 contra `general@5552` (`SUCURSALID=2`, SIFEN apagado). Se comparó
+`balancePorCajaId` (18 campos: aperturas, cierres, ventas, retiros, gastos y vueltos en Rs/Ds, total general y las
+tres diferencias) contra el filial del alpha (8080, `develop` 5.6.0-alpha.19) para **las 2.386 cajas de la
+sucursal 2**:
+
+| Resultado | Cajas |
+|---|---|
+| Idénticas en los 18 campos (incluye todas las que son solo en guaraníes) | 2.196 |
+| Cambian **solo** `diferenciaRs` / `diferenciaDs`, por menos de medio centavo (máximo 0,005) | 190 |
+| …de esas, ruido o fracción de centavo que pasa a 0 (ya no se marcarían con diferencia) | 34 |
+
+- Caja 3016 (la de la issue): `diferenciaDs` −0,5700000000000021 → **−0,57**.
+- Caja 3009: −0,930232558139535 → −0,93.
+- Ningún total cambia: el saldo para gastos y retiros (`saldoEnCaja`) queda igual.
+
+El evento de cierre no se disparó por pantalla (cerrar una caja del alpha): `EventosCaja.atributosCierre` es una
+función del mismo DTO que la API devolvió, y su `con_diferencia` está cubierto por el test
+`cajaQueCuadraEnDolaresNoQuedaConDiferencia`.
+
+## Auditoría del diff (paso 8)
+
+Diff de 8 líneas en `generarBalance`. Fijo 1 (autorización) y Fijo 2 (esquema): N/A, sin resolver, permisos, migración
+ni `.graphqls`. Fijo 3 (contrato): mismos campos `Float`, con menos dígitos; el desktop los formatea a 2 decimales y
+compara contra 0. Condicionales: no se disparan.
+
 ## Auditoría (paso 5, 11/11/2026)
 
 | # | Hallazgo | Qué se hizo |
