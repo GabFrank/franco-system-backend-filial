@@ -223,6 +223,47 @@ class PdvCajaServiceBalanceTest {
         assertTrue(PdvCajaService.superaSaldo(null, "GUARANI", 1.0));
     }
 
+    // #255: la diferencia en reales y dolares sale a centavos, sin el ruido de sumar doubles.
+
+    @Test
+    void diferenciaEnDolaresSaleRedondeadaACentavos() {
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "DOLAR", 0);
+        movimiento(PdvCajaTipoMovimiento.CAJA_FINAL, "DOLAR", 27);
+        venta(VentaEstado.CONCLUIDA, 130_000, pago("DOLAR", 20.1));
+        venta(VentaEstado.CONCLUIDA, 48_000, pago("DOLAR", 7.47));
+
+        PdvCajaBalanceDto b = service.generarBalance(caja());
+
+        assertEquals(-0.57, b.getDiferenciaDs(), 0.0, "sin delta: antes -0.5700000000000003");
+    }
+
+    @Test
+    void cajaQueCuadraEnDolaresNoQuedaConDiferencia() {
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "DOLAR", 0);
+        movimiento(PdvCajaTipoMovimiento.CAJA_FINAL, "DOLAR", 0.3);
+        venta(VentaEstado.CONCLUIDA, 645, pago("DOLAR", 0.1));
+        venta(VentaEstado.CONCLUIDA, 1_290, pago("DOLAR", 0.2));
+        PdvCaja caja = caja();
+
+        PdvCajaBalanceDto b = service.generarBalance(caja);
+
+        assertEquals(0.0, b.getDiferenciaDs(), 0.0, "antes -5.55e-17");
+        assertEquals(Boolean.FALSE, com.franco.dev.eventos.EventosCaja.atributosCierre(caja, b).get("con_diferencia"),
+                "sin alerta falsa de cierre con diferencia");
+    }
+
+    @Test
+    void fraccionDeCentavoViejaEnRealesNoEsDiferencia() {
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "REAL", 0);
+        movimiento(PdvCajaTipoMovimiento.CAJA_FINAL, "REAL", 10);
+        // vuelto convertido de 2026-03 (dato real del alpha): un tercio de centavo
+        venta(VentaEstado.CONCLUIDA, 12_000, pago("REAL", 10), vuelto("REAL", -0.00333333333333333));
+
+        PdvCajaBalanceDto b = service.generarBalance(caja());
+
+        assertEquals(0.0, b.getDiferenciaRs(), 0.0);
+    }
+
     private void retiros(RetiroDetalle... detalles) {
         when(retiroDetalleService.findByCajId(CAJA_ID)).thenReturn(Arrays.asList(detalles));
     }
