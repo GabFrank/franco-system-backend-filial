@@ -1,6 +1,7 @@
 package com.franco.dev.service.operaciones;
 
 import com.franco.dev.domain.financiero.Moneda;
+import com.franco.dev.domain.operaciones.Venta;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -42,6 +43,27 @@ public final class MonedaVenta {
         if (enviado == null || calculado == null) return true;
         BigDecimal tolerancia = BigDecimal.ONE.movePointLeft(decimalesEmpresa).multiply(BigDecimal.valueOf(Math.max(unidades, 1)));
         return BigDecimal.valueOf(enviado).subtract(calculado).abs().compareTo(tolerancia) <= 0;
+    }
+
+    /**
+     * El envio de un delivery (tarifa en la moneda de la empresa) en la moneda de la venta, redondeado a sus
+     * decimales como lo cobra el PDV: 5.000 / 6.450 = 0,78. Null si la venta no tiene moneda o cotizacion positiva.
+     */
+    public static BigDecimal envioEnMoneda(Double valor, Venta venta) {
+        if (valor == null || venta == null || venta.getMoneda() == null) return null;
+        BigDecimal cot = venta.getCotizacion();
+        if (cot == null || cot.signum() <= 0) return null;
+        return BigDecimal.valueOf(valor).divide(cot, decimales(venta.getMoneda()), RoundingMode.HALF_UP);
+    }
+
+    /**
+     * El envio que se cobro, en la moneda de la empresa: el de {@link #envioEnMoneda} por la cotizacion (0,78 x 6.450 =
+     * 5.031). Sin moneda en la venta, el valor de la tarifa, como siempre (#254).
+     */
+    public static Double envioCobrado(Double valor, Venta venta, int decimalesEmpresa) {
+        BigDecimal enMoneda = envioEnMoneda(valor, venta);
+        if (enMoneda == null) return valor;
+        return equivalente(enMoneda, venta.getCotizacion(), decimalesEmpresa).doubleValue();
     }
 
     public static BigDecimal aBigDecimal(Double d) {
