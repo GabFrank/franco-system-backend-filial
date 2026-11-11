@@ -47,8 +47,8 @@ ese DTO.
 
 ## Fuera de alcance (anotado)
 
-- El central tiene el mismo cálculo (`PdvCajaService.java:468` del central) para su detalle de caja: mismo ruido. Va
-  aparte, en el repo del central.
+- El central tiene el mismo cálculo (`PdvCajaService.java:468` del central) para su detalle de caja: mismo ruido.
+  Issue aparte: GabFrank/franco-system-backend-servidor#604.
 - Eventos ya guardados con el número con ruido: no se corrigen.
 
 ## Datos nuevos
@@ -86,9 +86,13 @@ sucursal 2**:
 - Caja 3009: −0,930232558139535 → −0,93.
 - Ningún total cambia: el saldo para gastos y retiros (`saldoEnCaja`) queda igual.
 
-El evento de cierre no se disparó por pantalla (cerrar una caja del alpha): `EventosCaja.atributosCierre` es una
-función del mismo DTO que la API devolvió, y su `con_diferencia` está cubierto por el test
-`cajaQueCuadraEnDolaresNoQuedaConDiferencia`.
+**Cierre real por pantalla:** caja 3018 (MR, abierta desde el runbook), cerrada desde el PDV contra el filial de la rama
+con conteo 302.500 Gs y 60 US$ (esperado 60,15; ventas en dólares 62,949999999999996 en double). Balance después del
+cierre: filial actual `diferenciaDs` = −0,14999999999999591; filial de la rama **−0,15**; totales idénticos.
+
+El evento de cierre no se pudo ver: en alpha el emisor de eventos no registra nada (`eventos.outbox_evento` vacía,
+antes y después del cierre). `EventosCaja.atributosCierre` es una función del mismo DTO que la API devolvió, y su
+`con_diferencia` está cubierto por el test `cajaQueCuadraEnDolaresNoQuedaConDiferencia`.
 
 ## Auditoría del diff (paso 8)
 
