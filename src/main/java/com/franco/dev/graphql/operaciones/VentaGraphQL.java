@@ -883,7 +883,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         Moneda monedaDs = monedaService.findById(Long.valueOf(3)).orElse(null);
 
         if (delivery != null) {
-            precioDeliveryGs = delivery.getPrecio().getValor();
+            // En una venta en otra moneda, el envio que cobro el PDV y no la tarifa (#254): cuadran los totales.
+            precioDeliveryGs = MonedaVenta.envioCobrado(delivery.getPrecio().getValor(), venta, MonedaVenta.decimales(monedaGs));
             precioDeliveryRs = precioDeliveryGs / cambioRs;
             precioDeliveryDs = precioDeliveryGs / cambioDs;
         }
@@ -1012,7 +1013,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             if (delivery != null) {
                 escpos.writeLF("--------------------------------");
                 escpos.write("Delivery: ");
-                String deliveryGs = df.format(precioDeliveryGs.intValue());
+                String deliveryGs = enOtraMoneda
+                        ? TicketMonedaVenta.envio(venta, delivery.getPrecio().getValor())
+                        : df.format(precioDeliveryGs.intValue());
                 for (int i = 22; i > deliveryGs.length(); i--) {
                     escpos.write(" ");
                 }
