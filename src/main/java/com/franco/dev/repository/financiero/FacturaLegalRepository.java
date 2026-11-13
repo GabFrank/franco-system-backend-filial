@@ -30,7 +30,7 @@ public interface FacturaLegalRepository extends HelperRepository<FacturaLegal, L
      * al mismo cliente, emitidas desde {@code desde} (el arranque del día). El filtro
      * fino (monto e items) se resuelve después en {@code FacturaSimilarService}.
      * <p>
-     * No se acota por caja porque {@code factura_legal.caja_id} casi nunca se persiste:
+     * No se acota por caja porque {@code factura_legal.caja_id} no siempre se persiste:
      * el diálogo de factura no siempre tiene una caja seleccionada.
      */
     public List<FacturaLegal> findByUsuarioIdAndClienteIdAndSucursalIdAndCreadoEnGreaterThanEqualOrderByIdDesc(

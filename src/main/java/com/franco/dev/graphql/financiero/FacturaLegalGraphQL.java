@@ -262,8 +262,12 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
 
             // Mapear relaciones
-            if (entity.getCajaId() != null) {
-                // TODO: Implementar mapeo de caja si es necesario
+            // Sin caja, reimprimir la factura (ticketEscpos) pide ANALISIS DE CAJA aun al cajero que la emitio.
+            // Con venta manda la caja de la venta (como FacturaService); el cajaId del cliente, solo sin venta.
+            if (ventaDeLaFactura != null && ventaDeLaFactura.getCaja() != null) {
+                facturaLegal.setCaja(ventaDeLaFactura.getCaja());
+            } else if (entity.getCajaId() != null) {
+                pdvCajaService.findById(entity.getCajaId()).ifPresent(facturaLegal::setCaja);
             }
 
             if (entity.getClienteId() != null && entity.getClienteId() != 0) {
