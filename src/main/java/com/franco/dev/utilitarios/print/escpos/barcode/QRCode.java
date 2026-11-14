@@ -71,7 +71,7 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
     /**
      * Set model of bar-code.
      *
-     * @param model value used on function 65
+     * @param model value used on function 65; null (el default) no manda la función y la impresora usa su modelo
      * @return this object.
      * @see #getBytes(java.lang.String)
      */
