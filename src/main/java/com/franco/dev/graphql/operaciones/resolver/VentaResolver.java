@@ -43,15 +43,10 @@ public class VentaResolver implements GraphQLResolver<Venta> {
         return Collections.emptyList();
     }
 
+    /** Se suma en la base: cargar los items solo para esto traia producto, presentacion y precio de cada uno. */
     public Double valorDescuento(Venta v){
-        Double descuento = 0.0;
-        List<VentaItem> ventaItemList = ventaItemService.findByVentaId(v.getId());
-        for (VentaItem vi : ventaItemList){
-            if(vi.getValorDescuento()!=null){
-                descuento += vi.getValorDescuento() * vi.getCantidad();
-            }
-        }
-        return descuento;
+        if (v == null || v.getId() == null) return 0.0;
+        return ventaItemService.totalDescuentoByVentaId(v.getId());
     }
 
     public Double valorTotal(Venta v){
