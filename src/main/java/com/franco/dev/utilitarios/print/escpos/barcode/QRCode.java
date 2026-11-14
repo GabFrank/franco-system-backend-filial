@@ -11,12 +11,13 @@ import java.io.ByteArrayOutputStream;
 public class QRCode implements EscPosConst, BarCodeWrapperInterface{
 
     /**
-     * Values for QRCode model.
+     * Values for QRCode model (función 165: n1 = 49 modelo 1, 50 modelo 2).
+     * Un valor fuera de esos la OLIVETTI PRT80 lo imprime como texto: el 48 salía como «0» (#259).
      * @see #setModel(QRModel)
      */
     public enum QRModel{
-        _1_Default(48),
-        _2(49),
+        _1(49),
+        _2_Default(50),
         ;
         public int value;
         private QRModel(int value){
@@ -47,7 +48,7 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
 
     public QRCode(){
         justification = Justification.Left_Default;
-        model = QRModel._1_Default;
+        model = QRModel._2_Default;
         size = 3;
         errorCorrectionLevel = QRErrorCorrectionLevel.QR_ECLEVEL_M_Default;
     }
