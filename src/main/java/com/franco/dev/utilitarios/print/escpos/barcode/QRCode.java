@@ -12,12 +12,11 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
 
     /**
      * Values for QRCode model (función 165: n1 = 49 modelo 1, 50 modelo 2).
-     * Un valor fuera de esos la OLIVETTI PRT80 lo imprime como texto: el 48 salía como «0» (#259).
      * @see #setModel(QRModel)
      */
     public enum QRModel{
         _1(49),
-        _2_Default(50),
+        _2(50),
         ;
         public int value;
         private QRModel(int value){
@@ -48,7 +47,9 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
 
     public QRCode(){
         justification = Justification.Left_Default;
-        model = QRModel._2_Default;
+        // Sin modelo no se manda la función 165: la impresora usa su default (modelo 2). La OLIVETTI PRT80
+        // no la entiende e imprime n1 como texto («0» con 48, «2» con 50) (#259).
+        model = null;
         size = 3;
         errorCorrectionLevel = QRErrorCorrectionLevel.QR_ECLEVEL_M_Default;
     }
@@ -139,15 +140,17 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
         bytes.write(justification.value);
 
         // Function 065
-        bytes.write(GS);
-        bytes.write('(');
-        bytes.write('k');
-        bytes.write(4); // pL size of bytes
-        bytes.write(0); // pH size of bytes
-        bytes.write(49); // cn
-        bytes.write(65); // fn
-        bytes.write(model.value); // n1
-        bytes.write(0); // n2
+        if (model != null) {
+            bytes.write(GS);
+            bytes.write('(');
+            bytes.write('k');
+            bytes.write(4); // pL size of bytes
+            bytes.write(0); // pH size of bytes
+            bytes.write(49); // cn
+            bytes.write(65); // fn
+            bytes.write(model.value); // n1
+            bytes.write(0); // n2
+        }
 
         // Function 067
         bytes.write(GS);

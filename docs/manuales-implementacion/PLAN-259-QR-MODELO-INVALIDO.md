@@ -10,7 +10,14 @@ Rama: `fix/impresion-qr-modelo` (desde `develop`)
 (micro). La OLIVETTI PRT80 corta el comando y procesa el 48 como texto: imprime «0». La Xprinter lo ignoraba.
 Prueba en `frc-ticket` (14/11): 48 → «0»; 49 y 50 → sin «0».
 
-## Cambio (una fase)
+## Corrección tras la prueba en papel (14/11)
+
+Con 50 los tickets reales salieron con un «2» arriba del QR: la OLIVETTI PRT80 no entiende la función 165 e imprime
+`n1` como texto, sea cual sea. El arreglo final es **no mandar la función 165** salvo que se pida un modelo con
+`setModel`: la impresora usa su default (modelo 2), que es lo que ya hacían las que descartaban el 48. Probado en papel:
+ticket de venta y balance de la caja 1178 sin ningún número.
+
+## Cambio (primera versión, reemplazada por la corrección de arriba)
 
 | Archivo | Cambio |
 |---|---|
