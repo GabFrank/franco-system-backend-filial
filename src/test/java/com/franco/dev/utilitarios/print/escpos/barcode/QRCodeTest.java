@@ -39,6 +39,14 @@ class QRCodeTest {
     }
 
     @Test
+    void cadaModeloMandaSuValor() {
+        byte[] b1 = new QRCode().setModel(QRCode.QRModel._1).getBytes(DATO);
+        byte[] b2 = new QRCode().setModel(QRCode.QRModel._2).getBytes(DATO);
+        assertEquals(49, b1[funcionModelo(b1) + 7]);
+        assertEquals(50, b2[funcionModelo(b2) + 7]);
+    }
+
+    @Test
     void elDatoSigueEnLosBytes() {
         String bytes = new String(new QRCode().getBytes(DATO), java.nio.charset.StandardCharsets.ISO_8859_1);
         assertTrue(bytes.contains(DATO));
