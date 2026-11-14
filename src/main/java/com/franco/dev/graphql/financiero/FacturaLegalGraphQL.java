@@ -1708,7 +1708,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             
             // Mostrar cambio utilizado
             escpos.writeLF(center.setBold(true), "Cambio: " + 
-                String.format(Locale.GERMAN, "%.2f", tipoCambio) + " Gs/" + monedaExtranjera.toUpperCase());
+                String.format(Locale.GERMAN, "%,.0f", tipoCambio) + " Gs/" + monedaExtranjera.toUpperCase());
 
             if (sucursal != null) {
                 escpos.writeLF(center, "Suc: " + sucursal.getNombre());
