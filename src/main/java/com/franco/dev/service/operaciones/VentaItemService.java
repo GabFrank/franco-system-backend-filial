@@ -50,6 +50,11 @@ public class VentaItemService extends CrudService<VentaItem, VentaItemRepository
         return repository.findByVentaId(id);
     }
 
+    public Double totalDescuentoByVentaId(Long id) {
+        Double total = repository.totalDescuentoByVentaId(id);
+        return total != null ? total : 0.0;
+    }
+
     @Override
     public VentaItem save(VentaItem entity) {
         if (entity.getSucursalId() == null) entity.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
