@@ -81,6 +81,26 @@ class SorteoTicketRenderTest {
         assertEquals(2, contar(s, "\u001dV0"));
     }
 
+    /** Impresoras sin cortador ignoran el GS V: la linea marca por donde separar cada ticket. */
+    @Test
+    void conVariosTicketsCadaUnoTerminaEnLineaDeCorte() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        String s = render(false, Arrays.asList(ticket(1, 2, false), ticket(2, 2, false)), out);
+        assertEquals(2, contar(s, ImpresionService.LINEA_CORTE_SORTEO));
+        // Va despues del pie de cada ticket y antes de su corte.
+        int pie = s.indexOf("Deposite este ticket firmado en la urna");
+        int linea = s.indexOf(ImpresionService.LINEA_CORTE_SORTEO);
+        assertTrue(pie < linea && linea < s.indexOf("\u001dV0"));
+        assertEquals(42, ImpresionService.LINEA_CORTE_SORTEO.length());
+    }
+
+    @Test
+    void unSoloTicketNoLlevaLineaDeCorte() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        String s = render(false, Arrays.asList(ticket(1, 1, false)), out);
+        assertFalse(s.contains(ImpresionService.LINEA_CORTE_SORTEO));
+    }
+
     @Test
     void sinLogoNoFallaYReimpresionLoMarca() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -121,11 +141,12 @@ class SorteoTicketRenderTest {
     @Test
     void ningunaLineaPasaDe32Columnas() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        String s = soloTexto(render(false, Arrays.asList(ticket(1, 1, false)), out));
+        String s = soloTexto(render(false, Arrays.asList(ticket(1, 2, false), ticket(2, 2, false)), out));
         assertTrue(s.contains("Canasta"));
         int medidas = 0;
         for (String linea : s.split("\n")) {
-            int max = linea.contains("Deposite") ? 42 : 32; // el pie va en fuente B
+            // el pie y la linea de corte van en fuente B
+            int max = linea.contains("Deposite") || linea.contains("CORTAR") ? 42 : 32;
             assertTrue(linea.length() <= max, "linea larga (" + linea.length() + "): " + linea);
             medidas++;
         }
