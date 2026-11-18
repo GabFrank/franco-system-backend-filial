@@ -49,11 +49,14 @@ class ConteoGraphQLSaveConteoTest {
 
         resolver = new ConteoGraphQL();
         ReflectionTestUtils.setField(resolver, "service", service);
+        ReflectionTestUtils.setField(resolver, "eventoEmisor", org.mockito.Mockito.mock(com.franco.dev.eventos.EventoEmisor.class));
+        ReflectionTestUtils.setField(resolver, "conteoMonedaService", org.mockito.Mockito.mock(com.franco.dev.service.financiero.ConteoMonedaService.class));
         ReflectionTestUtils.setField(resolver, "pdvCajaService", pdvCajaService);
         ReflectionTestUtils.setField(resolver, "sucursalService", sucursalService);
         ReflectionTestUtils.setField(resolver, "monedaService", monedaService);
         ReflectionTestUtils.setField(resolver, "usuarioService", mock(UsuarioService.class));
-        ReflectionTestUtils.setField(resolver, "auditorUsuarioId", mock(AuditorUsuarioId.class));
+        ReflectionTestUtils.setField(resolver, "auditorUsuarioId",
+                com.franco.dev.service.seguridad.AuditorUsuarioIdMocks.queFirmaElInput());
         ReflectionTestUtils.setField(resolver, "conteoMonedaGraphQL", mock(ConteoMonedaGraphQL.class));
         rolSesionService = mock(RolSesionService.class);
         ReflectionTestUtils.setField(resolver, "rolSesionService", rolSesionService);

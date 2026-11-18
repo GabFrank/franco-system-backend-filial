@@ -5,7 +5,6 @@ import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.franco.dev.graphql.configuraciones.publisher.SincronizacionStatusPublisher;
-import com.franco.dev.service.configuracion.UpdateService;
 import graphql.parser.ParserOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,9 +39,6 @@ public class FrancoSystemsApplication {
 
     @Autowired
     private Environment env;
-
-    @Autowired
-    private UpdateService updateService;
 
     public static void main(String[] args) throws IOException {
         System.out.println("Iniciando sistema");

@@ -8,6 +8,8 @@ type PrecioPorSucursal {
     usuario: Usuario
     principal: Boolean
     activo: Boolean
+    "Moneda del precio. null = la moneda de la empresa (principal)."
+    moneda: Moneda
 }
 
 input PrecioPorSucursalInput {
@@ -35,3 +37,14 @@ extend type Mutation {
 }
 
 
+
+"Un precio de venta que no esta en la moneda de la empresa (V110.5)."
+type PrecioEnOtraMoneda {
+    precioId: ID!
+    moneda: Moneda!
+}
+
+extend type Query {
+    "Los precios en otra moneda que la de la empresa. El PDV la pide aparte y la cachea: contra una filial vieja falla y todo es de la moneda de la empresa."
+    preciosEnOtraMoneda: [PrecioEnOtraMoneda]!
+}

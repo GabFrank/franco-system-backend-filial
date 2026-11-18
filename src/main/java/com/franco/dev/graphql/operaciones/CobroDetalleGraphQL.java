@@ -1,9 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
-import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.domain.operaciones.CobroDetalle;
-import com.franco.dev.graphql.financiero.MovimientoCajaGraphQL;
-import com.franco.dev.graphql.financiero.input.MovimientoCajaInput;
 import com.franco.dev.graphql.operaciones.input.CobroDetalleInput;
 import com.franco.dev.service.financiero.FormaPagoService;
 import com.franco.dev.service.financiero.MonedaService;
@@ -42,8 +39,6 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     private FormaPagoService formaPagoService;
     @Autowired
     private CobroService cobroService;
-    @Autowired
-    private MovimientoCajaGraphQL movimientoCajaGraphQL;
 
 
     @Autowired
@@ -62,7 +57,46 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.findAll(pageable);
     }
 
+    /**
+     * Mutation directa: editar un cobro ya guardado avisa venta.cobro_editado en la misma TX (fase 2,
+     * #246). El alta y lo que guardan saveVenta / saveVentaDelivery van por guardarDetalle, sin aviso.
+     */
+    @org.springframework.transaction.annotation.Transactional
     public CobroDetalle saveCobroDetalle(CobroDetalleInput input) {
+        boolean edicion = input.getId() != null && service.findById(input.getId()).isPresent();
+        CobroDetalle cd = guardarDetalle(input);
+        if (edicion && cd != null) emitirCobroEditado(cd.getCobro());
+        return cd;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.franco.dev.eventos.EventoEmisor eventoEmisor;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.franco.dev.repository.operaciones.VentaRepository ventaRepository;
+
+    void emitirCobroEditado(com.franco.dev.domain.operaciones.Cobro cobro) {
+        if (cobro == null) return;
+        com.franco.dev.domain.operaciones.Venta venta = ventaRepository.findFirstByCobro_Id(cobro.getId());
+        if (venta == null) return;
+        List<CobroDetalle>[] cache = new List[1];
+        java.util.function.Supplier<List<CobroDetalle>> detalles = () -> {
+            if (cache[0] == null) cache[0] = service.findByCobroId(cobro.getId());
+            return cache[0];
+        };
+        eventoEmisor.emitirProyeccion("venta.cobro_editado", "media",
+                venta.getUsuario() != null ? venta.getUsuario().getId() : null,
+                "venta/" + venta.getSucursalId() + "/" + venta.getId(),
+                () -> com.franco.dev.eventos.EventosVenta.cobroEditado(venta, detalles.get()),
+                () -> {
+                    java.util.Map<String, Object> a = com.franco.dev.eventos.EventosVenta.atributosVenta(venta, detalles.get());
+                    a.keySet().retainAll(java.util.Arrays.asList("formas_pago", "formas_pago_id", "monedas", "caja_id"));
+                    return a;
+                });
+    }
+
+    /** Guardado sin aviso: lo usan saveVenta, saveVentaDelivery y CobroGraphQL. */
+    public CobroDetalle guardarDetalle(CobroDetalleInput input) {
         auditorUsuarioId.verificar("CobroDetalleGraphQL.saveCobroDetalle", input.getUsuarioId());
         ModelMapper m = new ModelMapper();
         CobroDetalle e = m.map(input, CobroDetalle.class);
@@ -75,25 +109,21 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return cobroDetalle;
     }
 
+    /** La lista va en una sola TX y avisa una vez por cobro editado (fase 2, #246). */
+    @org.springframework.transaction.annotation.Transactional
     public List<CobroDetalle> saveCobroDetalleList(List<CobroDetalleInput> cobroDetalleInputList) {
         List<CobroDetalle> cobroDetalleList = new ArrayList<>();
+        java.util.Map<Long, com.franco.dev.domain.operaciones.Cobro> editados = new java.util.LinkedHashMap<>();
         if (cobroDetalleInputList != null) {
             for (CobroDetalleInput input : cobroDetalleInputList) {
-                CobroDetalle cobroDetalle = saveCobroDetalle(input);
+                boolean edicion = input.getId() != null && service.findById(input.getId()).isPresent();
+                CobroDetalle cobroDetalle = guardarDetalle(input);
+                if (edicion && cobroDetalle != null && cobroDetalle.getCobro() != null)
+                    editados.putIfAbsent(cobroDetalle.getCobro().getId(), cobroDetalle.getCobro());
                 cobroDetalleList.add(cobroDetalle);
-                if (input.getId() == null && cobroDetalle.getDescuento() != true && cobroDetalle.getAumento() != true && cobroDetalle.getFormaPago().getDescripcion().toUpperCase().contains("EFECTIVO")) {
-                    MovimientoCajaInput movimientoCajaInput = new MovimientoCajaInput();
-                    movimientoCajaInput.setMonedaId(cobroDetalle.getMoneda().getId());
-                    movimientoCajaInput.setCantidad(cobroDetalle.getValor());
-                    movimientoCajaInput.setActivo(true);
-                    movimientoCajaInput.setPdvCajaId(cobroDetalle.getSucursalId());
-                    movimientoCajaInput.setReferencia(cobroDetalle.getCobro().getId());
-                    movimientoCajaInput.setTipoMovimiento(PdvCajaTipoMovimiento.VENTA);
-                    movimientoCajaInput.setUsuarioId(cobroDetalle.getCobro().getUsuario().getId());
-                    movimientoCajaGraphQL.saveMovimientoCaja(movimientoCajaInput);
-                }
             }
         }
+        editados.values().forEach(this::emitirCobroEditado);
         return cobroDetalleList;
     }
 

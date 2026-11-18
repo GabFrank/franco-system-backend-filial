@@ -443,6 +443,9 @@ public class FacturaLegalApiService {
         
         // Validar y normalizar código de moneda (máximo 3 caracteres, ISO 4217)
         String monedaNormalizada = monedaExtranjera.trim().toUpperCase();
+        // Una denominacion ("DOLAR") se lleva a su codigo; truncarla daba "DOL", que SIFEN no conoce.
+        String iso = CodigoIsoMoneda.deDenominacion(monedaNormalizada);
+        if (iso != null) monedaNormalizada = iso;
         if (monedaNormalizada.length() > 3) {
             log.warn("Moneda extranjera '{}' excede 3 caracteres, truncando a los primeros 3 caracteres", 
                     monedaExtranjera);

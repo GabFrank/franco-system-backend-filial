@@ -1,0 +1,5 @@
+extend type Mutation {
+    # Manda un aviso de prueba (webhook.prueba) solo a esa suscripcion, desde esta filial.
+    # Lo llama el central al tocar «Enviar prueba» en Configuracion -> Webhooks.
+    webhookEnviarPrueba(suscripcionId: ID!): Boolean!
+}

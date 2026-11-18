@@ -21,4 +21,7 @@ public interface PrecioPorSucursalRepository extends HelperRepository<PrecioPorS
             "            where c.principal = true and p.id = ?1 limit 1", nativeQuery = true)
     public PrecioPorSucursal findPrincipalByPresentacionId(Long id);
 
+    /** Los precios activos en otra moneda que la de la empresa (moneda_id no nulo, V110.5). */
+    @Query("select p from PrecioPorSucursal p join fetch p.moneda where p.moneda is not null and (p.activo is null or p.activo = true)")
+    List<PrecioPorSucursal> findConMoneda();
 }

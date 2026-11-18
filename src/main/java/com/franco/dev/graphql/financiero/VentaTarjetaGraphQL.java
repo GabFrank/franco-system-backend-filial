@@ -139,7 +139,7 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (input.getUsuarioId() != null) {
             entity.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
         }
-        return service.save(entity);
+        return service.guardarConAviso(entity);
     }
 
     /**
@@ -167,13 +167,7 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     }
 
     public Boolean cancelarVentaTarjetaPorVentaId(Long ventaId, Long sucId) {
-        List<VentaTarjeta> registros = service.findAllByVentaIdAndSucursalId(ventaId, sucId);
-        if (registros == null || registros.isEmpty()) return false;
-        registros.forEach(vt -> {
-            vt.setEstado("CANCELADO");
-            service.save(vt);
-        });
-        return true;
+        return service.cancelarPorVenta(ventaId, sucId);
     }
 
     /**

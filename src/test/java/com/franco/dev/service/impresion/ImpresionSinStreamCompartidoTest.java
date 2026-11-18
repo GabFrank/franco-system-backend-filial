@@ -34,8 +34,8 @@ class ImpresionSinStreamCompartidoTest {
                 Class<?> t = f.getType();
                 if (!Modifier.isStatic(f.getModifiers()) && (OutputStream.class.isAssignableFrom(t)
                         || EscPos.class.isAssignableFrom(t)
-                        // la impresora destino tambien es por llamada; salvo la «ultima usada» de PrintingService
-                        || (PrintService.class.isAssignableFrom(t) && !f.getName().equals("selectedPrintService")))) {
+                        // la impresora destino tambien es por llamada (#226: tampoco una «ultima usada»)
+                        || PrintService.class.isAssignableFrom(t))) {
                     compartidos.add(bean.getSimpleName() + "." + f.getName());
                 }
             }

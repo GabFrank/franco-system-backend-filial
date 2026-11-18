@@ -55,7 +55,6 @@ class ImpresionServiceDestinoTest {
         when(sucursalService.sucursalActual()).thenReturn(sucursal);
         impresora = new CapturaPrintService();
         when(printingService.getPrintService(any())).thenReturn(impresora);
-        when(printingService.getLasUsedPrinter()).thenReturn(impresora);
     }
 
     private static Usuario usuario(String nombre) {

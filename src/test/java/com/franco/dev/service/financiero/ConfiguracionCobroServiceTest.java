@@ -67,6 +67,30 @@ public class ConfiguracionCobroServiceTest {
         assertEquals(0, new BigDecimal("20").compareTo(fila(1L, true, new BigDecimal("-5")).getAumentoTopePorcentaje()));
     }
 
+    @Test
+    public void descuentoSinFilaOConNullQuedaSinTope() {
+        when(repository.findAllByOrderByIdAsc()).thenReturn(Collections.emptyList());
+        ConfiguracionCobro def = service.findOrDefault();
+        assertFalse(def.getDescuentoConTope());
+        assertEquals(0, new BigDecimal("15").compareTo(def.getDescuentoTopePorcentaje()));
+
+        ConfiguracionCobro replicada = fila(1L, true, new BigDecimal("20"));
+        replicada.setDescuentoConTope(null);
+        replicada.setDescuentoTopePorcentaje(null);
+        assertFalse(replicada.getDescuentoConTope());
+        assertEquals(0, new BigDecimal("15").compareTo(replicada.getDescuentoTopePorcentaje()));
+    }
+
+    @Test
+    public void descuentoConTopeReplicadoSeRespeta() {
+        ConfiguracionCobro c = fila(1L, true, new BigDecimal("20"));
+        c.setDescuentoConTope(true);
+        c.setDescuentoTopePorcentaje(new BigDecimal("8"));
+        assertTrue(c.getDescuentoConTope());
+        assertEquals(0, new BigDecimal("8").compareTo(c.getDescuentoTopePorcentaje()));
+        assertEquals(0, new BigDecimal("15").compareTo(fila(1L, true, null).getDescuentoTopePorcentaje()));
+    }
+
     private static ConfiguracionCobro fila(Long id, Boolean conTope, BigDecimal pct) {
         ConfiguracionCobro c = new ConfiguracionCobro();
         c.setId(id);

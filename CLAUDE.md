@@ -357,6 +357,22 @@ para siempre. `NULL` y `true` son sinónimos; solo `false` es cancelada. Todo le
 `false` (`Boolean.FALSE.equals`, `IS NOT FALSE`), nunca contra `true`. Detalle:
 `docs/manuales-implementacion/financiero/FACTURA-LEGAL-ACTIVO-NULL.md`.
 
+## Una venta, una factura vigente
+
+`FacturaLegalBuilder.build()` no emite una factura para una venta que ya tiene una vigente
+(`FacturaLegalService.exigirSinFacturaVigente`, issue #221). Antes de leer el timbrado toma el lock
+`factura-venta:<sucursal>:<venta>` (`claveFacturaVenta`, el mismo de PARA ENTREGA, #210) y corta con
+`GraphQLException` antes del primer write. `saveFacturaLegal` hace el mismo control al principio, sin lock,
+para no crear persona ni cliente de una factura rechazada.
+
+- Solo actúa si la factura trae venta. El desktop la manda en «Finalizar con factura» de un delivery;
+  un desktop anterior no la manda y ahí todo sigue como antes.
+- `vincularFacturaLegalAVenta` no controla a propósito: a esa altura la factura ya está emitida, y
+  rechazar la dejaría activa y sin venta.
+- Para volver a facturar una venta hay que cancelar la vigente (`activo = false`).
+- `exigirSinFacturaVigente` no lleva `@Transactional`: una excepción de un método transaccional dejaría
+  rollback-only la transacción del builder (y la de `saveVenta`).
+
 ## El teléfono del emisor del DE sale del timbrado
 
 `dTelEmi` es el teléfono del `timbrado_detalle` y, si está vacío o en blanco, el de la cabecera

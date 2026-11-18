@@ -1,5 +1,7 @@
 package com.franco.dev.service.financiero;
 
+import com.franco.dev.domain.financiero.Moneda;
+import com.franco.dev.service.operaciones.MonedaVenta;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.Timbrado;
 import com.franco.dev.domain.financiero.TimbradoDetalle;
@@ -104,6 +106,12 @@ public class FacturaService {
 
     @Autowired
     private DocumentoElectronicoService documentoElectronicoService;
+
+    @Autowired(required = false)
+    private MonedaFacturaResolver monedaFacturaResolver;
+
+    @Autowired(required = false)
+    private MonedaService monedaService;
 
     public DecimalFormat df = new DecimalFormat("#,###.##");
 
@@ -351,6 +359,14 @@ public class FacturaService {
         facturaLegal.setUsuario(venta.getUsuario());
         facturaLegal.setSucursalId(venta.getSucursalId());
         facturaLegal.setCredito(false);
+        // Factura en otra moneda (modulo FACTURACION, o la de la venta): los montos siguen en la moneda
+        // de la empresa y la moneda va como monedaExtranjera + tipoCambio. Sin eso, como siempre.
+        if (monedaFacturaResolver != null) {
+            monedaFacturaResolver.para(venta).ifPresent(mf -> {
+                facturaLegal.setMonedaExtranjera(mf.getCodigoIso());
+                facturaLegal.setTipoCambio(mf.getTipoCambio());
+            });
+        }
 
         // Construir descriptores desde VentaItem.
         // El builder se encarga de:
@@ -379,8 +395,8 @@ public class FacturaService {
         }
         // Delivery como item adicional iva 10
         if (venta.getDelivery() != null && venta.getDelivery().getPrecio() != null) {
-            Double precioDelivery = venta.getDelivery().getPrecio().getValor();
-            if (precioDelivery > 0) {
+            Double precioDelivery = envioCobrado(venta, venta.getDelivery().getPrecio().getValor());
+            if (precioDelivery != null && precioDelivery > 0) {
                 com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor dDelivery =
                         new com.franco.dev.service.financiero.builder.FacturaLegalItemDescriptor();
                 dDelivery.setIva(10);
@@ -409,6 +425,21 @@ public class FacturaService {
         } catch (RuntimeException e) {
             log.error("Error creando factura legal desde venta {}: {}", venta.getId(), e.getMessage(), e);
             throw e;
+        }
+    }
+
+    /**
+     * El envio como lo cobro el PDV (#254): en una venta en otra moneda, convertido y redondeado a esa moneda. La
+     * moneda de la empresa se lee solo para esas ventas; si no se puede, la tarifa, como siempre.
+     */
+    private Double envioCobrado(Venta venta, Double valor) {
+        if (venta.getMoneda() == null || monedaService == null) return valor;
+        try {
+            Moneda empresa = monedaService.principal();
+            return empresa == null ? valor : MonedaVenta.envioCobrado(valor, venta, MonedaVenta.decimales(empresa));
+        } catch (RuntimeException e) {
+            log.warn("ENVIO_EN_MONEDA_NO_CALCULADO venta={}: la factura lleva la tarifa: {}", venta.getId(), e.getMessage());
+            return valor;
         }
     }
 

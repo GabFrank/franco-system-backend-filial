@@ -2,9 +2,13 @@ package com.franco.dev.service.financiero;
 
 import com.franco.dev.domain.financiero.Conteo;
 import com.franco.dev.domain.financiero.FormaPago;
+import com.franco.dev.domain.financiero.Gasto;
 import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.domain.financiero.MovimientoCaja;
 import com.franco.dev.domain.financiero.PdvCaja;
+import com.franco.dev.domain.financiero.Retiro;
+import com.franco.dev.domain.financiero.RetiroDetalle;
+import com.franco.dev.domain.financiero.enums.EstadoRetiro;
 import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.domain.operaciones.Cobro;
 import com.franco.dev.domain.operaciones.CobroDetalle;
@@ -31,6 +35,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 
@@ -65,6 +71,7 @@ class PdvCajaServiceBalanceTest {
         MockitoAnnotations.initMocks(this);
         when(deliveryService.getRepository()).thenReturn(deliveryRepository);
         when(ventaService.findAllByCajaId(CAJA_ID)).thenReturn(ventas);
+        when(ventaService.findResumenByCajaId(CAJA_ID)).thenReturn(ventas);
         when(movimientoCajaService.findByPdvCajaId(CAJA_ID)).thenReturn(movimientos);
         when(cobroService.findById(anyLong())).thenAnswer(inv -> {
             Cobro c = new Cobro();
@@ -73,6 +80,11 @@ class PdvCajaServiceBalanceTest {
         });
         when(cobroDetalleService.findByCobroId(anyLong()))
                 .thenAnswer(inv -> detalles.getOrDefault(inv.<Long>getArgument(0), new ArrayList<>()));
+        when(cobroDetalleService.findByCobroIds(org.mockito.ArgumentMatchers.anyCollection())).thenAnswer(inv -> {
+            Map<Long, List<CobroDetalle>> m = new HashMap<>();
+            for (Object id : inv.<java.util.Collection<?>>getArgument(0)) m.put((Long) id, detalles.getOrDefault((Long) id, new ArrayList<>()));
+            return m;
+        });
     }
 
     @Test
@@ -153,6 +165,129 @@ class PdvCajaServiceBalanceTest {
         igual(30_000.0, b.getTotalGastoGs());
         igual(0.0, b.getTotalGastoRs());
         igual(0.0, b.getTotalRetiroGs());
+    }
+
+    @Test
+    void elSaldoDescuentaRetirosYGastosAnteriores() {
+        // Issue #80: la suma de movimiento_caja daba 100.000 (las filas RETIRO/GASTO tienen activo NULL).
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "GUARANI", 100_000);
+        retiros(retiro("GUARANI", 60_000, null));
+        gastos(gasto(10_000.0, null, null));
+
+        PdvCajaBalanceDto b = service.generarBalance(caja());
+
+        igual(30_000.0, PdvCajaService.saldoEnCaja(b, "GUARANI"));
+        assertTrue(PdvCajaService.superaSaldo(b, "GUARANI", 50_000.0));
+        assertFalse(PdvCajaService.superaSaldo(b, "GUARANI", 30_000.0), "igual al saldo pasa");
+    }
+
+    @Test
+    void elSaldoIgnoraCanceladosYDescuentaElVueltoDelGasto() {
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "GUARANI", 100_000);
+        venta(VentaEstado.CONCLUIDA, 30_000, pago("GUARANI", 50_000), vuelto("GUARANI", -20_000));
+        venta(VentaEstado.CANCELADA, 40_000, pago("GUARANI", 40_000));
+        retiros(retiro("GUARANI", 10_000, null), retiro("GUARANI", 5_000, EstadoRetiro.CANCELADO));
+        gastos(gasto(8_000.0, 3_000.0, null), gasto(20_000.0, null, true));
+
+        PdvCajaBalanceDto b = service.generarBalance(caja());
+
+        // 100.000 + 50.000 - 20.000 - 10.000 - (8.000 - 3.000)
+        igual(115_000.0, PdvCajaService.saldoEnCaja(b, "GUARANI"));
+        igual(-b.getDiferenciaGs(), PdvCajaService.saldoEnCaja(b, "GUARANI"), "caja abierta: lo que muestra el desktop");
+    }
+
+    @Test
+    void enRealesLaToleranciaCubreElRedondeo() {
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "REAL", 50.3);
+        retiros(retiro("REAL", 10.1, null));
+
+        PdvCajaBalanceDto b = service.generarBalance(caja());
+
+        assertTrue(PdvCajaService.saldoEnCaja(b, "REAL") < 40.2, "50.3 - 10.1 en double queda apenas abajo");
+        assertFalse(PdvCajaService.superaSaldo(b, "REAL", 40.2), "el retiro de todo pasa");
+        assertTrue(PdvCajaService.superaSaldo(b, "REAL", 40.21));
+    }
+
+    @Test
+    void sinBalanceElSaldoEsCeroYOtraMonedaOUnMontoCeroNuncaSuperan() {
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "GUARANI", 1_000);
+        retiros(retiro("GUARANI", 5_000, null)); // saldo negativo
+        PdvCajaBalanceDto b = service.generarBalance(caja());
+
+        igual(0.0, PdvCajaService.saldoEnCaja(null, "GUARANI"));
+        igual(0.0, PdvCajaService.saldoEnCaja(b, "PESO ARG"));
+        assertFalse(PdvCajaService.superaSaldo(b, "PESO ARG", 1.0), "una moneda sin cuenta no se controla");
+        assertFalse(PdvCajaService.superaSaldo(b, null, 1.0));
+        assertFalse(PdvCajaService.superaSaldo(b, "GUARANI", 0.0));
+        assertFalse(PdvCajaService.superaSaldo(b, "GUARANI", null));
+        assertTrue(PdvCajaService.superaSaldo(null, "GUARANI", 1.0));
+    }
+
+    // #255: la diferencia en reales y dolares sale a centavos, sin el ruido de sumar doubles.
+
+    @Test
+    void diferenciaEnDolaresSaleRedondeadaACentavos() {
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "DOLAR", 0);
+        movimiento(PdvCajaTipoMovimiento.CAJA_FINAL, "DOLAR", 27);
+        venta(VentaEstado.CONCLUIDA, 130_000, pago("DOLAR", 20.1));
+        venta(VentaEstado.CONCLUIDA, 48_000, pago("DOLAR", 7.47));
+
+        PdvCajaBalanceDto b = service.generarBalance(caja());
+
+        assertEquals(-0.57, b.getDiferenciaDs(), 0.0, "sin delta: antes -0.5700000000000003");
+    }
+
+    @Test
+    void cajaQueCuadraEnDolaresNoQuedaConDiferencia() {
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "DOLAR", 0);
+        movimiento(PdvCajaTipoMovimiento.CAJA_FINAL, "DOLAR", 0.3);
+        venta(VentaEstado.CONCLUIDA, 645, pago("DOLAR", 0.1));
+        venta(VentaEstado.CONCLUIDA, 1_290, pago("DOLAR", 0.2));
+        PdvCaja caja = caja();
+
+        PdvCajaBalanceDto b = service.generarBalance(caja);
+
+        assertEquals(0.0, b.getDiferenciaDs(), 0.0, "antes -5.55e-17");
+        assertEquals(Boolean.FALSE, com.franco.dev.eventos.EventosCaja.atributosCierre(caja, b).get("con_diferencia"),
+                "sin alerta falsa de cierre con diferencia");
+    }
+
+    @Test
+    void fraccionDeCentavoViejaEnRealesNoEsDiferencia() {
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "REAL", 0);
+        movimiento(PdvCajaTipoMovimiento.CAJA_FINAL, "REAL", 10);
+        // vuelto convertido de 2026-03 (dato real del alpha): un tercio de centavo
+        venta(VentaEstado.CONCLUIDA, 12_000, pago("REAL", 10), vuelto("REAL", -0.00333333333333333));
+
+        PdvCajaBalanceDto b = service.generarBalance(caja());
+
+        assertEquals(0.0, b.getDiferenciaRs(), 0.0);
+    }
+
+    private void retiros(RetiroDetalle... detalles) {
+        when(retiroDetalleService.findByCajId(CAJA_ID)).thenReturn(Arrays.asList(detalles));
+    }
+
+    private void gastos(Gasto... lista) {
+        when(gastoService.findByCajaId(CAJA_ID)).thenReturn(Arrays.asList(lista));
+    }
+
+    private static RetiroDetalle retiro(String moneda, double cantidad, EstadoRetiro estado) {
+        Retiro r = new Retiro();
+        r.setEstado(estado);
+        RetiroDetalle d = new RetiroDetalle();
+        d.setRetiro(r);
+        d.setMoneda(moneda(moneda));
+        d.setCantidad(cantidad);
+        return d;
+    }
+
+    private static Gasto gasto(Double retiroGs, Double vueltoGs, Boolean cancelado) {
+        Gasto g = new Gasto();
+        g.setRetiroGs(retiroGs);
+        g.setVueltoGs(vueltoGs);
+        g.setCancelado(cancelado);
+        return g;
     }
 
     private static void igual(double esperado, Double real) {

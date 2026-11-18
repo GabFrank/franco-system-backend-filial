@@ -11,8 +11,9 @@ import java.util.Optional;
 /**
  * Registra cuando el {@code usuarioId} que manda el cliente no es el de la sesion (issue #142).
  *
- * <p><b>Esta fase solo observa.</b> No rechaza ni sobreescribe nada: el objetivo es entrar a la
- * fase de enforcement con evidencia de produccion, porque {@code usuarioId} no significa lo mismo
+ * <p>{@link #verificar} solo observa. {@link #firmante} reemplaza el input por la sesion en las
+ * altas, y solo en las filiales que lo prenden: el desktop todavia manda a veces un usuario que no
+ * es el de su token (dos ventanas con el mismo almacenamiento). Ademas {@code usuarioId} no significa lo mismo
  * en todos los resolvers. En venta o caja es «quien firma»; en proveedor es «quien creo», que el
  * desktop preserva al editar a proposito; en marcacion la identidad la da el rostro y no la sesion.
  * Sobreescribir parejo romperia los dos ultimos.
@@ -28,6 +29,8 @@ public class AuditorUsuarioId {
     public static final String MARCADOR = "AUDIT-USUARIOID";
 
     static final String PROPERTY_HABILITADO = "auditoria.usuarioid.habilitado";
+
+    static final String PROPERTY_SESION_MANDA = "auditoria.usuarioid.sesion-manda";
 
     @Autowired
     private UsuarioSesionService usuarioSesionService;
@@ -69,6 +72,56 @@ public class AuditorUsuarioId {
             // para no convertir un problema del instrumento en ruido sobre la evidencia.
             log.debug("{} el auditor fallo en {}: {}", MARCADOR, operacion, e.toString());
         }
+    }
+
+    /**
+     * El usuario que firma un alta (issue #142): el de la sesion si la filial lo tiene prendido, si no
+     * el del input. Se usa solo en las altas de los puntos de entrada; las ediciones reenvian a
+     * proposito al autor original y siguen con {@link #verificar}.
+     *
+     * <p>Devuelve el input cuando: el interruptor esta apagado (default), el input es nulo, no hay
+     * sesion, el usuario de la sesion esta inactivo o algo falla. Cada reemplazo queda en el log con
+     * la caja, para poder revertirlo.
+     *
+     * @param cajaId la caja del alta, solo para el log; puede ser null
+     */
+    public Long firmante(String operacion, Long usuarioIdDelInput, Long cajaId) {
+        if (usuarioIdDelInput != null && !sesionManda()) {
+            verificar(operacion, usuarioIdDelInput);
+            return usuarioIdDelInput;
+        }
+        return firmanteSecundario(operacion, usuarioIdDelInput, cajaId);
+    }
+
+    /**
+     * Como {@link #firmante}, para los campos que viajan junto al principal (cobro, credito, items de
+     * factura, venta del delivery). Cada uno se resuelve por su cuenta: si solo se reemplazaran cuando
+     * el principal difiere, un cliente podria mandar el principal correcto y el cobro a nombre de otro.
+     * Con el interruptor apagado no registra nada, para no duplicar la linea del principal.
+     */
+    public Long firmanteSecundario(String operacion, Long usuarioIdDelInput, Long cajaId) {
+        if (usuarioIdDelInput == null || !sesionManda()) {
+            return usuarioIdDelInput;
+        }
+        try {
+            Optional<Long> sesion = usuarioSesionService.idDelUsuarioAutenticado();
+            if (!sesion.isPresent() || sesion.get().equals(usuarioIdDelInput)) {
+                return usuarioIdDelInput;
+            }
+            boolean activo = usuarioSesionService.idDelUsuarioActivoAutenticado().isPresent();
+            log.warn("{} accion={} operacion={} usuarioInput={} usuarioSesion={} cajaId={} sucursal={}",
+                    MARCADOR, activo ? "reemplazado" : "sesion-inactiva", operacion, usuarioIdDelInput,
+                    sesion.get(), cajaId, env == null ? null : env.getProperty("sucursalId"));
+            return activo ? sesion.get() : usuarioIdDelInput;
+        } catch (Exception e) {
+            log.debug("{} firmante fallo en {}: {}", MARCADOR, operacion, e.toString());
+            return usuarioIdDelInput;
+        }
+    }
+
+    /** Opt-in por filial: solo {@code true} lo prende (en /opt/frc-filial/.env). */
+    private boolean sesionManda() {
+        return env != null && "true".equalsIgnoreCase(env.getProperty(PROPERTY_SESION_MANDA, "false"));
     }
 
     private boolean habilitado() {

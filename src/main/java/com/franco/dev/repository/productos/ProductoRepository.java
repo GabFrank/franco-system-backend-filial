@@ -23,17 +23,14 @@ public interface ProductoRepository extends HelperRepository<Producto, Long> {
     "from productos.producto p " +
     "left outer join productos.presentacion p2 on p2.producto_id = p.id " +
     "left outer join productos.codigo c on c.presentacion_id = p2.id " +
-    "left join ( " +
-    "   select m.producto_id, sum(m.cantidad) as stock_actual " +
-    "   from operaciones.movimiento_stock m " +
-    "   where m.sucursal_id = CAST(:sucursalId AS bigint) and m.estado = true " +
-    "   group by m.producto_id " +
-    ") st on st.producto_id = p.id " +
     "where (CAST(p.id as text) like CONCAT('%', :texto, '%') or UPPER(p.descripcion) like CONCAT('%', UPPER(:texto), '%') " +
     "or UPPER(p.descripcion_factura) like CONCAT('%', UPPER(:texto), '%') or c.codigo like CONCAT('%', :texto, '%')) " +
     "and p.activo = true " +
     "and EXISTS (SELECT 1 FROM productos.presentacion p3 WHERE p3.producto_id = p.id AND p3.activo = true) " +
-    "and (:conStock = false OR (COALESCE(st.stock_actual, 0) > 0)) " +
+    // Stock solo de los productos que coinciden con el texto (indice producto_id, sucursal_id). Antes se
+    // sumaba todo movimiento_stock de la sucursal en cada busqueda; mismo resultado, comparado en general6.
+    "and (:conStock = false OR COALESCE((select sum(m.cantidad) from operaciones.movimiento_stock m " +
+    "   where m.producto_id = p.id and m.sucursal_id = CAST(:sucursalId AS bigint) and m.estado = true), 0) > 0) " +
     "ORDER BY p.descripcion asc " +
     "limit 10 " +
     "offset :offset", nativeQuery = true)

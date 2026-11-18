@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -107,6 +109,116 @@ class AuditorUsuarioIdTest {
         auditor.verificar("VentaGraphQL.saveVenta", 999L);
 
         assertTrue(hallazgos().isEmpty());
+    }
+
+    // ---- firmante (issue #142, fase de enforcement) ----
+
+    private static UsuarioSesionService sesionActivaDe(Long id, boolean activo) {
+        UsuarioSesionService s = mock(UsuarioSesionService.class);
+        when(s.idDelUsuarioAutenticado()).thenReturn(Optional.ofNullable(id));
+        when(s.idDelUsuarioActivoAutenticado()).thenReturn(activo ? Optional.ofNullable(id) : Optional.empty());
+        return s;
+    }
+
+    private AuditorUsuarioId firmanteCon(UsuarioSesionService sesion, String sesionManda) {
+        AuditorUsuarioId auditor = auditorCon(sesion);
+        MockEnvironment env = new MockEnvironment();
+        env.setProperty("sucursalId", "24");
+        if (sesionManda != null) env.setProperty(AuditorUsuarioId.PROPERTY_SESION_MANDA, sesionManda);
+        auditor.setEnv(env);
+        return auditor;
+    }
+
+    @Test
+    @DisplayName("prendido: la sesion firma y el reemplazo queda en el log con la caja")
+    void laSesionFirma() {
+        Long firmante = firmanteCon(sesionActivaDe(410L, true), "true")
+                .firmante("VentaGraphQL.saveVenta", 999L, 77L);
+
+        assertEquals(410L, firmante);
+        List<String> h = hallazgos();
+        assertEquals(1, h.size());
+        assertTrue(h.get(0).contains("accion=reemplazado"), h.get(0));
+        assertTrue(h.get(0).contains("usuarioInput=999"), h.get(0));
+        assertTrue(h.get(0).contains("usuarioSesion=410"), h.get(0));
+        assertTrue(h.get(0).contains("cajaId=77"), h.get(0));
+    }
+
+    @Test
+    @DisplayName("por defecto (sin la property) firma el input y solo registra, como la fase 1")
+    void porDefectoFirmaElInput() {
+        Long firmante = firmanteCon(sesionActivaDe(410L, true), null)
+                .firmante("VentaGraphQL.saveVenta", 999L, 77L);
+
+        assertEquals(999L, firmante);
+        List<String> h = hallazgos();
+        assertEquals(1, h.size());
+        assertFalse(h.get(0).contains("accion=reemplazado"), h.get(0));
+    }
+
+    @Test
+    @DisplayName("sin sesion firma el input")
+    void sinSesionFirmaElInput() {
+        assertEquals(999L, firmanteCon(sesionActivaDe(null, false), "true")
+                .firmante("VentaGraphQL.saveVenta", 999L, null));
+        assertTrue(hallazgos().isEmpty());
+    }
+
+    @Test
+    @DisplayName("con la sesion de un usuario inactivo firma el input y lo registra")
+    void sesionInactivaFirmaElInput() {
+        assertEquals(641L, firmanteCon(sesionActivaDe(520L, false), "true")
+                .firmante("VentaGraphQL.saveVenta", 641L, 5L));
+        List<String> h = hallazgos();
+        assertEquals(1, h.size());
+        assertTrue(h.get(0).contains("accion=sesion-inactiva"), h.get(0));
+    }
+
+    @Test
+    @DisplayName("un input nulo queda nulo: no se completan los que hoy viajan vacios")
+    void inputNuloQuedaNulo() {
+        assertNull(firmanteCon(sesionActivaDe(410L, true), "true")
+                .firmante("ConteoGraphQL.saveConteo", null, 5L));
+    }
+
+    @Test
+    @DisplayName("el reemplazo se registra aunque la auditoria de la fase 1 este apagada")
+    void reemplazaYRegistraConLaAuditoriaApagada() {
+        AuditorUsuarioId auditor = auditorCon(sesionActivaDe(410L, true));
+        MockEnvironment env = new MockEnvironment();
+        env.setProperty(AuditorUsuarioId.PROPERTY_HABILITADO, "false");
+        env.setProperty(AuditorUsuarioId.PROPERTY_SESION_MANDA, "true");
+        auditor.setEnv(env);
+
+        assertEquals(410L, auditor.firmante("VentaGraphQL.saveVenta", 999L, null));
+        assertEquals(1, hallazgos().size());
+    }
+
+    @Test
+    @DisplayName("secundario apagado: firma el input y no duplica la linea del principal")
+    void secundarioApagadoNoRegistra() {
+        assertEquals(999L, firmanteCon(sesionActivaDe(410L, true), null)
+                .firmanteSecundario("VentaGraphQL.saveVenta", 999L, 77L));
+        assertTrue(hallazgos().isEmpty());
+    }
+
+    @Test
+    @DisplayName("secundario prendido: se firma por su cuenta aunque el principal ya coincida")
+    void secundarioPrendidoReemplaza() {
+        assertEquals(410L, firmanteCon(sesionActivaDe(410L, true), "true")
+                .firmanteSecundario("VentaGraphQL.saveVenta", 999L, 77L));
+        assertEquals(1, hallazgos().size());
+        assertTrue(hallazgos().get(0).contains("accion=reemplazado"));
+    }
+
+    @Test
+    @DisplayName("si la sesion revienta, firma el input sin lanzar")
+    void firmanteNuncaLanza() {
+        UsuarioSesionService roto = mock(UsuarioSesionService.class);
+        when(roto.idDelUsuarioAutenticado()).thenThrow(new IllegalStateException("base caida"));
+
+        assertEquals(999L, assertDoesNotThrow(() -> firmanteCon(roto, "true")
+                .firmante("VentaGraphQL.saveVenta", 999L, null)));
     }
 
     @Test

@@ -1,7 +1,9 @@
 package com.franco.dev.graphql.financiero;
 
 import com.franco.dev.domain.financiero.Gasto;
+import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.graphql.financiero.input.GastoInput;
+import com.franco.dev.graphql.financiero.input.PdvCajaBalanceDto;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.financiero.GastoService;
 import com.franco.dev.service.financiero.PdvCajaService;
@@ -20,6 +22,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -57,6 +61,9 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     @Autowired
     private SucursalService sucursalService;
 
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
     public Optional<Gasto> gasto(Long id, Long sucId) {
         Optional<Gasto> gasto = service.findById(id);
         gasto.ifPresent(g -> pdvCajaService.exigirAccesoARegistroDeCaja(g.getCaja()));
@@ -81,7 +88,22 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
 
     public Gasto saveGasto(GastoInput input, String printerName, String local, Boolean imprimirEnCliente)
             throws GraphQLException {
-        auditorUsuarioId.verificar("GastoGraphQL.saveGasto", input.getUsuarioId());
+        // Editar y finalizar reenvian al autor original a proposito. Edicion solo si el gasto existe: un
+        // id inventado no puede esquivar la firma (issue #142).
+        boolean edicion = input.getId() != null && service.findById(input.getId()).isPresent();
+        if (!edicion) {
+            PdvCaja caja = input.getCajaId() != null ? pdvCajaService.findById(input.getCajaId()).orElse(null) : null;
+            if (caja == null) {
+                throw new GraphQLException("Caja no encontrada");
+            }
+            pdvCajaService.controlarAccesoEnAlta("GastoGraphQL.saveGasto", caja);
+        }
+        if (edicion) {
+            auditorUsuarioId.verificar("GastoGraphQL.saveGasto", input.getUsuarioId());
+        } else {
+            input.setUsuarioId(auditorUsuarioId.firmante("GastoGraphQL.saveGasto", input.getUsuarioId(),
+                    input.getCajaId()));
+        }
         if (input.getId() == null) {
             String observacion = input.getObservacion() != null ? input.getObservacion().trim() : "";
             if (observacion.isEmpty()) {
@@ -92,7 +114,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         ModelMapper m = new ModelMapper();
         Gasto e = m.map(input, Gasto.class);
 
-        // Sin moneda, el retiro va en 0: saveAndSend compara los montos antes de guardar.
+        // Sin moneda, el retiro va en 0: guardarGastoNuevo compara los montos antes de guardar.
         e.setRetiroGs(PdvCajaService.cero(input.getRetiroGs()));
         e.setRetiroRs(PdvCajaService.cero(input.getRetiroRs()));
         e.setRetiroDs(PdvCajaService.cero(input.getRetiroDs()));
@@ -132,7 +154,8 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             e.setPreGastoId(null);
             e.setPreGastoSucursalId(null);
         }
-        Gasto gasto = service.saveAndSend(e, false);
+        // Mismo criterio que la firma: un id inventado no esquiva el control de efectivo.
+        Gasto gasto = edicion ? guardarEdicion(e) : guardarGastoNuevo(e);
         GastoDto gastoDto = new GastoDto();
         // imprimirEnCliente: el desktop pide el ticket despues con ticketEscpos(GASTO) y lo imprime el.
         if (gasto != null && input.getFinalizado() != true && !Boolean.TRUE.equals(imprimirEnCliente)) {
@@ -155,12 +178,102 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return gasto;
     }
 
+    /**
+     * Alta con control de efectivo: bloqueo de la caja, saldo con la cuenta del cierre y guardado en una
+     * transaccion, sin la impresion (un error al imprimir no deshace el gasto). Issue #80.
+     */
+    private Gasto guardarGastoNuevo(Gasto e) {
+        if (e.getCaja() == null) {
+            throw new GraphQLException("Caja no encontrada");
+        }
+        return new TransactionTemplate(transactionManager).execute(status -> {
+            pdvCajaService.bloquearSaldoCaja(e.getCaja().getId());
+            PdvCajaBalanceDto balance = pdvCajaService.generarBalance(e.getCaja());
+            if (PdvCajaService.superaSaldo(balance, "GUARANI", e.getRetiroGs())) {
+                throw new GraphQLException("El valor de gasto es mayor al total en caja: Guaraníes");
+            }
+            if (PdvCajaService.superaSaldo(balance, "REAL", e.getRetiroRs())) {
+                throw new GraphQLException("El valor de gasto es mayor al total en caja: Reales");
+            }
+            if (PdvCajaService.superaSaldo(balance, "DOLAR", e.getRetiroDs())) {
+                throw new GraphQLException("El valor de gasto es mayor al total en caja: Dolares");
+            }
+            Gasto g = service.saveAndSend(e, false);
+            if (g != null) emitirGasto("gasto.creado", g);
+            return g;
+        });
+    }
+
+    @Autowired
+    private com.franco.dev.eventos.EventoEmisor eventoEmisor;
+
+    /** gasto.creado / editado / eliminado (fase 2, #246), en la TX del guardado; la impresion queda afuera. */
+    void emitirGasto(String tipo, Gasto g) {
+        eventoEmisor.emitirProyeccion(tipo, "gasto.eliminado".equals(tipo) ? "media" : "baja",
+                g.getUsuario() != null ? g.getUsuario().getId() : null,
+                "gasto/" + g.getSucursalId() + "/" + g.getId(),
+                () -> {
+                    java.util.Map<String, Object> d = new java.util.LinkedHashMap<>();
+                    d.put("id", g.getId());
+                    if (g.getCaja() != null) d.put("caja", com.franco.dev.eventos.EventosVenta.mapa("id", g.getCaja().getId()));
+                    d.put("sucursalId", g.getSucursalId());
+                    if (g.getTipoGasto() != null) {
+                        java.util.Map<String, Object> t = com.franco.dev.eventos.EventosVenta.mapa("id", g.getTipoGasto().getId());
+                        t.put("descripcion", g.getTipoGasto().getDescripcion());
+                        d.put("tipoGasto", t);
+                    }
+                    d.put("valorGs", g.getRetiroGs());
+                    d.put("valorRs", g.getRetiroRs());
+                    d.put("valorDs", g.getRetiroDs());
+                    // Fase 2b: los nombres de la consulta del cliente.
+                    d.put("sucursal", com.franco.dev.eventos.EventosVenta.mapa("id", g.getSucursalId()));
+                    d.put("observacion", g.getObservacion());
+                    d.put("cancelado", g.getCancelado());
+                    d.put("retiroGs", g.getRetiroGs());
+                    d.put("retiroRs", g.getRetiroRs());
+                    d.put("retiroDs", g.getRetiroDs());
+                    d.put("vueltoGs", g.getVueltoGs());
+                    d.put("vueltoRs", g.getVueltoRs());
+                    d.put("vueltoDs", g.getVueltoDs());
+                    if (g.getResponsable() != null && g.getResponsable().getPersona() != null)
+                        d.put("responsable", com.franco.dev.eventos.EventosVenta.mapa("persona",
+                                com.franco.dev.eventos.EventosVenta.mapa("nombre", g.getResponsable().getPersona().getNombre())));
+                    if (g.getAutorizadoPor() != null && g.getAutorizadoPor().getPersona() != null)
+                        d.put("autorizadoPor", com.franco.dev.eventos.EventosVenta.mapa("nickname", g.getAutorizadoPor().getPersona().getNombre()));
+                    if (g.getUsuario() != null) d.put("usuario", com.franco.dev.eventos.EventosVenta.usuario(g.getUsuario()));
+                    d.put("creadoEn", g.getCreadoEn() != null ? g.getCreadoEn().toString() : null);
+                    return d;
+                },
+                () -> {
+                    java.util.Map<String, Object> a = new java.util.LinkedHashMap<>();
+                    a.put("caja_id", g.getCaja() != null ? g.getCaja().getId() : null);
+                    a.put("tipo_gasto_id", g.getTipoGasto() != null ? g.getTipoGasto().getId() : null);
+                    a.put("monto_gs", g.getRetiroGs());
+                    return a;
+                });
+    }
+
 //    public List<Gasto> gastosSearch(String texto){
 //        return service.findByAll(texto);
 //    }
 
+    /** Edicion en TX con su aviso (fase 2, #246): antes el guardado iba solo. */
+    private Gasto guardarEdicion(Gasto e) {
+        return new TransactionTemplate(transactionManager).execute(status -> {
+            Gasto g = service.saveAndSend(e, false);
+            if (g != null) emitirGasto("gasto.editado", g);
+            return g;
+        });
+    }
+
     public Boolean deleteGasto(Long id, Long sucId) {
-        return service.deleteById(id);
+        return new TransactionTemplate(transactionManager).execute(status -> {
+            Gasto g = service.findById(id).orElse(null);
+            if (g == null) return false;
+            Boolean ok = service.deleteById(id);
+            if (Boolean.TRUE.equals(ok)) emitirGasto("gasto.eliminado", g);
+            return ok;
+        });
     }
 
     public Long countGasto() {

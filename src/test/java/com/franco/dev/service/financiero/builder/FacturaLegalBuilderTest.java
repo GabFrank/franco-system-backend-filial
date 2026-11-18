@@ -6,7 +6,9 @@ import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.FacturaLegalItem;
 import com.franco.dev.domain.financiero.Timbrado;
 import com.franco.dev.domain.financiero.TimbradoDetalle;
+import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.productos.Producto;
+import com.franco.dev.service.financiero.BloqueoTransaccionalService;
 import com.franco.dev.service.financiero.FacturaLegalItemService;
 import com.franco.dev.service.financiero.FacturaLegalService;
 import com.franco.dev.service.financiero.PoliticaFacturacionService;
@@ -56,6 +58,7 @@ class FacturaLegalBuilderTest {
     @Mock private PresentacionService presentacionService;
     @Mock private UsuarioService usuarioService;
     @Mock private SifenService sifenService;
+    @Mock private BloqueoTransaccionalService bloqueo;
 
     private FacturaLegalBuilder builder;
 
@@ -66,7 +69,7 @@ class FacturaLegalBuilderTest {
         MockitoAnnotations.initMocks(this);
         builder = new FacturaLegalBuilder(
                 facturaLegalService, facturaLegalItemService, timbradoDetalleService,
-                productoService, ventaItemService, presentacionService, usuarioService, sifenService);
+                productoService, ventaItemService, presentacionService, usuarioService, sifenService, bloqueo);
 
         Sucursal sucursal = new Sucursal();
         sucursal.setId(2L);
@@ -109,6 +112,56 @@ class FacturaLegalBuilderTest {
         p.setId(id);
         p.setIva(iva);
         return p;
+    }
+
+    private BuildRequest requestConVenta() {
+        Venta venta = new Venta();
+        venta.setId(20L);
+        venta.setSucursalId(24L);
+        FacturaLegal fl = new FacturaLegal();
+        fl.setRuc("X");
+        fl.setNombre("CONSUMIDOR FINAL");
+        fl.setDescuento(0.0);
+        fl.setVenta(venta);
+        return new BuildRequest(fl,
+                Collections.singletonList(descriptor(null, 10, "ITEM", 11000.0)), 3L, false);
+    }
+
+    /** #221: la venta ya tiene factura vigente → no se escribe nada ni se toca el timbrado. */
+    @Test
+    void conVentaYaFacturada_rechazaSinEscribir() {
+        GraphQLException rechazo = new GraphQLException("La venta ya tiene la factura N° 7");
+        doThrow(rechazo).when(facturaLegalService).exigirSinFacturaVigente(20L, 24L);
+
+        GraphQLException e = assertThrows(GraphQLException.class, () -> builder.build(requestConVenta()));
+
+        assertEquals(rechazo, e);
+        verify(facturaLegalService, never()).save(any(FacturaLegal.class));
+        verify(facturaLegalItemService, never()).save(any(FacturaLegalItem.class));
+        verify(timbradoDetalleService, never()).getTimbradoDetalleActual(anyLong(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    /** #221: lock de la venta (la clave de PARA ENTREGA) → control → timbrado → primer write. */
+    @Test
+    void conVenta_tomaElLockYControlaAntesDelTimbrado() {
+        builder.build(requestConVenta());
+
+        InOrder orden = inOrder(bloqueo, facturaLegalService, timbradoDetalleService);
+        orden.verify(bloqueo).tomar("factura-venta:24:20", "15s");
+        orden.verify(facturaLegalService).exigirSinFacturaVigente(20L, 24L);
+        orden.verify(timbradoDetalleService).getTimbradoDetalleActual(3L, false);
+        orden.verify(facturaLegalService).save(any(FacturaLegal.class));
+    }
+
+    @Test
+    void sinVenta_noPideLockNiControla() {
+        FacturaLegal fl = new FacturaLegal();
+        fl.setRuc("X");
+        fl.setDescuento(0.0);
+        builder.build(new BuildRequest(fl, Collections.singletonList(descriptor(null, 10, "ITEM", 11000.0)), 3L, false));
+
+        verify(bloqueo, never()).tomar(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+        verify(facturaLegalService, never()).exigirSinFacturaVigente(any(), any());
     }
 
     @Test
