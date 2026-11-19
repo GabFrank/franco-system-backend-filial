@@ -39,13 +39,6 @@ public class NecesidadGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         return service.findByAll(texto);
     }
 
-    public List<Necesidad> necesidadesPorFecha(String start, String end){
-        if (end == null){
-            end = start;
-        }
-        return service.findByDate(start, end);
-    }
-
     public Necesidad saveNecesidad(NecesidadInput input){
         ModelMapper m = new ModelMapper();
         Necesidad e = m.map(input, Necesidad.class);

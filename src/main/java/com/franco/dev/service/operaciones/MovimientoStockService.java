@@ -127,10 +127,6 @@ public class MovimientoStockService extends CrudService<MovimientoStock, Movimie
         return repository.findByTipoMovimientoAndReferencia(tipoMovimiento, referencia);
     }
 
-    public List<MovimientoStock> findByDate(String inicio, String fin) {
-        return repository.findByDate(inicio, fin);
-    }
-
     public Boolean bajaStockPorTransferencia(Long id) {
         Boolean ok = false;
         List<TransferenciaItem> transferenciaItemList = transferenciaItemService.findByTransferenciaItemId(id);

@@ -13,7 +13,6 @@ import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
-import com.franco.dev.domain.operaciones.dto.VentaPorPeriodoV1Dto;
 import com.franco.dev.domain.operaciones.enums.DeliveryEstado;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.graphql.financiero.FacturaLegalGraphQL;
@@ -1476,7 +1475,4 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return impresionService.printSorteoTickets(tickets, printerName, local, null);
     }
 
-    public List<VentaPorPeriodoV1Dto> ventaPorPeriodo(String inicio, String fin, Long sucId) {
-        return service.ventaPorPeriodo(inicio, fin);
-    }
 }

@@ -137,13 +137,11 @@ class CajaDetalleAccesoTest {
     void lasListasGeneralesExigenElRol() {
         assertThrows(GraphQLException.class, () -> retiroGraphQL.retiros(0, 10, 24L));
         assertThrows(GraphQLException.class, () -> gastoGraphQL.gastos(0, 10, 24L));
-        assertThrows(GraphQLException.class, () -> gastoGraphQL.gastosPorFecha("2026-10-01", "2026-10-28", 24L));
         assertThrows(GraphQLException.class, () -> conteoGraphQL.conteos(0, 10, 24L));
         assertThrows(GraphQLException.class, () -> conteoMonedaGraphQL.conteoMonedas(0, 10, 24L));
         assertThrows(GraphQLException.class, () -> movimientoCajaGraphQL.movimientoCajas(0, 10, 24L));
         verify(retiroService, never()).findAll(any());
         verify(gastoService, never()).findAll(any());
-        verify(gastoService, never()).findByDate(any(), any());
         verify(conteoService, never()).findAll(any());
         verify(conteoMonedaService, never()).findAll(any());
         verify(movimientoCajaService, never()).findAll(any());

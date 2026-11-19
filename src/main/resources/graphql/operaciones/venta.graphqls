@@ -65,7 +65,6 @@ extend type Query {
     ventas(page:Int = 0, size:Int = 10, sucId: ID):[Venta]!
     countVenta: Int
     ventasPorCajaId(idVenta:ID, idCaja:ID!, page: Int, size: Int, asc: Boolean, sucId: ID, formaPago: ID, estado: VentaEstado, isDelivery: Boolean, monedaId: Int, conDescuento: Boolean, conAumento: Boolean):VentaPage
-    ventaPorPeriodo(inicio:String, fin:String, sucId: ID): [VentaPorPeriodo]
 }
 
 extend type Mutation {
@@ -81,14 +80,6 @@ extend type Mutation {
 
 enum VentaEstado {
     ABIERTA, CANCELADA, CONCLUIDA, EN_VERIFICACION
-}
-
-type VentaPorPeriodo {
-    valorGs: Float
-    valorRs: Float
-    valorDs: Float
-    valorTotalGs: Float
-    creadoEn: Date
 }
 
 

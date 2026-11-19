@@ -1,5 +1,6 @@
 package com.franco.dev.service.operaciones;
 
+import com.franco.dev.utilitarios.Paginacion;
 import graphql.GraphQLException;
 import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.domain.financiero.MovimientoCaja;
@@ -8,7 +9,6 @@ import com.franco.dev.domain.financiero.enums.PdvCajaTipoMovimiento;
 import com.franco.dev.domain.operaciones.CobroDetalle;
 import com.franco.dev.domain.operaciones.Delivery;
 import com.franco.dev.domain.operaciones.Venta;
-import com.franco.dev.domain.operaciones.dto.VentaPorPeriodoV1Dto;
 import com.franco.dev.domain.operaciones.enums.VentaEstado;
 import com.franco.dev.repository.operaciones.VentaRepository;
 import com.franco.dev.service.CrudService;
@@ -40,8 +40,6 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
     private MovimientoCajaService movimientoCajaService;
 
     @Autowired
-    private CobroDetalleService cobroDetalleService;
-    @Autowired
     private Environment env;
 
     @Autowired
@@ -55,7 +53,7 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
 
     public Page<Venta> findByCajaId(EmbebedPrimaryKey id, Integer page, Integer size, Boolean asc, Long formaPago,
             VentaEstado estado, Boolean isDelivery, Long monedaId) {
-        Pageable pagina = PageRequest.of(page, size);
+        Pageable pagina = Paginacion.of(page, size);
         return findWithFiltersCriteria(id.getId(), id.getSucursalId(), formaPago, estado, pagina, isDelivery, monedaId,
                 asc);
     }
@@ -112,58 +110,6 @@ public class VentaService extends CrudService<Venta, VentaRepository> {
             if(entity.getTotalGs() == 0 && entity.getEstado() == VentaEstado.CONCLUIDA) return null;
         Venta e = super.save(entity);
         return e;
-    }
-
-    public List<VentaPorPeriodoV1Dto> ventaPorPeriodo(String inicio, String fin) {
-        List<VentaPorPeriodoV1Dto> ventaPorPeriodoList = new ArrayList<>();
-        LocalDateTime fechaInicio = LocalDateTime.parse(inicio);
-        LocalDateTime fechaFin = LocalDateTime.parse(fin); 
-        Long cantDias = DAYS.between(fechaInicio, fechaFin);
-        for (int i = 0; i < cantDias; i++) {
-            VentaPorPeriodoV1Dto ventaPorPeriodoV1Dto = new VentaPorPeriodoV1Dto();
-            ventaPorPeriodoV1Dto.setCreadoEn(fechaInicio.plusDays(i));
-            ventaPorPeriodoList.add(ventaPorPeriodoV1Dto);
-        }
-        for (VentaPorPeriodoV1Dto ventaPorPeriodo : ventaPorPeriodoList) {
-            List<Venta> ventaList = repository.findByCreadoEnBetween(ventaPorPeriodo.getCreadoEn(),
-                    ventaPorPeriodo.getCreadoEn().plusDays(1));
-            ventaPorPeriodo.setCantVenta(ventaList.size());
-            for (Venta venta : ventaList) {
-                if (venta.getEstado() != VentaEstado.CANCELADA || venta.getEstado() != VentaEstado.ABIERTA) {
-                    List<CobroDetalle> cobroDetalleList = cobroDetalleService.findByCobroId(venta.getCobro().getId());
-                    for (CobroDetalle cobroDetalle : cobroDetalleList) {
-                        if (cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")) {
-                            if (cobroDetalle.getPago()) {
-                                ventaPorPeriodo.addGs(cobroDetalle.getValor());
-                                ventaPorPeriodo.addTotalGs(cobroDetalle.getValor());
-                            } else if (cobroDetalle.getDescuento()) {
-                                ventaPorPeriodo.addGs(cobroDetalle.getValor() * -1);
-                                ventaPorPeriodo.addTotalGs(cobroDetalle.getValor() * -1);
-                            }
-                        }
-                        if (cobroDetalle.getMoneda().getDenominacion().contains("REAL")) {
-                            if (cobroDetalle.getPago()) {
-                                ventaPorPeriodo.addRs(cobroDetalle.getValor());
-                                ventaPorPeriodo.addTotalGs(cobroDetalle.getValor() * cobroDetalle.getCambio());
-                            } else if (cobroDetalle.getDescuento()) {
-                                ventaPorPeriodo.addRs(cobroDetalle.getValor() * -1);
-                                ventaPorPeriodo.addTotalGs(cobroDetalle.getValor() * -1 * cobroDetalle.getCambio());
-                            }
-                        }
-                        if (cobroDetalle.getMoneda().getDenominacion().contains("DOLAR")) {
-                            if (cobroDetalle.getPago()) {
-                                ventaPorPeriodo.addDs(cobroDetalle.getValor());
-                                ventaPorPeriodo.addTotalGs(cobroDetalle.getValor() * cobroDetalle.getCambio());
-                            } else if (cobroDetalle.getDescuento()) {
-                                ventaPorPeriodo.addDs(cobroDetalle.getValor() * -1);
-                                ventaPorPeriodo.addTotalGs(cobroDetalle.getValor() * -1 * cobroDetalle.getCambio());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return ventaPorPeriodoList;
     }
 
     /**

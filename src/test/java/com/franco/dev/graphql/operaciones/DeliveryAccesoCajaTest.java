@@ -205,10 +205,6 @@ class DeliveryAccesoCajaTest {
     void lasOperacionesSinLlamadoresPidenAnalisisDeCaja() {
         doThrow(new GraphQLException("No autorizado")).when(rolSesionService).exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         assertThrows(GraphQLException.class, () -> deliveryGraphQL.deliverys(0, 10, null));
-        assertThrows(GraphQLException.class, () -> deliveryGraphQL.deliverysByEstado(DeliveryEstado.ABIERTO, null));
-        assertThrows(GraphQLException.class, () -> deliveryGraphQL.deliverysByEstadoList(null, null));
-        assertThrows(GraphQLException.class, () -> deliveryGraphQL.deliverysByEstadoNotIn(DeliveryEstado.ABIERTO, null));
-        assertThrows(GraphQLException.class, () -> deliveryGraphQL.deliverysUltimos10(null));
         assertThrows(GraphQLException.class, () -> deliveryGraphQL.countDelivery());
         assertThrows(GraphQLException.class, () -> deliveryGraphQL.deleteDelivery(10L, null));
         assertThrows(GraphQLException.class, () -> deliveryGraphQL.saveDelivery(deliveryInput(null)));

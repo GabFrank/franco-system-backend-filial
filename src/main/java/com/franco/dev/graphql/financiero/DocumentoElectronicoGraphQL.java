@@ -55,10 +55,6 @@ public class DocumentoElectronicoGraphQL implements GraphQLQueryResolver, GraphQ
         return documentoElectronicoService.findByCdc(cdc).orElse(null);
     }
 
-    public List<DocumentoElectronico> documentoElectronicoPorEstado(EstadoDE estado, Long sucId) {
-        return documentoElectronicoService.findByEstado(estado);
-    }
-
     public Integer countDocumentoElectronico() {
         return documentoElectronicoService.findBySucursalId(1L).size(); // TODO: Implementar count real
     }

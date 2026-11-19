@@ -48,7 +48,6 @@ extend type Query {
     gasto(id:ID!, sucId: ID):Gasto
     gastos(page:Int = 0, size:Int = 10, sucId: ID):[Gasto]!
     countGasto: Int
-    gastosPorFecha(inicio:String, fin:String, sucId: ID):[Gasto]
     gastosPorCajaId(id:ID!, sucId: ID):[Gasto]
     reimprimirGasto(id:ID!, printerName: String, sucId: ID):Boolean
 }

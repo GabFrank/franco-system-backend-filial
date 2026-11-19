@@ -50,17 +50,6 @@ public class MarcacionGraphQL implements GraphQLQueryResolver, GraphQLMutationRe
         return service.findByIdAndSucursalId(id, sucursalId);
     }
 
-    public Page<Marcacion> marcaciones(String fechaInicio, String fechaFin, Integer page, Integer size) {
-        if (page == null)
-            page = 0;
-        if (size == null)
-            size = 10;
-        if (fechaInicio != null && fechaFin != null) {
-            return service.findByFechaRange(fechaInicio, fechaFin, page, size);
-        }
-        return service.findAllPaged(page, size);
-    }
-
     public Page<Marcacion> marcacionesPorUsuario(Long usuarioId, String fechaInicio, String fechaFin, Integer page,
             Integer size) {
         if (page == null)

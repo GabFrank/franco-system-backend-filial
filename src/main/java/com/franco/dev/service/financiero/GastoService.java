@@ -27,10 +27,6 @@ public class GastoService extends CrudService<Gasto, GastoRepository> {
 //        return  repository.findByDenominacionIgnoreCaseLike(texto);
 //    }
 
-    public List<Gasto> findByDate(String inicio, String fin) {
-        return repository.findByCreadoEnBetween(toDate(inicio), toDate(fin));
-    }
-
     public List<Gasto> findByCajaId(Long id) {
         return repository.findByCajaId(id);
     }

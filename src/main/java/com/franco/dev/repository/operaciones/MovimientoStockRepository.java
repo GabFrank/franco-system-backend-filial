@@ -51,10 +51,6 @@ public interface MovimientoStockRepository extends HelperRepository<MovimientoSt
     //@Query("select p from Producto p where CAST(id as text) like %?1% or UPPER(p.descripcion) like %?1% or UPPER(p.descripcionFactura) like %?1%")
     //public List<Producto> findbyAll(String texto);
 
-    @Query(value = "select * from operaciones.movimiento_stock ms \n" +
-            "where ms.creado_en between cast(?1 as timestamp) and cast(?2 as timestamp)", nativeQuery = true)
-    public List<MovimientoStock> findByDate(String inicio, String fin);
-
     public MovimientoStock findByTipoMovimientoAndReferencia(TipoMovimiento tipoMovimiento, Long referencia);
 
     public MovimientoStock findByProductoIdAndTipoMovimientoAndReferencia(Long proId, TipoMovimiento tipoMovimiento, Long refId);

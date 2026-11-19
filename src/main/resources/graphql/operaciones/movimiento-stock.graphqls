@@ -44,7 +44,6 @@ extend type Query {
     movimientoStock(id:ID!, sucId: ID):MovimientoStock
     movimientosStock(page:Int = 0, size:Int = 10, sucId: ID):[MovimientoStock]!
     countMovimientoStock: Int
-    movimientoStockByFecha(inicio: String, fin: String, sucId: ID):[MovimientoStock]
     stockPorProducto(id:ID!, sucId: ID):Float
     stockByProductoIdExeptMovimientoId(productoId: ID!, movimientoId: ID!, sucursalId: ID!): Float
     stockByProductoIdAntesDeFecha(productoId: ID!, sucursalId: ID!, fecha: String!): Float

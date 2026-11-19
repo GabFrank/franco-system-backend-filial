@@ -22,12 +22,6 @@ public interface MarcacionRepository extends HelperRepository<Marcacion, Embebed
 
         Page<Marcacion> findByUsuarioId(Long usuarioId, Pageable pageable);
 
-        @Query("SELECT m FROM Marcacion m WHERE " +
-                        "((cast(m.fechaEntrada as date) >= cast(?1 as date) AND cast(m.fechaEntrada as date) <= cast(?2 as date)) "
-                        +
-                        "OR (cast(m.fechaSalida as date) >= cast(?1 as date) AND cast(m.fechaSalida as date) <= cast(?2 as date)))")
-        Page<Marcacion> findByFechaRange(String fechaInicio, String fechaFin, Pageable pageable);
-
         @Query("SELECT m FROM Marcacion m WHERE m.usuario.id = ?1 " +
                         "AND ((cast(m.fechaEntrada as date) >= cast(?2 as date) AND cast(m.fechaEntrada as date) <= cast(?3 as date)) "
                         +

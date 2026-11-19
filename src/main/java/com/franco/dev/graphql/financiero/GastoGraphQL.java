@@ -81,11 +81,6 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         return service.findByCajaId(id);
     }
 
-    public List<Gasto> gastosPorFecha(String inicio, String fin, Long sucId) {
-        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
-        return service.findByDate(inicio, fin);
-    }
-
     public Gasto saveGasto(GastoInput input, String printerName, String local, Boolean imprimirEnCliente)
             throws GraphQLException {
         // Editar y finalizar reenvian al autor original a proposito. Edicion solo si el gasto existe: un

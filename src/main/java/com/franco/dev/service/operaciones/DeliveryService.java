@@ -27,18 +27,6 @@ public class DeliveryService extends CrudService<Delivery, DeliveryRepository> {
         return repository;
     }
 
-    public List<Delivery> findByEstado(DeliveryEstado estado) {
-        return repository.findByEstado(estado);
-    }
-
-    public List<Delivery> findByEstadoNotIn(DeliveryEstado estado) {
-        return repository.findActivos();
-    }
-
-    public List<Delivery> findTop10() {
-        return repository.findUltimos10();
-    }
-
     @Override
     public Delivery save(Delivery entity) {
         Delivery e = super.save(entity);

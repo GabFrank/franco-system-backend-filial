@@ -15,16 +15,6 @@ public interface DeliveryRepository extends HelperRepository<Delivery, Long> {
                 return Delivery.class;
         }
 
-        public List<Delivery> findByEstado(DeliveryEstado estado);
-
-        @Query(value = "select * from operaciones.delivery d " +
-                        "where cast(d.estado as text) = 'ABIERTO' or cast(d.estado as text) = 'EN_CAMINO'", nativeQuery = true)
-        public List<Delivery> findActivos();
-
-        @Query(value = "select * from operaciones.delivery d " +
-                        "where cast(d.estado as text) != 'ABIERTO' and cast(d.estado as text) != 'EN_CAMINO' limit 10", nativeQuery = true)
-        public List<Delivery> findUltimos10();
-
         Iterable<Delivery> findByEstadoInOrderByIdDesc(List<DeliveryEstado> estadoList);
 
         // @Query("select p from Delivery p left outer join p.proveedor as pro left
@@ -42,15 +32,6 @@ public interface DeliveryRepository extends HelperRepository<Delivery, Long> {
                         "AND v.sucursalId = :sucId " +
                         "AND d.estado IN (:estadoList)")
         List<Delivery> findDeliveryByCajaEstadoAndSucId(@Param("id") Long id,
-                        @Param("estadoList") List<DeliveryEstado> estadoList,
-                        @Param("sucId") Long sucId);
-
-        @Query("SELECT d FROM Venta v " +
-                        "JOIN v.delivery d " +
-                        "WHERE " +
-                        "v.sucursalId = :sucId " +
-                        "AND d.estado IN (:estadoList)")
-        List<Delivery> findDeliveryByEstadoAndSucId(
                         @Param("estadoList") List<DeliveryEstado> estadoList,
                         @Param("sucId") Long sucId);
 
