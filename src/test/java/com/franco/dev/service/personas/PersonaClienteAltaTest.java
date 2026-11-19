@@ -96,4 +96,19 @@ class PersonaClienteAltaTest {
         assertThrows(IllegalStateException.class, () -> clienteService.save(new Cliente()));
         verify(clientes, never()).save(any());
     }
+
+    /** #134: el pais de una persona que ya existe se graba local, sin save (que la rechazaria) ni central. */
+    @Test
+    void asignarPais_esUnUpdateLocalSinPasarPorElCentral() {
+        Persona p = delCentral();
+        com.franco.dev.domain.general.Pais brasil = new com.franco.dev.domain.general.Pais();
+        brasil.setId(2L);
+
+        personaService.asignarPais(p, brasil);
+
+        verify(personas).actualizarPais(321L, 2L);
+        assertSame(brasil, p.getPais());
+        verifyNoInteractions(central);
+        verify(personas, never()).save(any());
+    }
 }

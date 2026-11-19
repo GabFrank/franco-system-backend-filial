@@ -2047,10 +2047,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      * nueva o ya existente; nulo no la cambia (Paraguay se manda explicito para corregir).
      */
     private void asignarPais(Cliente cliente, Long paisId) {
-        if (paisId == null || cliente == null || cliente.getPersona() == null) return;
-        paisService.findById(paisId).ifPresent(pais -> {
-            cliente.getPersona().setPais(pais);
-            personaService.save(cliente.getPersona());
-        });
+        if (paisId == null || cliente == null) return;
+        personaService.asignarPais(cliente.getPersona(), paisService.findById(paisId).orElse(null));
     }
 }
