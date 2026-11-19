@@ -164,3 +164,9 @@ hasta migrar).
   esquema (antes `0160` por `dDTipIDRec` «Otro») y el rechazo es `2450 – Certificado digital no vigente`:
   el certificado de esta máquina venció el 20/08/2026. Las reglas de negocio de B2F quedan por verificar
   con el certificado vigente.
+- Con el certificado vigente (vence 19/08/2027): SIFEN test pasa esquema y firma y rechaza por
+  `1101 – Número de timbrado inválido` (test no conoce el timbrado de prod). PROD sincrónico: `1264 – RUC no
+  habilitado para este servicio` (se trabaja por lotes). PROD por lote de un DE: lote recibido (`0300`) y
+  procesado con `1002 – Documento electrónico duplicado`: el número de la base local ya existe en prod. No
+  se creó ningún documento fiscal. Las reglas de B2F se confirman con la primera factura real.
+- El campo País muestra PARAGUAY por defecto pero no lo manda (solo viaja el país elegido).
