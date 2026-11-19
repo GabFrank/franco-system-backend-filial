@@ -159,7 +159,25 @@ class SifenReceptorHelperTest {
         for (String documento : new String[]{"12345678901", "FX123456"}) {
             ReceptorSinPaisException e = assertThrows(ReceptorSinPaisException.class,
                     () -> config(cliente("JOAO", documento, null, false)));
-            assertTrue(e.getMessage().contains("cargue su pais"), e.getMessage());
+            assertTrue(e.getMessage().contains("elija su pais al facturar"), e.getMessage());
         }
+    }
+
+    // ---- documento guardado con DV: antes daba 9 digitos y caia en "Otro" ----
+
+    @Test
+    void rucConDvYTributa_esContribuyente() {
+        ConfiguracionReceptor c = config(cliente("EMPRESA X SA", "80099482-5", null, true));
+
+        assertEquals(TiNatRec.CONTRIBUYENTE, c.iNatRec);
+        assertEquals("80099482", c.dRucRec);
+    }
+
+    @Test
+    void cedulaConDvSinTributa_esCedulaParaguaya() {
+        ConfiguracionReceptor c = config(cliente("JUAN", "4.043.581-2", null, false));
+
+        assertEquals(TiTipDocRec.CEDULA_PARAGUAYA, c.iTipIDRec);
+        assertEquals("4043581", c.dNumIDRec);
     }
 }

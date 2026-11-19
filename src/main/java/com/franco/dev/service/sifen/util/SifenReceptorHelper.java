@@ -221,10 +221,10 @@ public class SifenReceptorHelper {
         config.dNomRec = nombre.trim().toUpperCase();
         
         // Determinar tipo de documento
-        TiTipDocRec tipoDoc = determinarTipoDocumento(documento, persona);
+        TiTipDocRec tipoDoc = determinarTipoDocumento(sinDv(documento), persona);
         
         config.iTipIDRec = tipoDoc;
-        config.dNumIDRec = limpiarDocumento(documento);
+        config.dNumIDRec = limpiarDocumento(sinDv(documento));
         config.escenarioDetectado = "4) No contribuyente identificado – PF nacional (B2C)";
 
         logger.info("✅ Configuración B2C: TipoDoc={}, NumDoc={}", config.iTipIDRec, config.dNumIDRec);
@@ -343,7 +343,7 @@ public class SifenReceptorHelper {
             return false;
         }
         
-        String docLimpio = limpiarDocumento(documento);
+        String docLimpio = limpiarDocumento(sinDv(documento));
         
         // Si no tributa explícitamente, no es contribuyente
         // IMPORTANTE: Para PF, este campo se actualiza vía consulta al servidor del gobierno
@@ -705,10 +705,20 @@ public class SifenReceptorHelper {
             return TiTipDocRec.CEDULA_PARAGUAYA;
         }
         throw new ReceptorSinPaisException("El documento " + documento + " del cliente no es una cedula paraguaya."
-                + " Si es extranjero, cargue su pais en el cliente; si es un RUC, carguelo sin el digito"
-                + " verificador. O facture sin nombre.");
+                + " Si es extranjero, elija su pais al facturar (Finalizar con factura > Pais). O facture sin nombre.");
     }
     
+    /**
+     * "80012345-6" o "4.043.581-2" -> la parte antes del DV. Guardado con DV, limpio daba 9 digitos y no pasaba
+     * por RUC ni por cedula (#134).
+     */
+    static String sinDv(String documento) {
+        if (documento != null && documento.trim().matches("[\\d.]+-\\d")) {
+            return documento.trim().split("-")[0];
+        }
+        return documento;
+    }
+
     /**
      * Limpia un número de documento eliminando caracteres no alfanuméricos.
      */

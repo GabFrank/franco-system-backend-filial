@@ -47,7 +47,10 @@ en filial y desktop. **Etapa 1 = filial + desktop. Central = etapa 2, issue apar
 
 | Dato | Escribe | Lee |
 |---|---|---|
-| `persona.pais_id` (filial) | `FacturaLegalGraphQL` al crear o encontrar la persona (`FacturaLegalInput.paisId`) y `ClienteGraphQL.saveCliente` (`ClienteInput.paisId`), desde `add-factura-legal-dialog` | `SifenReceptorHelper` (filial); `Persona.pais` en el schema del filial (desktop, al mostrar el cliente) |
+| `persona.pais_id` (filial) | `FacturaLegalGraphQL.saveFacturaLegal` (`FacturaLegalInput.paisId`) vía `PersonaService.asignarPais`, solo si la persona no tiene país; desde `add-factura-legal-dialog` en modo PDV | `SifenReceptorHelper` (filial) |
+
+(Actualizada tras la auditoría del diff: `ClienteInput.paisId` y `pais` en el tipo `Persona` se sacaron
+porque ningún cliente los usaba.)
 
 ## Fases
 
@@ -131,3 +134,21 @@ hasta migrar).
   B2F; cliente ya cargado sin tocar el selector → B2F; pasaporte → B2F/Pasaporte; paraguayo → B2C sin
   cambios; F8 con cliente extranjero → B2F.
 - **Sin verificar**: validación contra el XSD de ekuatia (no descargado) y envío real a SIFEN.
+
+### Para la etapa 2 (auditoría del diff, 19/11)
+
+- **Backfill antes de publicar la columna desde el central.** `central_pub` no tiene lista de columnas y
+  la filial tiene `persona` en REPLICA IDENTITY FULL: apenas el central tenga `pais_id`, cada UPDATE de
+  una persona manda `pais_id = NULL` y borra el país que cargó la sucursal. Antes de agregarla al
+  central: juntar `pais_id` de cada filial, escribirlo en el central (conflictos entre sucursales, a
+  mano) y recién ahí desplegar.
+- `personas.persona` no puede pasar a `BRANCH_TO_MAIN` mientras `pais_id` exista solo en la filial: el
+  apply del central fallaría por la columna de más y cortaría la suscripción de subida.
+- Corregir un país ya cargado no se puede desde la caja (`actualizarPais` solo toca `pais_id` nulo,
+  con log `PAIS_PERSONA`): es tarea de la pantalla de personas del central.
+- **Corregir un país mal cargado** (etapa 1): por SQL en la filial de esa sucursal,
+  `update personas.persona set pais_id = <id o null> where id = <persona>;`, y mirar el log `PAIS_PERSONA`
+  para saber quién lo cargó.
+- **Antes de un resync de `personas.persona`** en una filial (TRUNCATE + `copy_data=true`, o un DELETE +
+  INSERT desde el central): respaldar `select id, pais_id from personas.persona where pais_id is not null`
+  y restaurarlo después; si no, esos clientes vuelven a pedir país en la caja.
