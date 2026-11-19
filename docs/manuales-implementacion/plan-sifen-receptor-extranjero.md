@@ -152,3 +152,15 @@ hasta migrar).
 - **Antes de un resync de `personas.persona`** en una filial (TRUNCATE + `copy_data=true`, o un DELETE +
   INSERT desde el central): respaldar `select id, pais_id from personas.persona where pais_id is not null`
   y restaurarlo después; si no, esos clientes vuelven a pedir país en la caja.
+
+## País solo con facturación electrónica y prueba en SIFEN test (19/11, tarde)
+
+- Decidido por Franco: el campo País se muestra solo si el filial factura electrónico. Query nueva
+  `facturaElectronicaHabilitada` (misma regla que `FacturaLegalBuilder`: SIFEN habilitado); el desktop la
+  consulta al abrir el diálogo en modo PDV. En papel (farmacia) no aparece; con un filial anterior la
+  consulta falla en silencio y el campo tampoco aparece, así que un desktop nuevo nunca manda `paisId` a un
+  filial que no lo conoce. Probado por pantalla los tres casos.
+- SIFEN test (`recepcionDE` sincrónico, un solo DE B2F, sin tocar la base): el XML pasa la validación de
+  esquema (antes `0160` por `dDTipIDRec` «Otro») y el rechazo es `2450 – Certificado digital no vigente`:
+  el certificado de esta máquina venció el 20/08/2026. Las reglas de negocio de B2F quedan por verificar
+  con el certificado vigente.
