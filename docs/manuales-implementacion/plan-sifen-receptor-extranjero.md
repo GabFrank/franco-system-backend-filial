@@ -108,3 +108,26 @@ hasta migrar).
 - Reglas del servidor SIFEN para B2F en IVA/exportación: no relevadas.
 
 ## Anexo — consulta (bodega, solo lectura, la corre Franco): `q134.sql`
+
+## Cambios durante la implementación (19/11)
+
+- **La persona no se crea en la filial**: `PersonaService.save` la crea en el central por REST y la
+  espera por réplica, y rechaza ediciones. El país se graba con `PersonaService.asignarPais`
+  (UPDATE directo de `pais_id`). Verificado en un par publicación/suscripción de prueba que un UPDATE
+  que baja del central no pisa una columna que solo tiene el suscriptor. El país queda **por sucursal**
+  hasta que lo tenga el central (etapa 2).
+- **Pasaportes con letras**: el campo documento del diálogo de factura era solo numérico; ahora acepta
+  letras con un país extranjero (`[numericOnly]` apagable). Dos colisiones que eso destapó, corregidas:
+  las búsquedas por documento probaban de nuevo con solo los dígitos (`FX987654` → `987654`), y la
+  consulta de RUC a SET también (dio de alta al contribuyente del RUC 987654). Con letras ya no se
+  reduce a dígitos ni se consulta SET: queda como no contribuyente.
+- **Desktop**: el selector de país va solo en el modo PDV del diálogo de factura (contra el filial). En
+  modo servidor la factura pasa por el central, que no conoce `paisId`: etapa 2. Al encontrar un cliente
+  el país no se precarga (la query detallada también la usa el central); vacío no lo cambia.
+- **F8**: sin cambios de pantalla. El cliente se elige en «Falta el cliente para facturar» y sale B2F si
+  ya tiene país.
+- Probado por pantalla (filial propio 8082 + central develop 8081 + desktop): CPF nuevo con Brasil →
+  B2F/BRA/cédula extranjera; sin país → venta rechazada con el motivo; corrección en el mismo diálogo →
+  B2F; cliente ya cargado sin tocar el selector → B2F; pasaporte → B2F/Pasaporte; paraguayo → B2C sin
+  cambios; F8 con cliente extranjero → B2F.
+- **Sin verificar**: validación contra el XSD de ekuatia (no descargado) y envío real a SIFEN.
