@@ -74,4 +74,21 @@ class ClienteGraphQLSifenAltaTest {
         verify(personas, times(1)).save(any());
         assertEquals(Long.valueOf(321L), c.getPersona().getId());
     }
+
+    /** #134: un pasaporte con letras no cae en la persona de sus digitos (otro cliente). */
+    @Test
+    void pasaporteNoBuscaPorSusDigitos() {
+        ClienteGraphQL g = new ObjenesisStd().newInstance(ClienteGraphQL.class);
+        ClienteService clientes = mock(ClienteService.class);
+        SifenService sifen = mock(SifenService.class);
+        ReflectionTestUtils.setField(g, "service", clientes);
+        ReflectionTestUtils.setField(g, "personaService", mock(PersonaService.class));
+        ReflectionTestUtils.setField(g, "sifenService", sifen);
+        when(clientes.findByPersonaDocumento("987654")).thenReturn(new Cliente());
+
+        g.clientePorPersonaDocumentoDetallado("FX987654");
+
+        verify(clientes).findByPersonaDocumento("FX987654");
+        verify(clientes, never()).findByPersonaDocumento("987654");
+    }
 }

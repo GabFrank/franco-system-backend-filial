@@ -282,7 +282,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 try {
                     String rucLimpio = entity.getRuc().trim();
                     Persona persona = personaService.findByDocumento(rucLimpio);
-                    if (persona == null) {
+                    // Un pasaporte (#134) no se reduce a sus digitos: "FX987654" encontraria a la persona "987654".
+                    if (persona == null && !rucLimpio.matches(".*[A-Za-z].*")) {
                         String documentoNormalizado = rucLimpio.replaceAll("[^0-9]", "");
                         if (!documentoNormalizado.isEmpty()) {
                             persona = personaService.findByDocumento(documentoNormalizado);
