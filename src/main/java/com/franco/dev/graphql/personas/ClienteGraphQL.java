@@ -1,6 +1,7 @@
 package com.franco.dev.graphql.personas;
 
 import com.franco.dev.domain.general.Contacto;
+import com.franco.dev.domain.general.Pais;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.graphql.personas.dto.ClienteDatosBasicos;
@@ -8,6 +9,7 @@ import com.franco.dev.graphql.personas.dto.ClienteResponse;
 import com.franco.dev.graphql.personas.input.ClienteInput;
 import com.franco.dev.service.empresarial.SucursalService;
 import com.franco.dev.service.general.ContactoService;
+import com.franco.dev.service.general.PaisService;
 import com.franco.dev.service.personas.ClienteService;
 import com.franco.dev.service.personas.PersonaService;
 import com.franco.dev.service.personas.UsuarioService;
@@ -44,6 +46,9 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
     @Autowired
     private PersonaService personaService;
+
+    @Autowired
+    private PaisService paisService;
 
     @Autowired
     private SucursalService sucursalService;
@@ -208,6 +213,14 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         if (!personaNueva && input.getNombre() != null && !input.getNombre().equals(e.getPersona().getNombre())) {
             e.getPersona().setNombre(input.getNombre());
             modifPersona = true;
+        }
+        // El pais decide como se declara el receptor en SIFEN (#134): nulo no lo cambia.
+        if (input.getPaisId() != null) {
+            Pais pais = paisService.findById(input.getPaisId()).orElse(null);
+            if (pais != null) {
+                e.getPersona().setPais(pais);
+                modifPersona = true;
+            }
         }
         if (modifPersona) {
             personaService.save(e.getPersona());

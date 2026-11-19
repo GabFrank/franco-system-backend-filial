@@ -15,6 +15,7 @@ public class ClienteInput {
     private String nombre;
     private String documento;
     private String direccion;
+    private Long paisId;
     private Boolean tributa;
     private Boolean verificadoSet;
     private Integer tipoContribuyente;

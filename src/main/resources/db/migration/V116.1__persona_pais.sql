@@ -1,0 +1,13 @@
+-- =====================================================================
+-- personas.persona.pais_id: pais del receptor para facturar a extranjeros (issue #134)
+-- =====================================================================
+-- Nulo = Paraguay. SifenReceptorHelper lo lee para declarar B2F con el pais y el tipo de
+-- documento correctos. Lo escriben la factura manual y saveCliente de esta filial.
+--
+-- Solo en la filial: el central no tiene la columna y no la publica. La filial suscripta a
+-- central_pub con una columna de mas no rompe la replica, y un UPDATE que baja del central no toca
+-- las columnas que no publica. Si el central la agrega algun dia, va despues de toda la flota.
+--
+-- Sin FK a general.pais, como el resto de las tablas suscriptas (ver V81.1): la persona con un id
+-- que esta filial no tiene se lee como "sin pais" (@NotFound IGNORE en Persona.pais).
+ALTER TABLE personas.persona ADD COLUMN IF NOT EXISTS pais_id bigint;

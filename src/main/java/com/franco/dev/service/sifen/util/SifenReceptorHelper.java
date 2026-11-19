@@ -1,5 +1,6 @@
 package com.franco.dev.service.sifen.util;
 
+import com.franco.dev.domain.general.Pais;
 import com.franco.dev.domain.personas.Cliente;
 import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.utilitarios.CalcularVerificadorRuc;
@@ -10,6 +11,9 @@ import com.roshka.sifen.core.types.TiTipDocRec;
 import com.roshka.sifen.core.types.PaisType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Locale;
+import java.util.MissingResourceException;
 
 /**
  * Helper para configurar correctamente los datos del receptor en un Documento Electrónico SIFEN.
@@ -44,6 +48,7 @@ public class SifenReceptorHelper {
         public TiTipDocRec iTipIDRec;      // Tipo de documento (solo si iNatRec=2)
         public String dNumIDRec;           // Número de documento (solo si iNatRec=2)
         public String dDTipIDRec;          // Descripción del tipo doc (solo si iTipIDRec=9 - Otro)
+        public String dDirRec;             // Dirección (obligatoria en B2F)
         
         // País (para B2F o extranjeros)
         public PaisType cPaisRec;          // Código de país
@@ -99,9 +104,18 @@ public class SifenReceptorHelper {
             return config;
         }
         
+        String documento = persona.getDocumento();
+
+        // Receptor del exterior (#134): antes que el RUC, porque la factura manual crea el cliente con
+        // tributa=true y un RG de 7 digitos pasaria por contribuyente.
+        PaisType paisReceptor = paisSifen(persona.getPais());
+        if (paisReceptor != PaisType.PRY && !esInnominado(persona.getNombre(), documento)) {
+            configurarExtranjero(config, persona, documento, paisReceptor);
+            return config;
+        }
+
         // Determinar si tiene RUC válido y tributa
         // NOTA: Para PF, cliente.tributa se actualiza vía consulta gubernamental
-        String documento = persona.getDocumento();
         boolean tieneRucValido = tieneRucValido(documento, cliente.getTributa());
         
         if (tieneRucValido) {
@@ -188,10 +202,8 @@ public class SifenReceptorHelper {
     private static void configurarNoContribuyente(ConfiguracionReceptor config, Cliente cliente, Persona persona, String documento, Double montoTotal) {
         config.iNatRec = TiNatRec.NO_CONTRIBUYENTE;
         
-        // TODO: Detectar B2F (servicios al exterior) - Por ahora usamos B2C
+        // Nacional: el extranjero ya salio por configurarExtranjero (B2F con su pais)
         config.iTiOpe = TiTiOpe.B2C;
-        
-        // País por defecto Paraguay (puede cambiar en extranjero)
         config.cPaisRec = PaisType.PRY;
         
         String nombre = persona.getNombre();
@@ -213,26 +225,66 @@ public class SifenReceptorHelper {
         
         config.iTipIDRec = tipoDoc;
         config.dNumIDRec = limpiarDocumento(documento);
-        
-        // Si es "Otro" documento, agregar descripción
-        if (tipoDoc == TiTipDocRec.OTRO) {
-            config.dDTipIDRec = "Documento de identidad";
-            logger.warn("⚠️  Usando tipo de documento 'OTRO' - verificar si esto es correcto");
-        }
-        
-        // Determinar escenario específico
-        // Nota: TiTipDocRec solo tiene CEDULA_PARAGUAYA, INNOMINADO y OTRO en la versión actual de la librería
-        if (tipoDoc == TiTipDocRec.CEDULA_PARAGUAYA) {
-            config.escenarioDetectado = "4) No contribuyente identificado – PF nacional (B2C)";
-        } else if (tipoDoc == TiTipDocRec.OTRO) {
-            config.escenarioDetectado = "8) No contribuyente identificado – Otro documento (B2C)";
-        } else {
-            config.escenarioDetectado = "No contribuyente (B2C)";
-        }
-        
+        config.escenarioDetectado = "4) No contribuyente identificado – PF nacional (B2C)";
+
         logger.info("✅ Configuración B2C: TipoDoc={}, NumDoc={}", config.iTipIDRec, config.dNumIDRec);
     }
-    
+
+    /**
+     * Receptor del exterior: B2F con su pais. El MT exige cPaisRec=PRY para todo iTiOpe que no sea B2F,
+     * asi que un extranjero no puede ir como B2C. Con B2F la libreria escribe siempre dDirRec.
+     */
+    private static void configurarExtranjero(ConfiguracionReceptor config, Persona persona, String documento, PaisType pais) {
+        config.iNatRec = TiNatRec.NO_CONTRIBUYENTE;
+        config.iTiOpe = TiTiOpe.B2F;
+        config.cPaisRec = pais;
+        config.dNomRec = persona.getNombre().trim().toUpperCase();
+
+        String doc = limpiarDocumento(documento);
+        // shortcut: pasaporte por tener letras; uno solo numerico sale como cedula extranjera, que SIFEN acepta igual
+        config.iTipIDRec = doc.matches(".*[A-Za-z].*") ? TiTipDocRec.PASAPORTE : TiTipDocRec.CEDULA_EXTRANJERA;
+        config.dNumIDRec = doc;
+
+        // dDirRec va siempre en B2F y el XSD no acepta vacio: sin direccion, el nombre del pais.
+        String direccion = persona.getDireccion() == null ? "" : persona.getDireccion().trim();
+        config.dDirRec = direccion.isEmpty() ? pais.getNombre()
+                : direccion.substring(0, Math.min(direccion.length(), 255));
+        config.requiereDireccion = true;
+
+        config.escenarioDetectado = "10) No contribuyente del exterior (B2F)";
+        logger.info("✅ Configuración B2F: Pais={}, TipoDoc={}, NumDoc={}", pais, config.iTipIDRec, config.dNumIDRec);
+    }
+
+    /**
+     * Pais de general.pais a PaisType (ISO alfa-3). Nulo = Paraguay. Los codigos de la tabla vienen
+     * mezclados ("PY", "BR", "ARG", "US"): los de 2 letras se pasan por Locale.
+     */
+    static PaisType paisSifen(Pais pais) {
+        if (pais == null) {
+            return PaisType.PRY;
+        }
+        String codigo = pais.getCodigo() == null ? "" : pais.getCodigo().trim().toUpperCase();
+        try {
+            if (codigo.length() == 2) {
+                codigo = new Locale("", codigo).getISO3Country();
+            }
+            return PaisType.valueOf(codigo);
+        } catch (IllegalArgumentException | MissingResourceException e) {
+            throw new IllegalArgumentException("El pais " + pais.getDescripcion() + " (codigo '" + pais.getCodigo()
+                    + "') no tiene codigo SIFEN: corrija el codigo en Paises (ISO de 2 o 3 letras).");
+        }
+    }
+
+    /**
+     * El documento no es una cedula paraguaya y el cliente no tiene pais. Antes salia como "Otro" y SIFEN
+     * lo rechazaba siempre (0160): ahora la venta se rechaza y el cajero carga el pais.
+     */
+    public static class ReceptorSinPaisException extends IllegalArgumentException {
+        public ReceptorSinPaisException(String mensaje) {
+            super(mensaje);
+        }
+    }
+
     /**
      * La unica falla del armado que el cajero resuelve solo: cargando el cliente. Tiene tipo propio
      * para que {@code FacturaLegalBuilder} la distinga sin leer el mensaje.
@@ -647,26 +699,14 @@ public class SifenReceptorHelper {
      * Determina el tipo de documento de identidad para no contribuyentes.
      */
     private static TiTipDocRec determinarTipoDocumento(String documento, Persona persona) {
-        if (documento == null || documento.trim().isEmpty()) {
-            return TiTipDocRec.OTRO;
-        }
-        
-        String docLimpio = limpiarDocumento(documento);
-        
-        // TODO: Implementar lógica más robusta para detectar tipos de documento
-        // Por ahora, heurística simple basada en la longitud y formato
-        
-        // TODO: Implementar detección de otros tipos cuando estén disponibles en la librería
-        // Por ahora, solo soportamos CEDULA_PARAGUAYA y OTRO
-        
-        // Cédula paraguaya: típicamente 6-8 dígitos numéricos
-        if (docLimpio.matches("\\d{6,8}")) {
+        // Nunca OTRO: la libreria manda dDTipIDRec = "Otro" (coalesce con la descripcion del enum) y el
+        // XSD lo rechaza (0160). Las cedulas viejas tienen menos de 6 digitos.
+        if (limpiarDocumento(documento).matches("\\d{1,8}")) {
             return TiTipDocRec.CEDULA_PARAGUAYA;
         }
-        
-        // Por defecto, usar OTRO para cualquier otro formato
-        // TODO: Agregar soporte para PASAPORTE, CEDULA_EXTRANJERA, CARNET_RESIDENCIA cuando estén disponibles
-        return TiTipDocRec.OTRO;
+        throw new ReceptorSinPaisException("El documento " + documento + " del cliente no es una cedula paraguaya."
+                + " Si es extranjero, cargue su pais en el cliente; si es un RUC, carguelo sin el digito"
+                + " verificador. O facture sin nombre.");
     }
     
     /**

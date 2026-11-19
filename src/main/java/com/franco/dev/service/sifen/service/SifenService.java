@@ -1799,7 +1799,11 @@ public class SifenService {
                 gDatRec.setdDTipIDRec(config.dDTipIDRec);
             }
         }
-        
+        // B2F: la libreria escribe dDirRec siempre (y sin departamento ni ciudad)
+        if (config.dDirRec != null) {
+            gDatRec.setdDirRec(config.dDirRec);
+        }
+
         return gDatRec;
     }
 

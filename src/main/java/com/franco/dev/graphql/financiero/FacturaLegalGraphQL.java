@@ -10,6 +10,7 @@ import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.domain.personas.Cliente;
+import com.franco.dev.service.general.PaisService;
 import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
@@ -122,6 +123,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private PersonaService personaService;
+
+    @Autowired
+    private PaisService paisService;
 
     @Autowired
     private PuntoDeVentaService puntoDeVentaService;
@@ -323,6 +327,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     log.error("Error al crear cliente manualmente desde FacturaLegal: {}", e.getMessage(), e);
                 }
             }
+            asignarPais(facturaLegal.getCliente(), entity.getPaisId());
 
             if (ventaDeLaFactura != null) {
                 facturaLegal.setVenta(ventaDeLaFactura);
@@ -2037,4 +2042,15 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
     }
 
+    /**
+     * El pais decide como se declara el receptor en SIFEN (#134). Se graba en la persona del cliente,
+     * nueva o ya existente; nulo no la cambia (Paraguay se manda explicito para corregir).
+     */
+    private void asignarPais(Cliente cliente, Long paisId) {
+        if (paisId == null || cliente == null || cliente.getPersona() == null) return;
+        paisService.findById(paisId).ifPresent(pais -> {
+            cliente.getPersona().setPais(pais);
+            personaService.save(cliente.getPersona());
+        });
+    }
 }
