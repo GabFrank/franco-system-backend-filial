@@ -462,6 +462,12 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
             return null;
         }
 
+        // Un pasaporte (#134) no es un RUC: sin las letras consultaria a otro contribuyente
+        // ("FX987654" trajo al RUC 987654). Sin RUC es "no contribuyente", como una cedula.
+        if (documento.matches(".*[A-Za-z].*")) {
+            return new ConsultaRucResponse();
+        }
+
         String documentoNormalizado = documento.replaceAll("[^0-9]", "");
         if (documentoNormalizado.isEmpty()) {
             documentoNormalizado = documento.trim();

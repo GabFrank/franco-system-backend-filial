@@ -11,6 +11,8 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.objenesis.ObjenesisStd;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Collections;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -90,5 +92,21 @@ class ClienteGraphQLSifenAltaTest {
 
         verify(clientes).findByPersonaDocumento("FX987654");
         verify(clientes, never()).findByPersonaDocumento("987654");
+    }
+
+    /** #134: un pasaporte no se consulta en SET (sin letras traia a otro contribuyente) y queda como no contribuyente. */
+    @Test
+    void pasaporteNoSeConsultaEnSet() {
+        ClienteGraphQL g = new ObjenesisStd().newInstance(ClienteGraphQL.class);
+        SifenService sifen = mock(SifenService.class);
+        ReflectionTestUtils.setField(g, "service", mock(ClienteService.class));
+        ReflectionTestUtils.setField(g, "personaService", mock(PersonaService.class));
+        ReflectionTestUtils.setField(g, "sifenService", sifen);
+        when(sifen.isSifenEnabled()).thenReturn(true);
+
+        com.franco.dev.graphql.personas.dto.ClienteResponse r = g.clientePorPersonaDocumentoDetallado("FX987654");
+
+        verify(sifen, never()).consultaRuc(anyString());
+        assertEquals(Collections.singletonList("El cliente no es contribuyente de SET"), r.getErrores());
     }
 }
