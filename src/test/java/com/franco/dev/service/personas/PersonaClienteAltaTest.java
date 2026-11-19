@@ -99,7 +99,7 @@ class PersonaClienteAltaTest {
 
     /** #134: el pais de una persona que ya existe se graba local, sin save (que la rechazaria) ni central. */
     @Test
-    void asignarPais_esUnUpdateLocalSinPasarPorElCentral() {
+    void asignarPais_esUnUpdateLocalYLoAvisaAlCentral() {
         Persona p = delCentral();
         com.franco.dev.domain.general.Pais brasil = new com.franco.dev.domain.general.Pais();
         brasil.setId(2L);
@@ -110,7 +110,9 @@ class PersonaClienteAltaTest {
 
         verify(personas).actualizarPais(321L, 2L);
         assertSame(brasil, p.getPais());
-        verifyNoInteractions(central);
+        // #666: el central lo graba solo si no tiene; la persona no pasa por el alta ni la edicion
+        verify(central).syncPais(321L, 2L);
+        verifyNoMoreInteractions(central);
         verify(personas, never()).save(any());
     }
 
@@ -128,5 +130,7 @@ class PersonaClienteAltaTest {
         personaService.asignarPais(p, brasil, 410L);
 
         assertSame(paraguay, p.getPais());
+        // el central puede no tenerlo (cargado antes de #666): igual se le avisa, alla tambien es solo si es nulo
+        verify(central).syncPais(321L, 2L);
     }
 }

@@ -57,6 +57,9 @@ public class PersonaService extends CrudService<Persona, PersonaRepository> {
             log.info("PAIS_PERSONA sin cambio: persona={} ya tiene pais; pedido={} usuario={}",
                     persona.getId(), pais.getId(), usuarioId);
         }
+        // Siempre, aunque aca ya tuviera: el central puede no tenerlo (cargado antes de #666). Alla tambien es
+        // "solo si es nulo".
+        centralPersonasIntegrationService.syncPais(persona.getId(), pais.getId());
     }
 
     static final String EDICION_EN_CENTRAL ="Las ediciones de personas y clientes se hacen en el servidor central.";
