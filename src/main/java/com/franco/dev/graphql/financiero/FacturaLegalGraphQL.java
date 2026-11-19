@@ -187,6 +187,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return service.findAll(pageable);
     }
 
+    /** Misma regla que FacturaLegalBuilder: con SIFEN habilitado la factura es electronica (#134). */
+    public Boolean facturaElectronicaHabilitada() {
+        return sifenService != null && sifenService.isSifenEnabled();
+    }
+
     public Boolean deleteFacturaLegal(Long id, Long sucId) {
         return service.deleteById(id);
     }
