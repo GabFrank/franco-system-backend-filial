@@ -8,7 +8,6 @@ type Persona {
     sexo: String
     direccion: String
     ciudad: Ciudad
-    pais: Pais
     telefono: String
     socialMedia: String
     imagenes: String

@@ -76,7 +76,7 @@ input FacturaLegalInput {
     ruc: String
     direccion: String
     email: String
-    "Pais del cliente (nulo = Paraguay). Se graba en la persona, nueva o encontrada."
+    "Pais del cliente (nulo = Paraguay). Se graba en la persona solo si todavia no tiene pais."
     paisId: Int
     cdc: String
     ivaParcial0: Float

@@ -27,9 +27,9 @@ public interface PersonaRepository extends HelperRepository<Persona, Long> {
     @Query("select p from Persona p where CAST(id as text) like %?1% or UPPER(p.nombre) like %?1% or UPPER(p.apodo) like %?1% or UPPER(p.documento) like %?1%")
     public Page<Persona> findbyAll(String texto, Pageable pageable);
 
-    /** Solo la columna local pais_id (#134): el resto de la persona se edita en el central. */
+    /** Solo la columna local pais_id (#134), y solo si no tiene: corregir un pais cargado se hace en el central. */
     @Modifying
     @Transactional
-    @Query(value = "update personas.persona set pais_id = :paisId where id = :id", nativeQuery = true)
+    @Query(value = "update personas.persona set pais_id = :paisId where id = :id and pais_id is null", nativeQuery = true)
     int actualizarPais(@Param("id") Long id, @Param("paisId") Long paisId);
 }

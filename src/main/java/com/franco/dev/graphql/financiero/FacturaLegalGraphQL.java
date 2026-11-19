@@ -328,7 +328,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     log.error("Error al crear cliente manualmente desde FacturaLegal: {}", e.getMessage(), e);
                 }
             }
-            asignarPais(facturaLegal.getCliente(), entity.getPaisId());
+            asignarPais(facturaLegal.getCliente(), entity.getPaisId(), entity.getUsuarioId());
 
             if (ventaDeLaFactura != null) {
                 facturaLegal.setVenta(ventaDeLaFactura);
@@ -2044,11 +2044,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     }
 
     /**
-     * El pais decide como se declara el receptor en SIFEN (#134). Se graba en la persona del cliente,
-     * nueva o ya existente; nulo no la cambia (Paraguay se manda explicito para corregir).
+     * El pais decide como se declara el receptor en SIFEN (#134). Se graba en la persona del cliente, nueva o ya
+     * existente, solo si todavia no tiene (ver PersonaService.asignarPais); nulo no la cambia.
      */
-    private void asignarPais(Cliente cliente, Long paisId) {
+    private void asignarPais(Cliente cliente, Long paisId, Long usuarioId) {
         if (paisId == null || cliente == null) return;
-        personaService.asignarPais(cliente.getPersona(), paisService.findById(paisId).orElse(null));
+        personaService.asignarPais(cliente.getPersona(), paisService.findById(paisId).orElse(null), usuarioId);
     }
 }

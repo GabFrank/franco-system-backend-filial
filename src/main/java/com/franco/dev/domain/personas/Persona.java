@@ -48,9 +48,12 @@ public class Persona implements Serializable {
     @JsonIgnore
     private Ciudad ciudad;
 
-    /** Nulo = Paraguay. Sin FK en la filial: un id que no esta en general.pais se lee como nulo. */
+    /**
+     * Nulo = Paraguay. Sin FK en la filial: un id que no esta en general.pais se lee como nulo. Solo lectura para
+     * Hibernate: se escribe con PersonaRepository.actualizarPais, asi ningun save la pisa con un valor viejo.
+     */
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "pais_id", nullable = true)
+    @JoinColumn(name = "pais_id", nullable = true, insertable = false, updatable = false)
     @NotFound(action = NotFoundAction.IGNORE)
     @JsonIgnore
     private Pais pais;

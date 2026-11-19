@@ -24,8 +24,6 @@ input ClienteInput {
     nombre: String
     credito: Float
     direccion: String
-    "Pais de la persona (nulo = no se cambia; Paraguay se manda explicito)."
-    paisId: Int
     creadoEn: Date
     documento: String
     usuarioId: Int

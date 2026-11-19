@@ -104,11 +104,29 @@ class PersonaClienteAltaTest {
         com.franco.dev.domain.general.Pais brasil = new com.franco.dev.domain.general.Pais();
         brasil.setId(2L);
 
-        personaService.asignarPais(p, brasil);
+        when(personas.actualizarPais(321L, 2L)).thenReturn(1);
+
+        personaService.asignarPais(p, brasil, 410L);
 
         verify(personas).actualizarPais(321L, 2L);
         assertSame(brasil, p.getPais());
         verifyNoInteractions(central);
         verify(personas, never()).save(any());
+    }
+
+    /** #134: desde la caja no se cambia un pais ya cargado (el UPDATE solo toca pais_id nulo). */
+    @Test
+    void asignarPais_noCambiaUnPaisYaCargado() {
+        Persona p = delCentral();
+        com.franco.dev.domain.general.Pais paraguay = new com.franco.dev.domain.general.Pais();
+        paraguay.setId(1L);
+        p.setPais(paraguay);
+        com.franco.dev.domain.general.Pais brasil = new com.franco.dev.domain.general.Pais();
+        brasil.setId(2L);
+        when(personas.actualizarPais(321L, 2L)).thenReturn(0);
+
+        personaService.asignarPais(p, brasil, 410L);
+
+        assertSame(paraguay, p.getPais());
     }
 }
