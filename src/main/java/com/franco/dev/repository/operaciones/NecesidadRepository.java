@@ -22,8 +22,4 @@ public interface NecesidadRepository extends HelperRepository<Necesidad, Long> {
             " where CAST(e.id as text) like %?1% or UPPER(s.nombre) like %?1%")
     public List<Necesidad> findByAll(String texto);
 
-    @Query("select e from Necesidad e " +
-            " where cast(e.fecha as date) = cast(?1 as date) and ?2 = ?1" +
-            "or cast(e.fecha as date) >= cast(?1 as date) AND cast(e.fecha as date) <= cast(?2 as date)")
-    public List<Necesidad> findByDate(String start, String end);
 }

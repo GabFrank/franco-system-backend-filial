@@ -1,5 +1,6 @@
 package com.franco.dev.service.administrativo;
 
+import com.franco.dev.utilitarios.Paginacion;
 import com.franco.dev.domain.administrativo.Marcacion;
 import com.franco.dev.repository.administrativo.MarcacionRepository;
 import com.franco.dev.repository.administrativo.HorarioRepository;
@@ -35,11 +36,6 @@ public class MarcacionService {
         return repository.findAllByOrderByIdAsc();
     }
 
-    public Page<Marcacion> findAllPaged(Integer page, Integer size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return repository.findAll(pageable);
-    }
-
     public Optional<Marcacion> findById(com.franco.dev.domain.EmbebedPrimaryKey id) {
         if (id == null)
             return Optional.empty();
@@ -58,19 +54,14 @@ public class MarcacionService {
     }
 
     public Page<Marcacion> findByUsuarioId(Long usuarioId, Integer page, Integer size) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = Paginacion.of(page, size);
         return repository.findByUsuarioId(usuarioId, pageable);
     }
 
     public Page<Marcacion> findByUsuarioIdAndFechaRange(Long usuarioId, String fechaInicio, String fechaFin,
             Integer page, Integer size) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = Paginacion.of(page, size);
         return repository.findByUsuarioIdAndFechaRange(usuarioId, fechaInicio, fechaFin, pageable);
-    }
-
-    public Page<Marcacion> findByFechaRange(String fechaInicio, String fechaFin, Integer page, Integer size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return repository.findByFechaRange(fechaInicio, fechaFin, pageable);
     }
 
     public List<Marcacion> findBySucursalEntradaId(Long sucursalId) {

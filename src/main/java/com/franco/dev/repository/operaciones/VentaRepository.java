@@ -39,8 +39,6 @@ public interface VentaRepository extends HelperRepository<Venta, Long>, JpaSpeci
 
     public List<Venta> findByCajaId(Long id);
 
-    public List<Venta> findByCreadoEnBetween(LocalDateTime inicio, LocalDateTime fin);
-
     @Query(value = "select v from Venta v, CobroDetalle cd " +
             "join v.caja ca " +
             "join v.cobro c " +

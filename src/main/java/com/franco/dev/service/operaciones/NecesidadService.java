@@ -23,10 +23,6 @@ public class NecesidadService extends CrudService<Necesidad, NecesidadRepository
         return  repository.findByAll(texto.toUpperCase());
     }
 
-    public List<Necesidad> findByDate(String start, String end){
-        return repository.findByDate(start, end);
-    }
-
     @Override
     public Necesidad save(Necesidad entity) {
         Necesidad e = super.save(entity);

@@ -22,7 +22,6 @@ extend type Query {
     necesidad(id:ID!):Necesidad
     necesidades(page:Int = 0, size:Int = 10):[Necesidad]!
     necesidadesSearch(texto:String):[Necesidad]
-    necesidadesPorFecha(start:String, end:String):[Necesidad]!
     countNecesidad: Int
 }
 

@@ -72,10 +72,6 @@ public class PdvCajaGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
         return service.findAll(pageable);
     }
 
-    public List<PdvCaja> cajasPorFecha(String inicio, String fin, Long sucId) {
-        return service.findByDate(inicio, fin);
-    }
-
     public CajaBalance balancePorFecha(String inicio, String fin, Long sucId) {
         rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
         List<PdvCaja> pdvCajaList = service.findByDate(inicio, fin);

@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.utilitarios.Paginacion;
 import com.franco.dev.domain.dto.StockPorTipoMovimientoDto;
 import com.franco.dev.domain.operaciones.MovimientoStock;
 import com.franco.dev.domain.operaciones.enums.TipoMovimiento;
@@ -53,7 +54,7 @@ public class MovimientoGraphQL implements GraphQLQueryResolver, GraphQLMutationR
             List<TipoMovimiento> tipoMovimientoList,
             Long usuarioId,
             Integer page, Integer size) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = Paginacion.of(page, size);
         if (productoId == null || inicio == null || fin == null)
             return null;
         return service.findMovimientoStockWithFilters(stringToDate(inicio), stringToDate(fin), sucursalList, productoId,
@@ -83,10 +84,6 @@ public class MovimientoGraphQL implements GraphQLQueryResolver, GraphQLMutationR
 
     public Long countMovimientoStock() {
         return service.count();
-    }
-
-    public List<MovimientoStock> movimientoStockByFecha(String inicio, String fin, Long sucId) {
-        return service.findByDate(inicio, fin);
     }
 
     public void findByTipoMovimientoAndReferencia(TipoMovimiento tipoMovimiento, Long referencia, Long sucId) {

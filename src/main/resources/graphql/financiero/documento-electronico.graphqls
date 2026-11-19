@@ -52,7 +52,6 @@ extend type Query {
     documentoElectronicos(page: Int = 0, size: Int = 10, sucId: ID): [DocumentoElectronico]!
     documentoElectronicoPorFactura(facturaLegalId: ID!, sucId: ID): DocumentoElectronico
     documentoElectronicoPorCdc(cdc: String!, sucId: ID): DocumentoElectronico
-    documentoElectronicoPorEstado(estado: String!, sucId: ID): [DocumentoElectronico]!
     countDocumentoElectronico: Int
 }
 

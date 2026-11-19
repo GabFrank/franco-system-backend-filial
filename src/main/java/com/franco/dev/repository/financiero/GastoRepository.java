@@ -12,8 +12,6 @@ public interface GastoRepository extends HelperRepository<Gasto, Long> {
         return Gasto.class;
     }
 
-    public List<Gasto> findByCreadoEnBetween(LocalDateTime inicio, LocalDateTime fin);
-
     public List<Gasto> findByCajaId(Long id);
 
 }

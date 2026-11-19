@@ -135,26 +135,6 @@ public class DeliveryGraphQL implements GraphQLQueryResolver, GraphQLMutationRes
         return service.findAll(pageable);
     }
 
-    public List<Delivery> deliverysByEstado(DeliveryEstado estado, Long sucId) {
-        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
-        return service.findByEstado(estado);
-    }
-
-    public List<Delivery> deliverysByEstadoList(List<DeliveryEstado> estadoList, Long sucId) {
-        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
-        return service.getRepository().findDeliveryByEstadoAndSucId(estadoList, sucId);
-    }
-
-    public List<Delivery> deliverysByEstadoNotIn(DeliveryEstado estado, Long sucId) {
-        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
-        return service.findByEstadoNotIn(estado);
-    }
-
-    public List<Delivery> deliverysUltimos10(Long sucId) {
-        rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);
-        return service.findTop10();
-    }
-
     /** Sin llamadores en los clientes; el PDV guarda con saveDeliveryAndVenta. */
     public Delivery saveDelivery(DeliveryInput input) {
         rolSesionService.exigirRol(RolSesionService.ANALISIS_DE_CAJA);

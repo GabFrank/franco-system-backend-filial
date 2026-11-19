@@ -59,10 +59,6 @@ input DeliveryInput {
 extend type Query {
     delivery(id:ID!, sucId: ID):Delivery
     deliverys(page:Int = 0, size:Int = 10, sucId: ID):[Delivery]!
-    deliverysByEstado(estado: DeliveryEstado, sucId: ID):[Delivery]
-    deliverysByEstadoList(estadoList: [DeliveryEstado], sucId: ID):[Delivery]
-    deliverysByEstadoNotIn(estado: DeliveryEstado, sucId: ID):[Delivery]
-    deliverysUltimos10(sucId: ID):[Delivery]
     countDelivery: Int
     reimprimirDelivery(id: Int!, printerName: String, local: String): Boolean
     deliveryPorCajaIdAndEstados(id: ID!, estadoList: [DeliveryEstado]!, sucId:Int):[Delivery]

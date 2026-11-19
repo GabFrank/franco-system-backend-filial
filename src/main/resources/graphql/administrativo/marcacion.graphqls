@@ -67,7 +67,6 @@ enum TipoMarcacion {
 extend type Query {
     marcacion(id: ID!, sucursalId: ID!): Marcacion
     marcacionesPorUsuario(usuarioId: ID!, fechaInicio: String, fechaFin: String, page: Int, size: Int): MarcacionPage
-    marcaciones(fechaInicio: String, fechaFin: String, page: Int, size: Int): MarcacionPage
     imprimirReporteMarcaciones(usuarioId: ID, fechaInicio: String, fechaFin: String, usuarioResponsableId: ID): String
 }
 

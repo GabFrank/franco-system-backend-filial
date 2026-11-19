@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.configuraciones;
 
+import com.franco.dev.utilitarios.Paginacion;
 import com.franco.dev.domain.configuracion.InicioSesion;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.graphql.configuraciones.input.InicioSesionInput;
@@ -41,7 +42,7 @@ public class InicioSesionGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     }
 
     public Page<InicioSesion> inicioSesionListPorUsuarioIdAndAbierto(Long id, Long sucId, Integer page, Integer size){
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = Paginacion.of(page, size);
         return service.findByUsuarioIdAndHoraFinIsNul(id, sucId, pageable);
     }
 
