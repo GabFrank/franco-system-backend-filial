@@ -10,6 +10,7 @@ import com.franco.dev.domain.operaciones.Venta;
 import com.franco.dev.domain.operaciones.VentaItem;
 import com.franco.dev.domain.productos.Producto;
 import com.franco.dev.domain.personas.Cliente;
+import com.franco.dev.service.general.PaisService;
 import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.graphql.financiero.input.FacturaLegalInput;
@@ -124,6 +125,9 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     private PersonaService personaService;
 
     @Autowired
+    private PaisService paisService;
+
+    @Autowired
     private PuntoDeVentaService puntoDeVentaService;
 
     @Autowired
@@ -181,6 +185,11 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     public List<FacturaLegal> facturaLegales(int page, int size, Long sucId) {
         Pageable pageable = PageRequest.of(page, size);
         return service.findAll(pageable);
+    }
+
+    /** Misma regla que FacturaLegalBuilder: con SIFEN habilitado la factura es electronica (#134). */
+    public Boolean facturaElectronicaHabilitada() {
+        return sifenService != null && sifenService.isSifenEnabled();
     }
 
     public Boolean deleteFacturaLegal(Long id, Long sucId) {
@@ -278,7 +287,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 try {
                     String rucLimpio = entity.getRuc().trim();
                     Persona persona = personaService.findByDocumento(rucLimpio);
-                    if (persona == null) {
+                    // Un pasaporte (#134) no se reduce a sus digitos: "FX987654" encontraria a la persona "987654".
+                    if (persona == null && !rucLimpio.matches(".*[A-Za-z].*")) {
                         String documentoNormalizado = rucLimpio.replaceAll("[^0-9]", "");
                         if (!documentoNormalizado.isEmpty()) {
                             persona = personaService.findByDocumento(documentoNormalizado);
@@ -323,6 +333,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                     log.error("Error al crear cliente manualmente desde FacturaLegal: {}", e.getMessage(), e);
                 }
             }
+            asignarPais(facturaLegal.getCliente(), entity.getPaisId(), entity.getUsuarioId());
 
             if (ventaDeLaFactura != null) {
                 facturaLegal.setVenta(ventaDeLaFactura);
@@ -2037,4 +2048,12 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         }
     }
 
+    /**
+     * El pais decide como se declara el receptor en SIFEN (#134). Se graba en la persona del cliente, nueva o ya
+     * existente, solo si todavia no tiene (ver PersonaService.asignarPais); nulo no la cambia.
+     */
+    private void asignarPais(Cliente cliente, Long paisId, Long usuarioId) {
+        if (paisId == null || cliente == null) return;
+        personaService.asignarPais(cliente.getPersona(), paisService.findById(paisId).orElse(null), usuarioId);
+    }
 }

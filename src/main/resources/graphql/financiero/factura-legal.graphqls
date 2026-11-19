@@ -76,6 +76,8 @@ input FacturaLegalInput {
     ruc: String
     direccion: String
     email: String
+    "Pais del cliente (nulo = Paraguay). Se graba en la persona solo si todavia no tiene pais."
+    paisId: Int
     cdc: String
     ivaParcial0: Float
     ivaParcial5: Float
@@ -105,6 +107,8 @@ extend type Query {
     facturaLegal(id: ID!, sucId: ID): FacturaLegal
     facturaLegales(page: Int = 0, size: Int = 10, sucId: ID): [FacturaLegal]!
     countFacturaLegal: Int
+    "Si este filial factura electronico (SIFEN habilitado): el escritorio muestra el pais del cliente solo en ese caso (#134)."
+    facturaElectronicaHabilitada: Boolean
     imprimirFacturasPorCaja(id: Int, printerName: String, sucId: ID): Boolean
 }
 

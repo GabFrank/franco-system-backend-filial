@@ -1,6 +1,10 @@
 package com.franco.dev.service.sifen.service;
 
+import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.FacturaLegalItem;
+import com.franco.dev.domain.general.Pais;
+import com.franco.dev.domain.personas.Cliente;
+import com.franco.dev.domain.personas.Persona;
 import com.roshka.sifen.core.SifenConfig;
 import com.roshka.sifen.core.beans.DocumentoElectronico;
 import com.roshka.sifen.core.beans.EventosDE;
@@ -25,6 +29,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -86,6 +91,47 @@ class SifenGenerarXmlTest {
 
         assertTrue(xml.contains("Id=\"" + de.obtenerCDC() + "\""), xml);
         assertTrue(xml.contains("SignatureValue"), xml);
+    }
+
+    /**
+     * Receptor extranjero (#134): B2F con su pais, cedula extranjera y direccion. Antes salia
+     * iTipIDRec=9 con dDTipIDRec "Otro" (la libreria pone la descripcion del enum), que SIFEN rechaza.
+     */
+    @Test
+    void generaElReceptorDeUnExtranjeroComoB2f() throws Exception {
+        SifenConfig config = config();
+        SifenService service = new SifenService(null, null, null, null, null, null, null, null, config);
+        Pais brasil = new Pais();
+        brasil.setCodigo("BR");
+        brasil.setDescripcion("Brasil");
+        Persona persona = new Persona();
+        persona.setNombre("JOAO SILVA");
+        persona.setDocumento("12345678901");
+        persona.setPais(brasil);
+        Cliente cliente = new Cliente();
+        cliente.setPersona(persona);
+        cliente.setTributa(true);
+        FacturaLegal factura = FacturaElectronicaDePrueba.factura();
+        factura.setCliente(cliente);
+        List<FacturaLegalItem> items =
+                Collections.singletonList(FacturaElectronicaDePrueba.item("ITEM", 1f, 11000.0));
+
+        DocumentoElectronico de = ReflectionTestUtils.invokeMethod(service,
+                "generarDEDesdeFacturaDatosReales", factura, items);
+        String xml = de.generarXml(GenerationCtx.getDefaultFromConfig(config));
+        String gDatRec = xml.substring(xml.indexOf("<gDatRec>"), xml.indexOf("</gDatRec>"));
+
+        assertTrue(gDatRec.contains("<iNatRec>2</iNatRec>"), gDatRec);
+        assertTrue(gDatRec.contains("<iTiOpe>4</iTiOpe>"), gDatRec);
+        assertTrue(gDatRec.contains("<cPaisRec>BRA</cPaisRec>"), gDatRec);
+        assertTrue(gDatRec.contains("<dDesPaisRe>Brasil</dDesPaisRe>"), gDatRec);
+        assertTrue(gDatRec.contains("<iTipIDRec>3</iTipIDRec>"), gDatRec);
+        assertTrue(gDatRec.contains("<dDTipIDRec>Cédula extranjera</dDTipIDRec>"), gDatRec);
+        assertTrue(gDatRec.contains("<dNumIDRec>12345678901</dNumIDRec>"), gDatRec);
+        assertTrue(gDatRec.contains("<dDirRec>Brasil</dDirRec>"), gDatRec);
+        assertTrue(gDatRec.contains("<dNumCasRec>0</dNumCasRec>"), gDatRec);
+        assertFalse(gDatRec.contains("cDepRec"), gDatRec);
+        assertFalse(gDatRec.contains("dRucRec"), gDatRec);
     }
 
     /** Autofirmado, solo para firmar en el test: lo crea keytool del JDK que corre los tests. */

@@ -21,6 +21,7 @@ public class FacturaLegalInput implements Serializable {
     private String ruc;
     private String direccion;
     private String email;
+    private Long paisId;
     private String cdc;
     private Double ivaParcial0;
     private Double ivaParcial5;

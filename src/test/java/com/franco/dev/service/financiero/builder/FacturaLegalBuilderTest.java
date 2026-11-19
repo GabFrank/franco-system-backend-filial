@@ -467,6 +467,23 @@ class FacturaLegalBuilderTest {
         verificarQueNoSeEscribioNada();
     }
 
+    /** #134: el cajero lo resuelve cargando el pais; antes salia "Otro" y SIFEN lo rechazaba. */
+    @Test
+    void receptorSinPais_rechazaLaVentaConElMotivo() throws Exception {
+        timbradoElectronicoConSifen("021123456", null);
+        doThrow(new com.franco.dev.service.sifen.util.SifenReceptorHelper.ReceptorSinPaisException(
+                "El documento 12345678901 del cliente no es una cedula paraguaya. Si es extranjero, cargue su pais"))
+                .when(sifenService).validarGeneracionDE(any(FacturaLegal.class), any());
+        FacturaLegal fl = new FacturaLegal();
+        fl.setDescuento(0.0);
+
+        VentaNoFacturableException e = assertThrows(VentaNoFacturableException.class,
+                () -> builder.build(requestDeUnItem(fl, true)));
+
+        assertTrue(e.getMessage().contains("cargue su pais"), e.getMessage());
+        verificarQueNoSeEscribioNada();
+    }
+
     @Test
     void elEnsayoVaAntesDelPrimerSaveYVeElTotalCalculado() throws Exception {
         timbradoElectronicoConSifen("021123456", null);

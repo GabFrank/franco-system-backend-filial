@@ -88,7 +88,8 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
         String documento = texto.trim();
         Cliente cliente = service.findByPersonaDocumento(documento);
-        if (cliente == null) {
+        // Un pasaporte (#134) no se reduce a sus digitos: "FX987654" encontraria a la persona "987654".
+        if (cliente == null && !documento.matches(".*[A-Za-z].*")) {
             String documentoNormalizado = documento.replaceAll("[^0-9]", "");
             if (!documentoNormalizado.isEmpty() && !documentoNormalizado.equals(documento)) {
                 cliente = service.findByPersonaDocumento(documentoNormalizado);
@@ -152,7 +153,8 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
         String documento = texto.trim();
         Cliente cliente = service.findByPersonaDocumento(documento);
-        if (cliente == null) {
+        // Un pasaporte (#134) no se reduce a sus digitos: "FX987654" encontraria a la persona "987654".
+        if (cliente == null && !documento.matches(".*[A-Za-z].*")) {
             String documentoNormalizado = documento.replaceAll("[^0-9]", "");
             if (!documentoNormalizado.isEmpty() && !documentoNormalizado.equals(documento)) {
                 cliente = service.findByPersonaDocumento(documentoNormalizado);
@@ -450,6 +452,12 @@ public class ClienteGraphQL implements GraphQLQueryResolver, GraphQLMutationReso
 
         if (!sifenService.isSifenEnabled()) {
             return null;
+        }
+
+        // Un pasaporte (#134) no es un RUC: sin las letras consultaria a otro contribuyente
+        // ("FX987654" trajo al RUC 987654). Sin RUC es "no contribuyente", como una cedula.
+        if (documento.matches(".*[A-Za-z].*")) {
+            return new ConsultaRucResponse();
         }
 
         String documentoNormalizado = documento.replaceAll("[^0-9]", "");

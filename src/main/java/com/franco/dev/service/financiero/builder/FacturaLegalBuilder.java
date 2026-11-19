@@ -275,6 +275,12 @@ public class FacturaLegalBuilder {
                     facturaLegal.getTimbradoDetalle().getId(), e.getMessage());
             throw new VentaNoFacturableException("No se puede facturar sin nombre una venta de 7.000.000 o mas."
                     + " Cargue un cliente con nombre y documento (CI o RUC) y vuelva a intentar.");
+        } catch (SifenReceptorHelper.ReceptorSinPaisException e) {
+            // Igual que el tope: lo corrige el cajero cargando el pais (#134). Antes salia como "Otro" y
+            // SIFEN lo rechazaba siempre.
+            log.warn("VENTA_NO_FACTURABLE: timbrado detalle {}: {}",
+                    facturaLegal.getTimbradoDetalle().getId(), e.getMessage());
+            throw new VentaNoFacturableException(e.getMessage());
         } catch (Exception e) {
             log.error("FACTURA_NO_EMITIBLE: timbrado detalle {}: {}",
                     facturaLegal.getTimbradoDetalle().getId(), e.getMessage(), e);

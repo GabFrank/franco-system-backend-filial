@@ -1,5 +1,6 @@
 package com.franco.dev.service.personas;
 
+import com.franco.dev.domain.general.Pais;
 import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.repository.personas.PersonaRepository;
 import com.franco.dev.service.CrudService;
@@ -40,7 +41,25 @@ public class PersonaService extends CrudService<Persona, PersonaRepository> {
         return repository.findByDocumentoIgnoreCase(documento);
     }
 
-    static final String EDICION_EN_CENTRAL = "Las ediciones de personas y clientes se hacen en el servidor central.";
+    /**
+     * Pais del receptor para SIFEN (#134). Va por UPDATE directo y no por save: save crea en el central y
+     * rechaza ediciones. pais_id existe solo en la filial; el central no lo publica, asi que un UPDATE que
+     * baja por la replica no lo pisa. shortcut: el pais queda en esta sucursal; global cuando lo tenga el central.
+     * Solo se carga si la persona no tiene: desde la caja no se cambia el de nadie (la factura de un contribuyente
+     * pasaria a B2F sin su RUC). Corregir uno mal cargado es tarea del central.
+     */
+    public void asignarPais(Persona persona, Pais pais, Long usuarioId) {
+        if (persona == null || persona.getId() == null || pais == null) return;
+        if (repository.actualizarPais(persona.getId(), pais.getId()) == 1) {
+            persona.setPais(pais);
+            log.info("PAIS_PERSONA persona={} pais={} usuario={}", persona.getId(), pais.getId(), usuarioId);
+        } else {
+            log.info("PAIS_PERSONA sin cambio: persona={} ya tiene pais; pedido={} usuario={}",
+                    persona.getId(), pais.getId(), usuarioId);
+        }
+    }
+
+    static final String EDICION_EN_CENTRAL ="Las ediciones de personas y clientes se hacen en el servidor central.";
 
     /**
      * Solo altas: la persona se crea en el central. Si la tabla llega por replica se espera la fila (escribirla
