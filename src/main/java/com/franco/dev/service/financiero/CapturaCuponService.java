@@ -61,6 +61,13 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
      */
     private static final int MINUTOS_VALIDEZ = 10;
 
+    /**
+     * Carpeta de las fotos, con su default. La comparte {@link PurgaImagenesCuponService}: cada
+     * clase tenia su propio default (cupones / capturas), la propiedad no se configura en ningun
+     * lado, y la purga buscaba en una carpeta donde nunca se guardo nada (#150).
+     */
+    public static final String RUTA_IMAGENES = "${frc.captura.ruta-imagenes:cupones}";
+
     /** 32 bytes de entropia real: el token es la unica credencial del telefono. */
     private static final int BYTES_TOKEN = 24;
 
@@ -107,7 +114,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
                                DerivadorMapa derivador,
                                PdvCajaService cajas,
                                ConfiguracionVentaTarjetaService configuracion,
-                               @Value("${frc.captura.ruta-imagenes:cupones}") String rutaImagenes,
+                               @Value(RUTA_IMAGENES) String rutaImagenes,
                                @Value("${frc.captura.base-url:}") String baseUrlConfigurada,
                                @Value("${server.port:8081}") int puerto) {
         this.repository = repository;

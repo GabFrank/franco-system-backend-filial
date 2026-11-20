@@ -11,6 +11,7 @@ import org.junit.jupiter.api.AfterEach;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -174,6 +175,40 @@ public class PurgaImagenesCuponServiceTest {
 
         assertEquals(0, r.borradas);
         assertEquals(1, r.candidatas);
+    }
+
+    @Test
+    public void una_ruta_relativa_como_la_guarda_la_captura_se_borra() throws Exception {
+        // En produccion la carpeta es relativa al directorio de trabajo y guardar() persiste
+        // "cupones/yyyy/MM/<id>.jpg" tal cual. Los otros casos usan rutas absolutas y no lo cubren.
+        conRetencionDe(30);
+        Path base = Paths.get("target", "purga-rel-" + System.nanoTime());
+        Path dir = Paths.get(base.toString(), "2026/11");
+        Path foto = dir.resolve("7.jpg");
+        try {
+            PurgaImagenesCuponService relativa =
+                    new PurgaImagenesCuponService(capturas, ventas, configuracion, base.toString());
+            Files.createDirectories(dir);
+            Files.write(foto, new byte[]{1, 2, 3});
+            assertFalse(foto.isAbsolute(), "el caso es justamente la ruta relativa");
+
+            CapturaCupon c = new CapturaCupon();
+            c.setId(7L);
+            c.setImagenUrl(foto.toString());
+            when(capturas.findByCreadoEnBeforeAndImagenUrlIsNotNull(any(LocalDateTime.class)))
+                    .thenReturn(Collections.singletonList(c));
+            when(ventas.existsByImagenUrl(anyString())).thenReturn(false);
+
+            assertEquals(1, relativa.purgar(false).borradas);
+            assertFalse(Files.exists(foto));
+        } finally {
+            // La foto primero: si un assert fallo antes de la purga, sin esto el borrado del
+            // directorio tira DirectoryNotEmptyException y tapa el error real.
+            Files.deleteIfExists(foto);
+            Files.deleteIfExists(dir);
+            Files.deleteIfExists(base.resolve("2026"));
+            Files.deleteIfExists(base);
+        }
     }
 
     @Test

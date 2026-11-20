@@ -47,7 +47,7 @@ public class PurgaImagenesCuponService {
     public PurgaImagenesCuponService(CapturaCuponRepository capturas,
                                      VentaTarjetaRepository ventas,
                                      ConfiguracionVentaTarjetaService configuracion,
-                                     @Value("${frc.captura.ruta-imagenes:capturas}") String rutaImagenes) {
+                                     @Value(CapturaCuponService.RUTA_IMAGENES) String rutaImagenes) {
         this.capturas = capturas;
         this.ventas = ventas;
         this.configuracion = configuracion;
@@ -111,15 +111,19 @@ public class PurgaImagenesCuponService {
         for (String ruta : aBorrar) {
             try {
                 Path p = Paths.get(ruta);
-                // Solo dentro de la carpeta de capturas. Una ruta guardada mal --o manipulada--
+                // Solo dentro de la carpeta de imagenes. Una ruta guardada mal --o manipulada--
                 // no tiene por que poder borrar cualquier archivo del filial.
                 if (!dentroDeLaCarpeta(p)) {
-                    log.warn("purga: se salteo {} porque esta fuera de la carpeta de capturas", ruta);
+                    log.warn("purga: se salteo {} porque esta fuera de la carpeta de imagenes ({})", ruta, rutaImagenes);
                     continue;
                 }
                 File f = p.toFile();
                 if (!f.exists()) continue;
                 long tam = f.length();
+                // Ruta por ruta: la simulacion existe para que alguien revise QUE se llevaria
+                // antes de apagarla, y un conteo no deja distinguir una foto de un cobro sin
+                // vincular (desktop#786) de una captura abandonada.
+                if (simulacion) log.info("purga [SIMULACION]: borraria {}", ruta);
                 if (!simulacion && !f.delete()) {
                     log.warn("purga: no se pudo borrar {}", ruta);
                     continue;
