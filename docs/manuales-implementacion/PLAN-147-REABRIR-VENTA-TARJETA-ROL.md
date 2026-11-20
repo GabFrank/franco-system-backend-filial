@@ -37,9 +37,11 @@ el alta desde el PDV (`venta-touch.component.ts#registrarPagosConTarjeta`, sin `
 - un `estado` distinto de `PENDIENTE` (null o vacío valen `PENDIENTE`; se compara sin mayúsculas
   ni espacios y se guarda `PENDIENTE`).
 
-Además, como el resto de las mutations del filial: `sucursalId` pasa por `exigirSucursalPropia` y
-el usuario sale del token (`buscarUsuario`, el argumento queda de respaldo). Para el PDV da lo
-mismo: manda la sucursal de su caja y su propio usuario.
+Además, `sucursalId` pasa por `exigirSucursalPropia` (null vale la propia), y el usuario se firma
+con `AuditorUsuarioId.firmante`, como el resto de las altas (#142): manda el `usuarioId` del input
+salvo que el filial tenga `auditoria.usuarioid.sesion-manda=true`. No con el token (`buscarUsuario`,
+que es de marcar/reabrir): en un cambio de turno la venta y su cobro quedarían a nombre de cajeros
+distintos.
 
 Se controla en el resolver, antes de armar la entidad. `guardarConAviso` no cambia: el evento
 `venta_tarjeta.editada` sigue en el catálogo, sin emisor por esta vía (ningún cliente editaba).
@@ -67,7 +69,8 @@ cobro»; con el input del PDV no ocurre.
    - con `id` rechaza y no guarda;
    - con `estado` `COMPLETADO` / `NO_COMPLETADO` rechaza y no guarda;
    - sin `id` y con `PENDIENTE`, null, vacío o ` pendiente ` guarda `PENDIENTE` (lo que manda el PDV);
-   - la sucursal guardada es la de `exigirSucursalPropia`, y una ajena se rechaza sin guardar.
+   - la sucursal guardada es la de `exigirSucursalPropia`, y una ajena se rechaza sin guardar;
+   - el usuario es el que devuelve `firmante`, nunca el del token.
    Revertir y comprobar que fallan los rechazos. Prueba de runtime: el alta con el input exacto del
    PDV sigue creando el cobro; los rechazos no cambian la fila.
 

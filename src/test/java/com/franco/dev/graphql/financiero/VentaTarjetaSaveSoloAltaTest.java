@@ -14,11 +14,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import com.franco.dev.service.seguridad.AuditorUsuarioId;
+
 import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /** saveVentaTarjeta solo da altas PENDIENTE de la sucursal propia, como las arma el PDV (#147). */
@@ -30,6 +33,7 @@ class VentaTarjetaSaveSoloAltaTest {
     @Mock private VentaTarjetaService service;
     @Mock private SucursalService sucursalService;
     @Mock private UsuarioService usuarioService;
+    @Mock private AuditorUsuarioId auditorUsuarioId;
     @InjectMocks private VentaTarjetaGraphQL graphQL;
 
     private Usuario usuario;
@@ -43,6 +47,8 @@ class VentaTarjetaSaveSoloAltaTest {
         usuario.setId(USUARIO);
         when(usuarioService.findById(USUARIO)).thenReturn(Optional.of(usuario));
         when(service.guardarConAviso(any())).thenAnswer(inv -> inv.getArgument(0));
+        // Default del filial (sesion-manda=false): firma el usuarioId del input.
+        when(auditorUsuarioId.firmante(anyString(), any(), any())).thenAnswer(inv -> inv.getArgument(1));
     }
 
     /** El input que manda venta-touch.component.ts#registrarPagosConTarjeta. */
@@ -96,6 +102,20 @@ class VentaTarjetaSaveSoloAltaTest {
         assertEquals(SUC, guardada.getValue().getSucursalId());
         assertEquals(1185L, guardada.getValue().getCajaId());
         assertSame(usuario, guardada.getValue().getUsuario());
+    }
+
+    @Test
+    void firmaComoElRestoDeLasAltasNoConElToken() {
+        Usuario deLaSesion = new Usuario();
+        deLaSesion.setId(7L);
+        when(usuarioService.findById(7L)).thenReturn(Optional.of(deLaSesion));
+        // Con auditoria.usuarioid.sesion-manda=true firmante devuelve el de la sesion.
+        when(auditorUsuarioId.firmante("VentaTarjetaGraphQL.saveVentaTarjeta", USUARIO, 1185L)).thenReturn(7L);
+        graphQL.saveVentaTarjeta(delPdv("PENDIENTE"));
+        ArgumentCaptor<VentaTarjeta> guardada = ArgumentCaptor.forClass(VentaTarjeta.class);
+        verify(service).guardarConAviso(guardada.capture());
+        assertSame(deLaSesion, guardada.getValue().getUsuario());
+        verify(usuarioService, never()).findByNickname(any());
     }
 
     @Test

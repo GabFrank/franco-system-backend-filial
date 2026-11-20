@@ -74,6 +74,9 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private RolSesionService rolSesionService;
 
+    @Autowired
+    private com.franco.dev.service.seguridad.AuditorUsuarioId auditorUsuarioId;
+
     static final String VENTA_TARJETA_COMPLETAR = "VENTA TARJETA COMPLETAR";
 
     public List<VentaTarjeta> ventasTarjetaPorCaja(Long cajaId, Long sucId) {
@@ -125,8 +128,7 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     /**
      * Solo el alta PENDIENTE del PDV (registrarPagosConTarjeta, sin id). Un cobro que ya existe cambia
-     * de estado por completar / marcar / reabrir, que tienen sus controles; esta via armaba la entidad
-     * de cero y la guardaba encima (#147).
+     * de estado por completar / marcar / reabrir (#147).
      */
     public VentaTarjeta saveVentaTarjeta(VentaTarjetaInput input) {
         if (input.getId() != null) {
@@ -156,7 +158,13 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (input.getMonedaId() != null) {
             entity.setMoneda(monedaService.findById(input.getMonedaId()).orElse(null));
         }
-        entity.setUsuario(buscarUsuario(input.getUsuarioId()));
+        // Firma como el resto de las altas (#142), no como marcar/reabrir: con el token, una venta y su
+        // cobro podrian quedar a nombre de cajeros distintos en un cambio de turno.
+        Long firmante = auditorUsuarioId.firmante("VentaTarjetaGraphQL.saveVentaTarjeta",
+                input.getUsuarioId(), input.getCajaId());
+        if (firmante != null) {
+            entity.setUsuario(usuarioService.findById(firmante).orElse(null));
+        }
         return service.guardarConAviso(entity);
     }
 
