@@ -11,6 +11,7 @@ import com.franco.dev.service.financiero.VentaTarjetaService;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.dto.SenaCuponDto;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.RolSesionService;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,6 +69,11 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
     @Autowired
     private com.franco.dev.service.financiero.PdvCajaService pdvCajaService;
+
+    @Autowired
+    private RolSesionService rolSesionService;
+
+    static final String VENTA_TARJETA_COMPLETAR = "VENTA TARJETA COMPLETAR";
 
     public List<VentaTarjeta> ventasTarjetaPorCaja(Long cajaId, Long sucId) {
         pdvCajaService.exigirAccesoACaja(cajaId);
@@ -204,8 +210,20 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      * reabrio y cuando.
      */
     public VentaTarjeta reabrirVentaTarjeta(Long id, Long sucId, Long usuarioId) {
-        return service.reabrir(id, sucursalService.exigirSucursalPropia(sucId),
-                buscarUsuario(usuarioId));
+        Long sucursalId = sucursalService.exigirSucursalPropia(sucId);
+        exigirRolParaReabrir(service.findByIdAndSucursalId(id, sucursalId));
+        return service.reabrir(id, sucursalId, buscarUsuario(usuarioId));
+    }
+
+    /**
+     * El mismo doble gate que ventas-tarjeta-caja-dialog del desktop (#147): caja abierta, el rol de
+     * completar (el cajero deshace su error); caja cerrada o desconocida, el que gobierna las cajas
+     * cerradas. Una caja que no se puede leer no se atrapa: falla sin reabrir.
+     */
+    private void exigirRolParaReabrir(VentaTarjeta vt) {
+        boolean abierta = vt != null && vt.getCajaId() != null && pdvCajaService.findById(vt.getCajaId())
+                .map(caja -> Boolean.TRUE.equals(caja.getActivo())).orElse(false);
+        rolSesionService.exigirRol(abierta ? VENTA_TARJETA_COMPLETAR : RolSesionService.ANALISIS_DE_CAJA);
     }
 
     /**
