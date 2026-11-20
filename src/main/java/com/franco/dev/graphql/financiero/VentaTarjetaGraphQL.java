@@ -11,6 +11,8 @@ import com.franco.dev.service.financiero.VentaTarjetaService;
 import com.franco.dev.service.impresion.ImpresionService;
 import com.franco.dev.service.impresion.dto.SenaCuponDto;
 import com.franco.dev.service.personas.UsuarioService;
+import com.franco.dev.service.seguridad.RolSesionService;
+import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,6 +71,14 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     @Autowired
     private com.franco.dev.service.financiero.PdvCajaService pdvCajaService;
 
+    @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
+    private com.franco.dev.service.seguridad.AuditorUsuarioId auditorUsuarioId;
+
+    static final String VENTA_TARJETA_COMPLETAR = "VENTA TARJETA COMPLETAR";
+
     public List<VentaTarjeta> ventasTarjetaPorCaja(Long cajaId, Long sucId) {
         pdvCajaService.exigirAccesoACaja(cajaId);
         return service.findByCajaIdAndSucursalId(cajaId, sucId);
@@ -116,10 +126,22 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         return count != null ? count : 0L;
     }
 
+    /**
+     * Solo el alta PENDIENTE del PDV (registrarPagosConTarjeta, sin id). Un cobro que ya existe cambia
+     * de estado por completar / marcar / reabrir (#147).
+     */
     public VentaTarjeta saveVentaTarjeta(VentaTarjetaInput input) {
+        if (input.getId() != null) {
+            throw new GraphQLException("saveVentaTarjeta solo da de alta cobros nuevos: el cobro "
+                    + input.getId() + " ya existe.");
+        }
+        String estado = input.getEstado() == null ? "" : input.getEstado().trim();
+        if (!estado.isEmpty() && !"PENDIENTE".equalsIgnoreCase(estado)) {
+            throw new GraphQLException("Un cobro con tarjeta nace PENDIENTE, no " + estado
+                    + ": completarlo o dejarlo sin conciliar va por su propia operacion.");
+        }
         VentaTarjeta entity = new VentaTarjeta();
-        entity.setId(input.getId());
-        entity.setSucursalId(input.getSucursalId());
+        entity.setSucursalId(sucursalService.exigirSucursalPropia(input.getSucursalId()));
         entity.setVentaId(input.getVentaId());
         entity.setCajaId(input.getCajaId());
         entity.setCodigoAutorizacion(input.getCodigoAutorizacion());
@@ -127,7 +149,7 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         entity.setMonto(input.getMonto());
         entity.setMontoEscaneado(input.getMontoEscaneado());
         entity.setImagenUrl(input.getImagenUrl());
-        entity.setEstado(input.getEstado() != null ? input.getEstado() : "PENDIENTE");
+        entity.setEstado("PENDIENTE");
         if (input.getTerminalPosId() != null) {
             entity.setTerminalPos(terminalPosService.findById(input.getTerminalPosId()).orElse(null));
         }
@@ -136,8 +158,12 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         if (input.getMonedaId() != null) {
             entity.setMoneda(monedaService.findById(input.getMonedaId()).orElse(null));
         }
-        if (input.getUsuarioId() != null) {
-            entity.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
+        // Firma como el resto de las altas (#142), no como marcar/reabrir: con el token, una venta y su
+        // cobro podrian quedar a nombre de cajeros distintos en un cambio de turno.
+        Long firmante = auditorUsuarioId.firmante("VentaTarjetaGraphQL.saveVentaTarjeta",
+                input.getUsuarioId(), input.getCajaId());
+        if (firmante != null) {
+            entity.setUsuario(usuarioService.findById(firmante).orElse(null));
         }
         return service.guardarConAviso(entity);
     }
@@ -204,8 +230,20 @@ public class VentaTarjetaGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      * reabrio y cuando.
      */
     public VentaTarjeta reabrirVentaTarjeta(Long id, Long sucId, Long usuarioId) {
-        return service.reabrir(id, sucursalService.exigirSucursalPropia(sucId),
-                buscarUsuario(usuarioId));
+        Long sucursalId = sucursalService.exigirSucursalPropia(sucId);
+        exigirRolParaReabrir(service.findByIdAndSucursalId(id, sucursalId));
+        return service.reabrir(id, sucursalId, buscarUsuario(usuarioId));
+    }
+
+    /**
+     * El mismo doble gate que ventas-tarjeta-caja-dialog del desktop (#147): caja abierta, el rol de
+     * completar (el cajero deshace su error); caja cerrada o desconocida, el que gobierna las cajas
+     * cerradas. Una caja que no se puede leer no se atrapa: falla sin reabrir.
+     */
+    private void exigirRolParaReabrir(VentaTarjeta vt) {
+        boolean abierta = vt != null && vt.getCajaId() != null && pdvCajaService.findById(vt.getCajaId())
+                .map(caja -> Boolean.TRUE.equals(caja.getActivo())).orElse(false);
+        rolSesionService.exigirRol(abierta ? VENTA_TARJETA_COMPLETAR : RolSesionService.ANALISIS_DE_CAJA);
     }
 
     /**
