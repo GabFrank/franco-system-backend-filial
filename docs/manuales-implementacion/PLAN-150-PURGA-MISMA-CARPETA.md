@@ -78,6 +78,25 @@ filial (central tiene `CapturaMuestraPurgaScheduler`, en memoria, sin disco).
   4b. Con `simulacion=false`: la huérfana desaparece del disco, la protegida queda.
   5. Restaurar `dias_retencion_imagenes`, la venta de prueba, las capturas y las fotos.
 
+## Resultados (2026-11-20)
+
+- `./mvnw clean verify -B`: 1080 tests, 0 fallos (copia fuera de `dev-frc`). Con el default viejo
+  restituido, `RutaImagenesCuponTest` falla: `expected cupones but was capturas`.
+- Runtime, filial local 8082 / sucursal 24, dos capturas reales por `crearCapturaCupon` +
+  `POST /public/captura/{token}` (2 huérfana, 3 completada con `completarVentaTarjeta(1080)` y su
+  token), envejecidas 10 días, `dias_retencion_imagenes = 1`:
+  - fix, simulación: `borraria cupones/2026/11/2.jpg` y `[SIMULACION] 2 candidatas, 1 protegidas
+    por una venta, 1 borradas, 85 KB`; los dos archivos en disco.
+  - `develop`, simulación: `se salteo cupones/2026/11/2.jpg porque esta fuera de la carpeta de
+    capturas` y `0 borradas` — el bug reproducido.
+  - fix, `simulacion=false`: `1 borradas`; queda solo `3.jpg` (la protegida).
+  - Restaurado: venta 1080 y configuración idénticas a la foto previa (diff vacío), capturas 2 y 3
+    borradas, fotos borradas; sin eventos en `outbox_evento`.
+- Auditoría del diff (paso 8): Fijo 1, 2 y 3 N/A (no toca resolver, `.graphqls` ni migración);
+  condicionales no disparados. Revisor de correctitud: aprueba; se aplicaron limpieza del test
+  relativo en el `finally` y el texto «carpeta de imagenes» en el aviso; descartado un test extra
+  de simulación relativa (mismo camino, cubierto en runtime).
+
 ## Despliegue
 
 El filial se propaga solo (alpha ≤15 min tras merge a `develop`). Sin cambio de comportamiento
