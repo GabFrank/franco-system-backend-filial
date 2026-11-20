@@ -667,7 +667,11 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
 
     public Page<PdvCaja> findAllWithFilters(Long cajaId, PdvCajaEstado estado, Long maletinId, Long cajeroId,
             String fechaInicio, String fechaFin, Long sucId, Boolean verificado, Pageable pageable) {
-        return repository.findAllWithFilters(cajaId, estado, maletinId, cajeroId,
+        // pdv_caja.estado no lo escribe nadie (NULL en todas): filtrar por el daba 0 filas sin avisar (#148)
+        if (estado != null) {
+            throw new GraphQLException("El filtro por estado de caja no esta soportado: use verificado.");
+        }
+        return repository.findAllWithFilters(cajaId, maletinId, cajeroId,
                 fechaInicio != null ? stringToDate(fechaInicio) : null,
                 fechaFin != null ? stringToDate(fechaFin) : null, sucId, verificado, pageable);
     }

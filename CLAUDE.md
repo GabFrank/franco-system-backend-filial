@@ -338,8 +338,9 @@ líneas de `operaciones.cobro_detalle` con `descuento` o `aumento` en true, siem
 cajas reales (farmacia filial 1 y alpha, 2026-09-24). Una caja abierta es `activo = true`, que es
 lo que usa `PdvCajaService` para el maletin y para "Ya existe una caja abierta". La captura del
 cupon exigia `EN_PROCESO` y nunca funciono hasta que paso a `CapturaCuponService.cajaAbierta`.
-No agregar logica nueva que lea `estado`; `findAllWithFilters` todavia filtra por el (sin efecto
-hoy, ningun cliente manda ese filtro).
+No agregar logica nueva que lea `estado`. `cajasWithFilters` conserva el argumento `estado` (el
+desktop lo declara) pero `PdvCajaService.findAllWithFilters` rechaza un valor no nulo con
+`GraphQLException` en vez de devolver 0 filas (#148); para la verificacion, usar `verificado`.
 
 ## Cancelar una venta: en el central, no aca
 
