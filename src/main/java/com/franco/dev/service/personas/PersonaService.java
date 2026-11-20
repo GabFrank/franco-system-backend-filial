@@ -42,11 +42,11 @@ public class PersonaService extends CrudService<Persona, PersonaRepository> {
     }
 
     /**
-     * Pais del receptor para SIFEN (#134). Va por UPDATE directo y no por save: save crea en el central y
-     * rechaza ediciones. pais_id existe solo en la filial; el central no lo publica, asi que un UPDATE que
-     * baja por la replica no lo pisa. shortcut: el pais queda en esta sucursal; global cuando lo tenga el central.
-     * Solo se carga si la persona no tiene: desde la caja no se cambia el de nadie (la factura de un contribuyente
-     * pasaria a B2F sin su RUC). Corregir uno mal cargado es tarea del central.
+     * Pais del receptor para SIFEN (#134, #666). Va por UPDATE directo y no por save: save crea en el central y
+     * rechaza ediciones. Despues se avisa al central, que lo graba solo si no tiene y lo replica a todas; la
+     * replica no lo pisa con NULL (trigger de V117.1). Solo se carga si la persona no tiene: desde la caja no se
+     * cambia el de nadie (la factura de un contribuyente pasaria a B2F sin su RUC). Corregir uno mal cargado es
+     * tarea de la administracion de personas del central.
      */
     public void asignarPais(Persona persona, Pais pais, Long usuarioId) {
         if (persona == null || persona.getId() == null || pais == null) return;
@@ -57,6 +57,9 @@ public class PersonaService extends CrudService<Persona, PersonaRepository> {
             log.info("PAIS_PERSONA sin cambio: persona={} ya tiene pais; pedido={} usuario={}",
                     persona.getId(), pais.getId(), usuarioId);
         }
+        // Siempre, aunque aca ya tuviera: el central puede no tenerlo (cargado antes de #666). Alla tambien es
+        // "solo si es nulo".
+        centralPersonasIntegrationService.syncPais(persona.getId(), pais.getId());
     }
 
     static final String EDICION_EN_CENTRAL ="Las ediciones de personas y clientes se hacen en el servidor central.";

@@ -124,6 +124,22 @@ public class CentralPersonasIntegrationService {
         }
     }
 
+    /**
+     * Pais del receptor en el central (#666), que solo lo graba si la persona no tiene. Nunca corta la factura:
+     * un central sin el endpoint (404) o caido devuelve false y queda el pais local.
+     */
+    public boolean syncPais(Long personaId, Long paisId) {
+        try {
+            String url = buildUrl(PERSONA_ENDPOINT + "/" + personaId + "/pais");
+            restTemplate.postForEntity(url, new HttpEntity<>(java.util.Collections.singletonMap("paisId", paisId),
+                    authHeaders()), String.class);
+            return true;
+        } catch (RestClientException | IllegalStateException e) {
+            log.warn("PAIS_PERSONA no se pudo enviar al central: persona={} pais={}: {}", personaId, paisId, e.getMessage());
+            return false;
+        }
+    }
+
     private PersonaSyncRequest buildPersonaRequest(Persona persona) {
         PersonaSyncRequest request = new PersonaSyncRequest();
         request.setId(persona.getId());

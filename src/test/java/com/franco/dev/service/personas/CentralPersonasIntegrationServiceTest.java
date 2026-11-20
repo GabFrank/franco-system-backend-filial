@@ -93,4 +93,20 @@ class CentralPersonasIntegrationServiceTest {
         assertFalse(s.esperarReplica(Optional::empty).isPresent());
         assertTrue(System.currentTimeMillis() - t >= 200);
     }
+
+    /** #666: el pais va al endpoint del central; un central viejo (404) o caido no corta la factura. */
+    @Test
+    void elPaisVaAlCentralYUnCentralSinElEndpointNoCorta() {
+        central.expect(requestTo("http://central:8081/api/personas/321/pais"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("{\"paisId\":30}"))
+                .andRespond(withSuccess("{\"asignado\":true}", MediaType.APPLICATION_JSON));
+        assertTrue(s.syncPais(321L, 30L));
+        central.verify();
+
+        central.reset();
+        central.expect(requestTo("http://central:8081/api/personas/321/pais"))
+                .andRespond(withStatus(org.springframework.http.HttpStatus.NOT_FOUND));
+        assertFalse(s.syncPais(321L, 30L));
+    }
 }
