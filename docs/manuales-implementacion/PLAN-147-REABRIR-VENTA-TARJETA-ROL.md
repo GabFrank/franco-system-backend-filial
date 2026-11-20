@@ -26,6 +26,31 @@ constructor y no conoce `PdvCajaService`. Se inyecta `RolSesionService` en `Vent
 Una caja que no se puede leer (excepción de `findById`) no se atrapa: la mutation falla y no
 reabre. Solo una caja que no existe cuenta como «desconocida» (lado estricto).
 
+## saveVentaTarjeta: solo altas PENDIENTE (agregado el 2026-11-20 tras la auditoría)
+
+El ciclo de un cobro que ya existe va por `completarVentaTarjeta`, `marcarVentaTarjetaNoCompletada[s]`
+y `reabrirVentaTarjeta`, que tienen sus controles. `saveVentaTarjeta` queda para lo único que lo usa:
+el alta desde el PDV (`venta-touch.component.ts#registrarPagosConTarjeta`, sin `id` y con
+`estado: 'PENDIENTE'`). Rechaza con `GraphQLException`:
+
+- un input con `id`;
+- un `estado` distinto de `PENDIENTE` (null o vacío valen `PENDIENTE`; se compara sin mayúsculas
+  ni espacios y se guarda `PENDIENTE`).
+
+Además, como el resto de las mutations del filial: `sucursalId` pasa por `exigirSucursalPropia` y
+el usuario sale del token (`buscarUsuario`, el argumento queda de respaldo). Para el PDV da lo
+mismo: manda la sucursal de su caja y su propio usuario.
+
+Se controla en el resolver, antes de armar la entidad. `guardarConAviso` no cambia: el evento
+`venta_tarjeta.editada` sigue en el catálogo, sin emisor por esta vía (ningún cliente editaba).
+
+Llamadores verificados el 2026-11-20: el desktop crea solo por `onSavePendiente`, sin `id` y con
+`PENDIENTE`, en `develop`, `release/beta`, `master` y desde el primer commit del módulo (julio). La PWA
+y la app Android crean `COMPLETADO` y mandan `id`, pero contra el `saveVentaTarjeta` del
+**central** (la PWA no tiene link al filial; Android contra un filial ya no andaba: el filial no
+tiene `updateVentaTarjeta`). El rechazo en el PDV mostraría el aviso fijo de «no se registró el
+cobro»; con el input del PDV no ocurre.
+
 ## Fases
 
 1. **Fase única** — resolver + test `VentaTarjetaReabrirRolTest` (Mockito, patrón de
@@ -38,6 +63,13 @@ reabre. Solo una caja que no existe cuenta como «desconocida» (lado estricto).
    Cada caso verifica `exigirRol(<rol exacto>)` y el rechazo se stubea para ese rol exacto (no
    `any()`: con varargs pasaría aunque se pida el rol equivocado).
    Revertir el resolver y comprobar que los tests de rechazo fallan.
+2. **Fase 2** — `saveVentaTarjeta` solo altas + test `VentaTarjetaSaveSoloAltaTest`:
+   - con `id` rechaza y no guarda;
+   - con `estado` `COMPLETADO` / `NO_COMPLETADO` rechaza y no guarda;
+   - sin `id` y con `PENDIENTE`, null, vacío o ` pendiente ` guarda `PENDIENTE` (lo que manda el PDV);
+   - la sucursal guardada es la de `exigirSucursalPropia`, y una ajena se rechaza sin guardar.
+   Revertir y comprobar que fallan los rechazos. Prueba de runtime: el alta con el input exacto del
+   PDV sigue creando el cobro; los rechazos no cambian la fila.
 
 ## Datos nuevos
 
