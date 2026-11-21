@@ -7,6 +7,7 @@ import com.franco.dev.repository.financiero.CapturaCuponRepository;
 import com.franco.dev.repository.financiero.VentaTarjetaRepository;
 import com.franco.dev.repository.operaciones.CobroDetalleRepository;
 import com.franco.dev.service.CrudService;
+import com.franco.dev.service.operaciones.LoteFefoService;
 import graphql.GraphQLException;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
@@ -41,6 +42,14 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
 
     /** Para copiar la ruta de la foto a la venta, y que deje de ser un archivo huerfano. */
     private final CapturaCuponRepository capturas;
+
+    /** Serializa los completar del mismo cobro y del mismo cupon (#195). */
+    private final BloqueoTransaccionalService bloqueo;
+
+    private static final String ESPERA_CUPON = "15s";
+
+    private static final String ESPERA_VENCIDA_CUPON =
+            "Otro cobro con ese cupón se está registrando ahora mismo. Reintentá en unos segundos.";
 
     @Override
     public VentaTarjetaRepository getRepository() {
@@ -108,6 +117,11 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                                   String origen,
                                   String capturaToken,
                                   String datosExtra) {
+        // Antes de leer: dos completar del mismo cobro a la vez pasaban los dos el chequeo de
+        // PENDIENTE y el ultimo pisaba al primero. Releer despues del lock no sirve: devolveria la
+        // instancia del contexto de persistencia, con el estado viejo.
+        tomarBloqueo("venta-tarjeta:id:" + sucursalId + ":" + id,
+                "Este cobro con tarjeta se está registrando desde otra pantalla. Reintentá en unos segundos.");
         VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
         if (vt == null) {
             throw new GraphQLException("No existe la venta con tarjeta " + id + " en la sucursal " + sucursalId);
@@ -117,6 +131,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                     + ". Solo se puede completar una PENDIENTE.");
         }
 
+        bloquearCupon(sucursalId, qrCrudo, identificadorTransaccion, codigoAutorizacion);
         validarCuponNoUsado(vt, identificadorTransaccion, qrCrudo, codigoAutorizacion, montoEscaneado);
         validarMoneda(vt, monedaId, cobroDetalleId);
 
@@ -129,7 +144,10 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         vt.setCodigoAutorizacion(codigoAutorizacion);
         vt.setNumeroBoleta(numeroBoleta);
         vt.setMontoEscaneado(montoEscaneado);
-        vt.setQrCrudo(qrCrudo);
+        // Recortado, como lo busca motivoCuponNoUsable (#195). El desktop ya manda el QR recortado
+        // (qr-pos-parser), asi que no fue la causa de Itaipu: es para que lo guardado coincida con lo
+        // buscado aunque llegue por otro cliente.
+        vt.setQrCrudo(qrCrudo != null ? qrCrudo.trim() : null);
         vt.setOrigen(origenEfectivo(origen, qrCrudo));
         // Lo que el cupon trae y no tiene columna propia. Se pisa solo si viene: completar se
         // puede llamar de nuevo sobre el mismo registro, y un segundo intento sin datos extra no
@@ -298,6 +316,41 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                 .ifPresent(motivo -> {
                     throw new GraphQLException(motivo);
                 });
+    }
+
+    /**
+     * Un lock por cada dato del cupon, hasta el commit (#195). Sin esto el PDV, que completa las
+     * tarjetas de una venta en paralelo, dejo el mismo cupon COMPLETADO dos veces (venta 81509 de
+     * Itaipu, 1670 y 1672): ninguna transaccion veia la escritura sin commitear de la otra. Con el
+     * lock, el segundo espera el commit del primero y motivoCuponNoUsable lo ve.
+     * <p>
+     * Siempre en el mismo orden (qr, referencia, codigo) para no interbloquearse. El codigo va sin
+     * terminal porque buscarPorCodigoAutorizacion trata la terminal nula como comodin. No va dentro
+     * de motivoCuponNoUsable: el pre-chequeo lo llama sin transaccion.
+     */
+    private void bloquearCupon(Long sucursalId, String qrCrudo, String identificadorTransaccion,
+                               String codigoAutorizacion) {
+        if (qrCrudo != null && !qrCrudo.trim().isEmpty()) {
+            tomarBloqueo("venta-tarjeta-cupon:qr:" + qrCrudo.trim(), ESPERA_VENCIDA_CUPON);
+        }
+        if (identificadorTransaccion != null && !identificadorTransaccion.trim().isEmpty()) {
+            tomarBloqueo("venta-tarjeta-cupon:ref:" + identificadorTransaccion.trim(), ESPERA_VENCIDA_CUPON);
+        }
+        if (codigoAutorizacion != null && !codigoAutorizacion.trim().isEmpty()) {
+            tomarBloqueo("venta-tarjeta-cupon:aut:" + sucursalId + ":" + codigoAutorizacion.trim().toUpperCase(),
+                    ESPERA_VENCIDA_CUPON);
+        }
+    }
+
+    private void tomarBloqueo(String clave, String mensajeSiVence) {
+        try {
+            bloqueo.tomar(clave, ESPERA_CUPON);
+        } catch (RuntimeException e) {
+            if (!LoteFefoService.esEsperaVencida(e)) {
+                throw e;
+            }
+            throw new GraphQLException(mensajeSiVence);
+        }
     }
 
     /**
