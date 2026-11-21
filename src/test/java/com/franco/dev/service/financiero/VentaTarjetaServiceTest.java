@@ -40,6 +40,7 @@ class VentaTarjetaServiceTest {
     private ConfiguracionVentaTarjetaService configuracionService;
     private CapturaCuponRepository capturaCuponRepository;
     private BloqueoTransaccionalService bloqueo;
+    private javax.persistence.EntityManager entityManager;
 
     private VentaTarjetaService service;
 
@@ -53,15 +54,18 @@ class VentaTarjetaServiceTest {
         when(configuracionService.findOrDefault()).thenReturn(new ConfiguracionVentaTarjeta());
         capturaCuponRepository = mock(CapturaCuponRepository.class);
         bloqueo = mock(BloqueoTransaccionalService.class);
+        entityManager = mock(javax.persistence.EntityManager.class);
         service = new VentaTarjetaService(repository, cobroDetalleRepository, monedaService,
-                configuracionService, capturaCuponRepository, bloqueo, null, null);
+                configuracionService, capturaCuponRepository, bloqueo, entityManager, null, null);
     }
 
     @Test
     void marcarNoCompletadas_pasaPendientesANoCompletadoYDevuelveCantidad() {
         VentaTarjeta vt1 = new VentaTarjeta();
+        vt1.setId(1L);
         vt1.setEstado("PENDIENTE");
         VentaTarjeta vt2 = new VentaTarjeta();
+        vt2.setId(2L);
         vt2.setEstado("PENDIENTE");
         when(repository.findByCajaIdAndSucursalIdAndEstado(10L, 1L, "PENDIENTE"))
                 .thenReturn(Arrays.asList(vt1, vt2));
@@ -860,9 +864,10 @@ class VentaTarjetaServiceTest {
 
         service.completar(1L, 24L, " cxf1 ", "", BigDecimal.TEN, " REF ", "FRCP1*abc", null, null, null, null, null);
 
-        org.mockito.InOrder orden = inOrder(bloqueo, repository, cobroDetalleRepository);
+        org.mockito.InOrder orden = inOrder(bloqueo, repository, cobroDetalleRepository, entityManager);
         orden.verify(bloqueo).tomar("venta-tarjeta:id:24:1", "15s");
         orden.verify(repository).findByIdAndSucursalId(1L, 24L);
+        orden.verify(entityManager).refresh(any(VentaTarjeta.class));
         orden.verify(bloqueo).tomar("venta-tarjeta-cupon:qr:FRCP1*abc", "15s");
         orden.verify(bloqueo).tomar("venta-tarjeta-cupon:ref:REF", "15s");
         // Sin terminal: la consulta por codigo trata la terminal nula como comodin.
@@ -938,5 +943,160 @@ class VentaTarjetaServiceTest {
                 null, null, null, null, null);
 
         assertEquals("FRCP1*abc", r.getQrCrudo());
+    }
+
+    // ---------------------------------------------------------------- #195: lock por cobro
+
+    private static RuntimeException esperaVencida() {
+        return new RuntimeException("lock",
+                new java.sql.SQLException("canceling statement due to lock timeout", "55P03"));
+    }
+
+    private VentaTarjeta cobro(Long id, String estado) {
+        VentaTarjeta vt = new VentaTarjeta();
+        vt.setId(id);
+        vt.setSucursalId(24L);
+        vt.setEstado(estado);
+        return vt;
+    }
+
+    /** Sin el lock, un NO_COMPLETADO cruzado con un completar pisaba al COMPLETADO y perdia el cupon. */
+    @Test
+    void marcarNoCompletada_tomaElLockAntesDeLeerYRefresca() {
+        VentaTarjeta vt = cobro(1L, "PENDIENTE");
+        when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
+        when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.marcarNoCompletada(1L, 24L, VentaTarjeta.NO_COMPLETADO_POS_FALLADO, null, null);
+
+        org.mockito.InOrder orden = inOrder(bloqueo, repository, entityManager);
+        orden.verify(bloqueo).tomar("venta-tarjeta:id:24:1", "15s");
+        orden.verify(repository).findByIdAndSucursalId(1L, 24L);
+        orden.verify(entityManager).refresh(vt);
+        orden.verify(repository).save(vt);
+    }
+
+    /** Lo que importa del refresh: decide con el estado commiteado, no con el que leyo antes. */
+    @Test
+    void marcarNoCompletada_siSeCompletoMientrasEsperabaRechaza() {
+        VentaTarjeta vt = cobro(1L, "PENDIENTE");
+        when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
+        doAnswer(inv -> { vt.setEstado("COMPLETADO"); return null; }).when(entityManager).refresh(vt);
+
+        GraphQLException e = assertThrows(GraphQLException.class, () ->
+                service.marcarNoCompletada(1L, 24L, VentaTarjeta.NO_COMPLETADO_POS_FALLADO, null, null));
+        assertTrue(e.getMessage().contains("COMPLETADO"), e.getMessage());
+        verify(repository, never()).save(any());
+    }
+
+    /** El resolver de reabrir ya cargo el cobro (OSIV): sin el refresh, decidiria con esa instancia. */
+    @Test
+    void reabrir_tomaElLockAntesDeLeerYRefresca() {
+        VentaTarjeta vt = cobro(1L, "NO_COMPLETADO");
+        when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
+        when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.reabrir(1L, 24L, null);
+
+        org.mockito.InOrder orden = inOrder(bloqueo, repository, entityManager);
+        orden.verify(bloqueo).tomar("venta-tarjeta:id:24:1", "15s");
+        orden.verify(repository).findByIdAndSucursalId(1L, 24L);
+        orden.verify(entityManager).refresh(vt);
+        orden.verify(repository).save(vt);
+    }
+
+    @Test
+    void reabrir_siOtroYaLoReabrioRechaza() {
+        VentaTarjeta vt = cobro(1L, "NO_COMPLETADO");
+        when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
+        doAnswer(inv -> { vt.setEstado("PENDIENTE"); return null; }).when(entityManager).refresh(vt);
+
+        assertThrows(GraphQLException.class, () -> service.reabrir(1L, 24L, null));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void reabrir_esperaVencida_avisaQueElCobroEstaEnCurso() {
+        doThrow(esperaVencida()).when(bloqueo).tomar(eq("venta-tarjeta:id:24:1"), any());
+
+        GraphQLException e = assertThrows(GraphQLException.class, () -> service.reabrir(1L, 24L, null));
+        assertTrue(e.getMessage().startsWith("Este cobro con tarjeta se está registrando"), e.getMessage());
+        verify(repository, never()).save(any());
+    }
+
+    /** Ascendente aunque la lista venga desordenada, y todos antes del primer save. */
+    @Test
+    void cancelarPorVenta_tomaLosLocksEnOrdenAscendenteAntesDeGuardar() {
+        VentaTarjeta b = cobro(9L, "PENDIENTE");
+        VentaTarjeta a = cobro(4L, "COMPLETADO");
+        when(repository.findByVentaIdAndSucursalIdOrderByIdAsc(10L, 24L)).thenReturn(Arrays.asList(b, a));
+        when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertTrue(service.cancelarPorVenta(10L, 24L));
+
+        org.mockito.InOrder orden = inOrder(bloqueo, entityManager, repository);
+        orden.verify(bloqueo).tomar("venta-tarjeta:id:24:4", "15s");
+        orden.verify(bloqueo).tomar("venta-tarjeta:id:24:9", "15s");
+        orden.verify(entityManager).refresh(a);
+        orden.verify(entityManager).refresh(b);
+        orden.verify(repository, times(2)).save(any(VentaTarjeta.class));
+        assertEquals("CANCELADO", a.getEstado());
+        assertEquals("CANCELADO", b.getEstado());
+    }
+
+    /** El aviso de espera no lo tapa el catch de "no se cancelo ninguno". */
+    @Test
+    void cancelarPorVenta_esperaVencida_avisaConSuTexto() {
+        when(repository.findByVentaIdAndSucursalIdOrderByIdAsc(10L, 24L))
+                .thenReturn(Collections.singletonList(cobro(4L, "PENDIENTE")));
+        doThrow(esperaVencida()).when(bloqueo).tomar(eq("venta-tarjeta:id:24:4"), any());
+
+        GraphQLException e = assertThrows(GraphQLException.class, () -> service.cancelarPorVenta(10L, 24L));
+        assertTrue(e.getMessage().startsWith("Hay un cobro con tarjeta de esta venta"), e.getMessage());
+        verify(repository, never()).save(any());
+    }
+
+    /** Uno que se completo mientras el cierre esperaba el lock no se marca ni cuenta. */
+    @Test
+    void marcarNoCompletadas_noPisaElQueSeCompletoMientrasEsperaba() {
+        VentaTarjeta sigue = cobro(1L, "PENDIENTE");
+        VentaTarjeta seCompleto = cobro(2L, "PENDIENTE");
+        when(repository.findByCajaIdAndSucursalIdAndEstado(10L, 24L, "PENDIENTE"))
+                .thenReturn(Arrays.asList(sigue, seCompleto));
+        doAnswer(inv -> { seCompleto.setEstado("COMPLETADO"); return null; }).when(entityManager).refresh(seCompleto);
+        when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertEquals(1, service.marcarNoCompletadas(10L, 24L, VentaTarjeta.NO_COMPLETADO_POS_FALLADO, null, null));
+        assertEquals("NO_COMPLETADO", sigue.getEstado());
+        assertEquals("COMPLETADO", seCompleto.getEstado());
+        verify(repository).save(sigue);
+        verify(repository, never()).save(seCompleto);
+        verify(bloqueo).tomar("venta-tarjeta:id:24:1", "15s");
+        verify(bloqueo).tomar("venta-tarjeta:id:24:2", "15s");
+    }
+
+    /** El camino viejo, sin motivo, tambien. */
+    @Test
+    void marcarNoCompletadasSinMotivo_noPisaElQueSeCompletoMientrasEsperaba() {
+        VentaTarjeta seCompleto = cobro(2L, "PENDIENTE");
+        when(repository.findByCajaIdAndSucursalIdAndEstado(10L, 24L, "PENDIENTE"))
+                .thenReturn(Collections.singletonList(seCompleto));
+        doAnswer(inv -> { seCompleto.setEstado("COMPLETADO"); return null; }).when(entityManager).refresh(seCompleto);
+
+        assertEquals(0, service.marcarNoCompletadas(10L, 24L, null, null, null));
+        assertEquals("COMPLETADO", seCompleto.getEstado());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void marcarNoCompletadas_esperaVencida_avisaConSuTexto() {
+        when(repository.findByCajaIdAndSucursalIdAndEstado(10L, 24L, "PENDIENTE"))
+                .thenReturn(Collections.singletonList(cobro(2L, "PENDIENTE")));
+        doThrow(esperaVencida()).when(bloqueo).tomar(eq("venta-tarjeta:id:24:2"), any());
+
+        GraphQLException e = assertThrows(GraphQLException.class, () ->
+                service.marcarNoCompletadas(10L, 24L, VentaTarjeta.NO_COMPLETADO_POS_FALLADO, null, null));
+        assertTrue(e.getMessage().startsWith("Hay un cobro con tarjeta de esta caja"), e.getMessage());
+        verify(repository, never()).save(any());
     }
 }
