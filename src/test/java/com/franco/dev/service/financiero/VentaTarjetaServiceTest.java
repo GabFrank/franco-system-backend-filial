@@ -39,6 +39,7 @@ class VentaTarjetaServiceTest {
 
     private ConfiguracionVentaTarjetaService configuracionService;
     private CapturaCuponRepository capturaCuponRepository;
+    private BloqueoTransaccionalService bloqueo;
 
     private VentaTarjetaService service;
 
@@ -51,8 +52,9 @@ class VentaTarjetaServiceTest {
         // La configuracion real, con sus defaults: la ventana de duplicado sale de aca.
         when(configuracionService.findOrDefault()).thenReturn(new ConfiguracionVentaTarjeta());
         capturaCuponRepository = mock(CapturaCuponRepository.class);
+        bloqueo = mock(BloqueoTransaccionalService.class);
         service = new VentaTarjetaService(repository, cobroDetalleRepository, monedaService,
-                configuracionService, capturaCuponRepository, null, null);
+                configuracionService, capturaCuponRepository, bloqueo, null, null);
     }
 
     @Test
@@ -832,5 +834,95 @@ class VentaTarjetaServiceTest {
                 .thenThrow(new RuntimeException("db caida"));
         Exception e = assertThrows(graphql.GraphQLException.class, () -> service.cancelarPorVenta(10L, 7L));
         assertTrue(e.getMessage().contains("no se cancelo ninguno"), e.getMessage());
+    }
+
+    // ---------------------------------------------------------------- #195: completar concurrente
+
+    private VentaTarjeta pendienteDe195() {
+        VentaTarjeta vt = new VentaTarjeta();
+        vt.setId(1L);
+        vt.setSucursalId(24L);
+        vt.setVentaId(500L);
+        vt.setEstado("PENDIENTE");
+        when(repository.findByIdAndSucursalId(1L, 24L)).thenReturn(vt);
+        when(repository.save(any(VentaTarjeta.class))).thenAnswer(inv -> inv.getArgument(0));
+        return vt;
+    }
+
+    /**
+     * El PDV completa las tarjetas de una venta en paralelo: sin los locks, las dos transacciones
+     * pasaban el chequeo de duplicado sin ver la otra (venta 81509 de Itaipu, 1670 y 1672). El del
+     * id va antes de leer el registro; los del cupon, antes de la primera consulta de duplicado.
+     */
+    @Test
+    void completar_tomaLosLocksEnOrdenAntesDeLeerYDeChequear() {
+        pendienteDe195();
+
+        service.completar(1L, 24L, " cxf1 ", "", BigDecimal.TEN, " REF ", "FRCP1*abc", null, null, null, null, null);
+
+        org.mockito.InOrder orden = inOrder(bloqueo, repository, cobroDetalleRepository);
+        orden.verify(bloqueo).tomar("venta-tarjeta:id:24:1", "15s");
+        orden.verify(repository).findByIdAndSucursalId(1L, 24L);
+        orden.verify(bloqueo).tomar("venta-tarjeta-cupon:qr:FRCP1*abc", "15s");
+        orden.verify(bloqueo).tomar("venta-tarjeta-cupon:ref:REF", "15s");
+        // Sin terminal: la consulta por codigo trata la terminal nula como comodin.
+        orden.verify(bloqueo).tomar("venta-tarjeta-cupon:aut:24:CXF1", "15s");
+        orden.verify(repository).findByQrCrudoEnVentasVigentes(eq("FRCP1*abc"), any());
+        orden.verify(repository).save(any(VentaTarjeta.class));
+    }
+
+    @Test
+    void completar_sinDatosDeCupon_soloTomaElLockDelId() {
+        pendienteDe195();
+
+        service.completar(1L, 24L, null, "", BigDecimal.TEN, null, null, null, null, null, null, null);
+
+        verify(bloqueo).tomar("venta-tarjeta:id:24:1", "15s");
+        verifyNoMoreInteractions(bloqueo);
+    }
+
+    @Test
+    void completar_noPendiente_noTomaLocksDeCupon() {
+        VentaTarjeta vt = pendienteDe195();
+        vt.setEstado("COMPLETADO");
+
+        assertThrows(GraphQLException.class, () ->
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, "REF", "cruda", null, null, null, null, null));
+        verify(bloqueo).tomar("venta-tarjeta:id:24:1", "15s");
+        verifyNoMoreInteractions(bloqueo);
+    }
+
+    @Test
+    void completar_esperaVencida_avisaReintentarYNoGuarda() {
+        pendienteDe195();
+        RuntimeException vencida = new RuntimeException("lock",
+                new java.sql.SQLException("canceling statement due to lock timeout", "55P03"));
+        doThrow(vencida).when(bloqueo).tomar(eq("venta-tarjeta-cupon:qr:cruda"), any());
+
+        GraphQLException e = assertThrows(GraphQLException.class, () ->
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, "cruda", null, null, null, null, null));
+        assertTrue(e.getMessage().contains("Reintenta"), e.getMessage());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void completar_otroErrorDelLock_seRelanzaTalCual() {
+        pendienteDe195();
+        RuntimeException otro = new RuntimeException("conexion caida");
+        doThrow(otro).when(bloqueo).tomar(eq("venta-tarjeta:id:24:1"), any());
+
+        assertEquals(otro, assertThrows(RuntimeException.class, () ->
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, "cruda", null, null, null, null, null)));
+    }
+
+    /** El chequeo busca recortado: con el salto que agregan algunos lectores no coincidia nunca. */
+    @Test
+    void completar_guardaElQrRecortado() {
+        pendienteDe195();
+
+        VentaTarjeta r = service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, "FRCP1*abc\r\n",
+                null, null, null, null, null);
+
+        assertEquals("FRCP1*abc", r.getQrCrudo());
     }
 }
