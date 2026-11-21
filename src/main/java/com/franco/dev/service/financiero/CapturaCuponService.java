@@ -144,6 +144,8 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
      */
     @Transactional
     public CapturaCupon crear(Long cajaId, Long sucursalId, Usuario usuario, TerminalPos terminalPos) {
+        exigirModuloHabilitado();
+
         // La sucursal la decide el servidor, no el cliente. captura_cupon no se replica, asi que
         // aca no hay fuga cross-tenant --el campo es de auditoria-- pero una auditoria que miente
         // no sirve, y este es codigo nuevo: no tiene por que nacer con el defecto que el resto
@@ -193,6 +195,28 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         }
     }
 
+    /**
+     * La perilla de apagado del modulo, del lado del servidor (#151).
+     * <p>
+     * Hasta el 2026-11-21 {@code habilitado=false} solo escondia botones en el desktop: el filial
+     * emitia el token, guardaba la foto y corria el OCR igual, y un token emitido con el modulo
+     * prendido seguia sirviendo despues de apagarlo. Se mira en las tres puertas --crear, procesar
+     * y derivar el mapa--, no en una sola: una perilla que vale en un camino y no en otro es peor
+     * que no tenerla.
+     * <p>
+     * <b>Sin catch, a diferencia de {@link #minutosValidez()}.</b> Alla fallar abierto es correcto:
+     * un numero de minutos no puede impedir una foto. Aca es el apagado; y si la configuracion no se
+     * puede leer, la captura tampoco se podria guardar, porque es la misma base. Sin fila replicada
+     * {@code findOrDefault} devuelve deshabilitado, igual que lo trata {@code CuponOcrService}.
+     */
+    private void exigirModuloHabilitado() {
+        if (!Boolean.TRUE.equals(configuracion.findOrDefault().getHabilitado())) {
+            // Sin "carga el cupon a mano": en una terminal con la carga manual apagada ese boton no
+            // se ve. Y sin "en esta sucursal": la fila es una sola para toda la empresa.
+            throw new IllegalStateException("la venta con tarjeta esta deshabilitada");
+        }
+    }
+
     public Optional<CapturaCupon> porToken(String token) {
         return repository.findByToken(token);
     }
@@ -214,6 +238,10 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
         // Sin esto, perder la RESPUESTA --no la request-- deja al cajero trabado con un "ya se
         // uso" aunque del lado del servidor todo haya funcionado.
         if (CapturaCupon.LISTO.equals(c.getEstado())) return c;
+
+        // Despues del atajo LISTO: ese cupon ya se leyo con el modulo prendido. Antes de cualquier
+        // set: si rechaza, la captura queda como estaba y el token sigue vivo hasta que venza.
+        exigirModuloHabilitado();
 
         if (c.yaSeUso())     throw new IllegalStateException("este codigo ya se uso");
         if (c.estaVencida()) throw new IllegalStateException("el codigo vencio; pedi uno nuevo desde la caja");
@@ -429,6 +457,7 @@ public class CapturaCuponService extends CrudService<CapturaCupon, CapturaCuponR
      * central.
      */
     public DerivadorMapa.Resultado derivarMapa(String token) {
+        exigirModuloHabilitado();
         CapturaCupon c = repository.findByToken(token)
                 .orElseThrow(() -> new IllegalArgumentException("no existe esa captura"));
         if (c.getTerminalPos() == null || c.getTerminalPos().getFormatoTerminalPos() == null) {
