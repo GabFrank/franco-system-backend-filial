@@ -901,8 +901,22 @@ class VentaTarjetaServiceTest {
 
         GraphQLException e = assertThrows(GraphQLException.class, () ->
                 service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, "cruda", null, null, null, null, null));
-        assertTrue(e.getMessage().contains("Reintenta"), e.getMessage());
+        assertTrue(e.getMessage().startsWith("Otro cobro con ese cupón"), e.getMessage());
+        assertTrue(e.getMessage().contains("Reintentá"), e.getMessage());
         verify(repository, never()).save(any());
+    }
+
+    /** El lock del id no habla de cupones: puede vencer sin ningun cupon en juego. */
+    @Test
+    void completar_esperaVencidaDelId_avisaQueElCobroEstaEnCurso() {
+        RuntimeException vencida = new RuntimeException("lock",
+                new java.sql.SQLException("canceling statement due to lock timeout", "55P03"));
+        doThrow(vencida).when(bloqueo).tomar(eq("venta-tarjeta:id:24:1"), any());
+
+        GraphQLException e = assertThrows(GraphQLException.class, () ->
+                service.completar(1L, 24L, "CXF1", "", BigDecimal.TEN, null, "cruda", null, null, null, null, null));
+        assertTrue(e.getMessage().startsWith("Este cobro con tarjeta se está registrando"), e.getMessage());
+        verify(repository, never()).findByIdAndSucursalId(any(), any());
     }
 
     @Test

@@ -48,6 +48,9 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
 
     private static final String ESPERA_CUPON = "15s";
 
+    private static final String ESPERA_VENCIDA_CUPON =
+            "Otro cobro con ese cupón se está registrando ahora mismo. Reintentá en unos segundos.";
+
     @Override
     public VentaTarjetaRepository getRepository() {
         return repository;
@@ -117,7 +120,8 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         // Antes de leer: dos completar del mismo cobro a la vez pasaban los dos el chequeo de
         // PENDIENTE y el ultimo pisaba al primero. Releer despues del lock no sirve: devolveria la
         // instancia del contexto de persistencia, con el estado viejo.
-        tomarBloqueo("venta-tarjeta:id:" + sucursalId + ":" + id);
+        tomarBloqueo("venta-tarjeta:id:" + sucursalId + ":" + id,
+                "Este cobro con tarjeta se está registrando desde otra pantalla. Reintentá en unos segundos.");
         VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
         if (vt == null) {
             throw new GraphQLException("No existe la venta con tarjeta " + id + " en la sucursal " + sucursalId);
@@ -140,8 +144,9 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         vt.setCodigoAutorizacion(codigoAutorizacion);
         vt.setNumeroBoleta(numeroBoleta);
         vt.setMontoEscaneado(montoEscaneado);
-        // Recortado, como lo busca motivoCuponNoUsable: con el \r\n que agregan algunos lectores, lo
-        // guardado no coincidia nunca con lo buscado y el duplicado pasaba aun en serie (#195).
+        // Recortado, como lo busca motivoCuponNoUsable (#195). El desktop ya manda el QR recortado
+        // (qr-pos-parser), asi que no fue la causa de Itaipu: es para que lo guardado coincida con lo
+        // buscado aunque llegue por otro cliente.
         vt.setQrCrudo(qrCrudo != null ? qrCrudo.trim() : null);
         vt.setOrigen(origenEfectivo(origen, qrCrudo));
         // Lo que el cupon trae y no tiene columna propia. Se pisa solo si viene: completar se
@@ -303,6 +308,16 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
      * (la reemplaza `mobile-pwa`), asi que es un camino heredado, no un agujero de este flujo. Si
      * algun dia se reactiva, hay que hacerla pasar por aca.
      */
+    private void validarCuponNoUsado(VentaTarjeta vt, String identificadorTransaccion, String qrCrudo,
+                                     String codigoAutorizacion, BigDecimal montoEscaneado) {
+        motivoCuponNoUsable(vt.getId(), vt.getVentaId(), vt.getSucursalId(), identificadorTransaccion,
+                qrCrudo, codigoAutorizacion, montoEscaneado,
+                vt.getTerminalPos() != null ? vt.getTerminalPos().getId() : null)
+                .ifPresent(motivo -> {
+                    throw new GraphQLException(motivo);
+                });
+    }
+
     /**
      * Un lock por cada dato del cupon, hasta el commit (#195). Sin esto el PDV, que completa las
      * tarjetas de una venta en paralelo, dejo el mismo cupon COMPLETADO dos veces (venta 81509 de
@@ -316,36 +331,26 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     private void bloquearCupon(Long sucursalId, String qrCrudo, String identificadorTransaccion,
                                String codigoAutorizacion) {
         if (qrCrudo != null && !qrCrudo.trim().isEmpty()) {
-            tomarBloqueo("venta-tarjeta-cupon:qr:" + qrCrudo.trim());
+            tomarBloqueo("venta-tarjeta-cupon:qr:" + qrCrudo.trim(), ESPERA_VENCIDA_CUPON);
         }
         if (identificadorTransaccion != null && !identificadorTransaccion.trim().isEmpty()) {
-            tomarBloqueo("venta-tarjeta-cupon:ref:" + identificadorTransaccion.trim());
+            tomarBloqueo("venta-tarjeta-cupon:ref:" + identificadorTransaccion.trim(), ESPERA_VENCIDA_CUPON);
         }
         if (codigoAutorizacion != null && !codigoAutorizacion.trim().isEmpty()) {
-            tomarBloqueo("venta-tarjeta-cupon:aut:" + sucursalId + ":" + codigoAutorizacion.trim().toUpperCase());
+            tomarBloqueo("venta-tarjeta-cupon:aut:" + sucursalId + ":" + codigoAutorizacion.trim().toUpperCase(),
+                    ESPERA_VENCIDA_CUPON);
         }
     }
 
-    private void tomarBloqueo(String clave) {
+    private void tomarBloqueo(String clave, String mensajeSiVence) {
         try {
             bloqueo.tomar(clave, ESPERA_CUPON);
         } catch (RuntimeException e) {
             if (!LoteFefoService.esEsperaVencida(e)) {
                 throw e;
             }
-            throw new GraphQLException("Otro cobro con ese cupon se esta registrando ahora mismo."
-                    + " Reintenta en unos segundos.");
+            throw new GraphQLException(mensajeSiVence);
         }
-    }
-
-    private void validarCuponNoUsado(VentaTarjeta vt, String identificadorTransaccion, String qrCrudo,
-                                     String codigoAutorizacion, BigDecimal montoEscaneado) {
-        motivoCuponNoUsable(vt.getId(), vt.getVentaId(), vt.getSucursalId(), identificadorTransaccion,
-                qrCrudo, codigoAutorizacion, montoEscaneado,
-                vt.getTerminalPos() != null ? vt.getTerminalPos().getId() : null)
-                .ifPresent(motivo -> {
-                    throw new GraphQLException(motivo);
-                });
     }
 
     /**

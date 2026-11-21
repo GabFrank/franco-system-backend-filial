@@ -116,6 +116,31 @@ Verificado sin hallazgo: el resolver no abre otra transacción, así que el lock
 commit del save; READ COMMITTED (no hay `isolation` configurado); el savepoint del emisor de eventos
 va después del lock y no lo suelta; Apollo corta a 60 s; mobile y PWA no llaman a la mutation.
 
+## Auditoría del diff (paso 8)
+
+Ejes fijos 1, 2 y 3; los condicionales A y B no aplican (el diff no toca migraciones, workflows ni
+replicación). Ninguno bloquea. Aplicado:
+- el lock del id avisa con su propio texto («Este cobro con tarjeta se está registrando desde otra
+  pantalla…»): puede vencer sin ningún cupón en juego;
+- textos con tilde, como el resto de los avisos de espera («Reintentá»);
+- `validarCuponNoUsado` recupera su javadoc (había quedado arriba de `bloquearCupon`);
+- el comentario del recorte ya no dice que el `\r\n` fue la causa: el desktop manda el QR recortado
+  desde `qr-pos-parser.ts:51`; el recorte es para cualquier otro cliente.
+
+Verificado sin hallazgo: el resolver pasa por `exigirSucursalPropia` antes de llegar al servicio, así
+que el lock se toma con la sucursal propia; la clave va como parámetro; nadie más usa las claves
+`venta-tarjeta*`; ningún cliente reintenta solo un `completar` fallido; ningún consumidor de
+`qr_crudo` (filial, central, desktop) compara el valor crudo.
+
+Pendiente, fuera de esta issue:
+- `marcarNoCompletada`, `reabrir` y `cancelarPorVenta` no toman el lock del id: cruzados con un
+  `completar` del mismo cobro, gana el último que escribe. Se cerraría tomando
+  `venta-tarjeta:id:<suc>:<id>` antes de leer (en `cancelarPorVenta`, por id ascendente).
+- `tomarBloqueo` es la tercera copia del try/catch de `esEsperaVencida` (con `PdvCajaService` y
+  `LoteFefoService`): candidato a un método de `BloqueoTransaccionalService`.
+- Un interbloqueo por colisión cruzada de `hashtext` sale como `40P01`, no como espera vencida, y
+  llega con el texto crudo. Probabilidad despreciable.
+
 ## Sin verificar
 
 - Interbloqueo real con colisión de `hashtext`: improbable; si pasa, PostgreSQL aborta uno y el
