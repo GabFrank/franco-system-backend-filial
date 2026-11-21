@@ -137,3 +137,29 @@ filial (se cambia por SQL: el filial no la escribe por la app).
   contra el sentido BRANCH_TO_MAIN. Se verificaría con un `SELECT` de solo lectura en los dos
   centrales buscando filas sin par en ninguna filial; un desktop viejo con `isLocal=false` lo
   sigue haciendo hasta actualizarse.
+
+## Resultado (2026-11-21)
+
+**Auditoría del diff (paso 8).** Fijo 1: sin caminos nuevos; la guarda cubre todo lo que crea,
+procesa o lee con OCR. Fijo 3: el texto de la `IllegalStateException` no llegaba al desktop
+(`GraphqlExceptionHandler` solo deja pasar `GraphQLException`), y la consulta nueva del diálogo
+abría el «Buscando…» encima. Corregidos: el resolver traduce el rechazo a `GraphQLException`
+(también arregla «la caja no está abierta», que llegaba genérico desde antes) y el diálogo consulta
+con `LECTURA_ESTRICTA` sin modal. Fijo 2 y condicionales: N/A, el diff no trae migración, esquema,
+enum ni datos replicados nuevos.
+
+**Pruebas.** `clean verify` del filial: 1089 tests en verde; sin la guarda fallan los 5 que esperan
+el rechazo. `npm run check` del desktop en verde. Por pantalla (filial local 8082, sucursal 24):
+1. Módulo apagado con un cobro abierto → «Sacar foto» muestra «la venta con tarjeta esta
+   deshabilitada» (antes «Internal Server Error»).
+2. y 3. Misma captura: `POST` con el módulo apagado → 410, la captura no cambia (ESPERANDO, 0
+   intentos, sin imagen); prendido → 200, LISTO, y el desktop recibe los campos por la subscription.
+4. `isLocal=true` + prendido → TARJETA abre el escaneo de terminal.
+5. `isLocal=false` (simulado en memoria; enlaces al filial) + prendido → TARJETA no abre nada y la
+   venta se finaliza sin `venta_tarjeta`.
+6. Pendiente de una terminal `MAQUINA` sin carga a mano: apagado → abre la carga a mano con el
+   aviso y se completa (`origen=MANUAL`); prendido → abre la foto como antes.
+
+**Sin probar.** Cerrar la caja después del punto 6 (el diff no toca el cierre; la caja local 1185
+tiene trabas propias). La página del teléfono con el módulo apagado ofrece «Sacar otra foto», que no
+sirve: mismo patrón que hoy con la caja cerrada.
