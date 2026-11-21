@@ -18,9 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -43,13 +47,26 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     /** Para copiar la ruta de la foto a la venta, y que deje de ser un archivo huerfano. */
     private final CapturaCuponRepository capturas;
 
-    /** Serializa los completar del mismo cobro y del mismo cupon (#195). */
+    /** Serializa los caminos que escriben el mismo cobro, y los completar del mismo cupon (#195). */
     private final BloqueoTransaccionalService bloqueo;
 
-    private static final String ESPERA_CUPON = "15s";
+    /** Para el refresh despues del lock: el resolver de reabrir ya cargo el cobro (OSIV). */
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    private static final String ESPERA_LOCK = "15s";
 
     private static final String ESPERA_VENCIDA_CUPON =
             "Otro cobro con ese cupón se está registrando ahora mismo. Reintentá en unos segundos.";
+
+    private static final String ESPERA_VENCIDA_COBRO =
+            "Este cobro con tarjeta se está registrando desde otra pantalla. Reintentá en unos segundos.";
+
+    private static final String ESPERA_VENCIDA_VENTA =
+            "Hay un cobro con tarjeta de esta venta registrándose ahora mismo. Reintentá en unos segundos.";
+
+    private static final String ESPERA_VENCIDA_CAJA =
+            "Hay un cobro con tarjeta de esta caja registrándose ahora mismo. Reintentá en unos segundos.";
 
     @Override
     public VentaTarjetaRepository getRepository() {
@@ -117,12 +134,9 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
                                   String origen,
                                   String capturaToken,
                                   String datosExtra) {
-        // Antes de leer: dos completar del mismo cobro a la vez pasaban los dos el chequeo de
-        // PENDIENTE y el ultimo pisaba al primero. Releer despues del lock no sirve: devolveria la
-        // instancia del contexto de persistencia, con el estado viejo.
-        tomarBloqueo("venta-tarjeta:id:" + sucursalId + ":" + id,
-                "Este cobro con tarjeta se está registrando desde otra pantalla. Reintentá en unos segundos.");
-        VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
+        // Dos completar del mismo cobro a la vez pasaban los dos el chequeo de PENDIENTE y el
+        // ultimo pisaba al primero.
+        VentaTarjeta vt = leerBloqueado(id, sucursalId);
         if (vt == null) {
             throw new GraphQLException("No existe la venta con tarjeta " + id + " en la sucursal " + sucursalId);
         }
@@ -205,6 +219,10 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     public boolean cancelarPorVenta(Long ventaId, Long sucId) {
         List<VentaTarjeta> registros = findAllByVentaIdAndSucursalId(ventaId, sucId);
         if (registros == null || registros.isEmpty()) return false;
+        // Fuera del try: su catch cambia cualquier error por "no se cancelo ninguno" y taparia el
+        // aviso de espera. Sin el lock, un completar que leyo PENDIENTE dejaba COMPLETADO un cobro
+        // de esta venta cancelada (#195).
+        bloquearYRefrescar(registros, ESPERA_VENCIDA_VENTA);
         try {
             for (VentaTarjeta vt : registros) {
                 boolean yaCancelada = "CANCELADO".equals(vt.getEstado());
@@ -342,9 +360,53 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         }
     }
 
+    /**
+     * El cobro, leido con su lock tomado y refrescado (#195). Todo camino del filial que cambia el
+     * estado de un cobro existente pasa por aca o por bloquearYRefrescar (el alta no compite; la
+     * replica que vuelve del central no pasa por aca): venta_tarjeta no tiene @Version, y sin esto
+     * el que escribia ultimo pisaba al otro (un NO_COMPLETADO sobre un COMPLETADO perdia el cupon).
+     * <p>
+     * El refresh no es decorativo: el resolver de reabrir carga el cobro antes de llamar aca y, con
+     * OpenEntityManagerInViewFilter, la lectura devolveria esa instancia con el estado viejo.
+     */
+    private VentaTarjeta leerBloqueado(Long id, Long sucursalId) {
+        tomarBloqueo(claveCobro(sucursalId, id), ESPERA_VENCIDA_COBRO);
+        VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
+        if (vt != null) entityManager.refresh(vt);
+        return vt;
+    }
+
+    /**
+     * Varios cobros: el lock de cada uno en orden ascendente --asi dos de estos no se interbloquean,
+     * y como nunca toman claves de cupon tampoco con completar-- y despues el refresh. La clave sale
+     * de la sucursal del registro, para que coincida con la de completar aunque cambie la consulta
+     * que trajo la lista.
+     */
+    private void bloquearYRefrescar(List<VentaTarjeta> registros, String mensajeSiVence) {
+        List<VentaTarjeta> ordenados = new ArrayList<>(registros);
+        ordenados.sort(Comparator.comparing(VentaTarjeta::getId));
+        for (VentaTarjeta vt : ordenados) {
+            tomarBloqueo(claveCobro(vt.getSucursalId(), vt.getId()), mensajeSiVence);
+        }
+        for (VentaTarjeta vt : ordenados) {
+            entityManager.refresh(vt);
+        }
+    }
+
+    /** Los PENDIENTE de la caja que siguen PENDIENTE con el lock tomado: uno pudo completarse mientras. */
+    private List<VentaTarjeta> pendientesBloqueados(Long cajaId, Long sucursalId) {
+        List<VentaTarjeta> pendientes = repository.findByCajaIdAndSucursalIdAndEstado(cajaId, sucursalId, "PENDIENTE");
+        bloquearYRefrescar(pendientes, ESPERA_VENCIDA_CAJA);
+        return pendientes.stream().filter(vt -> "PENDIENTE".equals(vt.getEstado())).collect(Collectors.toList());
+    }
+
+    private static String claveCobro(Long sucursalId, Long id) {
+        return "venta-tarjeta:id:" + sucursalId + ":" + id;
+    }
+
     private void tomarBloqueo(String clave, String mensajeSiVence) {
         try {
-            bloqueo.tomar(clave, ESPERA_CUPON);
+            bloqueo.tomar(clave, ESPERA_LOCK);
         } catch (RuntimeException e) {
             if (!LoteFefoService.esEsperaVencida(e)) {
                 throw e;
@@ -649,7 +711,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
             return marcarNoCompletadasSinAuditoria(cajaId, sucursalId);
         }
         validarMotivo(motivo, observacion);
-        List<VentaTarjeta> pendientes = repository.findByCajaIdAndSucursalIdAndEstado(cajaId, sucursalId, "PENDIENTE");
+        List<VentaTarjeta> pendientes = pendientesBloqueados(cajaId, sucursalId);
         LocalDateTime ahora = LocalDateTime.now();
         pendientes.forEach(vt -> {
             aplicarNoCompletado(vt, motivo, observacion, usuario, ahora);
@@ -666,7 +728,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
      * eso.
      */
     private int marcarNoCompletadasSinAuditoria(Long cajaId, Long sucursalId) {
-        List<VentaTarjeta> pendientes = repository.findByCajaIdAndSucursalIdAndEstado(cajaId, sucursalId, "PENDIENTE");
+        List<VentaTarjeta> pendientes = pendientesBloqueados(cajaId, sucursalId);
         pendientes.forEach(vt -> {
             vt.setEstado("NO_COMPLETADO");
             emitir("venta_tarjeta.no_completada", "media", repository.save(vt));
@@ -685,7 +747,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     public VentaTarjeta marcarNoCompletada(Long id, Long sucursalId, String motivo, String observacion,
                                            com.franco.dev.domain.personas.Usuario usuario) {
         validarMotivo(motivo, observacion);
-        VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
+        VentaTarjeta vt = leerBloqueado(id, sucursalId);
         if (vt == null) {
             throw new GraphQLException("No existe el cobro con tarjeta " + id + " en esta sucursal.");
         }
@@ -722,7 +784,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     @Transactional
     public VentaTarjeta reabrir(Long id, Long sucursalId,
                                 com.franco.dev.domain.personas.Usuario usuario) {
-        VentaTarjeta vt = repository.findByIdAndSucursalId(id, sucursalId);
+        VentaTarjeta vt = leerBloqueado(id, sucursalId);
         if (vt == null) {
             throw new GraphQLException("No existe el cobro con tarjeta " + id + " en esta sucursal.");
         }
