@@ -54,13 +54,19 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     @PersistenceContext
     private EntityManager entityManager;
 
-    private static final String ESPERA_CUPON = "15s";
+    private static final String ESPERA_LOCK = "15s";
 
     private static final String ESPERA_VENCIDA_CUPON =
             "Otro cobro con ese cupón se está registrando ahora mismo. Reintentá en unos segundos.";
 
     private static final String ESPERA_VENCIDA_COBRO =
             "Este cobro con tarjeta se está registrando desde otra pantalla. Reintentá en unos segundos.";
+
+    private static final String ESPERA_VENCIDA_VENTA =
+            "Hay un cobro con tarjeta de esta venta registrándose ahora mismo. Reintentá en unos segundos.";
+
+    private static final String ESPERA_VENCIDA_CAJA =
+            "Hay un cobro con tarjeta de esta caja registrándose ahora mismo. Reintentá en unos segundos.";
 
     @Override
     public VentaTarjetaRepository getRepository() {
@@ -216,8 +222,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
         // Fuera del try: su catch cambia cualquier error por "no se cancelo ninguno" y taparia el
         // aviso de espera. Sin el lock, un completar que leyo PENDIENTE dejaba COMPLETADO un cobro
         // de esta venta cancelada (#195).
-        bloquearYRefrescar(registros, "Hay un cobro con tarjeta de esta venta registrándose ahora mismo."
-                + " Reintentá en unos segundos.");
+        bloquearYRefrescar(registros, ESPERA_VENCIDA_VENTA);
         try {
             for (VentaTarjeta vt : registros) {
                 boolean yaCancelada = "CANCELADO".equals(vt.getEstado());
@@ -356,9 +361,10 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     }
 
     /**
-     * El cobro, leido con su lock tomado y refrescado (#195). Todo camino que escribe un cobro pasa
-     * por aca o por bloquearYRefrescar: venta_tarjeta no tiene @Version, y sin esto el que escribia
-     * ultimo pisaba al otro (un NO_COMPLETADO sobre un COMPLETADO perdia el cupon).
+     * El cobro, leido con su lock tomado y refrescado (#195). Todo camino del filial que cambia el
+     * estado de un cobro existente pasa por aca o por bloquearYRefrescar (el alta no compite; la
+     * replica que vuelve del central no pasa por aca): venta_tarjeta no tiene @Version, y sin esto
+     * el que escribia ultimo pisaba al otro (un NO_COMPLETADO sobre un COMPLETADO perdia el cupon).
      * <p>
      * El refresh no es decorativo: el resolver de reabrir carga el cobro antes de llamar aca y, con
      * OpenEntityManagerInViewFilter, la lectura devolveria esa instancia con el estado viejo.
@@ -373,7 +379,8 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     /**
      * Varios cobros: el lock de cada uno en orden ascendente --asi dos de estos no se interbloquean,
      * y como nunca toman claves de cupon tampoco con completar-- y despues el refresh. La clave sale
-     * de la sucursal del registro, no del argumento: cancelarVentaTarjetaPorVentaId no la valida.
+     * de la sucursal del registro, para que coincida con la de completar aunque cambie la consulta
+     * que trajo la lista.
      */
     private void bloquearYRefrescar(List<VentaTarjeta> registros, String mensajeSiVence) {
         List<VentaTarjeta> ordenados = new ArrayList<>(registros);
@@ -389,8 +396,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
     /** Los PENDIENTE de la caja que siguen PENDIENTE con el lock tomado: uno pudo completarse mientras. */
     private List<VentaTarjeta> pendientesBloqueados(Long cajaId, Long sucursalId) {
         List<VentaTarjeta> pendientes = repository.findByCajaIdAndSucursalIdAndEstado(cajaId, sucursalId, "PENDIENTE");
-        bloquearYRefrescar(pendientes, "Hay un cobro con tarjeta de esta caja registrándose ahora mismo."
-                + " Reintentá en unos segundos.");
+        bloquearYRefrescar(pendientes, ESPERA_VENCIDA_CAJA);
         return pendientes.stream().filter(vt -> "PENDIENTE".equals(vt.getEstado())).collect(Collectors.toList());
     }
 
@@ -400,7 +406,7 @@ public class VentaTarjetaService extends CrudService<VentaTarjeta, VentaTarjetaR
 
     private void tomarBloqueo(String clave, String mensajeSiVence) {
         try {
-            bloqueo.tomar(clave, ESPERA_CUPON);
+            bloqueo.tomar(clave, ESPERA_LOCK);
         } catch (RuntimeException e) {
             if (!LoteFefoService.esEsperaVencida(e)) {
                 throw e;

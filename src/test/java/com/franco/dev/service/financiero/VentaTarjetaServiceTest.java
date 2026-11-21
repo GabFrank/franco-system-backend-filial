@@ -1071,8 +1071,12 @@ class VentaTarjetaServiceTest {
         assertEquals("COMPLETADO", seCompleto.getEstado());
         verify(repository).save(sigue);
         verify(repository, never()).save(seCompleto);
-        verify(bloqueo).tomar("venta-tarjeta:id:24:1", "15s");
-        verify(bloqueo).tomar("venta-tarjeta:id:24:2", "15s");
+        // Los dos locks antes de cualquier refresh: un refresh sin el lock leeria antes del commit ajeno.
+        org.mockito.InOrder orden = inOrder(bloqueo, entityManager);
+        orden.verify(bloqueo).tomar("venta-tarjeta:id:24:1", "15s");
+        orden.verify(bloqueo).tomar("venta-tarjeta:id:24:2", "15s");
+        orden.verify(entityManager).refresh(sigue);
+        orden.verify(entityManager).refresh(seCompleto);
     }
 
     /** El camino viejo, sin motivo, tambien. */
