@@ -1,8 +1,7 @@
 # Plan — lock por cobro en todos los caminos que escriben venta_tarjeta (sigue a #195)
 
-Rama `fix/venta-tarjeta-lock-por-cobro`, sale de `fix/venta-tarjeta-cupon-completar-concurrente`
-(PR #278, todavía sin mergear): reusa su `tomarBloqueo`. PR hacia `develop`; hasta que #278 se
-mergee muestra también sus commits. Solo filial.
+Rama `fix/venta-tarjeta-lock-por-cobro`, sobre `develop` después del merge de #278 (ee475b5):
+reusa su `tomarBloqueo`. PR hacia `develop`. Solo filial.
 
 ## Problema
 
@@ -23,7 +22,7 @@ gana el último que escribe.
 
 En `VentaTarjetaService`:
 
-- `leerBloqueado(id, sucursalId, mensaje)`: toma `venta-tarjeta:id:<suc>:<id>` (la misma clave de
+- `leerBloqueado(id, sucursalId)`: toma `venta-tarjeta:id:<suc>:<id>` (la misma clave de
   #278), lee y hace `entityManager.refresh(vt)`. El refresh no es decorativo: el resolver de
   `reabrir` carga el cobro **antes** (para `exigirRolParaReabrir`) y, con
   `OpenEntityManagerInViewFilter`, la relectura devolvería esa instancia con el estado viejo.
@@ -82,6 +81,37 @@ Mismo contrato. Rollback = revertir el commit. Al mergear a `develop` sale a las
 5. Por pantalla (Conciliación de cupones en el PDV): dejar un cobro sin conciliar y reabrirlo;
    cancelar una venta con tarjeta. Sin concurrencia: comprobar que los botones siguen andando.
 6. Restaurar los datos de prueba.
+
+## Resultado de la prueba de runtime (21/11)
+
+Filial propio en el 8082 contra `general@5551`; jar con el arreglo y jar con el
+`VentaTarjetaService` exacto de `develop` (ee475b5) como control. Cobros sembrados en una caja y
+ventas falsas (999195 / 999195xx), limpiados al terminar. Dos mutations a la vez, 5 vueltas:
+
+| Caso | `develop` | con el arreglo |
+|---|---|---|
+| Dejar sin conciliar vs completar | 5 de 5 pisados (las dos OK, gana la última) | 0; el otro: «El cobro N esta COMPLETADO…» |
+| Cierre de caja vs completar | 5 de 5 (dice que marcó 1 y queda COMPLETADO) | 0; el cierre devuelve 0 y el COMPLETADO queda |
+| Cancelar venta vs completar | 4 de 5 cobros COMPLETADO en venta cancelada | 0; siempre CANCELADO |
+| Dos reaperturas | 5 de 5 | 0; la otra: «…esta PENDIENTE» |
+
+Por pantalla (desktop de `develop` estático, filial y central en el 8082, PDV de la 24 con MR):
+Conciliación de cupones → dejar sin conciliar el 1102 («El cupón se perdió») y reabrirlo: los dos
+botones andan, y en base quedan motivo, quién marcó y quién reabrió. **Cancelar venta por pantalla
+no se pudo**: el PDV cancela primero en el central y el filial lo rechaza («La cancelacion de ventas
+se hace contra el servidor central…»); el `cancelarVentaTarjetaPorVentaId` del filial corre recién
+después, y sin un central con esa venta no se llega. Ese camino quedó cubierto por API.
+
+## Auditoría del diff (paso 8)
+
+Ejes fijos 1, 2 y 3 (condicionales no aplican). Sin críticos. Aplicado: `ESPERA_LOCK` en vez de
+`ESPERA_CUPON`; los cuatro mensajes de espera como constantes; javadocs de `leerBloqueado` y
+`bloquearYRefrescar` corregidos; `InOrder` lock → refresh en el test del cierre; plan al día.
+Verificado sin hallazgo: el `EntityManager` por constructor resuelve como en `PedidoService`; el
+`refresh` no descarta cambios (nada se modifica antes); el conteo del cierre no lo usa ningún
+cliente; ningún cliente reintenta en loop.
+Anotado sin cambio: `refresh` de una fila borrada daría `EntityNotFoundException` sin traducir
+(ningún camino del filial borra `venta_tarjeta`).
 
 ## Auditoría del plan (paso 5)
 
