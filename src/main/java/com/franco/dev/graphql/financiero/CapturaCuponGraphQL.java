@@ -53,9 +53,18 @@ public class CapturaCuponGraphQL implements GraphQLQueryResolver, GraphQLMutatio
         // terminalPosId es OPCIONAL: un desktop que todavia no lo manda sigue pudiendo sacar la
         // foto, solo que la captura se queda con el texto leido y no extrae campos --que es lo
         // que el modulo hacia antes de la etapa 4--.
-        CapturaCupon c = service.crear(cajaId, sucursalId,
-                usuarioId == null ? null : usuarioService.findById(usuarioId).orElse(null),
-                terminalPosId == null ? null : terminalPosService.findById(terminalPosId).orElse(null));
+        CapturaCupon c;
+        try {
+            c = service.crear(cajaId, sucursalId,
+                    usuarioId == null ? null : usuarioService.findById(usuarioId).orElse(null),
+                    terminalPosId == null ? null : terminalPosService.findById(terminalPosId).orElse(null));
+        } catch (IllegalStateException e) {
+            // El servicio rechaza con IllegalStateException, que es lo que el controller del
+            // telefono traduce a 410. Por GraphQL, GraphqlExceptionHandler solo deja ver el texto
+            // de una GraphQLException: sin esto el cajero leia "error generico" en vez de "la caja
+            // no esta abierta" o "la venta con tarjeta esta deshabilitada" (#151).
+            throw new GraphQLException(e.getMessage(), e);
+        }
         return new CapturaCuponQr(c.getToken(), service.urlDe(c), c.getExpiraEn().toString());
     }
 
@@ -71,7 +80,13 @@ public class CapturaCuponGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      * espacial.
      */
     public List<RegionDerivada> derivarMapaDeCaptura(String token) {
-        DerivadorMapa.Resultado r = service.derivarMapa(token);
+        DerivadorMapa.Resultado r;
+        try {
+            r = service.derivarMapa(token);
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            // Mismo motivo que en crearCapturaCupon: que el texto llegue al cliente.
+            throw new GraphQLException(e.getMessage(), e);
+        }
         if (!r.ok()) throw new GraphQLException(r.error);
 
         List<RegionDerivada> out = new ArrayList<>();
