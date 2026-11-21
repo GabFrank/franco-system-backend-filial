@@ -103,6 +103,28 @@ Ninguno: sin columnas, sin migración, sin cambio de schema GraphQL.
    (`imprimirSenaCupon`): se avisa antes qué cola se usa, y se cierra imprimiendo en `frc-ticket`.
 7. Restaurar los datos de prueba.
 
+## Resultado de la prueba de runtime (21/11)
+
+Filial propio en el 8082 (sucursal 24, SIFEN apagado), contra `general@5551` local; un jar con el
+arreglo y otro de `develop` como control. Dos `completarVentaTarjeta` disparados a la vez:
+
+| Caso | `develop` | con el arreglo |
+|---|---|---|
+| Mismo QR idéntico, 5 vueltas | 4 de 5 dejaron dos COMPLETADOS | 5 de 5 con uno solo; el otro, «Ese cupon ya fue registrado…» |
+| Mismo QR, uno con `\n` final | los dos COMPLETADOS (uno guardado con el salto) | uno solo |
+| Mismo código de autorización, sin QR | no se cruzaron esta vez | uno solo; el otro, «El codigo de autorizacion … ya esta registrado» |
+| Cupones distintos | los dos COMPLETADOS | los dos COMPLETADOS |
+| Mismo cobro dos veces | los dos «completaron», el segundo pisó al primero | el segundo, «…esta en estado COMPLETADO» |
+| QR con `\r\n` | — | guardado recortado |
+
+Por pantalla: desktop de `develop` (dbaec8f0) servido estático, PDV de la 24 con MR. Venta de
+₲ 120.000 con dos líneas de tarjeta R$ 50 en la terminal U1 y **el mismo QR en las dos** (la
+pantalla lo deja, issue desktop #625) + ₲ 5.000 en efectivo. Venta 79361: una línea COMPLETADO
+(1104) y la otra queda PENDIENTE (1102) con «Ese cupon ya fue registrado en la venta con tarjeta
+1104…». La seña se mandó a una impresora inexistente. Para poder cobrar con QR en local hubo que
+habilitar el módulo, copiar el formato `VALIDAPIX web` del alpha y darle serie a la terminal U1;
+todo restaurado al terminar.
+
 ## Auditoría del plan (paso 5)
 
 Dos auditores, eje A (contrato) y eje B (estado), los dos «aceptar con reservas». Aplicado:
