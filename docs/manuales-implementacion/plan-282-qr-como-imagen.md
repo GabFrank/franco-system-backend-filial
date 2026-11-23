@@ -94,6 +94,13 @@ Ninguno: sin migraciones, sin GraphQL, sin configuración.
 - Papel en la OLIVETTI PRT80 (`frc-ticket`), bytes generados por los métodos reales de las ramas y enviados en
   crudo: seña (filial, 10 KB), QR de la URL SIFEN larga (filial, 14 KB) y cierre de caja (central, 19 KB). Los tres
   salieron como QR y se leen con el teléfono (Franco).
+- Auditoría del diff (paso 8): `EscPosImage.image2Rows` no rellenaba a 3 bytes por columna una última franja de
+  justo 8 o 16 filas; con el QR como imagen pasaba con `setSize(8)`. Arreglado en el código compartido, con
+  `EscPosImageTest` y una ida y vuelta por los bytes con los tamaños 1 a 16 (los dos fallan sin el arreglo).
+  Batería otra vez: filial 1113 / 0 fallas (corrida sola: `PrinterOutputStreamTest` es de tiempos y falló una vez
+  en paralelo, como en `develop`), central 4030 / 0 fallas.
+- Papel, segunda tanda: retiro (filial, QR tamaño 6) y solicitud de pago (central, QR tamaño 8, el caso del
+  arreglo). Los dos se leen (Franco). El logo de estos tickets es la imagen sintética de los tests, no el real.
 
 ## Queda sin verificar
 
