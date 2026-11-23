@@ -11,6 +11,7 @@ import com.franco.dev.service.impresion.dto.RetiroDto;
 import com.franco.dev.service.utils.ImageService;
 import com.franco.dev.service.utils.PrintingService;
 import com.franco.dev.utilitarios.print.escpos.EscPos;
+import com.franco.dev.utilitarios.print.escpos.EscPosQrLector;
 import com.franco.dev.utilitarios.print.escpos.barcode.BarCodeWrapperInterface;
 import com.franco.dev.utilitarios.print.output.CapturaPrintService;
 import org.junit.jupiter.api.BeforeEach;
@@ -90,7 +91,8 @@ class ImpresionServiceQrTest {
     void ticketDeRetiroLlevaElQrConCajaYSucursal() {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         assertTrue(service.printRetiro(retiro(24L), null, "CAJA 1", false, out));
-        assertTrue(texto(out).contains("frc-24-RETIRO-1151-24-IngresarRetiroCajaMayor-662-null"));
+        // El QR va como imagen ESC * (#282): se lee de vuelta en lugar de buscar el dato como texto.
+        assertTrue(EscPosQrLector.leer(out.toByteArray()).contains("frc-24-RETIRO-1151-24-IngresarRetiroCajaMayor-662-null"));
     }
 
     @Test
@@ -98,6 +100,7 @@ class ImpresionServiceQrTest {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         assertTrue(service.printRetiro(retiro(null), null, "CAJA 1", false, out));
         assertFalse(texto(out).contains("frc-"));
+        assertTrue(EscPosQrLector.leer(out.toByteArray()).isEmpty());
         assertTrue(texto(out).contains("FIRMA RESPONSABLE"));
     }
 
@@ -116,7 +119,7 @@ class ImpresionServiceQrTest {
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         assertTrue(service.printBalance(dto, null, "CAJA 1", out));
-        assertTrue(texto(out).contains("frc-24-PDVCAJA-662-24-IngresarRetiroCajaMayor-null-null"));
+        assertTrue(EscPosQrLector.leer(out.toByteArray()).contains("frc-24-PDVCAJA-662-24-IngresarRetiroCajaMayor-null-null"));
     }
 
     /** saveRetiro imprime dentro de su transaccion: una excepcion del QR desharia el retiro. */

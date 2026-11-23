@@ -1,17 +1,44 @@
 package com.franco.dev.utilitarios.print.escpos.barcode;
 
 import com.franco.dev.utilitarios.print.escpos.EscPosConst;
+import com.franco.dev.utilitarios.print.escpos.image.BitImageWrapper;
+import com.franco.dev.utilitarios.print.escpos.image.BitonalThreshold;
+import com.franco.dev.utilitarios.print.escpos.image.CoffeeImageImpl;
+import com.franco.dev.utilitarios.print.escpos.image.EscPosImage;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.WriterException;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.util.EnumMap;
+import java.util.Map;
 
 
 /**
- * Supply ESC/POS QRCode bar-code commands
+ * QR para las térmicas ESC/POS, impreso como imagen ({@code ESC *}), no con el comando nativo {@code GS ( k}.
+ *
+ * <p>La OLIVETTI PRT80 no interpreta {@code GS ( k}: imprime los datos como texto (#259, #282). La imagen
+ * {@code ESC *} es la misma que ya usan el logo y el QR de la factura electrónica, que esa impresora --y todas
+ * las del parque-- imprimen bien. Así el QR deja de depender de la marca de la impresora.
  */
 public class QRCode implements EscPosConst, BarCodeWrapperInterface{
 
     /**
-     * Values for QRCode model (función 165: n1 = 49 modelo 1, 50 modelo 2).
+     * Ancho máximo del QR en puntos: el ancho útil de un rollo de 58 mm. Una imagen {@code ESC *} más ancha que
+     * el papel sale rota; en 80 mm un dato largo sale un poco más chico, pero se lee.
+     */
+    static final int ANCHO_MAXIMO = 384;
+
+    /** Zona en blanco alrededor del QR, en módulos. */
+    static final int MARGEN = 2;
+
+    /**
+     * Ya no se usa: zxing genera siempre el modelo 2, el que las impresoras usaban por defecto.
+     * Queda para no romper a quien lo llame.
      * @see #setModel(QRModel)
      */
     public enum QRModel{
@@ -29,14 +56,16 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
      *
      */
     public enum QRErrorCorrectionLevel{
-        QR_ECLEVEL_L(48), // 7%
-        QR_ECLEVEL_M_Default(49), //15%
-        QR_ECLEVEL_Q(50), //25%
-        QR_ECLEVEL_H(51)  //30%
+        QR_ECLEVEL_L(48, ErrorCorrectionLevel.L), // 7%
+        QR_ECLEVEL_M_Default(49, ErrorCorrectionLevel.M), //15%
+        QR_ECLEVEL_Q(50, ErrorCorrectionLevel.Q), //25%
+        QR_ECLEVEL_H(51, ErrorCorrectionLevel.H)  //30%
         ;
         public int value;
-        private QRErrorCorrectionLevel(int value){
+        final ErrorCorrectionLevel zxing;
+        private QRErrorCorrectionLevel(int value, ErrorCorrectionLevel zxing){
             this.value = value;
+            this.zxing = zxing;
         }
     }
 
@@ -47,8 +76,6 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
 
     public QRCode(){
         justification = Justification.Left_Default;
-        // Sin modelo no se manda la función 165: la impresora usa su default (modelo 2). La OLIVETTI PRT80
-        // no la entiende e imprime n1 como texto («0» con 48, «2» con 50) (#259).
         model = null;
         size = 3;
         errorCorrectionLevel = QRErrorCorrectionLevel.QR_ECLEVEL_M_Default;
@@ -57,7 +84,7 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
 
 
     /**
-     * Set horizontal justification. 
+     * Set horizontal justification.
      * @param justification left, center or right.
      * @return this object.
      *
@@ -69,11 +96,10 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
 
 
     /**
-     * Set model of bar-code.
+     * Sin efecto: el QR sale como imagen y zxing usa siempre el modelo 2 (#282).
      *
-     * @param model value used on function 65; null (el default) no manda la función y la impresora usa su modelo
+     * @param model ignorado
      * @return this object.
-     * @see #getBytes(java.lang.String)
      */
     public QRCode setModel(QRModel model) {
         this.model = model;
@@ -81,8 +107,9 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
     }
 
     /**
-     * Set the size of module in dots.
-     * @param size value used on function 67
+     * Set the size of module in dots. Es el mismo tamaño físico que tenía el QR nativo; si el QR no entra en
+     * {@link #ANCHO_MAXIMO}, el módulo se achica hasta que entre.
+     * @param size module size in dots
      * @return this object.
      * @throws IllegalArgumentException when size is not between 1 and 16.
      */
@@ -96,7 +123,7 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
 
     /**
      * Select the error correction level.<p>
-     * @param errorCorrectionLevel value to be used on function 69
+     * @param errorCorrectionLevel nivel de corrección del QR
      * @return this object
      * @see #getBytes(java.lang.String)
      */
@@ -106,99 +133,60 @@ public class QRCode implements EscPosConst, BarCodeWrapperInterface{
     }
 
     /**
-     * QRCode Assembly into ESC/POS bytes. <p>
+     * El QR como imagen {@code ESC *}, justificado.
      *
-     * Select justification <p>
-     * ASCII ESC a n <p>
-     *
-     * Function 065: Selects the model for QR Code. <p>
-     * ASCII GS ( k pL pH cn 65 n1 n2 <p>
-     *
-     * Function 067: Sets the size of the module for QR Code in dots. <p>
-     * ASCII GS ( k pL pH cn 67 n <p>
-     *
-     * Function 069: Selects the error correction level for QR Code. <p>
-     * ASCII GS ( k pL pH cn 69 n <p>
-     *
-     * Function 080: Store the data in the symbol storage area <p>
-     * ASCII GS ( k pL pH cn 80 m d1...dk <p>
-     *
-     * Function 081: Print the symbol data in the symbol storage area <p>
-     * ASCII GS ( k pL pH cn 81 m <p>
-     *
+     * <p>Nunca lanza: el QR del ticket de venta va antes de los totales y del corte, y una excepción acá dejaba
+     * al cliente sin papel. Si no se puede generar --dato vacío, demasiado largo-- sale el dato como texto, que
+     * es lo mismo que imprimía la PRT80 con el comando nativo.
      *
      * @param data to be printed in barcode
-     * @return bytes of ESC/POS commands to print the barcode  
+     * @return bytes of ESC/POS commands to be sent to the printer
      */
     @Override
     public byte[] getBytes(String data){
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try {
+            return new BitImageWrapper()
+                    .setJustification(justification)
+                    .getBytes(new EscPosImage(new CoffeeImageImpl(imagen(data)), new BitonalThreshold()));
+        } catch (Exception e) {
+            return comoTexto(data);
+        }
+    }
 
-        //
+    /**
+     * El QR en blanco y negro, {@code size} puntos por módulo (menos si no entra en {@link #ANCHO_MAXIMO}).
+     * Se pinta con {@code setRGB}, sin {@code Graphics}: anda en un servidor sin pantalla.
+     */
+    BufferedImage imagen(String data) throws WriterException {
+        Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
+        hints.put(EncodeHintType.ERROR_CORRECTION, errorCorrectionLevel.zxing);
+        hints.put(EncodeHintType.MARGIN, MARGEN);
+        // Ancho y alto 0: zxing devuelve la matriz mínima, un elemento por módulo.
+        BitMatrix matriz = new QRCodeWriter().encode(data, BarcodeFormat.QR_CODE, 0, 0, hints);
+        int modulos = matriz.getWidth();
+        int punto = Math.min(size, ANCHO_MAXIMO / modulos);
+        if (punto < 1) {
+            throw new IllegalArgumentException("el QR no entra en " + ANCHO_MAXIMO + " puntos");
+        }
+        int lado = modulos * punto;
+        BufferedImage imagen = new BufferedImage(lado, lado, BufferedImage.TYPE_INT_RGB);
+        for (int y = 0; y < lado; y++) {
+            for (int x = 0; x < lado; x++) {
+                imagen.setRGB(x, y, matriz.get(x / punto, y / punto) ? 0x000000 : 0xFFFFFF);
+            }
+        }
+        return imagen;
+    }
+
+    private byte[] comoTexto(String data) {
+        if (data == null || data.isEmpty()) return new byte[0];
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         bytes.write(ESC);
         bytes.write('a');
         bytes.write(justification.value);
-
-        // Function 065
-        if (model != null) {
-            bytes.write(GS);
-            bytes.write('(');
-            bytes.write('k');
-            bytes.write(4); // pL size of bytes
-            bytes.write(0); // pH size of bytes
-            bytes.write(49); // cn
-            bytes.write(65); // fn
-            bytes.write(model.value); // n1
-            bytes.write(0); // n2
-        }
-
-        // Function 067
-        bytes.write(GS);
-        bytes.write('(');
-        bytes.write('k');
-        bytes.write(3); // pL size of bytes
-        bytes.write(0); // pH size of bytes
-        bytes.write(49); // cn
-        bytes.write(67); // fn
-        bytes.write(size); // n
-
-        // Function 069
-        bytes.write(GS);
-        bytes.write('(');
-        bytes.write('k');
-        bytes.write(3); // pL size of bytes
-        bytes.write(0); // pH size of bytes
-        bytes.write(49); // cn
-        bytes.write(69); // fn
-        bytes.write(errorCorrectionLevel.value); // n
-
-
-        // Function 080
-        int numberOfBytes = data.length() + 3;
-        int pL = numberOfBytes & 0xFF;
-        int pH = (numberOfBytes & 0xFF00) >> 8 ;
-
-        bytes.write(GS);
-        bytes.write('(');
-        bytes.write('k');
-        bytes.write(pL); // pL size of bytes
-        bytes.write(pH); // pH size of bytes
-        bytes.write(49); // cn
-        bytes.write(80); // fn
-        bytes.write(48); // m
-        bytes.write(data.getBytes(),0,data.length());
-
-        // Function 081
-        bytes.write(GS);
-        bytes.write('(');
-        bytes.write('k');
-        bytes.write(3); // pL size of bytes
-        bytes.write(0); // pH size of bytes
-        bytes.write(49); // cn
-        bytes.write(81); // fn
-        bytes.write(48); // m
-
-
+        byte[] texto = data.getBytes();
+        bytes.write(texto, 0, texto.length);
+        bytes.write(LF);
         return bytes.toByteArray();
     }
 
