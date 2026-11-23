@@ -72,6 +72,22 @@ class QRCodeTest {
         }
     }
 
+    /**
+     * Ida y vuelta por los bytes que van a la impresora, no por la imagen: con setSize(8) (retiro, movimientos)
+     * el alto cae en franjas de 8 o 16 filas, que antes salían cortas y rompían el ticket.
+     */
+    @Test
+    void seLeeDesdeLosBytesConCualquierTamanoDeModulo() {
+        String[] datos = {CORTO, SENA, "frc-24-RETIRO-1151-24-IngresarRetiroCajaMayor-662-null", URL_SIFEN};
+        for (String dato : datos) {
+            for (int size = 1; size <= 16; size++) {
+                byte[] b = new QRCode().setSize(size).setJustification(EscPosConst.Justification.Center).getBytes(dato);
+                assertEquals(java.util.Collections.singletonList(dato),
+                        com.franco.dev.utilitarios.print.escpos.EscPosQrLector.leer(b), "size " + size + " / " + dato);
+            }
+        }
+    }
+
     @Test
     void conservaElTamanoDelModuloCuandoEntra() throws Exception {
         BufferedImage chico = new QRCode().setSize(3).imagen(CORTO);

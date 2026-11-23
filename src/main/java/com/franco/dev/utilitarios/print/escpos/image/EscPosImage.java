@@ -120,10 +120,12 @@ public class EscPosImage {
                 if(bit > 0){
                     baColumBytes.write(col);
                     bitsWritten+=8;
-                    while(bitsWritten < bitsPerColumn_8_or_24){
-                        baColumBytes.write(0);
-                        bitsWritten +=8;
-                    }
+                }
+                // El relleno va también cuando la última franja mide justo 8 o 16 filas (bit == 0): ESC * 33
+                // declara 3 bytes por columna, y con menos la impresora toma lo que sigue como imagen (#282).
+                while(bitsWritten < bitsPerColumn_8_or_24){
+                    baColumBytes.write(0);
+                    bitsWritten +=8;
                 }
             }
             lRasterRows.add(baColumBytes);
