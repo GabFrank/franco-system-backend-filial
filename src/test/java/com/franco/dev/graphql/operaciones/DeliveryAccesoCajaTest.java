@@ -48,6 +48,7 @@ class DeliveryAccesoCajaTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.initMocks(this);
+        com.franco.dev.service.seguridad.AuditorUsuarioIdMocks.firmarElInput(auditorUsuarioId);
         cajaAjena = new PdvCaja();
         cajaAjena.setId(1185L);
         delivery = new Delivery();

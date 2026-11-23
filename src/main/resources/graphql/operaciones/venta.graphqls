@@ -22,6 +22,10 @@ type Venta {
     totalDs: Float
     cobro: Cobro
     delivery: Delivery
+    # Moneda del PDV (V111.5); null = la de la empresa. Solo en operaciones nuevas del cliente.
+    moneda: Moneda
+    cotizacion: Float
+    totalMoneda: Float
 }
 
 input VentaInput {
@@ -38,6 +42,10 @@ input VentaInput {
     totalDs: Float
     sucursalId: Int
     deliveryId: Int
+    # Venta en la moneda del PDV (V111.5). Omitir = la moneda de la empresa; totalGs va siempre en esa.
+    monedaId: Int
+    cotizacion: Float
+    totalMoneda: Float
 }
 
 type VentaPage {

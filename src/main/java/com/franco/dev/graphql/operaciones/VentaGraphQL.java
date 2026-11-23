@@ -1,5 +1,8 @@
 package com.franco.dev.graphql.operaciones;
 
+import com.franco.dev.service.operaciones.TicketMonedaVenta;
+import java.math.BigDecimal;
+import com.franco.dev.service.operaciones.MonedaVenta;
 import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.FacturaLegal;
@@ -97,6 +100,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     @Autowired
     private AuditorUsuarioId auditorUsuarioId;
 
+    @Autowired
+    private com.franco.dev.eventos.EventoEmisor eventoEmisor;
+
     public static final DecimalFormat df = new DecimalFormat("#,###.##");
     private static final Logger log = LoggerFactory.getLogger(VentaGraphQL.class);
     @Autowired
@@ -166,6 +172,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
     private CobroDetalleService cobroDetalleService;
     @Autowired
     private MonedaService monedaService;
+    @Autowired(required = false)
+    private com.franco.dev.service.financiero.MonedaFacturaResolver monedaFacturaResolver;
     @Autowired
     private VentaDuplicadaCacheService ventaDuplicadaCacheService;
     @Autowired
@@ -205,7 +213,39 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         if (ventaInput.getCajaId() != null)
             e.setCaja(pdvCajaService.findById(ventaInput.getCajaId()).orElse(null));
         e.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+        // Delivery en la moneda del PDV (fase 4): la venta del delivery nace y se actualiza por aca.
+        aplicarMonedaDeLaVenta(e, ventaInput, 0);
         return service.saveAndSend(e, false);
+    }
+
+    /** Estado guardado de la venta, solo si los avisos estan encendidos (sin costo con el flag apagado). */
+    public VentaEstado estadoActual(Long ventaId) {
+        if (ventaId == null || !eventoEmisor.encendido()) return null;
+        return service.findById(ventaId).map(Venta::getEstado).orElse(null);
+    }
+
+    /** venta.concluida (fase 2, #246): en la TX de la operacion, solo al pasar a CONCLUIDA. */
+    public void emitirConcluida(VentaEstado anterior, Venta venta, List<VentaItem> items) {
+        emitirConcluida(anterior, venta, items, null);
+    }
+
+    /** guardados: los detalles del cobro que se acaban de guardar; null = se leen de la base. */
+    public void emitirConcluida(VentaEstado anterior, Venta venta, List<VentaItem> items,
+                                List<com.franco.dev.domain.operaciones.CobroDetalle> guardados) {
+        if (!com.franco.dev.eventos.EventosVenta.concluyeAhora(anterior, venta)) return;
+        java.util.function.Supplier<List<com.franco.dev.domain.operaciones.CobroDetalle>> detalles =
+                () -> guardados != null ? guardados
+                        : venta.getCobro() != null ? cobroDetalleService.findByCobroId(venta.getCobro().getId()) : java.util.Collections.emptyList();
+        List<com.franco.dev.domain.operaciones.CobroDetalle>[] cache = new List[1];
+        eventoEmisor.emitirProyeccion("venta.concluida", "baja",
+                venta.getUsuario() != null ? venta.getUsuario().getId() : null,
+                "venta/" + venta.getSucursalId() + "/" + venta.getId(),
+                () -> {
+                    cache[0] = detalles.get();
+                    List<VentaItem> it = items != null ? items : ventaItemService.findByVentaId(venta.getId());
+                    return com.franco.dev.eventos.EventosVenta.venta(venta, it, cache[0]);
+                },
+                () -> com.franco.dev.eventos.EventosVenta.atributosVenta(venta, cache[0] != null ? cache[0] : detalles.get()));
     }
 
     @Transactional
@@ -215,11 +255,27 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             List<VentaCreditoCuotaInput> ventaCreditoCuotaInputList, Boolean imprimirEnCliente,
             SorteoClienteInput sorteoCliente)
             throws Exception, GraphQLException {
-        auditorUsuarioId.verificar("VentaGraphQL.saveVenta", ventaInput.getUsuarioId());
         if (ventaItemList == null && cobroDetalleList == null && cobroDetalleList == null) {
+            // Sin items es una edicion (delivery): conserva al cajero original. Solo si la venta existe:
+            // un id inventado no puede esquivar la firma (issue #142).
+            if (ventaInput.getId() != null && service.findById(ventaInput.getId()).isPresent()) {
+                auditorUsuarioId.verificar("VentaGraphQL.saveVenta", ventaInput.getUsuarioId());
+            } else {
+                ventaInput.setUsuarioId(auditorUsuarioId.firmante("VentaGraphQL.saveVenta",
+                        ventaInput.getUsuarioId(), ventaInput.getCajaId()));
+            }
             return this.saveVenta2(ventaInput);
         }
-        
+        // Antes de la huella: la huella, la factura silenciosa y el sorteo leen ventaInput (issue #142).
+        String op = "VentaGraphQL.saveVenta";
+        ventaInput.setUsuarioId(auditorUsuarioId.firmante(op, ventaInput.getUsuarioId(), ventaInput.getCajaId()));
+        if (cobroInput != null)
+            cobroInput.setUsuarioId(auditorUsuarioId.firmanteSecundario(op, cobroInput.getUsuarioId(),
+                    ventaInput.getCajaId()));
+        if (ventaCreditoInput != null)
+            ventaCreditoInput.setUsuarioId(auditorUsuarioId.firmanteSecundario(op,
+                    ventaCreditoInput.getUsuarioId(), ventaInput.getCajaId()));
+
         // Se reserva la huella de la venta ANTES del primer write. Consultar y recien poblar el
         // cache despues de persistir dejaba pasar a dos requests concurrentes (caja 662).
         VentaDuplicadaCacheService.Reserva reservaVenta =
@@ -238,12 +294,15 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         Venta venta = null;
         Cobro cobro = null;
         List<VentaItem> ventaItemList1 = new ArrayList<>();
+        // Para venta.concluida: sale solo en la transicion a CONCLUIDA (una venta que ya lo estaba no repite)
+        VentaEstado estadoAnterior = estadoActual(ventaInput.getId());
         // El try/finally envuelve TODO el tramo reservado. No alcanza con cubrir el camino de
         // deshacerVenta: hay salidas por excepcion que ni siquiera llegan ahi, como el throw de
         // "Esta caja ya esta cerrada" mas abajo. Y el rollback de la transaccion no toca el cache.
         boolean reservaConfirmada = false;
         try {
-            cobro = cobroGraphQL.saveCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId());
+            List<com.franco.dev.domain.operaciones.CobroDetalle> detallesGuardados = new java.util.ArrayList<>();
+            cobro = cobroGraphQL.guardarCobro(cobroInput, cobroDetalleList, ventaInput.getCajaId(), detallesGuardados);
             if (cobro != null) {
                 ModelMapper m = new ModelMapper();
                 Venta e = m.map(ventaInput, Venta.class);
@@ -262,9 +321,11 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                     throw new GraphQLException("Esta caja ya esta cerrada");
                 e.setCobro(cobro);
                 e.setSucursalId(Long.valueOf(env.getProperty("sucursalId")));
+                aplicarMonedaDeLaVenta(e, ventaInput, ventaItemList != null ? ventaItemList.size() : 0);
                 venta = service.saveAndSend(e, false);
                 if (venta != null) {
                     ventaItemList1 = ventaItemGraphQL.saveVentaItemList(ventaItemList, venta.getId());
+                    emitirConcluida(estadoAnterior, venta, ventaItemList1, detallesGuardados);
                 
                     // La venta existe: la reserva pasa a ser el antecedente que bloquea a la gemela.
                     if (venta.getId() != null) {
@@ -329,6 +390,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                             facturaLegalInput = inputFacturaSilenciosa(venta, facturaLegalItemInputList,
                                     ventaInput.getUsuarioId(), ventaCreditoInput != null,
                                     cobroDetalleService.ajusteDe(cobro, cobroDetalleList));
+                            aplicarMonedaDeFactura(facturaLegalInput, venta);
                         } catch (RuntimeException armado) {
                             if (PoliticaFacturacionService.salioDeUnTurno(ruta, politicaFacturacion)) {
                                 politicaFacturacionService.devolverTurno();
@@ -366,6 +428,42 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
         }
         return venta;
+    }
+
+    /** Factura silenciosa en otra moneda (modulo FACTURACION, o la de la venta). Sin eso, como siempre. */
+    void aplicarMonedaDeFactura(FacturaLegalInput input, Venta venta) {
+        if (monedaFacturaResolver == null || input == null) return;
+        monedaFacturaResolver.para(venta).ifPresent(mf -> {
+            input.setMonedaExtranjera(mf.getCodigoIso());
+            input.setTipoCambio(mf.getTipoCambio());
+        });
+    }
+
+    /**
+     * La venta en la moneda del PDV (V111.5): moneda, cotizacion y total en esa moneda, tal como los
+     * manda el escritorio. total_gs sigue siendo el equivalente en la moneda de la empresa. Sin
+     * monedaId, o con la moneda de la empresa, la venta queda como siempre (columnas en NULL). Si el
+     * equivalente no da con total_moneda x cotizacion queda VENTA_MONEDA_DISTINTA en el log; no se
+     * rechaza, igual que el rastro del precio.
+     */
+    void aplicarMonedaDeLaVenta(Venta e, VentaInput input, int items) {
+        e.setMoneda(null);
+        e.setCotizacion(null);
+        e.setTotalMoneda(null);
+        if (input == null || input.getMonedaId() == null) return;
+        Moneda empresa = monedaService.principal();
+        Moneda moneda = monedaService.findById(input.getMonedaId()).orElse(null);
+        if (!MonedaVenta.esOtraMoneda(moneda, empresa)) return;
+        e.setMoneda(moneda);
+        e.setCotizacion(MonedaVenta.aBigDecimal(input.getCotizacion()));
+        e.setTotalMoneda(MonedaVenta.aBigDecimal(input.getTotalMoneda()));
+        int decimales = MonedaVenta.decimales(empresa);
+        BigDecimal calculado = MonedaVenta.equivalente(e.getTotalMoneda(), e.getCotizacion(), decimales);
+        if (calculado == null || !MonedaVenta.coincide(input.getTotalGs(), calculado, decimales, Math.max(items, 1))) {
+            log.warn("VENTA_MONEDA_DISTINTA usuario={} moneda={} totalMoneda={} cotizacion={} totalGs={} calculado={}",
+                    input.getUsuarioId(), moneda.getId(), input.getTotalMoneda(), input.getCotizacion(),
+                    input.getTotalGs(), calculado);
+        }
     }
 
     /**
@@ -556,9 +654,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
         }
         try {
-            // Imprimir el ticket/factura con los datos del DE
-            facturaLegalGraphQL.printTicket58mmFactura(venta, facturaLegalConDE, null, printerName,
-                    ticketCliente);
+            // Imprimir el ticket/factura con los datos del DE (en su moneda si es otra que la de la empresa)
+            facturaLegalGraphQL.imprimirTicketFactura(venta, facturaLegalConDE, null, printerName, ticketCliente);
         } catch (Exception fe) {
             devolverTurnoSiCorresponde(ruta, politica, fe);
             throw fe;
@@ -786,7 +883,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         Moneda monedaDs = monedaService.findById(Long.valueOf(3)).orElse(null);
 
         if (delivery != null) {
-            precioDeliveryGs = delivery.getPrecio().getValor();
+            // En una venta en otra moneda, el envio que cobro el PDV y no la tarifa (#254): cuadran los totales.
+            precioDeliveryGs = MonedaVenta.envioCobrado(delivery.getPrecio().getValor(), venta, MonedaVenta.decimales(monedaGs));
             precioDeliveryRs = precioDeliveryGs / cambioRs;
             precioDeliveryDs = precioDeliveryGs / cambioDs;
         }
@@ -871,6 +969,10 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             }
 
             escpos.writeLF("Fecha: " + venta.getCreadoEn().format(formatter));
+            boolean enOtraMoneda = TicketMonedaVenta.aplica(venta);
+            if (enOtraMoneda) {
+                escpos.writeLF(TicketMonedaVenta.lineaMoneda(venta));
+            }
             escpos.writeLF("--------------------------------");
             escpos.writeLF("Producto");
             escpos.writeLF("Cant  IVA   P.U              P.T");
@@ -885,11 +987,19 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                         + vi.getPresentacion().getCantidad().intValue() + ") " + "10%";
                 escpos.writeLF(vi.getProducto().getDescripcion());
                 escpos.write(new Style().setBold(true), cantidad);
-                String valorUnitario = df
-                        .format(PrecioCobrado.de(vi).intValue() - vi.getValorDescuento().intValue());
-                String valorTotal = String.valueOf(
-                        df.format((PrecioCobrado.de(vi).intValue() - vi.getValorDescuento().intValue())
-                                * vi.getCantidad().doubleValue()));
+                String valorUnitario;
+                String valorTotal;
+                if (enOtraMoneda) {
+                    // Venta en otra moneda: el cliente ve el precio en la moneda en que pago.
+                    valorUnitario = TicketMonedaVenta.formato(TicketMonedaVenta.unitario(vi, venta), TicketMonedaVenta.decimales(venta));
+                    valorTotal = TicketMonedaVenta.formato(TicketMonedaVenta.totalItem(vi, venta), TicketMonedaVenta.decimales(venta));
+                } else {
+                    valorUnitario = df
+                            .format(PrecioCobrado.de(vi).intValue() - vi.getValorDescuento().intValue());
+                    valorTotal = String.valueOf(
+                            df.format((PrecioCobrado.de(vi).intValue() - vi.getValorDescuento().intValue())
+                                    * vi.getCantidad().doubleValue()));
+                }
                 for (int i = 14; i > cantidad.length(); i--) {
                     escpos.write(" ");
                 }
@@ -903,7 +1013,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             if (delivery != null) {
                 escpos.writeLF("--------------------------------");
                 escpos.write("Delivery: ");
-                String deliveryGs = df.format(precioDeliveryGs.intValue());
+                String deliveryGs = enOtraMoneda
+                        ? TicketMonedaVenta.envio(venta, delivery.getPrecio().getValor())
+                        : df.format(precioDeliveryGs.intValue());
                 for (int i = 22; i > deliveryGs.length(); i--) {
                     escpos.write(" ");
                 }
@@ -1046,6 +1158,13 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                 escpos.write(" ");
             }
             escpos.writeLF(finalDsStr);
+
+            if (enOtraMoneda) {
+                // El total exacto en la moneda de la venta (las lineas de arriba usan la cotizacion de hoy).
+                escpos.writeLF(new Style().setBold(true), "Total " + venta.getMoneda().getDenominacion() + ": "
+                        + TicketMonedaVenta.formato(TicketMonedaVenta.totalFinal(venta, cobro, totalFinalGs),
+                        TicketMonedaVenta.decimales(venta)));
+            }
             
             // Agregar detalles de pago por moneda
             if (cobro != null) {
@@ -1233,6 +1352,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
              throw new GraphQLException("La venta no corresponde a este delivery");
          }
          pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
+         VentaEstado estadoAnterior = venta.getEstado();
          try {
              venta.setEstado(VentaEstado.CONCLUIDA);
              venta.setSucursalId(delivery.getSucursalId());
@@ -1255,7 +1375,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                   cd.setCobroId(venta.getCobro().getId());
                  cd.setUsuarioId(delivery.getUsuario().getId());
                  cd.setSucursalId(delivery.getSucursalId());
-                 cobroDetalleGraphQL.saveCobroDetalle(cd);
+                 cobroDetalleGraphQL.guardarDetalle(cd);
              }
              if (ventaCreditoInput != null) {
                  ventaCreditoInput.setVentaId(venta.getId());
@@ -1263,7 +1383,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                  venta.setCliente(ventaCredito.getCliente());
              }
              deliveryService.save(delivery);
-             return service.save(venta);
+             Venta guardada = service.save(venta);
+             emitirConcluida(estadoAnterior, guardada, null);
+             return guardada;
          } catch (Exception e) {
              e.printStackTrace();
              throw new GraphQLException("Ocurrio un problema, favor contactar con RRHH");

@@ -146,6 +146,37 @@ class UsuarioSesionServiceTest {
         assertEquals(1, viajes.get(), "el resultado negativo tambien se cachea");
     }
 
+    @Test
+    @DisplayName("un usuario inactivo resuelve su id, pero no como sesion activa")
+    void usuarioInactivo() {
+        Usuario inactivo = usuarioConId(520L);
+        inactivo.setActivo(false);
+        UsuarioService usuarios = mock(UsuarioService.class);
+        when(usuarios.findByNickname(anyString())).thenReturn(Optional.of(inactivo));
+
+        UsuarioSesionService servicio = new UsuarioSesionService();
+        servicio.setUsuarioService(usuarios);
+        autenticarComo("JULIO");
+
+        assertEquals(Optional.of(520L), servicio.idDelUsuarioAutenticado());
+        assertFalse(servicio.idDelUsuarioActivoAutenticado().isPresent());
+    }
+
+    @Test
+    @DisplayName("activo null cuenta como activo, igual que en el resto del sistema")
+    void activoNullEsActivo() {
+        Usuario u = usuarioConId(410L);
+        u.setActivo(null);
+        UsuarioService usuarios = mock(UsuarioService.class);
+        when(usuarios.findByNickname(anyString())).thenReturn(Optional.of(u));
+
+        UsuarioSesionService servicio = new UsuarioSesionService();
+        servicio.setUsuarioService(usuarios);
+        autenticarComo("MAURO");
+
+        assertEquals(Optional.of(410L), servicio.idDelUsuarioActivoAutenticado());
+    }
+
     /**
      * Test estructural, no de comportamiento. Verificar de verdad que la transaccion de la venta
      * sobrevive necesita un contexto Spring con una base, y este repo no tiene ningun
@@ -155,12 +186,14 @@ class UsuarioSesionServiceTest {
     @Test
     @DisplayName("la resolucion corre fuera de la transaccion que la llama")
     void correFueraDeLaTransaccion() throws Exception {
-        Method m = UsuarioSesionService.class.getMethod("idDelUsuarioAutenticado");
-        Transactional t = m.getAnnotation(Transactional.class);
+        for (String nombre : new String[]{"idDelUsuarioAutenticado", "idDelUsuarioActivoAutenticado"}) {
+            Method m = UsuarioSesionService.class.getMethod(nombre);
+            Transactional t = m.getAnnotation(Transactional.class);
 
-        assertNotNull(t, "sin @Transactional, un fallo del SELECT deja la venta rollback-only");
-        assertEquals(Propagation.NOT_SUPPORTED, t.propagation(),
-                "tiene que suspender la transaccion de la venta, como ConfiguracionFacturacionLector");
-        assertTrue(t.readOnly(), "es una lectura");
+            assertNotNull(t, nombre + ": sin @Transactional, un fallo del SELECT deja la venta rollback-only");
+            assertEquals(Propagation.NOT_SUPPORTED, t.propagation(),
+                    nombre + ": tiene que suspender la transaccion de la venta, como ConfiguracionFacturacionLector");
+            assertTrue(t.readOnly(), nombre + ": es una lectura");
+        }
     }
 }

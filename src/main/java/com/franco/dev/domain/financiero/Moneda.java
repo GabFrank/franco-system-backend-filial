@@ -57,6 +57,10 @@ public class Moneda implements Serializable {
     @Column(name = "redondeo_multiplo")
     private java.math.BigDecimal redondeoMultiplo;
 
+    /** Codigo ISO 4217 (V108.5, lo escribe el central). Puede faltar: ver CodigoIsoMoneda. */
+    @Column(name = "codigo_iso")
+    private String codigoIso;
+
     public String getAbreviatura() {
         switch (denominacion) {
             case "GUARANI":

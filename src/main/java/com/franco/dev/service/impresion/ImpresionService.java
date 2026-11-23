@@ -86,8 +86,12 @@ public class ImpresionService {
         try {
             PrintService impresora = null;
             if (destino == null) {
-                impresora = printerName == null ? printingService.getLasUsedPrinter()
-                        : printingService.getPrintService(printerName);
+                // Sin impresora no se usa la de otra caja (#226): no se imprime y se avisa
+                if (printerName == null) {
+                    log.warn("Balance sin impresora de tickets, no se imprime. cajaId={}", balanceDto.getIdCaja());
+                    return false;
+                }
+                impresora = printingService.getPrintService(printerName);
             }
             if (destino != null || impresora != null) {
                 OutputStream salida = destino != null ? destino : salidaA(impresora, esperarEnvio);
@@ -743,6 +747,8 @@ public class ImpresionService {
     }
 
     private static final int COLUMNAS_SORTEO = 32;
+    /** 42 caracteres: el ancho exacto de la fuente B en 58 mm. */
+    static final String LINEA_CORTE_SORTEO = "--------------- CORTAR AQUI --------------";
 
     /**
      * Tickets de participacion de un sorteo: uno por participacion, todos en el mismo trabajo y con
@@ -850,6 +856,13 @@ public class ImpresionService {
                 escpos.writeLF(new Style().setJustification(EscPosConst.Justification.Center)
                         .setFontName(Style.FontName.Font_B), "Deposite este ticket firmado en la urna");
                 escpos.setStyle(new Style());
+                // Las impresoras sin cortador ignoran el cut y los tickets salen pegados: con mas de
+                // uno, la linea marca por donde separarlos. Fuente B: 42 columnas justas en 58 mm.
+                if (tickets.size() > 1) {
+                    escpos.feed(2);
+                    escpos.writeLF(new Style().setFontName(Style.FontName.Font_B), LINEA_CORTE_SORTEO);
+                    escpos.setStyle(new Style());
+                }
                 escpos.feed(2);
                 escpos.cut(EscPos.CutMode.FULL);
             }

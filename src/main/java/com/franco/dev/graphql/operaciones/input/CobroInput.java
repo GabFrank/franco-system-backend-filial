@@ -11,4 +11,6 @@ public class CobroInput {
     private LocalDateTime creadoEn;
     private Long usuarioId;
     private Double totalGs;
+    /** Total en la moneda de la venta (V111.5). */
+    private Double totalMoneda;
 }

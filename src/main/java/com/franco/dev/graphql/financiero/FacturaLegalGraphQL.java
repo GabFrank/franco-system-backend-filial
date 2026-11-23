@@ -204,7 +204,15 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     public TimbradoDetalle saveFacturaLegal(FacturaLegalInput entity, List<FacturaLegalItemInput> detalleList,
             String printerName, Integer pdvId, Boolean print) {
-        auditorUsuarioId.verificar("FacturaLegalGraphQL.saveFacturaLegal", entity.getUsuarioId());
+        // Siempre es alta: el id del input no se usa.
+        String op = "FacturaLegalGraphQL.saveFacturaLegal";
+        entity.setUsuarioId(auditorUsuarioId.firmante(op, entity.getUsuarioId(), entity.getCajaId()));
+        if (detalleList != null) {
+            for (FacturaLegalItemInput item : detalleList) {
+                if (item != null)
+                    item.setUsuarioId(auditorUsuarioId.firmanteSecundario(op, item.getUsuarioId(), entity.getCajaId()));
+            }
+        }
         try {
             if(print == null){
                 print = true;
@@ -212,6 +220,14 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             // Validar que pdvId no sea null (es requerido según el schema)
             if (pdvId == null) {
                 throw new GraphQLException("pdvId es requerido");
+            }
+
+            // Una sola factura vigente por venta (#221): se corta antes de crear persona o cliente. Sin lock (este
+            // metodo no es transaccional); ante una carrera vale el control del builder.
+            Venta ventaDeLaFactura = entity.getVentaId() != null
+                    ? ventaService.findById(entity.getVentaId()).orElse(null) : null;
+            if (ventaDeLaFactura != null) {
+                service.exigirSinFacturaVigente(ventaDeLaFactura.getId(), ventaDeLaFactura.getSucursalId());
             }
 
             // Crear la factura legal
@@ -232,7 +248,10 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             facturaLegal.setTotalParcial10(entity.getTotalParcial10());
             facturaLegal.setTotalFinal(entity.getTotalFinal());
             facturaLegal.setDescuento(entity.getDescuento());
-            facturaLegal.setMonedaExtranjera(entity.getMonedaExtranjera());
+            // El escritorio manda la denominacion ("DOLAR") y la columna es varchar(3): sin normalizar,
+            // toda factura en moneda extranjera fallaba al guardar. Un codigo desconocido queda como vino.
+            String isoExtranjera = com.franco.dev.service.financiero.CodigoIsoMoneda.deDenominacion(entity.getMonedaExtranjera());
+            facturaLegal.setMonedaExtranjera(isoExtranjera != null ? isoExtranjera : entity.getMonedaExtranjera());
             facturaLegal.setTipoCambio(entity.getTipoCambio());
 
             // Mapear fechas
@@ -243,8 +262,12 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             }
 
             // Mapear relaciones
-            if (entity.getCajaId() != null) {
-                // TODO: Implementar mapeo de caja si es necesario
+            // Sin caja, reimprimir la factura (ticketEscpos) pide ANALISIS DE CAJA aun al cajero que la emitio.
+            // Con venta manda la caja de la venta (como FacturaService); el cajaId del cliente, solo sin venta.
+            if (ventaDeLaFactura != null && ventaDeLaFactura.getCaja() != null) {
+                facturaLegal.setCaja(ventaDeLaFactura.getCaja());
+            } else if (entity.getCajaId() != null) {
+                pdvCajaService.findById(entity.getCajaId()).ifPresent(facturaLegal::setCaja);
             }
 
             if (entity.getClienteId() != null && entity.getClienteId() != 0) {
@@ -301,19 +324,8 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
                 }
             }
 
-            if (entity.getVentaId() != null) {
-                Optional<Venta> venta = ventaService.findById(entity.getVentaId());
-                if (venta.isPresent()) {
-                    Venta v = venta.get();
-                    facturaLegal.setVenta(v);
-                    
-                    // Si se creó o asoció un cliente a la factura y la venta no lo tiene, asociarlo a la venta también
-                    if (facturaLegal.getCliente() != null && (v.getCliente() == null || v.getCliente().getId().equals(0L))) {
-                        v.setCliente(facturaLegal.getCliente());
-                        ventaService.save(v);
-                        log.info("Cliente asociado a la Venta ID: {}", v.getId());
-                    }
-                }
+            if (ventaDeLaFactura != null) {
+                facturaLegal.setVenta(ventaDeLaFactura);
             }
 
             if (entity.getUsuarioId() != null) {
@@ -353,6 +365,24 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
 
             FacturaLegal facturaLegalGuardada = facturaLegalBuilder.build(buildReq);
             TimbradoDetalle timbradoDetalle = facturaLegalGuardada.getTimbradoDetalle();
+
+            // Si se creó o asoció un cliente a la factura y la venta no lo tiene, asociarlo a la venta también. Va
+            // después de build (#221): antes, una factura que no se emitía dejaba la venta con su cliente. Con su
+            // propio try/catch, como la persona: la factura ya está emitida y un error acá no puede salir como rechazo.
+            try {
+                // Se relee: entre el principio y acá pasan la persona, el lock y el DE.
+                Venta v = facturaLegalGuardada.getVenta() != null
+                        ? ventaService.findById(facturaLegalGuardada.getVenta().getId()).orElse(null) : null;
+                if (v != null && facturaLegalGuardada.getCliente() != null
+                        && (v.getCliente() == null || v.getCliente().getId().equals(0L))) {
+                    v.setCliente(facturaLegalGuardada.getCliente());
+                    ventaService.save(v);
+                    log.info("Cliente asociado a la Venta ID: {}", v.getId());
+                }
+            } catch (Exception e) {
+                log.error("No se pudo asociar el cliente a la venta de la factura legal ID: {}. "
+                        + "La factura ya fue guardada y se devuelve igual.", facturaLegalGuardada.getId(), e);
+            }
 
             // Actualizar dirección y email de la persona del cliente si existe cliente y persona.
             //
@@ -1006,7 +1036,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF(factura, "Timbrado: " + facturaLegal.getTimbradoDetalle().getTimbrado().getNumero());
 
             // Si el timbrado es electronico, no se imprime la fecha de inicio y fin
-            if (facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico() != true) {
+            if (!Boolean.TRUE.equals(facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico())) {
                 escpos.writeLF(factura, "De "
                         + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaInicio()
                                 .format(impresionService.shortDate)
@@ -1546,6 +1576,22 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      * @param monedaExtranjera Código de moneda extranjera (ej: "USD", "EUR")
      * @param tipoCambio Tipo de cambio utilizado
      */
+    /**
+     * El ticket-factura en la moneda de la factura: el de moneda extranjera si la factura la tiene (moneda
+     * por modulo, fase 4), si no el de siempre. Lo usan la venta con ticket y el delivery.
+     */
+    public void imprimirTicketFactura(Venta venta, FacturaLegal facturaLegal, List<FacturaLegalItem> items,
+            String printerName, OutputStream destino) throws Exception {
+        if (facturaLegal != null && facturaLegal.getMonedaExtranjera() != null
+                && !facturaLegal.getMonedaExtranjera().trim().isEmpty()
+                && facturaLegal.getTipoCambio() != null && facturaLegal.getTipoCambio() > 0) {
+            printTicket58mmFacturaMonedaExtranjera(venta, facturaLegal, items, printerName,
+                    facturaLegal.getMonedaExtranjera(), facturaLegal.getTipoCambio(), destino);
+        } else {
+            printTicket58mmFactura(venta, facturaLegal, items, printerName, destino);
+        }
+    }
+
     public void printTicket58mmFacturaMonedaExtranjera(Venta venta, FacturaLegal facturaLegal,
             List<FacturaLegalItem> facturaLegalItemList, String printerName, String monedaExtranjera, Double tipoCambio) throws Exception {
         printTicket58mmFacturaMonedaExtranjera(venta, facturaLegal, facturaLegalItemList, printerName, monedaExtranjera,
@@ -1637,7 +1683,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             escpos.writeLF(factura, "Timbrado: " + facturaLegal.getTimbradoDetalle().getTimbrado().getNumero());
 
             // Si el timbrado es electronico, no se imprime la fecha de inicio y fin
-            if (facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico() != true) {
+            if (!Boolean.TRUE.equals(facturaLegal.getTimbradoDetalle().getTimbrado().getIsElectronico())) {
                 escpos.writeLF(factura, "De "
                         + facturaLegal.getTimbradoDetalle().getTimbrado().getFechaInicio()
                                 .format(impresionService.shortDate)
@@ -1662,7 +1708,7 @@ public class FacturaLegalGraphQL implements GraphQLQueryResolver, GraphQLMutatio
             
             // Mostrar cambio utilizado
             escpos.writeLF(center.setBold(true), "Cambio: " + 
-                String.format(Locale.GERMAN, "%.2f", tipoCambio) + " Gs/" + monedaExtranjera.toUpperCase());
+                String.format(Locale.GERMAN, "%,.0f", tipoCambio) + " Gs/" + monedaExtranjera.toUpperCase());
 
             if (sucursal != null) {
                 escpos.writeLF(center, "Suc: " + sucursal.getNombre());

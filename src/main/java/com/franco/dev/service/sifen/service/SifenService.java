@@ -1189,6 +1189,25 @@ public class SifenService {
      * @param factura La factura a verificar
      * @return true si tiene moneda extranjera configurada
      */
+    /**
+     * El precio del item en la moneda de la venta (venta_item.precio_en_moneda) cuando la factura sale
+     * en esa misma moneda; null si no aplica (item sin venta, venta en la moneda de la empresa, otra
+     * moneda) o si no se puede leer, y ahi se convierte como siempre.
+     */
+    static BigDecimal precioEnMonedaDeLaFactura(FacturaLegalItem item, FacturaLegal factura) {
+        try {
+            com.franco.dev.domain.operaciones.VentaItem vi = item.getVentaItem();
+            if (vi == null || vi.getPrecioEnMoneda() == null || vi.getVenta() == null || vi.getVenta().getMoneda() == null) {
+                return null;
+            }
+            String isoVenta = com.franco.dev.service.financiero.CodigoIsoMoneda.de(vi.getVenta().getMoneda());
+            String isoFactura = com.franco.dev.service.financiero.CodigoIsoMoneda.deDenominacion(factura.getMonedaExtranjera());
+            return isoVenta != null && isoVenta.equals(isoFactura) ? vi.getPrecioEnMoneda() : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     private boolean esMonedaExtranjera(FacturaLegal factura) {
         return factura.getMonedaExtranjera() != null && 
                !factura.getMonedaExtranjera().trim().isEmpty() &&
@@ -1206,7 +1225,8 @@ public class SifenService {
             return null;
         }
         
-        switch (codigoMoneda.toUpperCase()) {
+        String iso = com.franco.dev.service.financiero.CodigoIsoMoneda.deDenominacion(codigoMoneda);
+        switch ((iso != null ? iso : codigoMoneda).toUpperCase()) {
             case "USD":
                 return "Dólares Americanos";
             case "BRL":
@@ -1239,8 +1259,10 @@ public class SifenService {
         }
         
         try {
-            // Intentar obtener el enum directamente por nombre
-            return CMondT.valueOf(codigoMoneda.toUpperCase());
+            // El escritorio manda la denominacion ("DOLAR") y no el codigo: sin normalizar caia a PYG
+            // con un tipo de cambio de dolar.
+            String iso = com.franco.dev.service.financiero.CodigoIsoMoneda.deDenominacion(codigoMoneda);
+            return CMondT.valueOf((iso != null ? iso : codigoMoneda).toUpperCase());
         } catch (IllegalArgumentException e) {
             // Si no existe en el enum, usar PYG como fallback
             log.warn("Código de moneda {} no encontrado en enum CMondT. Usando PYG como fallback.", codigoMoneda);
@@ -2045,7 +2067,12 @@ public class SifenService {
                     String.format("El precio unitario del item '%s' no puede ser null", item.getDescripcion()));
             }
             
-            if (esMonedaExtranjera(factura) && factura.getTipoCambio() != null && factura.getTipoCambio() > 0) {
+            BigDecimal precioEnMonedaDeLaVenta = esMonedaExtranjera(factura) ? precioEnMonedaDeLaFactura(item, factura) : null;
+            if (precioEnMonedaDeLaVenta != null) {
+                // Venta del PDV en la misma moneda de la factura (V111.5): el precio exacto que se cobro,
+                // no el equivalente en guaranies dividido otra vez (5,85 USD salia 5,8501).
+                precioUnitario = precioEnMonedaDeLaVenta.setScale(4, RoundingMode.HALF_UP);
+            } else if (esMonedaExtranjera(factura) && factura.getTipoCambio() != null && factura.getTipoCambio() > 0) {
                 // Convertir precio de guaraníes a moneda extranjera
                 BigDecimal precioGs = BigDecimal.valueOf(item.getPrecioUnitario().doubleValue());
                 BigDecimal tipoCambio = BigDecimal.valueOf(factura.getTipoCambio());
