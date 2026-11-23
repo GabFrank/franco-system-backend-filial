@@ -83,6 +83,18 @@ Ninguno: sin migraciones, sin GraphQL, sin configuración.
 - Filial: el merge a `develop` sale a las filiales alpha en ≤ 15 min. Central: deploy manual. Sin orden entre los
   dos (no hay base ni réplica de por medio).
 
+## Resultado (23/11)
+
+- Batería: filial `clean verify` 1110 tests, 0 fallas; central `clean verify -DskipFlyway=true` 4027 tests, 0 fallas.
+- La primera corrida del filial cayó en `ImpresionServiceQrTest` (retiro y cierre buscaban el dato del QR como
+  texto): ahora leen el QR desde las filas `ESC *` con `EscPosQrLector` (zxing), igual que el test de la seña,
+  `ImpresionServiceBalanceDestinoTest` y `EtiquetaDevolucionServiceTest` del central.
+- Contra el `QRCode` viejo fallan: `noMandaComandosNativosDeQr`, `mandaLaImagenConEscAsterisco…`,
+  `datoVacioONuloNoLanza` y `senaCuponQrComoImagenYDespuesTextoYCorte`.
+- Papel en la OLIVETTI PRT80 (`frc-ticket`), bytes generados por los métodos reales de las ramas y enviados en
+  crudo: seña (filial, 10 KB), QR de la URL SIFEN larga (filial, 14 KB) y cierre de caja (central, 19 KB). Los tres
+  salieron como QR y se leen con el teléfono (Franco).
+
 ## Queda sin verificar
 
 - Impresoras de 58 mm de las filiales: se cubre por el tope de 384 puntos y por la factura, no con papel.
