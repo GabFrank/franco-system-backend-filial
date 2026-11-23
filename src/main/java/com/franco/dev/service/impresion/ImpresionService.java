@@ -691,9 +691,9 @@ public class ImpresionService {
             EscPos escpos = new EscPos(salida);
 
             // ⚠️ Este feed NO es decoracion: sin el, la impresora se come los primeros bytes del
-            // trabajo --viene de un corte-- y lo que se pierde es el encabezado y el `GS` que abre
-            // el comando del QR, con lo cual el resto del comando sale impreso como texto
-            // ("(k1E1..."). Medido con papel el 2026-09-16: una linea de sacrificio y sale todo.
+            // trabajo --viene de un corte--. Medido con papel el 2026-09-16, cuando el QR iba con el
+            // comando nativo: se perdia el `GS` y el resto salia como texto ("(k1E1..."). Desde #282
+            // el QR es una imagen ESC *, pero lo que se pierde sigue siendo el comienzo del trabajo.
             escpos.feed(1);
 
             // Un solo renglon de encabezado. Lo unico que el cajero necesita leer de un vistazo es

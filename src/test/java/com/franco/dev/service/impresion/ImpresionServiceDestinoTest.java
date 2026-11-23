@@ -173,4 +173,35 @@ class ImpresionServiceDestinoTest {
         assertArrayEquals(impreso, memoria.toByteArray());
         verifyNoInteractions(printingService);
     }
+
+    /**
+     * El QR de la seña sale como imagen (ESC *), no con GS ( k que la PRT80 imprime como texto (#282). La
+     * imagen deja el interlineado en ESC 3 16: el texto que sigue tiene que volver al normal (ESC 2) y el
+     * ticket tiene que terminar con el corte.
+     */
+    @Test
+    void senaCuponQrComoImagenYDespuesTextoYCorte() throws Exception {
+        SenaCuponDto dto = new SenaCuponDto();
+        dto.setVentaId(79370L);
+        dto.setVentaTarjetaId(1226L);
+        dto.setMonto(7000.0);
+        dto.setMonedaSimbolo("Gs.");
+        dto.setDecimales(0);
+        dto.setQr("frc-24-VENTA_TARJETA-79370-79370-RegistroVentaTarjetaComponent-1185|7000|1226-1763913036000");
+
+        ByteArrayOutputStream memoria = new ByteArrayOutputStream();
+        assertTrue(service.printSenaCupon(dto, "ticket", "CAJA 1", memoria));
+        String t = new String(memoria.toByteArray(), java.nio.charset.StandardCharsets.ISO_8859_1);
+
+        assertEquals(-1, t.indexOf("\u001D(k"), "QR nativo");
+        assertEquals(-1, t.indexOf(dto.getQr()), "el dato salió como texto");
+        assertEquals(java.util.Collections.singletonList(dto.getQr()),
+                com.franco.dev.utilitarios.print.escpos.EscPosQrLector.leer(memoria.toByteArray()));
+        int ultimaFilaImagen = t.lastIndexOf("\u001B*");
+        assertTrue(ultimaFilaImagen > 0, "sin imagen ESC *");
+        int ids = t.indexOf("Venta 79370 / Cobro 1226");
+        assertTrue(ids > ultimaFilaImagen, "el texto va después del QR");
+        assertTrue(t.lastIndexOf("\u001B2", ids) > ultimaFilaImagen, "sin ESC 2 antes del texto");
+        assertTrue(t.endsWith("\u001DV0"), "sin corte al final");
+    }
 }
