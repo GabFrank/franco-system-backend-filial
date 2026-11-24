@@ -111,6 +111,16 @@ desktop de la rama en `127.0.0.1:4200`, usuario MR, caja 1185:
   deja cargar descuento por ítem. Genera la misma línea `descuento=true` que F9: lo cubren la prueba
   de F9 y el spec.
 
+## Descuento con CONVENIO elegido (prueba pedida por Franco, 24/11)
+
+- Con el diálogo de convenio abierto, F9 no hace nada (los atajos están bloqueados).
+- Con CONVENIO elegido en la forma de pago (sin el diálogo), el botón Descuento / F9 **abría** el
+  diálogo de descuento. Al aceptarlo, `addCobroDetalle` abría el convenio sin registrar el descuento y
+  `isDescuento` quedaba en true: al cancelar el convenio, el siguiente Enter guardó «500 Descuento».
+- Arreglo: `onDescuento` corta con «No se puede aplicar descuento a una venta por convenio.» si la forma
+  elegida es CONVENIO. Probado: botón y F9 avisan, sin diálogo, sin marca y sin líneas; después el
+  convenio cerró la venta 79376 con una sola línea CONVENIO por 6.000. Spec agregado.
+
 ## Auditoría del diff (paso 8)
 
 Ejes fijos 1–3; condicionales A y B no aplican (sin migraciones ni maquinaria de release).
