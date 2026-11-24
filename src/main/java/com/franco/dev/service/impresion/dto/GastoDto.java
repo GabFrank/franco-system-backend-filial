@@ -19,6 +19,8 @@ public class GastoDto {
     Usuario usuario;
     Funcionario responsable;
     Funcionario autorizadoPor;
+    /** Quien autorizo la solicitud (pre_gasto) de la que sale el gasto; va debajo del cajero. */
+    String autorizadoPorSolicitud;
     TipoGasto tipoGasto;
     Double retiroGs;
     Double retiroRs;

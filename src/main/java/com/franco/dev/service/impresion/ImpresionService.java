@@ -398,6 +398,16 @@ public class ImpresionService {
                 } else {
                     escpos.writeLF("Cajero: " + gastoDto.getUsuario().getPersona().getNombre());
                 }
+                String autorizador = nombreAutorizadorGasto(gastoDto);
+                if (autorizador != null) {
+                    String linea = "Autorizado por: " + autorizador;
+                    if (linea.length() <= 32) {
+                        escpos.writeLF(linea);
+                    } else {
+                        escpos.writeLF("Autorizado por:");
+                        escpos.writeLF(autorizador.length() > 32 ? autorizador.substring(0, 32) : autorizador);
+                    }
+                }
                 escpos.writeLF("Fecha " + gastoDto.getFecha().format(formatter));
                 String tipoGastoTexto = "SIN TIPO DE GASTO";
                 if (gastoDto.getTipoGasto() != null) {
@@ -440,17 +450,8 @@ public class ImpresionService {
                 } else {
                     escpos.writeLF(center, gastoDto.getResponsable().getPersona().getNombre());
                 }
-                if (gastoDto.getAutorizadoPor() != null) {
-                    escpos.writeLF("--------------------------------");
-                    escpos.feed(4);
-                    escpos.writeLF(center, ".......................");
-                    escpos.writeLF(center, "AUTORIZACION");
-                    if (gastoDto.getAutorizadoPor().getPersona().getNombre().length() > 23) {
-                        escpos.writeLF(center, gastoDto.getAutorizadoPor().getPersona().getNombre().substring(0, 23));
-                    } else {
-                        escpos.writeLF(center, gastoDto.getAutorizadoPor().getPersona().getNombre());
-                    }
-                }
+                // Sin firma de autorizacion: quien autoriza suele ser administrativo y no esta en la
+                // sucursal; su nombre ya va en "Autorizado por" debajo del cajero.
                 escpos.feed(5);
                 escpos.cut(EscPos.CutMode.FULL);
                 escpos.close();
@@ -462,6 +463,19 @@ public class ImpresionService {
         }
         log.warn("No se pudo imprimir el gasto: no se encontro la impresora {}", printerName);
         return false;
+    }
+
+    /**
+     * Quien autorizo el gasto: el autorizador de la solicitud (pre_gasto) y, si no sale de una solicitud,
+     * el funcionario que lo autorizo en la caja. Null si nadie lo autorizo.
+     */
+    static String nombreAutorizadorGasto(GastoDto gastoDto) {
+        String nombre = gastoDto.getAutorizadoPorSolicitud();
+        if ((nombre == null || nombre.trim().isEmpty()) && gastoDto.getAutorizadoPor() != null
+                && gastoDto.getAutorizadoPor().getPersona() != null) {
+            nombre = gastoDto.getAutorizadoPor().getPersona().getNombre();
+        }
+        return nombre == null || nombre.trim().isEmpty() ? null : nombre.trim().toUpperCase();
     }
 
     public void printVueltoGasto(GastoDto gastoDto) {

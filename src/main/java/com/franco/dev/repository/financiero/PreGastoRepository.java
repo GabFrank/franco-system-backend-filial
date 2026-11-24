@@ -39,4 +39,10 @@ public interface PreGastoRepository extends HelperRepository<PreGasto, EmbebedPr
     Long findMaxId(@Param("sucursalId") Long sucursalId);
 
     PreGasto findByIdAndSucursalId(Long id, Long sucursalId);
+
+    /** Nombre de quien autorizo la solicitud; null si no tiene autorizador. Para el ticket del gasto. */
+    @Query(value = "SELECT p.nombre FROM financiero.pre_gasto pg " +
+            "JOIN personas.persona p ON p.id = pg.autorizado_por_id " +
+            "WHERE pg.id = :id AND pg.sucursal_id = :sucursalId", nativeQuery = true)
+    String nombreAutorizador(@Param("id") Long id, @Param("sucursalId") Long sucursalId);
 }

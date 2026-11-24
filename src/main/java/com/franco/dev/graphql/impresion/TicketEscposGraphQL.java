@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.impresion;
 
+import com.franco.dev.service.financiero.PreGastoService;
 import com.franco.dev.service.seguridad.RolSesionService;
 import com.franco.dev.domain.financiero.FacturaLegal;
 import com.franco.dev.domain.financiero.FacturaLegalItem;
@@ -58,6 +59,7 @@ import java.util.List;
 @Component
 public class TicketEscposGraphQL implements GraphQLQueryResolver {
 
+    @Autowired private PreGastoService preGastoService;
     @Autowired private VentaService ventaService;
     @Autowired private FacturaLegalService facturaLegalService;
     @Autowired private FacturaLegalItemService facturaLegalItemService;
@@ -201,6 +203,7 @@ public class TicketEscposGraphQL implements GraphQLQueryResolver {
         dto.setUsuario(gasto.getUsuario());
         dto.setResponsable(gasto.getResponsable());
         dto.setAutorizadoPor(gasto.getAutorizadoPor());
+        dto.setAutorizadoPorSolicitud(preGastoService.nombreAutorizador(gasto.getPreGastoId(), gasto.getPreGastoSucursalId()));
         dto.setTipoGasto(gasto.getTipoGasto());
         dto.setObservacion(gasto.getObservacion());
         dto.setRetiroGs(gasto.getRetiroGs());
