@@ -38,7 +38,7 @@ import static org.mockito.Mockito.*;
 /** Una venta por convenio se paga solo por convenio y sin descuento: el filial rechaza antes de escribir nada. */
 class VentaGraphQLConvenioSoloTest {
 
-    private static final String MEZCLA = "El convenio paga toda la venta: no se combina con otra forma de pago.";
+    private static final String MEZCLA = "El convenio solo se puede usar como \u00fanica forma de pago.";
     private static final String DESCUENTO = "No se puede aplicar descuento a una venta por convenio.";
 
     @Mock private VentaService service;

@@ -34,8 +34,8 @@ Rama: `feature/pdv-convenio-sin-mezcla` en filial y desktop, desde `develop` (20
 
 - `VentaGraphQL`: método estático `exigirConvenioSolo(List<CobroDetalleInput>, Function<Long,String>
   descripcionFormaPago)` que, para un cobro con crédito, lanza `GraphQLException` si alguna línea
-  tiene `descuento=true` («No se puede aplicar descuento a una venta por convenio») o una forma de
-  pago distinta de CONVENIO («El convenio paga toda la venta: no se combina con otra forma de pago»).
+  tiene `descuento=true` («No se puede aplicar descuento a una venta por convenio.») o una forma de
+  pago distinta de CONVENIO («El convenio solo se puede usar como única forma de pago.»).
 - `saveVenta`: se llama antes de reservar la huella (antes del primer write), solo si
   `ventaCreditoInput != null`.
 - `saveVentaDelivery`: antes del `try` (que se come los mensajes), sobre las líneas ya guardadas del
@@ -47,10 +47,8 @@ Rama: `feature/pdv-convenio-sin-mezcla` en filial y desktop, desde `develop` (20
 ### Fase 2 — desktop: el cajero no puede armar el cobro
 
 - `pago-touch.onConvenioClick()`: si `cobroDetalleList` ya tiene líneas, no abre el diálogo y avisa:
-  - con alguna línea de descuento: «No se puede aplicar descuento a una venta por convenio: quitá el
-    descuento para cobrar por convenio.»
-  - si no: «El convenio paga toda la venta: quitá las otras formas de pago para cobrar por
-    convenio.»
+  - con alguna línea de descuento: «No se puede aplicar descuento a una venta por convenio.»
+  - si no: «El convenio solo se puede usar como única forma de pago.» (textos pedidos por Franco, 24/11)
   - y vuelve la forma de pago a la primera de la lista (como al cancelar el diálogo).
 - Cubre F6, el botón y el combo (los tres pasan por `onConvenioClick`). El orden inverso (convenio y
   después otra) ya no se puede armar porque el convenio finaliza al confirmarse.
@@ -101,7 +99,7 @@ Filial propio en 8082 (sucursal 24, SIFEN apagado) + desktop web con `MR`:
 
 Filial de la rama en 8082 (sucursal 24, SIFEN apagado), central de `develop` en 8081 (sin migrar nada),
 desktop de la rama en `127.0.0.1:4200`, usuario MR, caja 1185:
-- Efectivo 1.500 → botón Convenio y F6: aviso «quitá las otras formas de pago», no abre el diálogo.
+- Efectivo 1.500 → botón Convenio y F6: aviso de forma de pago única, no abre el diálogo.
 - Borrar el efectivo, F9 10 % (500) → Convenio: aviso de descuento.
 - Borrar el descuento → Convenio por 6.500, firma → venta 79373 CONCLUIDA con una sola línea CONVENIO.
 - `saveVenta` por API: efectivo+convenio, convenio+tarjeta y descuento+convenio → los tres rechazados

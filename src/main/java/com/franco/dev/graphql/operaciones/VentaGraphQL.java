@@ -1420,7 +1420,7 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         }
         for (String formaPago : formasPago) {
             if (!"CONVENIO".equals(formaPago)) {
-                throw new GraphQLException("El convenio paga toda la venta: no se combina con otra forma de pago.");
+                throw new GraphQLException("El convenio solo se puede usar como \u00fanica forma de pago.");
             }
         }
     }
