@@ -67,6 +67,7 @@ class TicketEscposGraphQLTest {
     @Mock private ImpresionService impresionService;
     @Mock private com.franco.dev.service.seguridad.RolSesionService rolSesionService;
     @Mock private com.franco.dev.service.sorteo.SorteoParticipacionService sorteoParticipacionService;
+    @Mock private com.franco.dev.service.financiero.PreGastoService preGastoService;
     @InjectMocks private TicketEscposGraphQL resolver;
 
     private static final byte[] TICKET = {0x1b, 0x40, 'O', 'K', 0x0a};
@@ -158,7 +159,10 @@ class TicketEscposGraphQLTest {
         gasto.setCaja(new PdvCaja());
         gasto.getCaja().setId(662L);
         gasto.setRetiroGs(50000.0);
+        gasto.setPreGastoId(7L);
+        gasto.setPreGastoSucursalId(24L);
         when(gastoService.findById(15L)).thenReturn(Optional.of(gasto));
+        when(preGastoService.nombreAutorizador(7L, 24L)).thenReturn("JUAN PEREZ");
         doAnswer(escribeEnArgumento(3)).when(impresionService).printGasto(any(), any(), any(),
                 any(OutputStream.class));
 
@@ -169,6 +173,7 @@ class TicketEscposGraphQLTest {
         assertEquals(Long.valueOf(662L), dto.getValue().getCajaId());
         assertEquals(Double.valueOf(50000.0), dto.getValue().getRetiroGs());
         assertFalse(dto.getValue().getReimpresion());
+        assertEquals("JUAN PEREZ", dto.getValue().getAutorizadoPorSolicitud());
     }
 
     @Test

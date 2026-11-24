@@ -1,5 +1,6 @@
 package com.franco.dev.graphql.financiero;
 
+import com.franco.dev.service.financiero.PreGastoService;
 import com.franco.dev.domain.financiero.Gasto;
 import com.franco.dev.domain.financiero.PdvCaja;
 import com.franco.dev.graphql.financiero.input.GastoInput;
@@ -31,6 +32,8 @@ import java.util.Optional;
 @Component
 public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
 
+    @Autowired
+    private PreGastoService preGastoService;
     @Autowired
     private AuditorUsuarioId auditorUsuarioId;
 
@@ -159,6 +162,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             gastoDto.setUsuario(gasto.getUsuario());
             gastoDto.setResponsable(gasto.getResponsable());
             gastoDto.setAutorizadoPor(gasto.getAutorizadoPor());
+            gastoDto.setAutorizadoPorSolicitud(preGastoService.nombreAutorizador(gasto.getPreGastoId(), gasto.getPreGastoSucursalId()));
             gastoDto.setTipoGasto(gasto.getTipoGasto());
             gastoDto.setObservacion(gasto.getObservacion());
             gastoDto.setRetiroGs(input.getRetiroGs());
@@ -286,6 +290,7 @@ public class GastoGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
             gastoDto.setUsuario(gasto.getUsuario());
             gastoDto.setResponsable(gasto.getResponsable());
             gastoDto.setAutorizadoPor(gasto.getAutorizadoPor());
+            gastoDto.setAutorizadoPorSolicitud(preGastoService.nombreAutorizador(gasto.getPreGastoId(), gasto.getPreGastoSucursalId()));
             gastoDto.setTipoGasto(gasto.getTipoGasto());
             gastoDto.setObservacion(gasto.getObservacion());
             gastoDto.setRetiroGs(gasto.getRetiroGs());

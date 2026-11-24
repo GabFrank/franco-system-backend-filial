@@ -31,6 +31,12 @@ public class PreGastoService {
         return Optional.ofNullable(pg);
     }
 
+    /** Nombre de quien autorizo la solicitud del gasto, o null si el gasto no sale de una solicitud. */
+    public String nombreAutorizador(Long preGastoId, Long preGastoSucursalId) {
+        if (preGastoId == null || preGastoSucursalId == null) return null;
+        return repository.nombreAutorizador(preGastoId, preGastoSucursalId);
+    }
+
     public List<PreGasto> findByFuncionario(Long funcionarioId) {
         return repository.buscarPorFuncionario(funcionarioId);
     }

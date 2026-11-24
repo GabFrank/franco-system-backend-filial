@@ -30,6 +30,7 @@ class ReimpresionEsperaTest {
     @Mock private PdvCajaService pdvCajaService;
     @Mock private RetiroDetalleService retiroDetalleService;
     @Mock private ImpresionService impresionService;
+    @Mock private com.franco.dev.service.financiero.PreGastoService preGastoService;
     @InjectMocks private RetiroGraphQL retiroGraphQL;
     @InjectMocks private GastoGraphQL gastoGraphQL;
     @InjectMocks private PdvCajaGraphQL pdvCajaGraphQL;
