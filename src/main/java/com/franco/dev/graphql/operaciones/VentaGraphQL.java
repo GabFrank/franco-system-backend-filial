@@ -6,6 +6,7 @@ import com.franco.dev.service.operaciones.MonedaVenta;
 import com.franco.dev.domain.EmbebedPrimaryKey;
 import com.franco.dev.domain.empresarial.Sucursal;
 import com.franco.dev.domain.financiero.FacturaLegal;
+import com.franco.dev.domain.financiero.FormaPago;
 import com.franco.dev.domain.financiero.Moneda;
 import com.franco.dev.domain.financiero.VentaCredito;
 import com.franco.dev.domain.operaciones.Cobro;
@@ -274,6 +275,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
         if (ventaCreditoInput != null)
             ventaCreditoInput.setUsuarioId(auditorUsuarioId.firmanteSecundario(op,
                     ventaCreditoInput.getUsuarioId(), ventaInput.getCajaId()));
+        // Antes de la huella y del primer write: un rechazo no deja nada a medias. Misma condicion que guarda el credito.
+        if (ventaCreditoInput != null && ventaCreditoCuotaInputList != null)
+            exigirConvenioSolo(cobroDetalleList, Collections.emptyList());
 
         // Se reserva la huella de la venta ANTES del primer write. Consultar y recien poblar el
         // cache despues de persistir dejaba pasar a dos requests concurrentes (caja 662).
@@ -1351,6 +1355,9 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
              throw new GraphQLException("La venta no corresponde a este delivery");
          }
          pdvCajaService.exigirAccesoARegistroDeCaja(venta.getCaja());
+         // Sobre las lineas que llegan y las ya guardadas una a una, antes del descarte de descuentos repetidos.
+         if (ventaCreditoInput != null && venta.getCobro() != null)
+             exigirConvenioSolo(cobroDetalleList, cobroDetalleService.findByCobroId(venta.getCobro().getId()));
          VentaEstado estadoAnterior = venta.getEstado();
          try {
              venta.setEstado(VentaEstado.CONCLUIDA);
@@ -1390,6 +1397,33 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
              throw new GraphQLException("Ocurrio un problema, favor contactar con RRHH");
          }
      }
+
+    private void exigirConvenioSolo(List<CobroDetalleInput> entrantes, List<CobroDetalle> guardadas) {
+        List<String> formasPago = new ArrayList<>();
+        boolean conDescuento = false;
+        for (CobroDetalleInput cd : entrantes != null ? entrantes : Collections.<CobroDetalleInput>emptyList()) {
+            conDescuento |= Boolean.TRUE.equals(cd.getDescuento());
+            formasPago.add(cd.getFormaPagoId() == null ? null
+                    : formaPagoService.findById(cd.getFormaPagoId()).map(FormaPago::getDescripcion).orElse(null));
+        }
+        for (CobroDetalle cd : guardadas) {
+            conDescuento |= Boolean.TRUE.equals(cd.getDescuento());
+            formasPago.add(cd.getFormaPago() != null ? cd.getFormaPago().getDescripcion() : null);
+        }
+        exigirConvenioSolo(formasPago, conDescuento);
+    }
+
+    /** Una venta por convenio se paga solo por convenio y sin descuento, en cualquier orden y por cualquier monto. */
+    static void exigirConvenioSolo(List<String> formasPago, boolean conDescuento) {
+        if (conDescuento) {
+            throw new GraphQLException("No se puede aplicar descuento a una venta por convenio.");
+        }
+        for (String formaPago : formasPago) {
+            if (!"CONVENIO".equals(formaPago)) {
+                throw new GraphQLException("El convenio solo se puede usar como \u00fanica forma de pago.");
+            }
+        }
+    }
 
     public Page<Venta> ventasPorCajaId(Long idVenta, Long idCaja, Integer page, Integer size, Boolean asc, Long sucId,
             Long formaPago, VentaEstado estado, Boolean isDelivery, Long monedaId, Boolean conDescuento, Boolean conAumento) {
