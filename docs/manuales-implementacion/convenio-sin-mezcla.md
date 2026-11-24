@@ -97,6 +97,32 @@ Filial propio en 8082 (sucursal 24, SIFEN apagado) + desktop web con `MR`:
 | — | A | PWA y mobile tienen `saveVenta` en `graphql-query`, pero sin llamador (en mobile, `onSaveVenta` comentado en `venta.service.ts:47`). | Se confirma N/A. |
 | — | B | El spec de Karma no corre en ningún gate. | Se corre a mano; la prueba real es por pantalla. |
 
+## Pruebas de runtime hechas (24/11)
+
+Filial de la rama en 8082 (sucursal 24, SIFEN apagado), central de `develop` en 8081 (sin migrar nada),
+desktop de la rama en `127.0.0.1:4200`, usuario MR, caja 1185:
+- Efectivo 1.500 → botón Convenio y F6: aviso «quitá las otras formas de pago», no abre el diálogo.
+- Borrar el efectivo, F9 10 % (500) → Convenio: aviso de descuento.
+- Borrar el descuento → Convenio por 6.500, firma → venta 79373 CONCLUIDA con una sola línea CONVENIO.
+- `saveVenta` por API: efectivo+convenio, convenio+tarjeta y descuento+convenio → los tres rechazados
+  con su mensaje; la última venta de la caja siguió siendo la 79373.
+- Delivery 8067: efectivo 2.000 guardado → Convenio bloqueado; `saveVentaDelivery` por API (con la
+  línea reenviada y sin reenviarla) → rechazado; borrar la línea → convenio por 11.500, delivery
+  CONCLUIDO con una sola línea CONVENIO.
+- No probado por pantalla: el descuento precargado por producto (`data.descuento`), porque el PDV no
+  deja cargar descuento por ítem. Genera la misma línea `descuento=true` que F9: lo cubren la prueba
+  de F9 y el spec.
+
+## Auditoría del diff (paso 8)
+
+Ejes fijos 1–3; condicionales A y B no aplican (sin migraciones ni maquinaria de release).
+0 bloqueantes, 0 mayores. Menores, sin cambio de código:
+- `findByCobroId` no filtra por sucursal: mismo patrón que la línea que ya estaba debajo.
+- Una línea CONVENIO **sin** `ventaCreditoInput` no se valida: ningún cliente lo arma; sería otro defecto
+  (convenio cobrado sin crédito registrado).
+- En delivery, un F6 antes de que cargue el replay de líneas abre el diálogo: lo frena el filial al
+  cerrar (igual que con un desktop viejo).
+
 ## Sin verificar / riesgos
 
 - Un funcionario con saldo de convenio menor al total ya no puede completar con efectivo: es la regla
