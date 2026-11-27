@@ -1374,7 +1374,8 @@ public class VentaGraphQL implements GraphQLQueryResolver, GraphQLMutationResolv
                   }
               }
               for (CobroDetalleInput cd : cobroDetalleList) {
-                  if (cd.getDescuento() != null && cd.getDescuento()) {
+                  // Un descuento sin monto se descarta en guardarDetalle: no cuenta como el descuento (#286)
+                  if (cd.getDescuento() != null && cd.getDescuento() && cd.getValor() != null) {
                       if (discountApplied) continue;
                       discountApplied = true;
                   }

@@ -507,6 +507,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                     if (venta.getEstado() == VentaEstado.CONCLUIDA
                             || venta.getEstado() == VentaEstado.EN_VERIFICACION) {
                         for (CobroDetalle cobroDetalle : cobroDetalleList) {
+                            if (lineaIncompleta(cobroDetalle)) continue;
                             // Un descuento en otra moneda que la de la empresa (PDV en USD, fase 4) se
                             // perdia: solo se sumaban los de guaranies en efectivo.
                             Double descuentoOtraMoneda = descuentoEnOtraMoneda(cobroDetalle);
@@ -574,7 +575,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                         // Una cancelada no toca vuelto, descuento ni aumento: nunca los sumo arriba.
                         // Restar el vuelto (negativo) lo sumaba y la caja daba faltante (caja 7440).
                         for (CobroDetalle cobroDetalle : cobroDetalleList) {
-                            if (!Boolean.TRUE.equals(cobroDetalle.getPago())) {
+                            if (!Boolean.TRUE.equals(cobroDetalle.getPago()) || lineaIncompleta(cobroDetalle)) {
                                 continue;
                             }
                             if (cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")) {
@@ -1038,6 +1039,14 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
             }
             throw new GraphQLException("Hay otra operación en curso en esta caja. Reintentá en unos segundos.");
         }
+    }
+
+    /**
+     * Una línea sin monto, moneda o forma de pago no suma: con una sola así el balance de toda la caja
+     * lanzaba NPE y no se podía retirar (#286, filial 18, caja 2996).
+     */
+    static boolean lineaIncompleta(CobroDetalle cd) {
+        return cd.getValor() == null || cd.getMoneda() == null || cd.getFormaPago() == null;
     }
 
     /** Un monto nulo cuenta como 0. */

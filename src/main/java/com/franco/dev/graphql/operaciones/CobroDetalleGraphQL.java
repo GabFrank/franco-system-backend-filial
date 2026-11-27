@@ -9,9 +9,12 @@ import com.franco.dev.service.operaciones.CobroService;
 import com.franco.dev.service.operaciones.CompraService;
 import com.franco.dev.service.personas.UsuarioService;
 import com.franco.dev.service.seguridad.AuditorUsuarioId;
+import graphql.GraphQLException;
 import graphql.kickstart.tools.GraphQLMutationResolver;
 import graphql.kickstart.tools.GraphQLQueryResolver;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +26,8 @@ import java.util.Optional;
 
 @Component
 public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutationResolver {
+
+    private static final Logger log = LoggerFactory.getLogger(CobroDetalleGraphQL.class);
 
     @Autowired
     private AuditorUsuarioId auditorUsuarioId;
@@ -63,6 +68,11 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     @org.springframework.transaction.annotation.Transactional
     public CobroDetalle saveCobroDetalle(CobroDetalleInput input) {
+        // Responde CobroDetalle!: un null llegaría como error genérico; el desktop revierte la línea igual (#286)
+        if (input.getValor() == null) {
+            guardarDetalle(input); // solo deja el aviso en el log
+            throw new GraphQLException("La línea de cobro no tiene monto: no se guardó.");
+        }
         boolean edicion = input.getId() != null && service.findById(input.getId()).isPresent();
         CobroDetalle cd = guardarDetalle(input);
         if (edicion && cd != null) emitirCobroEditado(cd.getCobro());
@@ -98,6 +108,13 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
     /** Guardado sin aviso: lo usan saveVenta, saveVentaDelivery y CobroGraphQL. */
     public CobroDetalle guardarDetalle(CobroDetalleInput input) {
         auditorUsuarioId.verificar("CobroDetalleGraphQL.saveCobroDetalle", input.getUsuarioId());
+        // Una línea sin monto rompía el balance de toda la caja y trababa el retiro (#286, filial 18)
+        if (input.getValor() == null) {
+            log.warn("COBRO_DETALLE_SIN_VALOR_DESCARTADO cobro={} id={} usuario={} moneda={} formaPago={} pago={} vuelto={} descuento={} aumento={}",
+                    input.getCobroId(), input.getId(), input.getUsuarioId(), input.getMonedaId(), input.getFormaPagoId(),
+                    input.getPago(), input.getVuelto(), input.getDescuento(), input.getAumento());
+            return null;
+        }
         ModelMapper m = new ModelMapper();
         CobroDetalle e = m.map(input, CobroDetalle.class);
         if (input.getUsuarioId() != null) e.setUsuario(usuarioService.findById(input.getUsuarioId()).orElse(null));
