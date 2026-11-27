@@ -142,13 +142,38 @@ class PdvCajaServiceBalanceTest {
     @Test
     void ventaCanceladaConFlagsNulosNoRompeElBalance() {
         movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "GUARANI", 100_000);
-        CobroDetalle sinFlags = detalle("GUARANI", 15_000, null, null, null, null);
+        CobroDetalle sinFlags = detalle("GUARANI", 15_000.0, null, null, null, null);
         venta(VentaEstado.CANCELADA, 15_000, sinFlags);
 
         PdvCajaBalanceDto b = service.generarBalance(caja());
 
         igual(0.0, b.getTotalCanceladasGs());
         igual(-100_000.0, b.getDiferenciaGs(), "caja abierta: saldo = apertura");
+    }
+
+    @Test
+    void lineaDeCobroSinMontoNoRompeElBalance() {
+        // Filial 18, caja 2996 (#286): un pago con valor NULL en un delivery trababa el retiro de toda la caja
+        movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "GUARANI", 100_000);
+        venta(VentaEstado.CONCLUIDA, 29_000, pago("GUARANI", 100_000), detalle("GUARANI", null, true, false, false, false),
+                vuelto("GUARANI", -66_000));
+        // la cancelada no lee la forma de pago: un pago sin ella cuenta igual
+        CobroDetalle canceladoSinFormaPago = pago("GUARANI", 3_000);
+        canceladoSinFormaPago.setFormaPago(null);
+        venta(VentaEstado.CANCELADA, 13_000, detalle("GUARANI", null, true, false, false, false), pago("GUARANI", 10_000),
+                canceladoSinFormaPago);
+        CobroDetalle sinMoneda = pago("GUARANI", 5_000);
+        sinMoneda.setMoneda(null);
+        CobroDetalle sinFormaPago = pago("GUARANI", 7_000);
+        sinFormaPago.setFormaPago(null);
+        venta(VentaEstado.CONCLUIDA, 12_000, sinMoneda, sinFormaPago);
+
+        PdvCajaBalanceDto b = service.generarBalance(caja());
+
+        igual(100_000.0, b.getTotalVentaGs());
+        igual(-66_000.0, b.getVueltoGs());
+        igual(13_000.0, b.getTotalCanceladasGs());
+        igual(134_000.0, PdvCajaService.saldoEnCaja(b, "GUARANI"));
     }
 
     @Test
@@ -348,7 +373,7 @@ class PdvCajaServiceBalanceTest {
         return detalle("GUARANI", valor, false, false, false, true);
     }
 
-    private static CobroDetalle detalle(String moneda, double valor, Boolean pago, Boolean vuelto,
+    private static CobroDetalle detalle(String moneda, Double valor, Boolean pago, Boolean vuelto,
                                         Boolean descuento, Boolean aumento) {
         CobroDetalle d = new CobroDetalle();
         d.setMoneda(moneda(moneda));
