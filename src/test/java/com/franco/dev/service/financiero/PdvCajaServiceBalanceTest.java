@@ -157,7 +157,11 @@ class PdvCajaServiceBalanceTest {
         movimiento(PdvCajaTipoMovimiento.CAJA_INICIAL, "GUARANI", 100_000);
         venta(VentaEstado.CONCLUIDA, 29_000, pago("GUARANI", 100_000), detalle("GUARANI", null, true, false, false, false),
                 vuelto("GUARANI", -66_000));
-        venta(VentaEstado.CANCELADA, 10_000, detalle("GUARANI", null, true, false, false, false), pago("GUARANI", 10_000));
+        // la cancelada no lee la forma de pago: un pago sin ella cuenta igual
+        CobroDetalle canceladoSinFormaPago = pago("GUARANI", 3_000);
+        canceladoSinFormaPago.setFormaPago(null);
+        venta(VentaEstado.CANCELADA, 13_000, detalle("GUARANI", null, true, false, false, false), pago("GUARANI", 10_000),
+                canceladoSinFormaPago);
         CobroDetalle sinMoneda = pago("GUARANI", 5_000);
         sinMoneda.setMoneda(null);
         CobroDetalle sinFormaPago = pago("GUARANI", 7_000);
@@ -168,7 +172,7 @@ class PdvCajaServiceBalanceTest {
 
         igual(100_000.0, b.getTotalVentaGs());
         igual(-66_000.0, b.getVueltoGs());
-        igual(10_000.0, b.getTotalCanceladasGs());
+        igual(13_000.0, b.getTotalCanceladasGs());
         igual(134_000.0, PdvCajaService.saldoEnCaja(b, "GUARANI"));
     }
 

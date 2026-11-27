@@ -68,13 +68,12 @@ public class CobroDetalleGraphQL implements GraphQLQueryResolver, GraphQLMutatio
      */
     @org.springframework.transaction.annotation.Transactional
     public CobroDetalle saveCobroDetalle(CobroDetalleInput input) {
-        // Responde CobroDetalle!: un null llegaría como error genérico; el desktop revierte la línea igual (#286)
-        if (input.getValor() == null) {
-            guardarDetalle(input); // solo deja el aviso en el log
-            throw new GraphQLException("La línea de cobro no tiene monto: no se guardó.");
-        }
         boolean edicion = input.getId() != null && service.findById(input.getId()).isPresent();
         CobroDetalle cd = guardarDetalle(input);
+        // Responde CobroDetalle!: un null llegaría como error genérico; el desktop revierte la línea igual (#286)
+        if (cd == null && input.getValor() == null) {
+            throw new GraphQLException("La línea de cobro no tiene monto: no se guardó.");
+        }
         if (edicion && cd != null) emitirCobroEditado(cd.getCobro());
         return cd;
     }

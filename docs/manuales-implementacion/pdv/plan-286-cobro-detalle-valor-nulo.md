@@ -62,6 +62,36 @@ No cambia ningún tipo ni campo GraphQL ni tabla. No hay dato nuevo.
    - Revertir cada fix y comprobar que su test falla.
 3. `./mvnw clean verify -B` leído del log.
 
+## Fase 2 — auditoría del diff (un commit `fix(caja): ...`)
+
+Hallazgos del paso 8 que se aplicaron:
+
+- `saveCobroDetalle` llama una sola vez a `guardarDetalle` y lanza si devolvió null por falta de
+  monto (antes lo llamaba solo para loguear).
+- `lineaIncompleta` mira solo monto y moneda. La forma de pago se exige únicamente donde se lee:
+  una cancelada sin forma de pago cuenta en `totalCanceladas*`, y un descuento en otra moneda se
+  suma antes del control de forma de pago.
+- Tests nuevos: editar una línea guardada dejándola sin monto se rechaza (antes pisaba el monto con
+  NULL); `saveCobroDetalleList` devuelve null en la línea sin monto; el control de un solo descuento
+  de `saveVentaDelivery`. Con el código de `develop` fallan los 7 tests del arreglo.
+- El test de `guardarCobro` usa un `CobroDetalleGraphQL` falso: prueba que el descuento válido
+  llega a `guardarDetalle`. Que la línea sin monto no se graba lo prueba `guardarDetalleSinMontoNoGraba`.
+
+Sin aplicar, a propósito: un segundo descuento **sin monto** ahora deja `COBRO_DETALLE_SIN_VALOR_DESCARTADO`
+en lugar de `SEGUNDO_DESCUENTO_DESCARTADO`; en los dos casos no se graba.
+
+## Resultado de la prueba de runtime (27/11, filial de la rama en el 8082, sucursal 24, caja 1185)
+
+1. Delivery nuevo: pago 100.000, X + Enter con el campo vacío, Enter con el vuelto −89.000 y
+   Guardar. El desktop armó la misma línea que la fila 297400 (efectivo Gs, sin monto, «Pago»). El
+   filial grabó solo el pago y el vuelto y dejó `COBRO_DETALLE_SIN_VALOR_DESCARTADO cobro=79540
+   id=null usuario=null moneda=1 formaPago=1 pago=true`. El origen queda confirmado.
+2. Delivery guardado, «Editar info.»: el mismo Enter muestra «Ups! Algo salió mal en operacion: La
+   línea de cobro no tiene monto: no se guardó.», la línea no se agrega y no se graba nada.
+3. Con un pago sin monto sembrado en una venta concluida de la caja 1185, el diálogo de Retiro abre
+   sin «No se pudo verificar el saldo» y `balancePorCajaId(1185)` responde (diferencia −7.327.150).
+4. Datos de prueba borrados y los clientes de las ventas 79306/79308/79309 restaurados.
+
 ## Prueba de runtime (local, filial propio en el 8082, sucursal 24, SIFEN apagado)
 
 1. Sembrar por SQL una línea con `valor` NULL en una venta concluida de una caja abierta de la 24.

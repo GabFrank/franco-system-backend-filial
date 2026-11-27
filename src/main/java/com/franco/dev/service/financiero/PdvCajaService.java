@@ -515,6 +515,7 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
                                 totalDescuento += descuentoOtraMoneda;
                                 continue;
                             }
+                            if (cobroDetalle.getFormaPago() == null) continue; // #286: sin forma de pago no se sabe a qué total va
                             if (cobroDetalle.getMoneda().getDenominacion().contains("GUARANI")) {
                                 if (cobroDetalle.getFormaPago().getDescripcion().contains("EFECTIVO")) {
                                     if (cobroDetalle.getDescuento() != null && cobroDetalle.getDescuento()) {
@@ -1042,11 +1043,11 @@ public class PdvCajaService extends CrudService<PdvCaja, PdvCajaRepository> {
     }
 
     /**
-     * Una línea sin monto, moneda o forma de pago no suma: con una sola así el balance de toda la caja
-     * lanzaba NPE y no se podía retirar (#286, filial 18, caja 2996).
+     * Una línea sin monto o sin moneda no suma: con una sola así el balance de toda la caja lanzaba NPE y
+     * no se podía retirar (#286, filial 18, caja 2996). La forma de pago se mira aparte, solo donde se lee.
      */
     static boolean lineaIncompleta(CobroDetalle cd) {
-        return cd.getValor() == null || cd.getMoneda() == null || cd.getFormaPago() == null;
+        return cd.getValor() == null || cd.getMoneda() == null;
     }
 
     /** Un monto nulo cuenta como 0. */
