@@ -5,8 +5,11 @@ import com.franco.dev.domain.personas.Funcionario;
 import com.franco.dev.domain.personas.Persona;
 import com.franco.dev.domain.personas.Usuario;
 import com.franco.dev.service.personas.*;
+import com.franco.dev.service.seguridad.RolSesionService;
+import com.franco.dev.service.seguridad.UsuarioSesionService;
 import graphql.kickstart.tools.GraphQLResolver;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -29,6 +32,15 @@ public class PersonaResolver implements GraphQLResolver<Persona> {
     @Autowired
     private ProveedorService proveedorService;
 
+    @Autowired
+    private RolSesionService rolSesionService;
+
+    @Autowired
+    private UsuarioSesionService usuarioSesionService;
+
+    @Value("${personas.embedding-facial.restringido:false}")
+    private boolean embeddingRestringido;
+
     public Boolean isFuncionario(Persona p){
         return funcionarioService.findByPersonaId(p.getId())!=null;
     }
@@ -45,7 +57,12 @@ public class PersonaResolver implements GraphQLResolver<Persona> {
         return usuarioService.findByPersonaId(p.getId())!=null;
     }
 
+    /** Con {@code personas.embedding-facial.restringido}: el titular, RRHH GESTIONAR o ADMIN; los demás, null. */
     public String embeddingFacial(Persona p) {
-        return p.getEmbedding();
+        if (!embeddingRestringido || p.getEmbedding() == null) return p.getEmbedding();
+        if (!usuarioSesionService.idDelUsuarioActivoAutenticado().isPresent()) return null;
+        Usuario duenio = usuarioService.findByPersonaId(p.getId());
+        return rolSesionService.esDuenioOTieneRol(duenio != null ? duenio.getId() : null, "RRHH GESTIONAR")
+                ? p.getEmbedding() : null;
     }
 }
